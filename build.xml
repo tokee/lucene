@@ -167,7 +167,7 @@
           <attribute name="Specification-Vendor" value="Lucene"/>
           <attribute name="Implementation-Title" value="org.apache.lucene"/>
           <attribute name="Implementation-Version" value="build ${DSTAMP} ${TSTAMP}"/>
-          <attribute name="Implementation-Vemdpr" value="Lucene"/>
+          <attribute name="Implementation-Vendor" value="Lucene"/>
         </section>
       </manifest>
     </jar>
