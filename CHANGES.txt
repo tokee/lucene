@@ -8,6 +8,9 @@ $Id$
     missing, others duplicated) if the sort keys were not unique and there
     were more than 100 matches. (Daniel Naber)
 
+ 2. Memory leak in Sort code (bug #31240) eliminated.
+    (Rafal Krzewski via Christoph and Daniel)
+
 
 1.4.1
 
