@@ -10,6 +10,9 @@ $Id$
     own code please make sure your code also properly escapes HTML
     characters from user input in order to avoid so-called cross site
     scripting attacks. (Daniel Naber)
+  
+  2. QueryParser changes in 1.4.2 broke the QueryParser API. Now the old 
+     API is supported again. (Christoph)
 
 1.4.2
 
