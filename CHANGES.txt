@@ -28,6 +28,10 @@ $Id$
     to specify a minimum similarity for FuzzyQuery has been added.
     (Christoph Goller)
 
+ 6. IndexSearcher optimization: a new ScoreDoc is no longer allocated
+    for every non-zero-scoring hit.  This makes 'OR' queries that
+    contain common terms substantially faster.  (cutting)
+
 
 1.4.1
 
