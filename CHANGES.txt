@@ -2,6 +2,15 @@ Lucene Change Log
 
 $Id$
 
+Release 2.0.1 (not yet released)
+
+Bug fixes
+
+ 1. Fixed the web application demo (built with "ant war-demo") which
+    didn't work because it used a QueryParser method that had 
+    been removed (Daniel Naber)
+
+
 Release 2.0.0 2005-05-26
 
 API Changes
