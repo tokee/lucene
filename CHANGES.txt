@@ -45,6 +45,10 @@ Bug fixes
 12. LUCENE-1270: Fixed intermittant case where IndexWriter.close()
     would hang after IndexWriter.addIndexesNoOptimize had been
     called.  (Stu Hood via Mike McCandless)
+
+13. LUCENE-1347: Fixed hang in IndexWriter.abort() if it was called
+    again after previously hitting an exception during a prior call.
+    (Mike McCandless)
 	
 Build
 

@@ -2311,7 +2311,6 @@ public class TestIndexWriter extends LuceneTestCase
       writer.setMergeFactor(4);
 
       IndexerThread[] threads = new IndexerThread[NUM_THREADS];
-      boolean diskFull = false;
 
       for(int i=0;i<NUM_THREADS;i++)
         threads[i] = new IndexerThread(writer, false);
@@ -2404,7 +2403,6 @@ public class TestIndexWriter extends LuceneTestCase
       dir.setMaxSizeInBytes(4*1024+20*iter);
 
       IndexerThread[] threads = new IndexerThread[NUM_THREADS];
-      boolean diskFull = false;
 
       for(int i=0;i<NUM_THREADS;i++)
         threads[i] = new IndexerThread(writer, true);
@@ -2442,7 +2440,7 @@ public class TestIndexWriter extends LuceneTestCase
   private static class FailOnlyOnAbortOrFlush extends MockRAMDirectory.Failure {
     private boolean onlyOnce;
     public FailOnlyOnAbortOrFlush(boolean onlyOnce) {
-      this.onlyOnce = true;
+      this.onlyOnce = onlyOnce;
     }
     public void eval(MockRAMDirectory dir)  throws IOException {
       if (doFail) {
@@ -2502,7 +2500,6 @@ public class TestIndexWriter extends LuceneTestCase
       writer.setMergeFactor(4);
 
       IndexerThread[] threads = new IndexerThread[NUM_THREADS];
-      boolean diskFull = false;
 
       for(int i=0;i<NUM_THREADS;i++)
         threads[i] = new IndexerThread(writer, true);
@@ -2584,7 +2581,7 @@ public class TestIndexWriter extends LuceneTestCase
   private static class FailOnlyInCloseDocStore extends MockRAMDirectory.Failure {
     private boolean onlyOnce;
     public FailOnlyInCloseDocStore(boolean onlyOnce) {
-      this.onlyOnce = true;
+      this.onlyOnce = onlyOnce;
     }
     public void eval(MockRAMDirectory dir)  throws IOException {
       if (doFail) {
@@ -2624,7 +2621,7 @@ public class TestIndexWriter extends LuceneTestCase
   private static class FailOnlyInWriteSegment extends MockRAMDirectory.Failure {
     private boolean onlyOnce;
     public FailOnlyInWriteSegment(boolean onlyOnce) {
-      this.onlyOnce = true;
+      this.onlyOnce = onlyOnce;
     }
     public void eval(MockRAMDirectory dir)  throws IOException {
       if (doFail) {
@@ -3034,5 +3031,39 @@ public class TestIndexWriter extends LuceneTestCase
     assertTrue(_TestUtil.checkIndex(dir));
     s.close();
     dir.close();
+  }
+
+  // LUCENE-1347
+  public class MockIndexWriter4 extends IndexWriter {
+
+    public MockIndexWriter4(Directory dir, boolean autoCommit, Analyzer a, boolean create) throws IOException {
+      super(dir, autoCommit, a, create);
+    }
+
+    boolean doFail;
+
+    boolean testPoint(String name) {
+      if (doFail && name.equals("abort before checkpoint"))
+        throw new RuntimeException("intentionally failing");
+      return true;
+    }
+  }
+
+  // LUCENE-1347
+  public void testRollbackExceptionHang() throws Throwable {
+    MockRAMDirectory dir = new MockRAMDirectory();
+    MockIndexWriter4 w = new MockIndexWriter4(dir, false, new WhitespaceAnalyzer(), true);
+
+    addDoc(w);
+    w.doFail = true;
+    try {
+      w.abort();
+      fail("did not hit intentional RuntimeException");
+    } catch (RuntimeException re) {
+      // expected
+    }
+    
+    w.doFail = false;
+    w.abort();
   }
 }

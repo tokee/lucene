@@ -1166,37 +1166,40 @@ public class IndexWriter {
    * then return.
    */
   public void close(boolean waitForMerges) throws CorruptIndexException, IOException {
-    boolean doClose;
 
     // If any methods have hit OutOfMemoryError, then abort
     // on close, in case the internal state of IndexWriter
     // or DocumentsWriter is corrupt
-    if (hitOOM)
+    if (hitOOM) {
       abort();
-
-    synchronized(this) {
-      // Ensure that only one thread actually gets to do the closing:
-      if (!closing) {
-        doClose = true;
-        closing = true;
-      } else
-        doClose = false;
+      return;
     }
-    if (doClose)
+
+    // Ensure that only one thread actually gets to do the closing:
+    if (shouldClose())
       closeInternal(waitForMerges);
-    else
-      // Another thread beat us to it (is actually doing the
-      // close), so we will block until that other thread
-      // has finished closing
-      waitForClose();
   }
 
-  synchronized private void waitForClose() {
-    while(!closed && closing) {
-      try {
-        wait();
-      } catch (InterruptedException ie) {
-      }
+  // Returns true if this thread should attempt to close, or
+  // false if IndexWriter is now closed; else, waits until
+  // another thread finishes closing
+  synchronized private boolean shouldClose() {
+    while(true) {
+      if (!closed) {
+        if (!closing) {
+          closing = true;
+          return true;
+        } else {
+          // Another thread is presently trying to close;
+          // wait until it finishes one way (closes
+          // successfully) or another (fails to close)
+          try {
+            wait();
+          } catch (InterruptedException ie) {
+          }
+        }
+      } else
+        return false;
     }
   }
 
@@ -1265,12 +1268,10 @@ public class IndexWriter {
       throw oom;
     } finally {
       synchronized(this) {
-        if (!closed) {
-          closing = false;
-          if (infoStream != null)
-            message("hit exception while closing");
-        }
+        closing = false;
         notifyAll();
+        if (!closed && infoStream != null)
+          message("hit exception while closing");
       }
     }
   }
@@ -2008,17 +2009,16 @@ public class IndexWriter {
     if (autoCommit)
       throw new IllegalStateException("abort() can only be called when IndexWriter was opened with autoCommit=false");
 
-    boolean doClose;
-    synchronized(this) {
-      // Ensure that only one thread actually gets to do the closing:
-      if (!closing) {
-        doClose = true;
-        closing = true;
-      } else
-        doClose = false;
-    }
+    // Ensure that only one thread actually gets to do the closing:
+    if (shouldClose())
+      abortInternal();
+  }
 
-    if (doClose) {
+  private void abortInternal() throws IOException {
+
+    boolean success = false;
+
+    try {
 
       finishMerges(false);
 
@@ -2039,6 +2039,8 @@ public class IndexWriter {
 
         docWriter.abort(null);
 
+        assert testPoint("abort before checkpoint");
+
         // Ask deleter to locate unreferenced files & remove
         // them:
         deleter.checkpoint(segmentInfos, false);
@@ -2046,9 +2048,23 @@ public class IndexWriter {
       }
 
       commitPending = false;
-      closeInternal(false);
-    } else
-      waitForClose();
+
+      success = true;
+    } catch (OutOfMemoryError oom) {
+      hitOOM = true;
+      throw oom;
+    } finally {
+      synchronized(this) {
+        if (!success) {
+          closing = false;
+          notifyAll();
+          if (infoStream != null)
+            message("hit exception while aborting");
+        }
+      }
+    }
+
+    closeInternal(false);
   }
 
   private synchronized void finishMerges(boolean waitForMerges) throws IOException {
@@ -2205,7 +2221,6 @@ public class IndexWriter {
             SegmentInfos sis = new SegmentInfos();	  // read infos from dir
             sis.read(dirs[i]);
             for (int j = 0; j < sis.size(); j++) {
-              final SegmentInfo info = sis.info(j);
               segmentInfos.addElement(sis.info(j));	  // add each info
             }
           }
