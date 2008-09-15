@@ -2804,8 +2804,8 @@ public class TestIndexWriter extends LuceneTestCase
       super(dir, new StandardAnalyzer());
       myDir = dir;
     }
-    synchronized MergePolicy.OneMerge getNextMerge() {
-      MergePolicy.OneMerge merge = super.getNextMerge();
+    synchronized MergePolicy.OneMerge getNextMerge(boolean allowExternal) {
+      MergePolicy.OneMerge merge = super.getNextMerge(allowExternal);
       if (merge != null)
         mergeCount++;
       return merge;

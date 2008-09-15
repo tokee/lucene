@@ -49,6 +49,12 @@ Bug fixes
 13. LUCENE-1347: Fixed hang in IndexWriter.abort() if it was called
     again after previously hitting an exception during a prior call.
     (Mike McCandless)
+
+14. LUCENE-1384: Fixed intermittant "segment XXX exists in external
+    directory yet the MergeScheduler executed the merge in a separate
+    thread" exception from being thrown by
+    IndexWriter.addIndexesNoOptimize when using
+    ConcurrentMergeScheduler.  (Anthony Urso via Mike McCandless)
 	
 Build
 

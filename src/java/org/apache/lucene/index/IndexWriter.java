@@ -1778,6 +1778,12 @@ public class IndexWriter {
           } catch (InterruptedException ie) {
           }
 
+          // Since we may have external segments in the
+          // index, which CMS BG threads can't touch, we
+          // need to give FG thread a chance to run merges
+          // here:
+          maybeMerge(maxNumSegments, true);
+
           if (mergeExceptions.size() > 0) {
             // Forward any exceptions in background merge
             // threads to the current thread:
@@ -1871,16 +1877,29 @@ public class IndexWriter {
 
   /** Expert: the {@link MergeScheduler} calls this method
    *  to retrieve the next merge requested by the
-   *  MergePolicy */
-  synchronized MergePolicy.OneMerge getNextMerge() {
+   *  MergePolicy.  If allowExternal is true then any
+   *  pending merge may be returned; else, only merges not
+   *  involving external segments may be returned. */
+  synchronized MergePolicy.OneMerge getNextMerge(boolean allowExternal) {
     if (pendingMerges.size() == 0)
       return null;
     else {
-      // Advance the merge from pending to running
-      MergePolicy.OneMerge merge = (MergePolicy.OneMerge) pendingMerges.removeFirst();
-      runningMerges.add(merge);
-      return merge;
+      Iterator it = pendingMerges.iterator();
+      while(it.hasNext()) {
+        MergePolicy.OneMerge merge = (MergePolicy.OneMerge) it.next();
+        if (allowExternal || !merge.isExternal) {
+          // Advance the merge from pending to running
+          it.remove();
+          runningMerges.add(merge);
+          return merge;
+        }
+      }
+      return null;
     }
+  }
+
+  synchronized MergePolicy.OneMerge getNextMerge() {
+    return getNextMerge(true);
   }
 
   /*

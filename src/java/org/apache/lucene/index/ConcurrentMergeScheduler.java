@@ -241,7 +241,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
 
           // Subsequent times through the loop we do any new
           // merge that writer says is necessary:
-          merge = writer.getNextMerge();
+          merge = writer.getNextMerge(false);
           if (merge != null) {
             writer.mergeInit(merge);
             message("  merge thread: do another merge " + merge.segString(dir));
