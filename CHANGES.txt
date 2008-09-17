@@ -1,6 +1,23 @@
 Lucene Change Log
 $Id$
 
+======================= 2.3.x branch (not yet released) =======================
+
+Bug fixes
+
+ 1. LUCENE-1282: add workaround for nasty JRE bug that strikes when
+    merging very large segments (Mike McCandless)
+
+ 2. LUCENE-1347: Fixed hang in IndexWriter.abort() if it was called
+    again after previously hitting an exception during a prior call.
+    (Mike McCandless)
+
+ 3. LUCENE-1384: Fixed intermittant "segment XXX exists in external
+    directory yet the MergeScheduler executed the merge in a separate
+    thread" exception from being thrown by
+    IndexWriter.addIndexesNoOptimize when using
+    ConcurrentMergeScheduler.  (Anthony Urso via Mike McCandless)
+	
 ======================= Release 2.3.2 2008-05-05 =======================
 
 Bug fixes
@@ -46,16 +63,6 @@ Bug fixes
     would hang after IndexWriter.addIndexesNoOptimize had been
     called.  (Stu Hood via Mike McCandless)
 
-13. LUCENE-1347: Fixed hang in IndexWriter.abort() if it was called
-    again after previously hitting an exception during a prior call.
-    (Mike McCandless)
-
-14. LUCENE-1384: Fixed intermittant "segment XXX exists in external
-    directory yet the MergeScheduler executed the merge in a separate
-    thread" exception from being thrown by
-    IndexWriter.addIndexesNoOptimize when using
-    ConcurrentMergeScheduler.  (Anthony Urso via Mike McCandless)
-	
 Build
 
  1. LUCENE-1230: Include *pom.xml* in source release files. (Michael Busch)
