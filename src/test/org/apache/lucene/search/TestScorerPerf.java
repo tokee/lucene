@@ -51,6 +51,7 @@ public class TestScorerPerf extends LuceneTestCase {
     // This could possibly fail if Lucene starts checking for docid ranges...
     RAMDirectory rd = new RAMDirectory();
     IndexWriter iw = new IndexWriter(rd,new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+    iw.addDocument(new Document());
     iw.close();
     s = new IndexSearcher(rd);
   }
