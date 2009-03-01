@@ -458,7 +458,7 @@ public class TestIndexReaderReopen extends LuceneTestCase {
       
       reader3.close();
       assertRefCountEquals(0, reader1);
-      assertReaderOpen(reader1);
+      assertReaderClosed(reader1, true, false);
       
       reader2.close();
       assertRefCountEquals(0, reader1);
@@ -511,17 +511,17 @@ public class TestIndexReaderReopen extends LuceneTestCase {
       assertRefCountEquals(1 + mode, reader1);
       
       reader1.close();
-      assertRefCountEquals(3, reader1);
+      assertRefCountEquals(1, reader1);
       
       parallelReader2.close();
-      assertRefCountEquals(1, reader1);
+      assertRefCountEquals(0, reader1);
       
       parallelReader2.close();
       assertRefCountEquals(0, reader1);
       
       reader3.close();
       assertRefCountEquals(0, reader1);
-      assertReaderOpen(reader1);
+      assertReaderClosed(reader1, true, false);
       
       reader2.close();
       assertRefCountEquals(0, reader1);
@@ -565,13 +565,13 @@ public class TestIndexReaderReopen extends LuceneTestCase {
     
     // Now reader2-reader5 references reader1. reader1 and reader2
     // share the same norms. reader3, reader4, reader5 also share norms.
-    assertRefCountEquals(5, reader1);
+    assertRefCountEquals(1, reader1);
     assertFalse(reader1.normsClosed());
     reader1.close();
-    assertRefCountEquals(4, reader1);
+    assertRefCountEquals(0, reader1);
     assertFalse(reader1.normsClosed());
     reader2.close();
-    assertRefCountEquals(3, reader1);
+    assertRefCountEquals(0, reader1);
     // now the norms for field1 and field2 should be closed
     assertTrue(reader1.normsClosed("field1"));
     assertTrue(reader1.normsClosed("field2"));
@@ -580,10 +580,10 @@ public class TestIndexReaderReopen extends LuceneTestCase {
     assertFalse(reader1.normsClosed("field4"));
     
     reader3.close();
-    assertRefCountEquals(2, reader1);
+    assertRefCountEquals(0, reader1);
     assertFalse(reader3.normsClosed());
     reader5.close();
-    assertRefCountEquals(1, reader1);
+    assertRefCountEquals(0, reader1);
     assertFalse(reader3.normsClosed());
     reader4.close();
     assertRefCountEquals(0, reader1);
