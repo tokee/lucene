@@ -336,9 +336,11 @@ public class TestIndexReaderReopen extends LuceneTestCase {
       assertEquals(subReaders0.length, subReaders1.length);
       
       for (int i = 0; i < subReaders0.length; i++) {
-        assertRefCountEquals(2, subReaders0[i]);
         if (subReaders0[i] != subReaders1[i]) {
+          assertRefCountEquals(1, subReaders0[i]);
           assertRefCountEquals(1, subReaders1[i]);
+        } else {
+          assertRefCountEquals(2, subReaders0[i]);
         }
       }
 
@@ -362,10 +364,10 @@ public class TestIndexReaderReopen extends LuceneTestCase {
         } else {
           assertRefCountEquals(1, subReaders2[i]);
           if (subReaders0[i] == subReaders1[i]) {
-            assertRefCountEquals(3, subReaders2[i]);
+            assertRefCountEquals(2, subReaders2[i]);
             assertRefCountEquals(2, subReaders0[i]);
           } else {
-            assertRefCountEquals(3, subReaders0[i]);
+            assertRefCountEquals(1, subReaders0[i]);
             assertRefCountEquals(1, subReaders1[i]);
           }
         }
@@ -432,30 +434,30 @@ public class TestIndexReaderReopen extends LuceneTestCase {
       
       modifyIndex(0, dir1);
       IndexReader reader2 = reader1.reopen();
-      assertRefCountEquals(3 + mode, reader1);
+      assertRefCountEquals(2 + mode, reader1);
       
       modifyIndex(1, dir1);
       IndexReader reader3 = reader2.reopen();
-      assertRefCountEquals(4 + mode, reader1);
+      assertRefCountEquals(2 + mode, reader1);
       assertRefCountEquals(1, reader2);
       
       multiReader1.close();
-      assertRefCountEquals(3 + mode, reader1);
+      assertRefCountEquals(1 + mode, reader1);
       
       multiReader1.close();
-      assertRefCountEquals(3 + mode, reader1);
+      assertRefCountEquals(1 + mode, reader1);
       
       reader1.close();
-      assertRefCountEquals(3, reader1);
+      assertRefCountEquals(1, reader1);
       
       multiReader2.close();
-      assertRefCountEquals(2, reader1);
+      assertRefCountEquals(0, reader1);
       
       multiReader2.close();
-      assertRefCountEquals(2, reader1);
+      assertRefCountEquals(0, reader1);
       
       reader3.close();
-      assertRefCountEquals(1, reader1);
+      assertRefCountEquals(0, reader1);
       assertReaderOpen(reader1);
       
       reader2.close();
@@ -495,30 +497,30 @@ public class TestIndexReaderReopen extends LuceneTestCase {
       modifyIndex(0, dir1);
       modifyIndex(0, dir2);
       IndexReader reader2 = reader1.reopen();
-      assertRefCountEquals(3 + mode, reader1);
+      assertRefCountEquals(2 + mode, reader1);
       
       modifyIndex(4, dir1);
       IndexReader reader3 = reader2.reopen();
-      assertRefCountEquals(4 + mode, reader1);
+      assertRefCountEquals(2 + mode, reader1);
       assertRefCountEquals(1, reader2);
       
       parallelReader1.close();
-      assertRefCountEquals(3 + mode, reader1);
+      assertRefCountEquals(1 + mode, reader1);
       
       parallelReader1.close();
-      assertRefCountEquals(3 + mode, reader1);
+      assertRefCountEquals(1 + mode, reader1);
       
       reader1.close();
       assertRefCountEquals(3, reader1);
       
       parallelReader2.close();
-      assertRefCountEquals(2, reader1);
+      assertRefCountEquals(1, reader1);
       
       parallelReader2.close();
-      assertRefCountEquals(2, reader1);
+      assertRefCountEquals(0, reader1);
       
       reader3.close();
-      assertRefCountEquals(1, reader1);
+      assertRefCountEquals(0, reader1);
       assertReaderOpen(reader1);
       
       reader2.close();
