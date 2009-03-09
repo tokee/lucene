@@ -60,7 +60,7 @@ Bug fixes
     certain situations. (Jonathan Mamou, Greg Shackles, Mark Miller)
 
 14. LUCENE-1186: Add Analyzer.close() to free internal ThreadLocal
-    resources.  (Christian Kohlschütter via Mike McCandless)
+    resources.  (Christian KohlschÃ¼tter via Mike McCandless)
 
 15. LUCENE-1552: Fix IndexWriter.addIndexes(IndexReader[]) to properly
     rollback IndexWriter's internal state on hitting an
