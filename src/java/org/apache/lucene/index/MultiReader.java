@@ -369,4 +369,9 @@ public class MultiReader extends IndexReader {
   IndexReader[] getSubReaders() {
     return subReaders;
   }
+
+  // NOTE: STANDIN so back-compat tests compile
+  IndexReader[] getSequentialSubReaders() {
+    return subReaders;
+  }
 }

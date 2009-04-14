@@ -29,6 +29,7 @@ final class FieldInfo {
 
   boolean omitNorms; // omit norms associated with indexed fields  
   boolean omitTf; // omit tf
+  boolean omitTermFreqAndPositions; // NOTE: STANDIN so back-compat tests compile
   
   boolean storePayloads; // whether this field stores payloads together with term positions
 
