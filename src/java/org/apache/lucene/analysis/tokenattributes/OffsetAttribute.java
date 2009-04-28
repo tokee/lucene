@@ -62,6 +62,13 @@ public class OffsetAttribute extends Attribute implements Cloneable, Serializabl
     this.endOffset = offset;
   }
 
+  /** Set the starting and ending offset.
+    @see #startOffset() and #endOffset()*/
+  public void setOffset(int startOffset, int endOffset) {
+    this.startOffset = startOffset;
+    this.endOffset = endOffset;
+  }
+
   public void clear() {
     startOffset = 0;
     endOffset = 0;
