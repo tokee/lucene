@@ -5,6 +5,10 @@ $Id$
 
 Bug fixes
 
+1. LUCENE-1611: Fix case where OutOfMemoryException in IndexWriter
+   could cause "infinite merging" to happen.  (Christiaan Fluit via
+   Mike McCandless)
+
 ======================= Release 2.4.1 2009-03-09 =======================
 
 Bug fixes

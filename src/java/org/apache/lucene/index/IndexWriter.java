@@ -1635,7 +1635,9 @@ public class IndexWriter {
 
       // Only allow a new merge to be triggered if we are
       // going to wait for merges:
-      flush(waitForMerges, true, true);
+      if (!hitOOM) {
+        flush(waitForMerges, true, true);
+      }
 
       if (waitForMerges)
         // Give merge scheduler last chance to run, in case
@@ -1651,7 +1653,9 @@ public class IndexWriter {
       if (infoStream != null)
         message("now call final commit()");
       
-      commit(0);
+      if (!hitOOM) {
+        commit(0);
+      }
 
       if (infoStream != null)
         message("at close: " + segString());
@@ -1672,8 +1676,7 @@ public class IndexWriter {
         closed = true;
       }
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "closeInternal");
     } finally {
       synchronized(this) {
         closing = false;
@@ -1936,8 +1939,7 @@ public class IndexWriter {
       if (doFlush)
         flush(true, false, false);
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "addDocument");
     }
   }
 
@@ -1954,8 +1956,7 @@ public class IndexWriter {
       if (doFlush)
         flush(true, false, false);
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "deleteDocuments");
     }
   }
 
@@ -1974,8 +1975,7 @@ public class IndexWriter {
       if (doFlush)
         flush(true, false, false);
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "deleteDocuments");
     }
   }
 
@@ -2064,8 +2064,7 @@ public class IndexWriter {
       if (doFlush)
         flush(true, false, false);
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "updateDocument");
     }
   }
 
@@ -2263,6 +2262,11 @@ public class IndexWriter {
     if (doWait) {
       synchronized(this) {
         while(true) {
+
+          if (hitOOM) {
+            throw new IllegalStateException("this writer hit an OutOfMemoryError; cannot complete optimize");
+          }
+
           if (mergeExceptions.size() > 0) {
             // Forward any exceptions in background merge
             // threads to the current thread:
@@ -2345,6 +2349,10 @@ public class IndexWriter {
         boolean running = true;
         while(running) {
 
+          if (hitOOM) {
+            throw new IllegalStateException("this writer hit an OutOfMemoryError; cannot complete expungeDeletes");
+          }
+
           // Check each merge that MergePolicy asked us to
           // do, to see if any of them are still running and
           // if any of them have hit an exception.
@@ -2423,6 +2431,11 @@ public class IndexWriter {
 
     if (stopMerges)
       return;
+
+    // Do not start new merges if we've hit OOME
+    if (hitOOM) {
+      return;
+    }
 
     final MergePolicy.MergeSpecification spec;
     if (optimize) {
@@ -2731,8 +2744,7 @@ public class IndexWriter {
 
       success = true;
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "rollbackInternal");
     } finally {
       synchronized(this) {
         if (!success) {
@@ -2904,8 +2916,7 @@ public class IndexWriter {
         }
       }
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "addIndexes");
     } finally {
       docWriter.resumeAllThreads();
     }
@@ -3041,8 +3052,7 @@ public class IndexWriter {
         }
       }
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "addIndexesNoOptimize");
     } finally {
       docWriter.resumeAllThreads();
     }
@@ -3296,8 +3306,7 @@ public class IndexWriter {
         }
       }
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "addIndexes");
     } finally {
       docWriter.resumeAllThreads();
     }
@@ -3455,6 +3464,18 @@ public class IndexWriter {
   // synchronized, ie, merges should be allowed to commit
   // even while a flush is happening
   private synchronized final boolean doFlush(boolean flushDocStores, boolean flushDeletes) throws CorruptIndexException, IOException {
+    try {
+      return doFlushInternal(flushDocStores, flushDeletes);
+    } finally {
+      docWriter.clearFlushPending();
+    }
+  }
+
+  private synchronized final boolean doFlushInternal(boolean flushDocStores, boolean flushDeletes) throws CorruptIndexException, IOException {
+
+    if (hitOOM) {
+      throw new IllegalStateException("this writer hit an OutOfMemoryError; cannot flush");
+    }
 
     ensureOpen(false);
 
@@ -3605,10 +3626,9 @@ public class IndexWriter {
       return flushDocs;
 
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "doFlush");
+      return false;
     } finally {
-      docWriter.clearFlushPending();
       docWriter.resumeAllThreads();
     }
   }
@@ -3757,8 +3777,9 @@ public class IndexWriter {
 
     assert testPoint("startCommitMerge");
 
-    if (hitOOM)
-      return false;
+    if (hitOOM) {
+      throw new IllegalStateException("this writer hit an OutOfMemoryError; cannot complete merge");
+    }
 
     if (infoStream != null)
       message("commitMerge: " + merge.segString(directory) + " index=" + segString());
@@ -3837,6 +3858,11 @@ public class IndexWriter {
   }
 
   final private void handleMergeException(Throwable t, MergePolicy.OneMerge merge) throws IOException {
+
+    if (infoStream != null) {
+      message("handleMergeException: merge=" + merge.segString(directory) + " exc=" + t);
+    }
+
     // Set the exception on the merge, so if
     // optimize() is waiting on us it sees the root
     // cause exception:
@@ -3910,8 +3936,7 @@ public class IndexWriter {
         }
       }
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "merge");
     }
   }
 
@@ -3986,6 +4011,10 @@ public class IndexWriter {
 
     assert merge.registerDone;
     assert !merge.optimize || merge.maxNumSegmentsOptimize > 0;
+
+    if (hitOOM) {
+      throw new IllegalStateException("this writer hit an OutOfMemoryError; cannot merge");
+    }
 
     if (merge.info != null)
       // mergeInit already done
@@ -4670,8 +4699,7 @@ public class IndexWriter {
         }
       }
     } catch (OutOfMemoryError oom) {
-      hitOOM = true;
-      throw oom;
+      handleOOM(oom, "startCommit");
     }
     assert testPoint("finishStartCommit");
   }
@@ -4761,6 +4789,14 @@ public class IndexWriter {
      * */
     public static final MaxFieldLength LIMITED
         = new MaxFieldLength("LIMITED", DEFAULT_MAX_FIELD_LENGTH);
+  }
+
+  private void handleOOM(OutOfMemoryError oom, String location) {
+    if (infoStream != null) {
+      message("hit OutOfMemoryError inside " + location);
+    }
+    hitOOM = true;
+    throw oom;
   }
 
   // Used only by assert for testing.  Current points:
