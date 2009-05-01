@@ -42,8 +42,8 @@ final class FieldInfos {
   static final byte STORE_PAYLOADS = 0x20;
   static final byte OMIT_TF = 0x40;
   
-  private ArrayList byNumber = new ArrayList();
-  private HashMap byName = new HashMap();
+  private final ArrayList byNumber = new ArrayList();
+  private final HashMap byName = new HashMap();
 
   FieldInfos() { }
 
@@ -65,8 +65,8 @@ final class FieldInfos {
         // pre-utf8
         input.seek(0);
         input.setModifiedUTF8StringsMode();
-        byNumber = new ArrayList();
-        byName = new HashMap();
+        byNumber.clear();
+        byName.clear();
         try {
           read(input, name);
         } catch (Throwable t) {
