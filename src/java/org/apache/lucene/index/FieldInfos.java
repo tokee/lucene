@@ -57,7 +57,23 @@ final class FieldInfos {
   FieldInfos(Directory d, String name) throws IOException {
     IndexInput input = d.openInput(name);
     try {
-      read(input);
+      try {
+        read(input, name);
+      } catch (IOException ioe) {
+        // LUCENE-1623: this may be 2.3.2 (pre-utf8) or
+        // 2.4.x (utf8) encoding; retry with input set to
+        // pre-utf8
+        input.seek(0);
+        input.setModifiedUTF8StringsMode();
+        byNumber = new ArrayList();
+        byName = new HashMap();
+        try {
+          read(input, name);
+        } catch (Throwable t) {
+          // Ignore any new exception & throw original IOE
+          throw ioe;
+        }
+      }
     } finally {
       input.close();
     }
@@ -307,8 +323,8 @@ final class FieldInfos {
     }
   }
 
-  private void read(IndexInput input) throws IOException {
-    int size = input.readVInt();//read in the size
+  private void read(IndexInput input, String fileName) throws IOException {
+    int size = input.readVInt(); //read in the size
     for (int i = 0; i < size; i++) {
       String name = input.readString().intern();
       byte bits = input.readByte();
@@ -321,6 +337,10 @@ final class FieldInfos {
       boolean omitTf = (bits & OMIT_TF) != 0;
       
       addInternal(name, isIndexed, storeTermVector, storePositionsWithTermVector, storeOffsetWithTermVector, omitNorms, storePayloads, omitTf);
+    }
+
+    if (input.getFilePointer() != input.length()) {
+      throw new CorruptIndexException("did not read all bytes from file \"" + fileName + "\": read " + input.getFilePointer() + " vs size " + input.length());
     }    
   }
 

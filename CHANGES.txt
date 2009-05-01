@@ -9,6 +9,10 @@ Bug fixes
    could cause "infinite merging" to happen.  (Christiaan Fluit via
    Mike McCandless)
 
+2. LUCENE-1623: Properly handle back-compability of 2.3.x indexes that
+   contain field names with non-ascii characters.  (Mike Streeton via
+   Mike McCandless)
+
 ======================= Release 2.4.1 2009-03-09 =======================
 
 Bug fixes
