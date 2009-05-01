@@ -204,7 +204,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
         Document d = reader.document(i);
         List fields = d.getFields();
         if (oldName.startsWith("23.")) {
-          assertEquals(4, fields.size());
+          assertEquals(5, fields.size());
           Field f = (Field) d.getField("id");
           assertEquals(""+i, f.stringValue());
 
