@@ -419,24 +419,24 @@ implements Serializable {
 		assertMatches (full, queryY, sort, "HJDBF");
 	}
 
-	// test a variety of sorts using more than one searcher
-	public void testMultiSort() throws Exception {
-		MultiSearcher searcher = new MultiSearcher (new Searchable[] { searchX, searchY });
-		runMultiSorts (searcher);
-	}
+  // test a variety of sorts using more than one searcher
+  public void testMultiSort() throws Exception {
+    MultiSearcher searcher = new MultiSearcher(new Searchable[] { searchX, searchY });
+    runMultiSorts(searcher, false);
+  }
 
-	// test a variety of sorts using a parallel multisearcher
-	public void testParallelMultiSort() throws Exception {
-		Searcher searcher = new ParallelMultiSearcher (new Searchable[] { searchX, searchY });
-		runMultiSorts (searcher);
-	}
+  // test a variety of sorts using a parallel multisearcher
+  public void testParallelMultiSort() throws Exception {
+    Searcher searcher = new ParallelMultiSearcher(new Searchable[] { searchX, searchY });
+    runMultiSorts(searcher, false);
+  }
 
-	// test a variety of sorts using a remote searcher
-	public void testRemoteSort() throws Exception {
-		Searchable searcher = getRemote();
-		MultiSearcher multi = new MultiSearcher (new Searchable[] { searcher });
-		runMultiSorts (multi);
-	}
+  // test a variety of sorts using a remote searcher
+  public void testRemoteSort() throws Exception {
+    Searchable searcher = getRemote();
+    MultiSearcher multi = new MultiSearcher(new Searchable[] { searcher });
+    runMultiSorts(multi, true); // this runs on the full index
+  }
 
 	// test custom search when remote
 	public void testRemoteCustomSort() throws Exception {
@@ -585,97 +585,88 @@ implements Serializable {
 
 
   // runs a variety of sorts useful for multisearchers
-	private void runMultiSorts (Searcher multi) throws Exception {
-		sort.setSort (SortField.FIELD_DOC);
-		assertMatchesPattern (multi, queryA, sort, "[AB]{2}[CD]{2}[EF]{2}[GH]{2}[IJ]{2}");
+  private void runMultiSorts(Searcher multi, boolean isFull) throws Exception {
+    sort.setSort(SortField.FIELD_DOC);
+    String expected = isFull ? "ABCDEFGHIJ" : "ACEGIBDFHJ";
+    assertMatches(multi, queryA, sort, expected);
 
-		sort.setSort (new SortField ("int", SortField.INT));
-		assertMatchesPattern (multi, queryA, sort, "IDHFGJ[ABE]{3}C");
+    sort.setSort(new SortField ("int", SortField.INT));
+    expected = isFull ? "IDHFGJABEC" : "IDHFGJAEBC";
+    assertMatches(multi, queryA, sort, expected);
 
-		sort.setSort (new SortField[] {new SortField ("int", SortField.INT), SortField.FIELD_DOC});
-		assertMatchesPattern (multi, queryA, sort, "IDHFGJ[AB]{2}EC");
+    sort.setSort(new SortField[] {new SortField ("int", SortField.INT), SortField.FIELD_DOC});
+    expected = isFull ? "IDHFGJABEC" : "IDHFGJAEBC";
+    assertMatches(multi, queryA, sort, expected);
 
-		sort.setSort ("int");
-		assertMatchesPattern (multi, queryA, sort, "IDHFGJ[AB]{2}EC");
+    sort.setSort("int");
+    expected = isFull ? "IDHFGJABEC" : "IDHFGJAEBC";
+    assertMatches(multi, queryA, sort, expected);
 
-		sort.setSort (new SortField[] {new SortField ("float", SortField.FLOAT), SortField.FIELD_DOC});
-		assertMatchesPattern (multi, queryA, sort, "GDHJ[CI]{2}EFAB");
+    sort.setSort(new SortField[] {new SortField ("float", SortField.FLOAT), SortField.FIELD_DOC});
+    assertMatches(multi, queryA, sort, "GDHJCIEFAB");
 
-		sort.setSort ("float");
-		assertMatchesPattern (multi, queryA, sort, "GDHJ[CI]{2}EFAB");
+    sort.setSort("float");
+    assertMatches(multi, queryA, sort, "GDHJCIEFAB");
 
-		sort.setSort ("string");
-		assertMatches (multi, queryA, sort, "DJAIHGFEBC");
+    sort.setSort("string");
+    assertMatches(multi, queryA, sort, "DJAIHGFEBC");
 
-		sort.setSort ("int", true);
-		assertMatchesPattern (multi, queryA, sort, "C[AB]{2}EJGFHDI");
+    sort.setSort("int", true);
+    expected = isFull ? "CABEJGFHDI" : "CAEBJGFHDI";
+    assertMatches(multi, queryA, sort, expected);
 
-		sort.setSort ("float", true);
-		assertMatchesPattern (multi, queryA, sort, "BAFE[IC]{2}JHDG");
+    sort.setSort("float", true);
+    assertMatches(multi, queryA, sort, "BAFECIJHDG");
 
-		sort.setSort ("string", true);
-		assertMatches (multi, queryA, sort, "CBEFGHIAJD");
+    sort.setSort("string", true);
+    assertMatches(multi, queryA, sort, "CBEFGHIAJD");
 
-		sort.setSort (new SortField[] { new SortField ("string", Locale.US) });
-		assertMatches (multi, queryA, sort, "DJAIHGFEBC");
+    sort.setSort(new SortField[] { new SortField ("string", Locale.US) });
+    assertMatches(multi, queryA, sort, "DJAIHGFEBC");
 
-		sort.setSort (new SortField[] { new SortField ("string", Locale.US, true) });
-		assertMatches (multi, queryA, sort, "CBEFGHIAJD");
+    sort.setSort(new SortField[] { new SortField ("string", Locale.US, true) });
+    assertMatches(multi, queryA, sort, "CBEFGHIAJD");
 
-		sort.setSort (new String[] {"int","float"});
-		assertMatches (multi, queryA, sort, "IDHFGJEABC");
+    sort.setSort(new String[] {"int","float"});
+    assertMatches(multi, queryA, sort, "IDHFGJEABC");
 
-		sort.setSort (new String[] {"float","string"});
-		assertMatches (multi, queryA, sort, "GDHJICEFAB");
+    sort.setSort(new String[] {"float","string"});
+    assertMatches(multi, queryA, sort, "GDHJICEFAB");
 
-		sort.setSort ("int");
-		assertMatches (multi, queryF, sort, "IZJ");
+    sort.setSort("int");
+    assertMatches(multi, queryF, sort, "IZJ");
 
-		sort.setSort ("int", true);
-		assertMatches (multi, queryF, sort, "JZI");
+    sort.setSort("int", true);
+    assertMatches(multi, queryF, sort, "JZI");
 
-		sort.setSort ("float");
-		assertMatches (multi, queryF, sort, "ZJI");
+    sort.setSort("float");
+    assertMatches(multi, queryF, sort, "ZJI");
 
-		sort.setSort ("string");
-		assertMatches (multi, queryF, sort, "ZJI");
+    sort.setSort("string");
+    assertMatches(multi, queryF, sort, "ZJI");
 
-		sort.setSort ("string", true);
-		assertMatches (multi, queryF, sort, "IJZ");
-	}
+    sort.setSort("string", true);
+    assertMatches(multi, queryF, sort, "IJZ");
+  }
 
-	// make sure the documents returned by the search match the expected list
-	private void assertMatches (Searcher searcher, Query query, Sort sort, String expectedResult)
-	throws IOException {
-    ScoreDoc[] result = searcher.search (query, null, 1000, sort).scoreDocs;
-		StringBuffer buff = new StringBuffer(10);
+  // make sure the documents returned by the search match the expected list
+  private void assertMatches(Searcher searcher, Query query, Sort sort,
+      String expectedResult) throws IOException {
+    //ScoreDoc[] result = searcher.search (query, null, 1000, sort).scoreDocs;
+    TopDocs hits = searcher.search (query, null, expectedResult.length(), sort);
+    ScoreDoc[] result = hits.scoreDocs;
+    assertEquals(hits.totalHits, expectedResult.length());
+    StringBuffer buff = new StringBuffer(10);
     int n = result.length;
-		for (int i=0; i<n; ++i) {
+    for (int i=0; i<n; ++i) {
       Document doc = searcher.doc(result[i].doc);
-			String[] v = doc.getValues("tracer");
-			for (int j=0; j<v.length; ++j) {
-				buff.append (v[j]);
-			}
-		}
-		assertEquals (expectedResult, buff.toString());
-	}
-
-	// make sure the documents returned by the search match the expected list pattern
-	private void assertMatchesPattern (Searcher searcher, Query query, Sort sort, String pattern)
-	throws IOException {
-    ScoreDoc[] result = searcher.search (query, null, 1000, sort).scoreDocs;
-		StringBuffer buff = new StringBuffer(10);
-    int n = result.length;
-		for (int i=0; i<n; ++i) {
-      Document doc = searcher.doc(result[i].doc);
-			String[] v = doc.getValues("tracer");
-			for (int j=0; j<v.length; ++j) {
-				buff.append (v[j]);
-			}
-		}
-		// System.out.println ("matching \""+buff+"\" against pattern \""+pattern+"\"");
-		assertTrue (Pattern.compile(pattern).matcher(buff.toString()).matches());
-	}
+      String[] v = doc.getValues("tracer");
+      for (int j=0; j<v.length; ++j) {
+        buff.append (v[j]);
+      }
+    }
+    assertEquals (expectedResult, buff.toString());
+  }
 
   private HashMap getScores (ScoreDoc[] hits, Searcher searcher)
 	throws IOException {
