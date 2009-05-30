@@ -3618,6 +3618,7 @@ public class TestIndexWriter extends LuceneTestCase
 
     MockRAMDirectory dir = new MockRAMDirectory();
     IndexWriter w = new IndexWriter(dir, new MyAnalyzer(), true, IndexWriter.MaxFieldLength.UNLIMITED);
+    w.setAllowMinus1Position();
     Document doc = new Document();
     doc.add(new Field("field", tokens));
     w.addDocument(doc);

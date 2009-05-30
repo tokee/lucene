@@ -5028,6 +5028,10 @@ public class IndexWriter {
         = new MaxFieldLength("LIMITED", DEFAULT_MAX_FIELD_LENGTH);
   }
 
+  // stub for back-compat
+  public void setAllowMinus1Position() {
+  }
+
   // Used only by assert for testing.  Current points:
   //   startDoFlush
   //   startCommitMerge
