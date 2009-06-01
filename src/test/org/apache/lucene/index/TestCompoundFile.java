@@ -415,6 +415,8 @@ public class TestCompoundFile extends LuceneTestCase
           expected.seek(0);
           two.seek(0);
           //assertSameStreams("basic clone two/4", expected, two);
+        } else {
+          cr.close();
         }
 
         expected.close();
