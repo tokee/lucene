@@ -169,4 +169,8 @@ public class IndexSearcher extends Searcher {
   public Explanation explain(Weight weight, int doc) throws IOException {
     return weight.explain(reader, doc);
   }
+
+  public void setDefaultFieldSortScoring(boolean doTrackScores, boolean doMaxScore) {
+    // stub so back compat compiles
+  }
 }

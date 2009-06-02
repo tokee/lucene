@@ -298,6 +298,7 @@ public class TestMultiSearcher extends LuceneTestCase
         initIndex(ramDirectory1, nDocs, false, "x"); // documents with two tokens "doc0" and "x", "doc1" and x, etc...
         
         indexSearcher1=new IndexSearcher(ramDirectory1);
+        indexSearcher1.setDefaultFieldSortScoring(true, true);
         
         hits=indexSearcher1.search(query, null, 1000).scoreDocs;
         
@@ -325,7 +326,9 @@ public class TestMultiSearcher extends LuceneTestCase
         initIndex(ramDirectory2, nDocs, true, "x"); // documents with two tokens "doc0" and "x", "doc1" and x, etc...
         
         indexSearcher1=new IndexSearcher(ramDirectory1);
+        indexSearcher1.setDefaultFieldSortScoring(true, true);
         indexSearcher2=new IndexSearcher(ramDirectory2);
+        indexSearcher2.setDefaultFieldSortScoring(true, true);
         
         Searcher searcher=getMultiSearcherInstance(new Searcher[] { indexSearcher1, indexSearcher2 });
         
