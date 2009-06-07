@@ -62,7 +62,7 @@ public class TestOpenBitSet extends TestCase {
       else
         iterator.skipTo(bb+1);
       bb = iterator.doc();
-      assertEquals(aa,bb);
+      assertEquals(aa == -1 ? Integer.MAX_VALUE : aa,bb);
     } while (aa>=0);
   }
 
@@ -74,8 +74,8 @@ public class TestOpenBitSet extends TestCase {
       if (rand.nextBoolean())
         bb = iterator.nextDoc();
       else
-        bb = iterator.next(bb+1);
-      assertEquals(aa,bb);
+        bb = iterator.advance(bb + 1);
+      assertEquals(aa == -1 ? Integer.MAX_VALUE : aa,bb);
     } while (aa>=0);
   }
 

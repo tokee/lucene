@@ -197,7 +197,7 @@ public class OpenBitSetIterator extends DocIdSetIterator {
   
   /** Behaves like {@link #skipTo(int)} and returns the docId the iterator
    *  skipped to; returns -1 if no valid document could be skipped to. */
-  public int next(int fromIndex) {
+  public int advance(int fromIndex) {
     indexArray=0;
     i = fromIndex >> 6;
     if (i>=words) {

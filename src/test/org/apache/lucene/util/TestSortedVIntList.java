@@ -143,9 +143,6 @@ public class TestSortedVIntList extends TestCase {
   public void test02() {
     tstInts(new int[] {0});
   }
-  public void test03() {
-    tstInts(new int[] {0,Integer.MAX_VALUE});
-  }
   public void test04a() {
     tstInts(new int[] {0, VB2 - 1});
   }
