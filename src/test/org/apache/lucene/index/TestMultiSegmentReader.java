@@ -55,7 +55,7 @@ public class TestMultiSegmentReader extends LuceneTestCase {
   protected IndexReader openReader() throws IOException {
     IndexReader reader;
     reader = IndexReader.open(dir);
-    assertTrue(reader instanceof MultiSegmentReader);
+    assertNotNull(reader.getSequentialSubReaders());
 
     assertTrue(dir != null);
     assertTrue(sis != null);

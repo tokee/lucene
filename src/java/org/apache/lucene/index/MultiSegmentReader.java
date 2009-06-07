@@ -437,11 +437,6 @@ class MultiSegmentReader extends DirectoryIndexReader {
     return subReaders;
   }
 
-  // NOTE: STANDIN so back-compat tests compile
-  IndexReader[] getSequentialSubReaders() {
-    return subReaders;
-  }
-
   public void setTermInfosIndexDivisor(int indexDivisor) throws IllegalStateException {
     for (int i = 0; i < subReaders.length; i++)
       subReaders[i].setTermInfosIndexDivisor(indexDivisor);

@@ -1134,4 +1134,9 @@ public abstract class IndexReader {
   public static Collection listCommits(Directory dir) throws IOException {
     return DirectoryIndexReader.listCommits(dir);
   }
+
+  // NOTE: STANDIN so back-compat tests compile
+  IndexReader[] getSequentialSubReaders() {
+    return null;
+  }
 }

@@ -1110,4 +1110,13 @@ class SegmentReader extends DirectoryIndexReader {
       norm.dirty = norm.rollbackDirty;
     }
   }
+
+  // NOTE: STANDIN so back-compat tests compile
+  static SegmentReader getOnlySegmentReader(Directory dir) throws IOException {
+    return null;
+  }
+
+  static SegmentReader getOnlySegmentReader(IndexReader reader) {
+	return null;
+  }
 }
