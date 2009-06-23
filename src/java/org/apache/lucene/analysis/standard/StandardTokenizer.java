@@ -26,6 +26,8 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.analysis.CharReader;
+import org.apache.lucene.analysis.CharStream;
 
 /** A grammar-based tokenizer constructed with JFlex
  *
@@ -91,7 +93,7 @@ public class StandardTokenizer extends Tokenizer {
   private boolean replaceInvalidAcronym;
     
   void setInput(Reader reader) {
-    this.input = reader;
+    this.input = CharReader.get(reader);
   }
 
   private int maxTokenLength = StandardAnalyzer.DEFAULT_MAX_TOKEN_LENGTH;
@@ -126,7 +128,7 @@ public class StandardTokenizer extends Tokenizer {
    */
   public StandardTokenizer(Reader input, boolean replaceInvalidAcronym) {
     this.replaceInvalidAcronym = replaceInvalidAcronym;
-    this.input = input;
+    setInput(input);
     this.scanner = new StandardTokenizerImpl(input);
     termAtt = (TermAttribute) addAttribute(TermAttribute.class);
     offsetAtt = (OffsetAttribute) addAttribute(OffsetAttribute.class);
@@ -240,7 +242,7 @@ public class StandardTokenizer extends Tokenizer {
     }
 
     public void reset(Reader reader) throws IOException {
-        input = reader;
+        setInput(reader);
         reset();
     }
 
