@@ -54,14 +54,25 @@ public class TestExtendedFieldCache extends LuceneTestCase {
 
 
   public void test() throws IOException {
-    ExtendedFieldCache cache = new ExtendedFieldCacheImpl();
-    double [] doubles = cache.getDoubles(reader, "theDouble");
+    // This test was changed in tag to check the backwards-compatibility of Parsers coming from
+    // ExtendedFieldCache and not FieldCache (different class name).
+    // These dummy parsers do the same like the original ones in FieldCacheImpl!
+    ExtendedFieldCache cache = ExtendedFieldCache.EXT_DEFAULT;
+    double [] doubles = cache.getDoubles(reader, "theDouble", new ExtendedFieldCache.DoubleParser() {
+      public double parseDouble(String value) {
+        return Double.parseDouble(value);
+      }
+    });
     assertTrue("doubles Size: " + doubles.length + " is not: " + NUM_DOCS, doubles.length == NUM_DOCS);
     for (int i = 0; i < doubles.length; i++) {
       assertTrue(doubles[i] + " does not equal: " + (Double.MAX_VALUE - i), doubles[i] == (Double.MAX_VALUE - i));
 
     }
-    long [] longs = cache.getLongs(reader, "theLong");
+    long [] longs = cache.getLongs(reader, "theLong", new ExtendedFieldCache.LongParser() {
+      public long parseLong(String value) {
+        return Long.parseLong(value);
+      }
+    });
     assertTrue("longs Size: " + longs.length + " is not: " + NUM_DOCS, longs.length == NUM_DOCS);
     for (int i = 0; i < longs.length; i++) {
       assertTrue(longs[i] + " does not equal: " + (Long.MAX_VALUE - i), longs[i] == (Long.MAX_VALUE - i));
