@@ -83,12 +83,6 @@ public class TestSegmentReader extends LuceneTestCase {
     assertTrue(deleteReader.isDeleted(0) == true);
     assertTrue(deleteReader.hasDeletions() == true);
     assertTrue(deleteReader.numDocs() == 0);
-    try {
-      deleteReader.document(0);
-      fail();
-    } catch (IllegalArgumentException e) {
-      // expcected exception
-    }
   }    
   
   public void testGetFieldNameVariations() {
