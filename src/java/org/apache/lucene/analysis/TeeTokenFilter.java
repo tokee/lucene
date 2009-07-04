@@ -18,7 +18,6 @@
 package org.apache.lucene.analysis;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 
 /**
@@ -61,21 +60,8 @@ public class TeeTokenFilter extends TokenFilter {
   public TeeTokenFilter(TokenStream input, SinkTokenizer sink) {
     super(input);
     this.sink = sink;
-    Iterator it = getAttributesIterator();
-    while (it.hasNext()) {
-      sink.addAttribute(it.next().getClass());
-    }
-  }
-  
-  public boolean incrementToken() throws IOException {
-    if (input.incrementToken()) {
-      sink.add(captureState());
-      return true;
-    }
-    return false;
   }
 
-  /** @deprecated */
   public Token next(final Token reusableToken) throws IOException {
     assert reusableToken != null;
     Token nextToken = input.next(reusableToken);

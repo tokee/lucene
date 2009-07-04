@@ -22,10 +22,6 @@ import java.io.Reader;
 
 import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.analysis.CharReader;
 import org.apache.lucene.analysis.CharStream;
 
@@ -90,7 +86,7 @@ public class StandardTokenizer extends Tokenizer {
    * 
    * @deprecated this should be removed in the next release (3.0).
    */
-  private boolean replaceInvalidAcronym;
+  private boolean replaceInvalidAcronym = false;
     
   void setInput(Reader reader) {
     this.input = CharReader.get(reader);
@@ -109,13 +105,14 @@ public class StandardTokenizer extends Tokenizer {
     return maxTokenLength;
   }
 
-  /**
-   * Creates a new instance of the {@link StandardTokenizer}. Attaches the
-   * <code>input</code> to a newly created JFlex scanner.
-   */
-  public StandardTokenizer(Reader input) {
-    this(input, false);
-  }
+    /**
+     * Creates a new instance of the {@link StandardTokenizer}. Attaches the
+     * <code>input</code> to a newly created JFlex scanner.
+     */
+    public StandardTokenizer(Reader input) {
+	    this.input = CharReader.get(input);
+	    this.scanner = new StandardTokenizerImpl(input);
+    }
 
   /**
    * Creates a new instance of the {@link org.apache.lucene.analysis.standard.StandardTokenizer}.  Attaches
@@ -130,68 +127,13 @@ public class StandardTokenizer extends Tokenizer {
     this.replaceInvalidAcronym = replaceInvalidAcronym;
     setInput(input);
     this.scanner = new StandardTokenizerImpl(input);
-    termAtt = (TermAttribute) addAttribute(TermAttribute.class);
-    offsetAtt = (OffsetAttribute) addAttribute(OffsetAttribute.class);
-    posIncrAtt = (PositionIncrementAttribute) addAttribute(PositionIncrementAttribute.class);
-    typeAtt = (TypeAttribute) addAttribute(TypeAttribute.class);
   }
-
-  // this tokenizer generates three attributes:
-  // offset, positionIncrement and type
-  private TermAttribute termAtt;
-  private OffsetAttribute offsetAtt;
-  private PositionIncrementAttribute posIncrAtt;
-  private TypeAttribute typeAtt;
 
   /*
    * (non-Javadoc)
    *
    * @see org.apache.lucene.analysis.TokenStream#next()
    */
-  public boolean incrementToken() throws IOException {
-    int posIncr = 1;
-
-    while(true) {
-      int tokenType = scanner.getNextToken();
-
-      if (tokenType == StandardTokenizerImpl.YYEOF) {
-        return false;
-      }
-
-      if (scanner.yylength() <= maxTokenLength) {
-        termAtt.clear();
-        posIncrAtt.setPositionIncrement(posIncr);
-        scanner.getText(termAtt);
-        final int start = scanner.yychar();
-        offsetAtt.setStartOffset(start);
-        offsetAtt.setEndOffset(start+termAtt.termLength());
-        // This 'if' should be removed in the next release. For now, it converts
-        // invalid acronyms to HOST. When removed, only the 'else' part should
-        // remain.
-        if (tokenType == StandardTokenizerImpl.ACRONYM_DEP) {
-          if (replaceInvalidAcronym) {
-            typeAtt.setType(StandardTokenizerImpl.TOKEN_TYPES[StandardTokenizerImpl.HOST]);
-            termAtt.setTermLength(termAtt.termLength() - 1); // remove extra '.'
-          } else {
-            typeAtt.setType(StandardTokenizerImpl.TOKEN_TYPES[StandardTokenizerImpl.ACRONYM]);
-          }
-        } else {
-          typeAtt.setType(StandardTokenizerImpl.TOKEN_TYPES[tokenType]);
-        }
-        return true;
-      } else
-        // When we skip a too-long term, we still increment the
-        // position increment
-        posIncr++;
-    }
-  }
-  
-  /*
-   * (non-Javadoc)
-   *
-   * @see org.apache.lucene.analysis.TokenStream#next()
-   */
-  /** @deprecated */
   public Token next(final Token reusableToken) throws IOException {
       assert reusableToken != null;
       int posIncr = 1;

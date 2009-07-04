@@ -26,7 +26,7 @@ import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
+import org.apache.lucene.analysis.Token;
 
 import org.apache.lucene.util.LuceneTestCase;
 import java.io.IOException;
@@ -46,7 +46,9 @@ public class TestRangeQuery extends LuceneTestCase {
   }
 
   public void testExclusive() throws Exception {
-    Query query = new RangeQuery("content", "A", "C", false, false);
+    Query query = new RangeQuery(new Term("content", "A"),
+                                 new Term("content", "C"),
+                                 false);
     initializeIndex(new String[] {"A", "B", "C", "D"});
     IndexSearcher searcher = new IndexSearcher(dir);
     ScoreDoc[] hits = searcher.search(query, null, 1000).scoreDocs;
@@ -65,26 +67,11 @@ public class TestRangeQuery extends LuceneTestCase {
     assertEquals("C added, still only B in range", 1, hits.length);
     searcher.close();
   }
-  
-  //TODO: remove in Lucene 3.0
-  public void testDeprecatedCstrctors() throws IOException {
-    Query query = new RangeQuery(null, new Term("content","C"), false);
-    initializeIndex(new String[] {"A", "B", "C", "D"});
-    IndexSearcher searcher = new IndexSearcher(dir);
-    ScoreDoc[] hits = searcher.search(query, null, 1000).scoreDocs;
-    assertEquals("A,B,C,D, only B in range", 2, hits.length);
-    searcher.close();
-    
-    query = new RangeQuery(new Term("content","C"),null, false);
-    initializeIndex(new String[] {"A", "B", "C", "D"});
-    searcher = new IndexSearcher(dir);
-    hits = searcher.search(query, null, 1000).scoreDocs;
-    assertEquals("A,B,C,D, only B in range", 1, hits.length);
-    searcher.close();
-  }
 
   public void testInclusive() throws Exception {
-    Query query = new RangeQuery("content", "A", "C", true, true);
+    Query query = new RangeQuery(new Term("content", "A"),
+                                 new Term("content", "C"),
+                                 true);
 
     initializeIndex(new String[]{"A", "B", "C", "D"});
     IndexSearcher searcher = new IndexSearcher(dir);
@@ -106,10 +93,13 @@ public class TestRangeQuery extends LuceneTestCase {
   }
 
   public void testEqualsHashcode() {
-    Query query = new RangeQuery("content", "A", "C", true, true);
-    
+    Query query = new RangeQuery(new Term("content", "A"),
+                                 new Term("content", "C"),
+                                 true);
     query.setBoost(1.0f);
-    Query other = new RangeQuery("content", "A", "C", true, true);
+    Query other = new RangeQuery(new Term("content", "A"),
+                                 new Term("content", "C"),
+                                 true);
     other.setBoost(1.0f);
 
     assertEquals("query equals itself is true", query, query);
@@ -119,36 +109,38 @@ public class TestRangeQuery extends LuceneTestCase {
     other.setBoost(2.0f);
     assertFalse("Different boost queries are not equal", query.equals(other));
 
-    other = new RangeQuery("notcontent", "A", "C", true, true);
+    other = new RangeQuery(new Term("notcontent", "A"), new Term("notcontent", "C"), true);
     assertFalse("Different fields are not equal", query.equals(other));
 
-    other = new RangeQuery("content", "X", "C", true, true);
+    other = new RangeQuery(new Term("content", "X"), new Term("content", "C"), true);
     assertFalse("Different lower terms are not equal", query.equals(other));
 
-    other = new RangeQuery("content", "A", "Z", true, true);
+    other = new RangeQuery(new Term("content", "A"), new Term("content", "Z"), true);
     assertFalse("Different upper terms are not equal", query.equals(other));
 
-    query = new RangeQuery("content", null, "C", true, true);
-    other = new RangeQuery("content", null, "C", true, true);
+    query = new RangeQuery(null, new Term("content", "C"), true);
+    other = new RangeQuery(null, new Term("content", "C"), true);
     assertEquals("equivalent queries with null lowerterms are equal()", query, other);
     assertEquals("hashcode must return same value when equals is true", query.hashCode(), other.hashCode());
 
-    query = new RangeQuery("content", "C", null, true, true);
-    other = new RangeQuery("content", "C", null, true, true);
+    query = new RangeQuery(new Term("content", "C"), null, true);
+    other = new RangeQuery(new Term("content", "C"), null, true);
     assertEquals("equivalent queries with null upperterms are equal()", query, other);
     assertEquals("hashcode returns same value", query.hashCode(), other.hashCode());
 
-    query = new RangeQuery("content", null, "C", true, true);
-    other = new RangeQuery("content", "C", null, true, true);
+    query = new RangeQuery(null, new Term("content", "C"), true);
+    other = new RangeQuery(new Term("content", "C"), null, true);
     assertFalse("queries with different upper and lower terms are not equal", query.equals(other));
 
-    query = new RangeQuery("content", "A", "C", false, false);
-    other = new RangeQuery("content", "A", "C", true, true);
+    query = new RangeQuery(new Term("content", "A"), new Term("content", "C"), false);
+    other = new RangeQuery(new Term("content", "A"), new Term("content", "C"), true);
     assertFalse("queries with different inclusive are not equal", query.equals(other));
   }
 
   public void testExclusiveCollating() throws Exception {
-    Query query = new RangeQuery("content", "A", "C", false, false, Collator.getInstance(Locale.ENGLISH));
+    Query query = new RangeQuery(new Term("content", "A"),
+                                 new Term("content", "C"),
+                                 false, Collator.getInstance(Locale.ENGLISH));
     initializeIndex(new String[] {"A", "B", "C", "D"});
     IndexSearcher searcher = new IndexSearcher(dir);
     ScoreDoc[] hits = searcher.search(query, null, 1000).scoreDocs;
@@ -169,7 +161,9 @@ public class TestRangeQuery extends LuceneTestCase {
   }
 
   public void testInclusiveCollating() throws Exception {
-    Query query = new RangeQuery("content", "A", "C",true, true, Collator.getInstance(Locale.ENGLISH));
+    Query query = new RangeQuery(new Term("content", "A"),
+                                 new Term("content", "C"),
+                                 true, Collator.getInstance(Locale.ENGLISH));
 
     initializeIndex(new String[]{"A", "B", "C", "D"});
     IndexSearcher searcher = new IndexSearcher(dir);
@@ -195,7 +189,9 @@ public class TestRangeQuery extends LuceneTestCase {
     // RuleBasedCollator.  However, the Arabic Locale seems to order the Farsi
     // characters properly.
     Collator collator = Collator.getInstance(new Locale("ar"));
-    Query query = new RangeQuery("content", "\u062F", "\u0698", true, true, collator);
+    Query query = new RangeQuery(new Term("content", "\u062F"),
+                                 new Term("content", "\u0698"),
+                                 true, collator);
     // Unicode order would include U+0633 in [ U+062F - U+0698 ], but Farsi
     // orders the U+0698 character before the U+0633 character, so the single
     // index Term below should NOT be returned by a RangeQuery with a Farsi
@@ -205,29 +201,11 @@ public class TestRangeQuery extends LuceneTestCase {
     ScoreDoc[] hits = searcher.search(query, null, 1000).scoreDocs;
     assertEquals("The index Term should not be included.", 0, hits.length);
 
-    query = new RangeQuery("content", "\u0633", "\u0638",true, true, collator);
+    query = new RangeQuery(new Term("content", "\u0633"),
+                           new Term("content", "\u0638"),
+                           true, collator);
     hits = searcher.search(query, null, 1000).scoreDocs;
     assertEquals("The index Term should be included.", 1, hits.length);
-    searcher.close();
-  }
-  
-  public void testDanish() throws Exception {
-    Collator collator = Collator.getInstance(new Locale("da", "dk"));
-    // Danish collation orders the words below in the given order (example taken
-    // from TestSort.testInternationalSort() ).
-    String[] words = { "H\u00D8T", "H\u00C5T", "MAND" };
-    Query query = new RangeQuery("content", "H\u00D8T", "MAND", false, false, collator);
-
-    // Unicode order would not include "H\u00C5T" in [ "H\u00D8T", "MAND" ],
-    // but Danish collation does.
-    initializeIndex(words);
-    IndexSearcher searcher = new IndexSearcher(dir);
-    ScoreDoc[] hits = searcher.search(query, null, 1000).scoreDocs;
-    assertEquals("The index Term should be included.", 1, hits.length);
-
-    query = new RangeQuery("content", "H\u00C5T", "MAND", false, false, collator);
-    hits = searcher.search(query, null, 1000).scoreDocs;
-    assertEquals("The index Term should not be included.", 0, hits.length);
     searcher.close();
   }
 
@@ -236,25 +214,23 @@ public class TestRangeQuery extends LuceneTestCase {
     private static class SingleCharTokenizer extends Tokenizer {
       char[] buffer = new char[1];
       boolean done;
-      TermAttribute termAtt;
-      
+
       public SingleCharTokenizer(Reader r) {
         super(r);
-        termAtt = (TermAttribute) addAttribute(TermAttribute.class);
       }
 
-      public boolean incrementToken() throws IOException {
+      public final Token next(final Token reusableToken) throws IOException {
         int count = input.read(buffer);
         if (done)
-          return false;
+          return null;
         else {
           done = true;
           if (count == 1) {
-            termAtt.termBuffer()[0] = buffer[0];
-            termAtt.setTermLength(1);
+            reusableToken.termBuffer()[0] = buffer[0];
+            reusableToken.setTermLength(1);
           } else
-            termAtt.setTermLength(0);
-          return true;
+            reusableToken.setTermLength(0);
+          return reusableToken;
         }
       }
 

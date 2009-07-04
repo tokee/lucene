@@ -22,14 +22,12 @@ import java.io.Reader;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.SimpleAnalyzer;
+import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.WhitespaceTokenizer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
-import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Fieldable;
@@ -37,7 +35,6 @@ import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.Field.TermVector;
 import org.apache.lucene.store.RAMDirectory;
-import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util._TestUtil;
 
@@ -141,38 +138,33 @@ public class TestDocumentWriter extends LuceneTestCase {
       public TokenStream tokenStream(String fieldName, Reader reader) {
         return new TokenFilter(new WhitespaceTokenizer(reader)) {
           boolean first=true;
-          AttributeSource state;
+          Token buffered;
 
-          public boolean incrementToken() throws IOException {
-            if (state != null) {
-              state.restoreState(this);
-              payloadAtt.setPayload(null);
-              posIncrAtt.setPositionIncrement(0);
-              termAtt.setTermBuffer(new char[]{'b'}, 0, 1);
-              state = null;
-              return true;
+          public Token next(final Token reusableToken) throws IOException {
+            if (buffered != null) {
+              Token nextToken = buffered;
+              buffered=null;
+              return nextToken;
             }
-
-            boolean hasNext = input.incrementToken();
-            if (!hasNext) return false;
-            if (Character.isDigit(termAtt.termBuffer()[0])) {
-              posIncrAtt.setPositionIncrement(termAtt.termBuffer()[0] - '0');
+            Token nextToken = input.next(reusableToken);
+            if (nextToken==null) return null;
+            if (Character.isDigit(nextToken.termBuffer()[0])) {
+              nextToken.setPositionIncrement(nextToken.termBuffer()[0] - '0');
             }
             if (first) {
               // set payload on first position only
-              payloadAtt.setPayload(new Payload(new byte[]{100}));
+              nextToken.setPayload(new Payload(new byte[]{100}));
               first = false;
             }
 
             // index a "synonym" for every token
-            state = captureState();
-            return true;
+            buffered = (Token)nextToken.clone();
+            buffered.setPayload(null);
+            buffered.setPositionIncrement(0);
+            buffered.setTermBuffer(new char[]{'b'}, 0, 1);
 
+            return nextToken;
           }
-
-          TermAttribute termAtt = (TermAttribute) addAttribute(TermAttribute.class);
-          PayloadAttribute payloadAtt = (PayloadAttribute) addAttribute(PayloadAttribute.class);
-          PositionIncrementAttribute posIncrAtt = (PositionIncrementAttribute) addAttribute(PositionIncrementAttribute.class);          
         };
       }
     };
@@ -209,14 +201,12 @@ public class TestDocumentWriter extends LuceneTestCase {
       private String[] tokens = new String[] {"term1", "term2", "term3", "term2"};
       private int index = 0;
       
-      private TermAttribute termAtt = (TermAttribute) addAttribute(TermAttribute.class);
-      
-      public boolean incrementToken() throws IOException {
+      public Token next(final Token reusableToken) throws IOException {
+        assert reusableToken != null;
         if (index == tokens.length) {
-          return false;
+          return null;
         } else {
-          termAtt.setTermBuffer(tokens[index++]);
-          return true;
+          return reusableToken.reinit(tokens[index++], 0, 0);
         }        
       }
       

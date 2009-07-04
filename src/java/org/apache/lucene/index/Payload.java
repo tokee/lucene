@@ -19,6 +19,7 @@ package org.apache.lucene.index;
 
 import java.io.Serializable;
 
+import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.util.ArrayUtil;
 
@@ -28,7 +29,7 @@ import org.apache.lucene.util.ArrayUtil;
  *  specific term.  
  *  <p>
  *  To store payloads in the index a {@link TokenStream} has to be used that
- *  produces payload data.
+ *  produces {@link Token}s containing payload data.
  *  <p>
  *  Use {@link TermPositions#getPayloadLength()} and {@link TermPositions#getPayload(byte[], int)}
  *  to retrieve the payloads from the index.<br>

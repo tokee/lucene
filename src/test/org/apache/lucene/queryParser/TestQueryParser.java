@@ -19,8 +19,8 @@ package org.apache.lucene.queryParser;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.text.Collator;
 import java.text.DateFormat;
+import java.text.Collator;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
@@ -31,12 +31,11 @@ import org.apache.lucene.analysis.LowerCaseTokenizer;
 import org.apache.lucene.analysis.SimpleAnalyzer;
 import org.apache.lucene.analysis.StopAnalyzer;
 import org.apache.lucene.analysis.StopFilter;
+import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.document.DateField;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
@@ -44,6 +43,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.ConstantScoreRangeQuery;
 import org.apache.lucene.search.FuzzyQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
@@ -65,45 +65,36 @@ public class TestQueryParser extends LuceneTestCase {
   public static Analyzer qpAnalyzer = new QPTestAnalyzer();
 
   public static class QPTestFilter extends TokenFilter {
-    TermAttribute termAtt;
-    OffsetAttribute offsetAtt;
-        
     /**
      * Filter which discards the token 'stop' and which expands the
      * token 'phrase' into 'phrase1 phrase2'
      */
     public QPTestFilter(TokenStream in) {
       super(in);
-      termAtt = (TermAttribute) addAttribute(TermAttribute.class);
-      offsetAtt = (OffsetAttribute) addAttribute(OffsetAttribute.class);
     }
 
     boolean inPhrase = false;
     int savedStart = 0, savedEnd = 0;
 
-    public boolean incrementToken() throws IOException {
+    public Token next(final Token reusableToken) throws IOException {
+      assert reusableToken != null;
       if (inPhrase) {
         inPhrase = false;
-        termAtt.setTermBuffer("phrase2");
-        offsetAtt.setOffset(savedStart, savedEnd);
-        return true;
+        return reusableToken.reinit("phrase2", savedStart, savedEnd);
       } else
-        while (input.incrementToken()) {
-          if (termAtt.term().equals("phrase")) {
+        for (Token nextToken = input.next(reusableToken); nextToken != null; nextToken = input.next(reusableToken)) {
+          if (nextToken.term().equals("phrase")) {
             inPhrase = true;
-            savedStart = offsetAtt.startOffset();
-            savedEnd = offsetAtt.endOffset();
-            termAtt.setTermBuffer("phrase1");
-            offsetAtt.setOffset(savedStart, savedEnd);
-            return true;
-          } else if (!termAtt.term().equals("stop"))
-            return true;
+            savedStart = nextToken.startOffset();
+            savedEnd = nextToken.endOffset();
+            return nextToken.reinit("phrase1", savedStart, savedEnd);
+          } else if (!nextToken.term().equals("stop"))
+            return nextToken;
         }
-      return false;
+      return null;
     }
   }
 
-  
   public static class QPTestAnalyzer extends Analyzer {
 
     /** Filters LowerCaseTokenizer with StopFilter. */
@@ -424,11 +415,13 @@ public class TestQueryParser extends LuceneTestCase {
 
   public void testRange() throws Exception {
     assertQueryEquals("[ a TO z]", null, "[a TO z]");
-    assertTrue(((RangeQuery)getQuery("[ a TO z]", null)).getConstantScoreRewrite());
+    // disable this test
+    //assertTrue(getQuery("[ a TO z]", null) instanceof ConstantScoreRangeQuery);
 
     QueryParser qp = new QueryParser("field", new SimpleAnalyzer());
-	  qp.setConstantScoreRewrite(false);
-    assertFalse(((RangeQuery)qp.parse("[ a TO z]")).getConstantScoreRewrite());
+    qp.setUseOldRangeQuery(true);
+    // disable this test
+    //assertTrue(qp.parse("[ a TO z]") instanceof RangeQuery);
     
     assertQueryEquals("[ a TO z ]", null, "[a TO z]");
     assertQueryEquals("{ a TO z}", null, "{a TO z}");
@@ -467,7 +460,7 @@ public class TestQueryParser extends LuceneTestCase {
     // supported).
       
     // Test ConstantScoreRangeQuery
-    qp.setConstantScoreRewrite(true);
+    qp.setUseOldRangeQuery(false);
     ScoreDoc[] result = is.search(qp.parse("[ \u062F TO \u0698 ]"), null, 1000).scoreDocs;
     assertEquals("The index Term should not be included.", 0, result.length);
 
@@ -475,7 +468,7 @@ public class TestQueryParser extends LuceneTestCase {
     assertEquals("The index Term should be included.", 1, result.length);
 
     // Test RangeQuery
-    qp.setConstantScoreRewrite(false);
+    qp.setUseOldRangeQuery(true);
     result = is.search(qp.parse("[ \u062F TO \u0698 ]"), null, 1000).scoreDocs;
     assertEquals("The index Term should not be included.", 0, result.length);
 
@@ -784,7 +777,7 @@ public class TestQueryParser extends LuceneTestCase {
 
   public void assertParseException(String queryString) throws Exception {
     try {
-      getQuery(queryString, null);
+      Query q = getQuery(queryString, null);
     } catch (ParseException expected) {
       return;
     }

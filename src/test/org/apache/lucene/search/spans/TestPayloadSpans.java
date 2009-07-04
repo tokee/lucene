@@ -29,9 +29,6 @@ import org.apache.lucene.analysis.LowerCaseTokenizer;
 import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
-import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.CorruptIndexException;
@@ -61,7 +58,6 @@ public class TestPayloadSpans extends LuceneTestCase {
   }
 
   protected void setUp() throws Exception {
-    super.setUp();
     PayloadHelper helper = new PayloadHelper();
     searcher = helper.setUp(similarity, 1000);
     indexReader = searcher.getIndexReader();
@@ -463,9 +459,6 @@ public class TestPayloadSpans extends LuceneTestCase {
     Set entities = new HashSet();
     Set nopayload = new HashSet();
     int pos;
-    PayloadAttribute payloadAtt;
-    TermAttribute termAtt;
-    PositionIncrementAttribute posIncrAtt;
 
     public PayloadFilter(TokenStream input, String fieldName) {
       super(input);
@@ -475,26 +468,24 @@ public class TestPayloadSpans extends LuceneTestCase {
       entities.add("one");
       nopayload.add("nopayload");
       nopayload.add("np");
-      termAtt = (TermAttribute) addAttribute(TermAttribute.class);
-      posIncrAtt = (PositionIncrementAttribute) addAttribute(PositionIncrementAttribute.class);
-      payloadAtt = (PayloadAttribute) addAttribute(PayloadAttribute.class);
+
     }
 
-    public boolean incrementToken() throws IOException {
-      if (input.incrementToken()) {
-        String token = new String(termAtt.termBuffer(), 0, termAtt.termLength());
+    public Token next() throws IOException {
+      Token result = input.next();
+      if (result != null) {
+        String token = new String(result.termBuffer(), 0, result.termLength());
 
         if (!nopayload.contains(token)) {
           if (entities.contains(token)) {
-            payloadAtt.setPayload(new Payload((token + ":Entity:"+ pos ).getBytes()));
+            result.setPayload(new Payload((token + ":Entity:"+ pos ).getBytes()));
           } else {
-            payloadAtt.setPayload(new Payload((token + ":Noise:" + pos ).getBytes()));
+            result.setPayload(new Payload((token + ":Noise:" + pos ).getBytes()));
           }
         }
-        pos += posIncrAtt.getPositionIncrement();
-        return true;
+        pos += result.getPositionIncrement();
       }
-      return false;
+      return result;
     }
   }
   

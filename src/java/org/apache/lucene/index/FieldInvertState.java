@@ -17,7 +17,6 @@
 package org.apache.lucene.index;
 
 import org.apache.lucene.search.Similarity;
-import org.apache.lucene.util.AttributeSource;
 
 /**
  * This class tracks the number and position / offset parameters of terms
@@ -33,7 +32,6 @@ public final class FieldInvertState {
   int numOverlap;
   int offset;
   float boost;
-  AttributeSource attributeSource;
 
   public FieldInvertState() {
   }
@@ -56,7 +54,6 @@ public final class FieldInvertState {
     numOverlap = 0;
     offset = 0;
     boost = docBoost;
-    attributeSource = null;
   }
 
   /**
@@ -99,9 +96,5 @@ public final class FieldInvertState {
    */
   public float getBoost() {
     return boost;
-  }
-  
-  public AttributeSource getAttributeSource() {
-    return attributeSource;
   }
 }

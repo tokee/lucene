@@ -17,9 +17,9 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import java.io.IOException;
-
 import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.analysis.Token;
+import java.io.IOException;
 
 abstract class InvertedDocConsumerPerField {
 
@@ -29,11 +29,8 @@ abstract class InvertedDocConsumerPerField {
   // fields:
   abstract boolean start(Fieldable[] fields, int count) throws IOException;
 
-  // Called before a field instance is being processed
-  abstract void start(Fieldable field);
-  
   // Called once per inverted token
-  abstract void add() throws IOException;
+  abstract void add(Token token) throws IOException;
 
   // Called once per field per document, after all Fieldable
   // occurrences are inverted

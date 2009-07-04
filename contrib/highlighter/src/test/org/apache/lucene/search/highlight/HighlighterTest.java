@@ -44,6 +44,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
@@ -51,7 +52,6 @@ import org.apache.lucene.index.IndexWriter.MaxFieldLength;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.ConstantScoreRangeQuery;
 import org.apache.lucene.search.FilteredQuery;
 import org.apache.lucene.search.Hits;
 import org.apache.lucene.search.IndexSearcher;
@@ -502,8 +502,14 @@ public class HighlighterTest extends TestCase implements Formatter {
   public void testGetConstantScoreRangeFragments() throws Exception {
 
     numHighlights = 0;
+    String queryString = FIELD_NAME + ":[kannedy TO kznnedy]";
 
-    query = new ConstantScoreRangeQuery(FIELD_NAME, "kannedy", "kznnedy", true, true);
+    // Need to explicitly set the QueryParser property to use RangeQuery
+    // rather
+    // than RangeFilters
+    QueryParser parser = new QueryParser(FIELD_NAME, new StandardAnalyzer());
+    // parser.setUseOldRangeQuery(true);
+    query = parser.parse(queryString);
 
     searcher = new IndexSearcher(ramDir);
     // can't rewrite ConstantScoreRangeQuery if you want to highlight it -
@@ -1077,7 +1083,6 @@ public class HighlighterTest extends TestCase implements Formatter {
     searchers[1] = new IndexSearcher(ramDir2);
     MultiSearcher multiSearcher = new MultiSearcher(searchers);
     QueryParser parser = new QueryParser(FIELD_NAME, new StandardAnalyzer());
-    parser.setConstantScoreRewrite(false);
     query = parser.parse("multi*");
     System.out.println("Searching for: " + query.toString(FIELD_NAME));
     // at this point the multisearcher calls combine(query[])
@@ -1378,7 +1383,6 @@ public class HighlighterTest extends TestCase implements Formatter {
 
   public void doSearching(String queryString) throws Exception {
     QueryParser parser = new QueryParser(FIELD_NAME, new StandardAnalyzer());
-    parser.setConstantScoreRewrite(false);
     query = parser.parse(queryString);
     doSearching(query);
   }

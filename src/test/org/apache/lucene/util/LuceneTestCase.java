@@ -17,7 +17,6 @@ package org.apache.lucene.util;
  * limitations under the License.
  */
 
-import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.index.ConcurrentMergeScheduler;
 import junit.framework.TestCase;
 
@@ -43,7 +42,6 @@ public abstract class LuceneTestCase extends TestCase {
 
   protected void setUp() throws Exception {
     ConcurrentMergeScheduler.setTestMode();
-    TokenStream.setUseNewAPIDefault(true);
   }
 
   protected void tearDown() throws Exception {

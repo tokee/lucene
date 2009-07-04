@@ -16,8 +16,6 @@ package org.apache.lucene.analysis;
  * limitations under the License.
  */
 
-import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.util.English;
 import org.apache.lucene.util.LuceneTestCase;
 
@@ -37,22 +35,19 @@ public class TestStopFilter extends LuceneTestCase {
     StringReader reader = new StringReader("Now is The Time");
     String[] stopWords = new String[] { "is", "the", "Time" };
     TokenStream stream = new StopFilter(new WhitespaceTokenizer(reader), stopWords);
-    final TermAttribute termAtt = (TermAttribute) stream.getAttribute(TermAttribute.class);
-    assertTrue(stream.incrementToken());
-    assertEquals("Now", termAtt.term());
-    assertTrue(stream.incrementToken());
-    assertEquals("The", termAtt.term());
-    assertFalse(stream.incrementToken());
+    final Token reusableToken = new Token();
+    assertEquals("Now", stream.next(reusableToken).term());
+    assertEquals("The", stream.next(reusableToken).term());
+    assertEquals(null, stream.next(reusableToken));
   }
 
   public void testIgnoreCase() throws IOException {
     StringReader reader = new StringReader("Now is The Time");
     String[] stopWords = new String[] { "is", "the", "Time" };
     TokenStream stream = new StopFilter(new WhitespaceTokenizer(reader), stopWords, true);
-    final TermAttribute termAtt = (TermAttribute) stream.getAttribute(TermAttribute.class);
-    assertTrue(stream.incrementToken());
-    assertEquals("Now", termAtt.term());
-    assertFalse(stream.incrementToken());
+    final Token reusableToken = new Token();
+    assertEquals("Now", stream.next(reusableToken).term());
+    assertEquals(null,stream.next(reusableToken));
   }
 
   public void testStopFilt() throws IOException {
@@ -60,12 +55,10 @@ public class TestStopFilter extends LuceneTestCase {
     String[] stopWords = new String[] { "is", "the", "Time" };
     Set stopSet = StopFilter.makeStopSet(stopWords);
     TokenStream stream = new StopFilter(new WhitespaceTokenizer(reader), stopSet);
-    final TermAttribute termAtt = (TermAttribute) stream.getAttribute(TermAttribute.class);
-    assertTrue(stream.incrementToken());
-    assertEquals("Now", termAtt.term());
-    assertTrue(stream.incrementToken());
-    assertEquals("The", termAtt.term());
-    assertFalse(stream.incrementToken());
+    final Token reusableToken = new Token();
+    assertEquals("Now", stream.next(reusableToken).term());
+    assertEquals("The", stream.next(reusableToken).term());
+    assertEquals(null, stream.next(reusableToken));
   }
 
   /**
@@ -117,16 +110,15 @@ public class TestStopFilter extends LuceneTestCase {
   private void doTestStopPositons(StopFilter stpf, boolean enableIcrements) throws IOException {
     log("---> test with enable-increments-"+(enableIcrements?"enabled":"disabled"));
     stpf.setEnablePositionIncrements(enableIcrements);
-    TermAttribute termAtt = (TermAttribute) stpf.getAttribute(TermAttribute.class);
-    PositionIncrementAttribute posIncrAtt = (PositionIncrementAttribute) stpf.getAttribute(PositionIncrementAttribute.class);
+    final Token reusableToken = new Token();
     for (int i=0; i<20; i+=3) {
-      assertTrue(stpf.incrementToken());
-      log("Token "+i+": "+stpf);
+      Token nextToken = stpf.next(reusableToken);
+      log("Token "+i+": "+nextToken);
       String w = English.intToEnglish(i).trim();
-      assertEquals("expecting token "+i+" to be "+w,w,termAtt.term());
-      assertEquals("all but first token must have position increment of 3",enableIcrements?(i==0?1:3):1,posIncrAtt.getPositionIncrement());
+      assertEquals("expecting token "+i+" to be "+w,w,nextToken.term());
+      assertEquals("all but first token must have position increment of 3",enableIcrements?(i==0?1:3):1,nextToken.getPositionIncrement());
     }
-    assertFalse(stpf.incrementToken());
+    assertNull(stpf.next(reusableToken));
   }
   
   // print debug info depending on VERBOSE

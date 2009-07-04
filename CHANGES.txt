@@ -5,12 +5,6 @@ $Id$
 
 Changes in runtime behavior
 
- 1. LUCENE-1424: QueryParser now by default uses constant score query
-    rewriting when it generates a WildcardQuery and PrefixQuery (it
-    already does so for RangeQuery, as well).  Call
-    setConstantScoreRewrite(false) to revert to BooleanQuery rewriting
-    method.  (Mark Miller via Mike McCandless)
-
 API Changes
 
 1. LUCENE-1419: Add expert API to set custom indexing chain. This API is 
@@ -24,15 +18,6 @@ API Changes
 3. LUCENE-1451: Add public constructors to FSDirectory and subclasses,
    and deprecate FSDirectory.getDirectory().  FSDirectory instances
    are not required to be singletons per path. (yonik)
-
-4. LUCENE-1422: New TokenStream API that uses a new class called 
-   AttributeSource instead of the now deprecated Token class. All attributes
-   that the Token class had have been moved into separate classes:
-   TermAttribute, OffsetAttribute, PositionIncrementAttribute, 
-   PayloadAttribute, TypeAttribute and FlagsAttribute. The new API
-   is much more flexible; it allows to combine the Attributes arbitrarily 
-   and also to define custom Attributes. The new API has the same performance
-   as the old next(Token) approach. (Michael Busch)
 
 5. LUCENE-1467: Add nextDoc() and next(int) methods to OpenBitSetIterator.
    These methods can be used to avoid additional calls to doc(). 
@@ -88,22 +73,6 @@ New features
     
  5. Added web-based demo of functionality in contrib's XML Query Parser
     packaged as War file (Mark Harwood)    
-
- 6. LUCENE-1424: Moved constant score query rewrite capability into
-    MultiTermQuery, allowing RangeQuery, PrefixQuery and WildcardQuery
-    to switch betwen constant-score rewriting or BooleanQuery
-    expansion rewriting via a new setConstantScoreRewrite method.
-    Deprecated ConstantScoreRangeQuery (Mark Miller via Mike
-    McCandless)
-
- 7. LUCENE-1461: Added FieldCacheRangeFilter, a RangeFilter for
-    single-term fields that uses FieldCache to compute the filter.  If
-    your field has a single term per document, and you need to create
-    many RangeFilters with varying lower/upper bounds, then this is
-    likely a much faster way to create the filters than RangeFilter.
-    However, it comes at the expense of added RAM consumption and
-    slower first-time usage due to populating the FieldCache.  (Tim
-    Sturge via Mike McCandless)
 
 Optimizations
 

@@ -17,20 +17,17 @@ package org.apache.lucene.queryParser;
  * limitations under the License.
  */
 
-import java.io.IOException;
 import java.io.Reader;
 
+import org.apache.lucene.util.LuceneTestCase;
+
+import org.apache.lucene.search.Query;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.LowerCaseFilter;
+import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.util.LuceneTestCase;
 
 /**
  * Test QueryParser's ability to deal with Analyzers that return more
@@ -143,48 +140,34 @@ public class TestMultiAnalyzer extends LuceneTestCase {
 
   private final class TestFilter extends TokenFilter {
     
-    private String prevType;
-    private int prevStartOffset;
-    private int prevEndOffset;
-    
-    TermAttribute termAtt;
-    PositionIncrementAttribute posIncrAtt;
-    OffsetAttribute offsetAtt;
-    TypeAttribute typeAtt;
+    private Token prevToken;
     
     public TestFilter(TokenStream in) {
       super(in);
-      termAtt = (TermAttribute) addAttribute(TermAttribute.class);
-      posIncrAtt = (PositionIncrementAttribute) addAttribute(PositionIncrementAttribute.class);
-      offsetAtt = (OffsetAttribute) addAttribute(OffsetAttribute.class);
-      typeAtt = (TypeAttribute) addAttribute(TypeAttribute.class);
     }
 
-    public final boolean incrementToken() throws java.io.IOException {
+    public final Token next(final Token reusableToken) throws java.io.IOException {
       if (multiToken > 0) {
-        termAtt.setTermBuffer("multi"+(multiToken+1));
-        offsetAtt.setOffset(prevStartOffset, prevEndOffset);
-        typeAtt.setType(prevType);
-        posIncrAtt.setPositionIncrement(0);
+        reusableToken.reinit("multi"+(multiToken+1), prevToken.startOffset(), prevToken.endOffset(), prevToken.type());
+        reusableToken.setPositionIncrement(0);
         multiToken--;
-        return true;
+        return reusableToken;
       } else {
-        boolean next = input.incrementToken();
-        if (next == false) {
-          return false;
+        Token nextToken = input.next(reusableToken);
+        if (nextToken == null) {
+          prevToken = null;
+          return null;
         }
-        prevType = typeAtt.type();
-        prevStartOffset = offsetAtt.startOffset();
-        prevEndOffset = offsetAtt.endOffset();
-        String text = termAtt.term();
+        prevToken = (Token) nextToken.clone();
+        String text = nextToken.term();
         if (text.equals("triplemulti")) {
           multiToken = 2;
-          return true;
+          return nextToken;
         } else if (text.equals("multi")) {
           multiToken = 1;
-          return true;
+          return nextToken;
         } else {
-          return true;
+          return nextToken;
         }
       }
     }
@@ -209,28 +192,23 @@ public class TestMultiAnalyzer extends LuceneTestCase {
 
   private final class TestPosIncrementFilter extends TokenFilter {
     
-    TermAttribute termAtt;
-    PositionIncrementAttribute posIncrAtt;
-    
     public TestPosIncrementFilter(TokenStream in) {
       super(in);
-      termAtt = (TermAttribute) addAttribute(TermAttribute.class);
-      posIncrAtt = (PositionIncrementAttribute) addAttribute(PositionIncrementAttribute.class);
     }
 
-    public final boolean incrementToken () throws java.io.IOException {
-      while(input.incrementToken()) {
-        if (termAtt.term().equals("the")) {
+    public final Token next(final Token reusableToken) throws java.io.IOException {
+      for (Token nextToken = input.next(reusableToken); nextToken != null; nextToken = input.next(reusableToken)) {
+        if (nextToken.term().equals("the")) {
           // stopword, do nothing
-        } else if (termAtt.term().equals("quick")) {
-          posIncrAtt.setPositionIncrement(2);
-          return true;
+        } else if (nextToken.term().equals("quick")) {
+          nextToken.setPositionIncrement(2);
+          return nextToken;
         } else {
-          posIncrAtt.setPositionIncrement(1);
-          return true;
+          nextToken.setPositionIncrement(1);
+          return nextToken;
         }
       }
-      return false;
+      return null;
     }
   }
 

@@ -19,8 +19,6 @@ package org.apache.lucene.analysis;
 
 import java.io.IOException;
 
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
-
 /**
  * Normalizes token text to lower case.
  *
@@ -29,25 +27,8 @@ import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 public final class LowerCaseFilter extends TokenFilter {
   public LowerCaseFilter(TokenStream in) {
     super(in);
-    termAtt = (TermAttribute) addAttribute(TermAttribute.class);
   }
 
-  private TermAttribute termAtt;
-  
-  public final boolean incrementToken() throws IOException {
-    if (input.incrementToken()) {
-
-      final char[] buffer = termAtt.termBuffer();
-      final int length = termAtt.termLength();
-      for(int i=0;i<length;i++)
-        buffer[i] = Character.toLowerCase(buffer[i]);
-
-      return true;
-    } else
-      return false;
-  }
-  
-  /** @deprecated */
   public final Token next(final Token reusableToken) throws IOException {
     assert reusableToken != null;
     Token nextToken = input.next(reusableToken);

@@ -48,11 +48,12 @@ public class WildcardQuery extends MultiTermQuery {
 
     return false;
   }
-
+  
   public Query rewrite(IndexReader reader) throws IOException {
-    if (!termContainsWildcard)
+      if (this.termContainsWildcard) {
+          return super.rewrite(reader);
+      }
+      
       return new TermQuery(getTerm());
-    else
-      return super.rewrite(reader);
   }
 }

@@ -17,18 +17,18 @@ package org.apache.lucene.index;
  */
 
 
-import java.io.IOException;
-import java.io.Reader;
-import java.util.Random;
-
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
+import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
-import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.Token;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+
+import java.io.Reader;
+import java.io.IOException;
+import java.util.Random;
 
 /**
  * @version $Id$
@@ -36,21 +36,15 @@ import org.apache.lucene.util.LuceneTestCase;
 
 class RepeatingTokenStream extends TokenStream {
   public int num;
-  TermAttribute termAtt;
-  String value;
+  Token t;
 
    public RepeatingTokenStream(String val) {
-     this.value = val;
-     this.termAtt = (TermAttribute) addAttribute(TermAttribute.class);
+     t = new Token(0,val.length());
+     t.setTermBuffer(val);
    }
 
-   public boolean incrementToken() throws IOException {
-     num--;
-     if (num >= 0) {
-       termAtt.setTermBuffer(value);
-       return true;
-     }
-     return false;
+   public Token next(final Token reusableToken) throws IOException {
+     return --num<0 ? null : (Token) t.clone();
    }
 }
 

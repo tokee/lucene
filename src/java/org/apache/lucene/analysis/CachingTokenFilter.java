@@ -22,8 +22,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.lucene.util.AttributeSource;
-
 /**
  * This class can be used if the Tokens of a TokenStream
  * are intended to be consumed more than once. It caches
@@ -36,31 +34,12 @@ import org.apache.lucene.util.AttributeSource;
  */
 public class CachingTokenFilter extends TokenFilter {
   private List cache;
-  private Iterator iterator; 
+  private Iterator iterator;
   
   public CachingTokenFilter(TokenStream input) {
     super(input);
   }
   
-  public boolean incrementToken() throws IOException {
-    if (cache == null) {
-      // fill cache lazily
-      cache = new LinkedList();
-      fillCache();
-      iterator = cache.iterator();
-    }
-    
-    if (!iterator.hasNext()) {
-      // the cache is exhausted, return null
-      return false;
-    }
-    // Since the TokenFilter can be reset, the tokens need to be preserved as immutable.
-    AttributeSource state = (AttributeSource) iterator.next();
-    state.restoreState(this);
-    return true;
-  }
-  
-  /** @deprecated */
   public Token next(final Token reusableToken) throws IOException {
     assert reusableToken != null;
     if (cache == null) {
@@ -81,17 +60,10 @@ public class CachingTokenFilter extends TokenFilter {
   
   public void reset() throws IOException {
     if(cache != null) {
-      iterator = cache.iterator();
+    	iterator = cache.iterator();
     }
   }
   
-  private void fillCache() throws IOException {
-    while(input.incrementToken()) {
-      cache.add(captureState());
-    }
-  }
-  
-  /** @deprecated */
   private void fillCache(final Token reusableToken) throws IOException {
     for (Token nextToken = input.next(reusableToken); nextToken != null; nextToken = input.next(reusableToken)) {
       cache.add(nextToken.clone());

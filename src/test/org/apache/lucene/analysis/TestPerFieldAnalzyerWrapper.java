@@ -1,9 +1,7 @@
 package org.apache.lucene.analysis;
 
-import java.io.StringReader;
-
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.util.LuceneTestCase;
+import java.io.StringReader;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -31,19 +29,17 @@ public class TestPerFieldAnalzyerWrapper extends LuceneTestCase {
 
     TokenStream tokenStream = analyzer.tokenStream("field",
                                             new StringReader(text));
-    TermAttribute termAtt = (TermAttribute) tokenStream.getAttribute(TermAttribute.class);
-
-    assertTrue(tokenStream.incrementToken());
+    final Token reusableToken = new Token();
+    Token nextToken = tokenStream.next(reusableToken);
     assertEquals("WhitespaceAnalyzer does not lowercase",
                  "Qwerty",
-                 termAtt.term());
+                 nextToken.term());
 
     tokenStream = analyzer.tokenStream("special",
                                             new StringReader(text));
-    termAtt = (TermAttribute) tokenStream.getAttribute(TermAttribute.class);
-    assertTrue(tokenStream.incrementToken());
+    nextToken = tokenStream.next(reusableToken);
     assertEquals("SimpleAnalyzer lowercases",
                  "qwerty",
-                 termAtt.term());
+                 nextToken.term());
   }
 }

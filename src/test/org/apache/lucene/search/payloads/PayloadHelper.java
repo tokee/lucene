@@ -2,7 +2,6 @@ package org.apache.lucene.search.payloads;
 
 
 import org.apache.lucene.analysis.*;
-import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
 import org.apache.lucene.index.Payload;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.RAMDirectory;
@@ -42,36 +41,34 @@ public class PayloadHelper {
   public class PayloadFilter extends TokenFilter {
     String fieldName;
     int numSeen = 0;
-    PayloadAttribute payloadAtt;
-    
+
     public PayloadFilter(TokenStream input, String fieldName) {
       super(input);
       this.fieldName = fieldName;
-      payloadAtt = (PayloadAttribute) addAttribute(PayloadAttribute.class);
     }
 
-    public boolean incrementToken() throws IOException {
-      
-      if (input.incrementToken()) {
+    public Token next() throws IOException {
+      Token result = input.next();
+      if (result != null) {
         if (fieldName.equals(FIELD))
         {
-          payloadAtt.setPayload(new Payload(payloadField));
+          result.setPayload(new Payload(payloadField));
         }
         else if (fieldName.equals(MULTI_FIELD))
         {
           if (numSeen  % 2 == 0)
           {
-            payloadAtt.setPayload(new Payload(payloadMultiField1));
+            result.setPayload(new Payload(payloadMultiField1));
           }
           else
           {
-            payloadAtt.setPayload(new Payload(payloadMultiField2));
+            result.setPayload(new Payload(payloadMultiField2));
           }
           numSeen++;
         }
-        return true;
+
       }
-      return false;
+      return result;
     }
   }
 
