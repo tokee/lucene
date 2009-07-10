@@ -248,6 +248,11 @@ class SegmentReader extends DirectoryIndexReader {
     return get(readOnly, si.dir, si, null, false, false, BufferedIndexInput.BUFFER_SIZE, true);
   }
 
+  public static SegmentReader get(boolean readOnly, SegmentInfo si, int termsIndexDivisor) throws CorruptIndexException, IOException {
+    // stub
+    return null;
+  }
+
   /**
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error

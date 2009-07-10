@@ -279,6 +279,11 @@ public abstract class IndexReader {
     return open(directory, false, deletionPolicy, null, readOnly);
   }
 
+  public static IndexReader open(final Directory directory, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor) throws CorruptIndexException, IOException {
+    // stub
+    return null;
+  }
+
   /** Expert: returns a read/write IndexReader reading the index in the given
    * Directory, using a specific commit and with a custom
    * {@link IndexDeletionPolicy}.  <b>NOTE</b>: starting in
@@ -310,6 +315,11 @@ public abstract class IndexReader {
    */
   public static IndexReader open(final IndexCommit commit, IndexDeletionPolicy deletionPolicy, boolean readOnly) throws CorruptIndexException, IOException {
     return open(commit.getDirectory(), false, deletionPolicy, commit, readOnly);
+  }
+
+  public static IndexReader open(final IndexCommit commit, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor) throws CorruptIndexException, IOException {
+    // stub
+    return null;
   }
 
   private static IndexReader open(final Directory directory, final boolean closeDirectory, final IndexDeletionPolicy deletionPolicy, final IndexCommit commit, final boolean readOnly) throws CorruptIndexException, IOException {

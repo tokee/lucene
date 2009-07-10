@@ -200,20 +200,4 @@ public class TestSegmentReader extends LuceneTestCase {
     assertTrue(results != null);
     assertTrue("We do not have 4 term freq vectors, we have: " + results.length, results.length == 4);      
   }    
-  
-  public void testIndexDivisor() throws IOException {
-    dir = new MockRAMDirectory();
-    testDoc = new Document();
-    DocHelper.setupDoc(testDoc);
-    SegmentInfo si = DocHelper.writeDoc(dir, testDoc);
-    
-    reader = SegmentReader.get(si);
-    reader.setTermInfosIndexDivisor(3);
-    testDocument();
-    testDelete();
-    testGetFieldNameVariations();
-    testNorms();
-    testTerms();
-    testTermVectors();
-  }
 }
