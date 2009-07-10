@@ -78,7 +78,27 @@ class SegmentReader extends DirectoryIndexReader {
   // indicates the SegmentReader with which the resources are being shared,
   // in case this is a re-opened reader
   private SegmentReader referencedSegmentReader = null;
-  
+
+  // stub
+  static final class CoreReaders {
+    // Counts how many other reader share the core objects
+    // (freqStream, proxStream, tis, etc.) of this reader;
+    // when coreRef drops to 0, these core objects may be
+    // closed.  A given insance of SegmentReader may be
+    // closed, even those it shares core objects with other
+    // SegmentReaders:
+    FieldsReader fieldsReaderOrig;
+    TermVectorsReader termVectorsReaderOrig;
+    CompoundFileReader cfsReader;
+    CompoundFileReader storeCFSReader;
+    TermInfosReader tis;
+    IndexInput freqStream;
+    IndexInput proxStream;
+    FieldInfos fieldInfos;
+  }
+
+  CoreReaders core;
+
   private class Norm {
     volatile int refCount;
     boolean useSingleNormStream;
