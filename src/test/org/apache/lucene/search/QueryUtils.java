@@ -146,7 +146,9 @@ public class QueryUtils {
 
       final Weight w = q.weight(s);
       final Scorer scorer = w.scorer(s.getIndexReader());
-      
+      if (scorer == null) {
+        continue;
+      }
       // FUTURE: ensure scorer.doc()==-1
 
       final int[] sdoc = new int[] {-1};
@@ -219,8 +221,10 @@ public class QueryUtils {
     });
     Weight w = q.weight(s);
     Scorer scorer = w.scorer(s.getIndexReader());
-    boolean more = scorer.skipTo(lastDoc[0]+1);
-    if (more) 
-      TestCase.assertFalse("query's last doc was "+lastDoc[0]+" but skipTo("+(lastDoc[0]+1)+") got to "+scorer.doc(),more);
+    if (scorer != null) {
+      boolean more = scorer.skipTo(lastDoc[0]+1);
+      if (more) 
+        TestCase.assertFalse("query's last doc was "+lastDoc[0]+" but skipTo("+(lastDoc[0]+1)+") got to "+scorer.doc(),more);
+    }
   }
 }
