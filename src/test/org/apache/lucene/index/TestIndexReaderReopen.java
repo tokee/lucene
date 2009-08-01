@@ -859,7 +859,7 @@ public class TestIndexReaderReopen extends LuceneTestCase {
   private static void createIndex(Directory dir, boolean multiSegment) throws IOException {
     IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
     
-    w.setMergePolicy(new LogDocMergePolicy());
+    w.setMergePolicy(new LogDocMergePolicy(w));
     
     for (int i = 0; i < 100; i++) {
       w.addDocument(createDocument(i, 4));

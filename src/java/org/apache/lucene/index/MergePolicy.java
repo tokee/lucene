@@ -196,6 +196,12 @@ public abstract class MergePolicy {
     }
   }
 
+  protected IndexWriter writer;
+  
+  public MergePolicy(IndexWriter writer) {
+    this.writer = writer;
+  }
+  
   /**
    * Determine what set of merge operations are now
    * necessary on the index.  The IndexWriter calls this
@@ -204,10 +210,8 @@ public abstract class MergePolicy {
    * only one thread at a time will call this method.
    *
    * @param segmentInfos the total set of segments in the index
-   * @param writer IndexWriter instance
    */
-  abstract MergeSpecification findMerges(SegmentInfos segmentInfos,
-                                         IndexWriter writer)
+  public abstract MergeSpecification findMerges(SegmentInfos segmentInfos)
     throws CorruptIndexException, IOException;
 
   /**
@@ -218,15 +222,13 @@ public abstract class MergePolicy {
    * only one thread at a time will call this method.
    *
    * @param segmentInfos the total set of segments in the index
-   * @param writer IndexWriter instance
    * @param maxSegmentCount requested maximum number of
    *   segments in the index (currently this is always 1)
    * @param segmentsToOptimize contains the specific
    *   SegmentInfo instances that must be merged away.  This
    *   may be a subset of all SegmentInfos.
    */
-  abstract MergeSpecification findMergesForOptimize(SegmentInfos segmentInfos,
-                                                    IndexWriter writer,
+  public abstract MergeSpecification findMergesForOptimize(SegmentInfos segmentInfos,
                                                     int maxSegmentCount,
                                                     Set segmentsToOptimize)
     throws CorruptIndexException, IOException;
@@ -235,29 +237,24 @@ public abstract class MergePolicy {
    * Determine what set of merge operations is necessary in
    * order to expunge all deletes from the index.
    * @param segmentInfos the total set of segments in the index
-   * @param writer IndexWriter instance
    */
-  MergeSpecification findMergesToExpungeDeletes(SegmentInfos segmentInfos,
-                                                 IndexWriter writer)
-    throws CorruptIndexException, IOException
-  {
-    throw new RuntimeException("not implemented");
-  }
+  public abstract MergeSpecification findMergesToExpungeDeletes(SegmentInfos segmentInfos)
+    throws CorruptIndexException, IOException;
 
   /**
    * Release all resources for the policy.
    */
-  abstract void close();
+  public abstract void close();
 
   /**
    * Returns true if a newly flushed (not from merge)
    * segment should use the compound file format.
    */
-  abstract boolean useCompoundFile(SegmentInfos segments, SegmentInfo newSegment);
+  public abstract boolean useCompoundFile(SegmentInfos segments, SegmentInfo newSegment);
 
   /**
    * Returns true if the doc store files should use the
    * compound file format.
    */
-  abstract boolean useCompoundDocStore(SegmentInfos segments);
+  public abstract boolean useCompoundDocStore(SegmentInfos segments);
 }
