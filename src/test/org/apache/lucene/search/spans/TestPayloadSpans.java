@@ -69,14 +69,14 @@ public class TestPayloadSpans extends LuceneTestCase {
 
   public void testSpanTermQuery() throws Exception {
     SpanTermQuery stq;
-    PayloadSpans spans;
+    Spans spans;
     stq = new SpanTermQuery(new Term(PayloadHelper.FIELD, "seventy"));
-    spans = stq.getPayloadSpans(indexReader);
+    spans = stq.getSpans(indexReader);
     assertTrue("spans is null and it shouldn't be", spans != null);
     checkSpans(spans, 100, 1, 1, 1);
 
     stq = new SpanTermQuery(new Term(PayloadHelper.NO_PAYLOAD_FIELD, "seventy"));  
-    spans = stq.getPayloadSpans(indexReader);
+    spans = stq.getSpans(indexReader);
     assertTrue("spans is null and it shouldn't be", spans != null);
     checkSpans(spans, 100, 0, 0, 0);
   }
@@ -87,7 +87,7 @@ public class TestPayloadSpans extends LuceneTestCase {
     SpanFirstQuery sfq;
     match = new SpanTermQuery(new Term(PayloadHelper.FIELD, "one"));
     sfq = new SpanFirstQuery(match, 2);
-    PayloadSpans spans = sfq.getPayloadSpans(indexReader);
+    Spans spans = sfq.getSpans(indexReader);
     checkSpans(spans, 109, 1, 1, 1);
     //Test more complicated subclause
     SpanQuery[] clauses = new SpanQuery[2];
@@ -95,20 +95,20 @@ public class TestPayloadSpans extends LuceneTestCase {
     clauses[1] = new SpanTermQuery(new Term(PayloadHelper.FIELD, "hundred"));
     match = new SpanNearQuery(clauses, 0, true);
     sfq = new SpanFirstQuery(match, 2);
-    checkSpans(sfq.getPayloadSpans(indexReader), 100, 2, 1, 1);
+    checkSpans(sfq.getSpans(indexReader), 100, 2, 1, 1);
 
     match = new SpanNearQuery(clauses, 0, false);
     sfq = new SpanFirstQuery(match, 2);
-    checkSpans(sfq.getPayloadSpans(indexReader), 100, 2, 1, 1);
+    checkSpans(sfq.getSpans(indexReader), 100, 2, 1, 1);
     
   }
   
   public void testNestedSpans() throws Exception {
     SpanTermQuery stq;
-    PayloadSpans spans;
+    Spans spans;
     IndexSearcher searcher = getSearcher();
     stq = new SpanTermQuery(new Term(PayloadHelper.FIELD, "mark"));
-    spans = stq.getPayloadSpans(searcher.getIndexReader());
+    spans = stq.getSpans(searcher.getIndexReader());
     assertTrue("spans is null and it shouldn't be", spans != null);
     checkSpans(spans, 0, null);
 
@@ -119,7 +119,7 @@ public class TestPayloadSpans extends LuceneTestCase {
     clauses[2] = new SpanTermQuery(new Term(PayloadHelper.FIELD, "xx"));
     SpanNearQuery spanNearQuery = new SpanNearQuery(clauses, 12, false);
 
-    spans = spanNearQuery.getPayloadSpans(searcher.getIndexReader());
+    spans = spanNearQuery.getSpans(searcher.getIndexReader());
     assertTrue("spans is null and it shouldn't be", spans != null);
     checkSpans(spans, 2, new int[]{3,3});
 
@@ -131,7 +131,7 @@ public class TestPayloadSpans extends LuceneTestCase {
     spanNearQuery = new SpanNearQuery(clauses, 6, true);
    
     
-    spans = spanNearQuery.getPayloadSpans(searcher.getIndexReader());
+    spans = spanNearQuery.getSpans(searcher.getIndexReader());
     assertTrue("spans is null and it shouldn't be", spans != null);
     checkSpans(spans, 1, new int[]{3});
      
@@ -153,13 +153,13 @@ public class TestPayloadSpans extends LuceneTestCase {
     
     // yy within 6 of xx within 6 of rr
 
-    spans = nestedSpanNearQuery.getPayloadSpans(searcher.getIndexReader());
+    spans = nestedSpanNearQuery.getSpans(searcher.getIndexReader());
     assertTrue("spans is null and it shouldn't be", spans != null);
     checkSpans(spans, 2, new int[]{3,3});
   }
   
   public void testFirstClauseWithoutPayload() throws Exception {
-    PayloadSpans spans;
+    Spans spans;
     IndexSearcher searcher = getSearcher();
 
     SpanQuery[] clauses = new SpanQuery[3];
@@ -183,13 +183,13 @@ public class TestPayloadSpans extends LuceneTestCase {
      
     SpanNearQuery nestedSpanNearQuery = new SpanNearQuery(clauses3, 6, false);
 
-    spans = nestedSpanNearQuery.getPayloadSpans(searcher.getIndexReader());
+    spans = nestedSpanNearQuery.getSpans(searcher.getIndexReader());
     assertTrue("spans is null and it shouldn't be", spans != null);
     checkSpans(spans, 1, new int[]{3});
   }
   
   public void testHeavilyNestedSpanQuery() throws Exception {
-    PayloadSpans spans;
+    Spans spans;
     IndexSearcher searcher = getSearcher();
 
     SpanQuery[] clauses = new SpanQuery[3];
@@ -218,7 +218,7 @@ public class TestPayloadSpans extends LuceneTestCase {
      
     SpanNearQuery nestedSpanNearQuery = new SpanNearQuery(clauses3, 6, false);
 
-    spans = nestedSpanNearQuery.getPayloadSpans(searcher.getIndexReader());
+    spans = nestedSpanNearQuery.getSpans(searcher.getIndexReader());
     assertTrue("spans is null and it shouldn't be", spans != null);
     checkSpans(spans, 2, new int[]{8, 8});
   }
@@ -239,7 +239,7 @@ public class TestPayloadSpans extends LuceneTestCase {
     SpanTermQuery stq2 = new SpanTermQuery(new Term("content", "k"));
     SpanQuery[] sqs = { stq1, stq2 };
     SpanNearQuery snq = new SpanNearQuery(sqs, 1, true);
-    PayloadSpans spans = snq.getPayloadSpans(is.getIndexReader());
+    Spans spans = snq.getSpans(is.getIndexReader());
 
     TopDocs topDocs = is.search(snq, 1);
     Set payloadSet = new HashSet();
@@ -273,7 +273,7 @@ public class TestPayloadSpans extends LuceneTestCase {
     SpanTermQuery stq2 = new SpanTermQuery(new Term("content", "k"));
     SpanQuery[] sqs = { stq1, stq2 };
     SpanNearQuery snq = new SpanNearQuery(sqs, 0, true);
-    PayloadSpans spans = snq.getPayloadSpans(is.getIndexReader());
+    Spans spans = snq.getSpans(is.getIndexReader());
 
     TopDocs topDocs = is.search(snq, 1);
     Set payloadSet = new HashSet();
@@ -307,7 +307,7 @@ public class TestPayloadSpans extends LuceneTestCase {
     SpanTermQuery stq2 = new SpanTermQuery(new Term("content", "k"));
     SpanQuery[] sqs = { stq1, stq2 };
     SpanNearQuery snq = new SpanNearQuery(sqs, 0, true);
-    PayloadSpans spans = snq.getPayloadSpans(is.getIndexReader());
+    Spans spans = snq.getSpans(is.getIndexReader());
 
     TopDocs topDocs = is.search(snq, 1);
     Set payloadSet = new HashSet();
@@ -360,7 +360,7 @@ public class TestPayloadSpans extends LuceneTestCase {
     
   }
 
-  private void checkSpans(PayloadSpans spans, int expectedNumSpans, int expectedNumPayloads,
+  private void checkSpans(Spans spans, int expectedNumSpans, int expectedNumPayloads,
                           int expectedPayloadLength, int expectedFirstByte) throws IOException {
     assertTrue("spans is null and it shouldn't be", spans != null);
     //each position match should have a span associated with it, since there is just one underlying term query, there should
@@ -416,7 +416,7 @@ public class TestPayloadSpans extends LuceneTestCase {
     return searcher;
   }
   
-  private void checkSpans(PayloadSpans spans, int numSpans, int[] numPayloads) throws IOException {
+  private void checkSpans(Spans spans, int numSpans, int[] numPayloads) throws IOException {
     int cnt = 0;
 
     while (spans.next() == true) {

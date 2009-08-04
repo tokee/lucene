@@ -154,22 +154,18 @@ public class SpanOrQuery extends SpanQuery {
     }
   }
 
-  public PayloadSpans getPayloadSpans(final IndexReader reader) throws IOException {
-    return (PayloadSpans)getSpans(reader);
-  }
-
   public Spans getSpans(final IndexReader reader) throws IOException {
     if (clauses.size() == 1)                      // optimize 1-clause case
-      return ((SpanQuery)clauses.get(0)).getPayloadSpans(reader);
+      return ((SpanQuery)clauses.get(0)).getSpans(reader);
 
-    return new PayloadSpans() {
+    return new Spans() {
         private SpanQueue queue = null;
 
         private boolean initSpanQueue(int target) throws IOException {
           queue = new SpanQueue(clauses.size());
           Iterator i = clauses.iterator();
           while (i.hasNext()) {
-            PayloadSpans spans = ((SpanQuery)i.next()).getPayloadSpans(reader);
+            Spans spans = ((SpanQuery)i.next()).getSpans(reader);
             if (   ((target == -1) && spans.next())
                 || ((target != -1) && spans.skipTo(target))) {
               queue.put(spans);
@@ -196,7 +192,7 @@ public class SpanOrQuery extends SpanQuery {
           return queue.size() != 0;
         }
 
-        private PayloadSpans top() { return (PayloadSpans)queue.top(); }
+        private Spans top() { return (Spans)queue.top(); }
 
         public boolean skipTo(int target) throws IOException {
           if (queue == null) {
@@ -221,7 +217,7 @@ public class SpanOrQuery extends SpanQuery {
       // TODO: Remove warning after API has been finalized
       public Collection/*<byte[]>*/ getPayload() throws IOException {
         ArrayList result = null;
-        PayloadSpans theTop = top();
+        Spans theTop = top();
         if (theTop != null && theTop.isPayloadAvailable()) {
           result = new ArrayList(theTop.getPayload());
         }
@@ -230,7 +226,7 @@ public class SpanOrQuery extends SpanQuery {
 
       // TODO: Remove warning after API has been finalized
      public boolean isPayloadAvailable() {
-        PayloadSpans top = top();
+        Spans top = top();
         return top != null && top.isPayloadAvailable();
       }
 

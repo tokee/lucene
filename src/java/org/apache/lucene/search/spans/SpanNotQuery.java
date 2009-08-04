@@ -70,8 +70,8 @@ public class SpanNotQuery extends SpanQuery {
 
 
   public Spans getSpans(final IndexReader reader) throws IOException {
-    return new PayloadSpans() {
-        private PayloadSpans includeSpans = include.getPayloadSpans(reader);
+    return new Spans() {
+        private Spans includeSpans = include.getSpans(reader);
         private boolean moreInclude = true;
 
         private Spans excludeSpans = exclude.getSpans(reader);
@@ -150,10 +150,6 @@ public class SpanNotQuery extends SpanQuery {
         }
 
       };
-  }
-
-  public PayloadSpans getPayloadSpans(IndexReader reader) throws IOException {
-    return (PayloadSpans) getSpans(reader);
   }
 
   public Query rewrite(IndexReader reader) throws IOException {
