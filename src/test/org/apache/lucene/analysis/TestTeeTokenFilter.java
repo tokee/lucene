@@ -29,14 +29,14 @@ import java.util.List;
 /**
  * tests for the TeeTokenFilter and SinkTokenizer
  */
-public class TeeSinkTokenTest extends LuceneTestCase {
+public class TestTeeTokenFilter extends LuceneTestCase {
   protected StringBuffer buffer1;
   protected StringBuffer buffer2;
   protected String[] tokens1;
   protected String[] tokens2;
 
 
-  public TeeSinkTokenTest(String s) {
+  public TestTeeTokenFilter(String s) {
     super(s);
   }
 
@@ -146,7 +146,7 @@ public class TeeSinkTokenTest extends LuceneTestCase {
    *
    * @throws Exception
    */
-  public void testPerformance() throws Exception {
+  public void disabledTestPerformance() throws Exception {
     int[] tokCount = {100, 500, 1000, 2000, 5000, 10000};
     int[] modCounts = {1, 2, 5, 10, 20, 50, 100, 200, 500};
     for (int k = 0; k < tokCount.length; k++) {
