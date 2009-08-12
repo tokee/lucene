@@ -124,7 +124,7 @@ public class MultiPhraseQuery extends Query {
   }
 
 
-  private class MultiPhraseWeight implements Weight {
+  private class MultiPhraseWeight extends Weight {
     private Similarity similarity;
     private float value;
     private float idf;
@@ -159,7 +159,7 @@ public class MultiPhraseQuery extends Query {
       value = queryWeight * idf;                  // idf for document 
     }
 
-    public Scorer scorer(IndexReader reader) throws IOException {
+    public Scorer scorer(IndexReader reader, boolean order, boolean top) throws IOException {
       if (termArrays.size() == 0)                  // optimize zero-term case
         return null;
 
@@ -218,7 +218,7 @@ public class MultiPhraseQuery extends Query {
       fieldExpl.setDescription("fieldWeight("+getQuery()+" in "+doc+
                                "), product of:");
 
-      Explanation tfExpl = scorer(reader).explain(doc);
+      Explanation tfExpl = scorer(reader, true, false).explain(doc);
       fieldExpl.addDetail(tfExpl);
       fieldExpl.addDetail(idfExpl);
 

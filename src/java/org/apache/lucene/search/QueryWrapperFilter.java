@@ -63,7 +63,7 @@ public class QueryWrapperFilter extends Filter {
     final Weight weight = query.weight(new IndexSearcher(reader));
     return new DocIdSet() {
       public DocIdSetIterator iterator() throws IOException {
-        return weight.scorer(reader);
+        return weight.scorer(reader, true, false);
       }
     };
   }

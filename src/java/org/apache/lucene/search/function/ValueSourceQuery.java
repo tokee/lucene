@@ -59,7 +59,7 @@ public class ValueSourceQuery extends Query {
     // no terms involved here
   }
 
-  private class ValueSourceWeight implements Weight {
+  private class ValueSourceWeight extends Weight {
     Similarity similarity;
     float queryNorm;
     float queryWeight;
@@ -91,13 +91,13 @@ public class ValueSourceQuery extends Query {
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#scorer(org.apache.lucene.index.IndexReader) */
-    public Scorer scorer(IndexReader reader) throws IOException {
+    public Scorer scorer(IndexReader reader, boolean order, boolean top) throws IOException {
       return new ValueSourceScorer(similarity, reader, this);
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#explain(org.apache.lucene.index.IndexReader, int) */
     public Explanation explain(IndexReader reader, int doc) throws IOException {
-      return scorer(reader).explain(doc);
+      return scorer(reader, true, false).explain(doc);
     }
   }
 

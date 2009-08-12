@@ -145,7 +145,7 @@ public class QueryUtils {
       final int opidx[] = {0};
 
       final Weight w = q.weight(s);
-      final Scorer scorer = w.scorer(s.getIndexReader());
+      final Scorer scorer = w.scorer(s.getIndexReader(), true, false);
       if (scorer == null) {
         continue;
       }
@@ -206,7 +206,7 @@ public class QueryUtils {
         try {
           for (int i=lastDoc[0]+1; i<=doc; i++) {
             Weight w = q.weight(s);
-            Scorer scorer = w.scorer(s.getIndexReader());
+            Scorer scorer = w.scorer(s.getIndexReader(), true, false);
             TestCase.assertTrue("query collected "+doc+" but skipTo("+i+") says no more docs!",scorer.skipTo(i));
             TestCase.assertEquals("query collected "+doc+" but skipTo("+i+") got to "+scorer.doc(),doc,scorer.doc());
             float skipToScore = scorer.score();
@@ -220,7 +220,7 @@ public class QueryUtils {
       }
     });
     Weight w = q.weight(s);
-    Scorer scorer = w.scorer(s.getIndexReader());
+    Scorer scorer = w.scorer(s.getIndexReader(), true, false);
     if (scorer != null) {
       boolean more = scorer.skipTo(lastDoc[0]+1);
       if (more) 

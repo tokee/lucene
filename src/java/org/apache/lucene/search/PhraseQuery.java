@@ -106,7 +106,7 @@ public class PhraseQuery extends Query {
       return result;
   }
 
-  private class PhraseWeight implements Weight {
+  private class PhraseWeight extends Weight {
     private Similarity similarity;
     private float value;
     private float idf;
@@ -136,7 +136,7 @@ public class PhraseQuery extends Query {
       value = queryWeight * idf;                  // idf for document 
     }
 
-    public Scorer scorer(IndexReader reader) throws IOException {
+    public Scorer scorer(IndexReader reader, boolean order, boolean top) throws IOException {
       if (terms.size() == 0)			  // optimize zero-term case
         return null;
 
@@ -209,7 +209,7 @@ public class PhraseQuery extends Query {
       fieldExpl.setDescription("fieldWeight("+field+":"+query+" in "+doc+
                                "), product of:");
 
-      Explanation tfExpl = scorer(reader).explain(doc);
+      Explanation tfExpl = scorer(reader, true, false).explain(doc);
       fieldExpl.addDetail(tfExpl);
       fieldExpl.addDetail(idfExpl);
 

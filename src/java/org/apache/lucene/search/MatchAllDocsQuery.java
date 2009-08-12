@@ -81,7 +81,7 @@ public class MatchAllDocsQuery extends Query {
 
   }
 
-  private class MatchAllDocsWeight implements Weight {
+  private class MatchAllDocsWeight extends Weight {
     private Similarity similarity;
     private float queryWeight;
     private float queryNorm;
@@ -112,7 +112,7 @@ public class MatchAllDocsQuery extends Query {
       queryWeight *= this.queryNorm;
     }
 
-    public Scorer scorer(IndexReader reader) {
+    public Scorer scorer(IndexReader reader, boolean order, boolean top) {
       return new MatchAllScorer(reader, similarity, this);
     }
 

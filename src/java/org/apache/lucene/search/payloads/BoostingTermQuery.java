@@ -51,7 +51,7 @@ public class BoostingTermQuery extends SpanTermQuery{
     return new BoostingTermWeight(this, searcher);
   }
 
-  protected class BoostingTermWeight extends SpanWeight implements Weight {
+  protected class BoostingTermWeight extends SpanWeight {
 
 
     public BoostingTermWeight(BoostingTermQuery query, Searcher searcher) throws IOException {

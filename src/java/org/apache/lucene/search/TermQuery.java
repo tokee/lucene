@@ -31,7 +31,7 @@ import org.apache.lucene.util.ToStringUtils;
 public class TermQuery extends Query {
   private Term term;
 
-  private class TermWeight implements Weight {
+  private class TermWeight extends Weight {
     private Similarity similarity;
     private float value;
     private float idf;
@@ -60,7 +60,7 @@ public class TermQuery extends Query {
       value = queryWeight * idf;                  // idf for document
     }
 
-    public Scorer scorer(IndexReader reader) throws IOException {
+    public Scorer scorer(IndexReader reader, boolean order, boolean top) throws IOException {
       TermDocs termDocs = reader.termDocs(term);
 
       if (termDocs == null)
@@ -104,7 +104,7 @@ public class TermQuery extends Query {
       fieldExpl.setDescription("fieldWeight("+term+" in "+doc+
                                "), product of:");
 
-      Explanation tfExpl = scorer(reader).explain(doc);
+      Explanation tfExpl = scorer(reader, true, false).explain(doc);
       fieldExpl.addDetail(tfExpl);
       fieldExpl.addDetail(idfExpl);
 

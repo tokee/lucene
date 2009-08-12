@@ -979,7 +979,7 @@ final class DocumentsWriter {
       Query query = (Query) entry.getKey();
       int limit = ((Integer) entry.getValue()).intValue();
       Weight weight = query.weight(searcher);
-      Scorer scorer = weight.scorer(reader);
+      Scorer scorer = weight.scorer(reader, true, false);
       while(scorer.next()) {
         final int docID = scorer.doc();
         if (docIDStart + docID >= limit)

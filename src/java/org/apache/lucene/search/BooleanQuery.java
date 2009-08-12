@@ -173,7 +173,7 @@ public class BooleanQuery extends Query {
   /** Returns the list of clauses in this query. */
   public List clauses() { return clauses; }
 
-  private class BooleanWeight implements Weight {
+  private class BooleanWeight extends Weight {
     protected Similarity similarity;
     protected ArrayList weights;
 
@@ -220,7 +220,7 @@ public class BooleanQuery extends Query {
     /** @return Returns BooleanScorer2 that uses and provides skipTo(),
      *          and scores documents in document number order.
      */
-    public Scorer scorer(IndexReader reader) throws IOException {
+    public Scorer scorer(IndexReader reader, boolean order, boolean top) throws IOException {
       BooleanScorer2 result = new BooleanScorer2(similarity,
                                                  minNrShouldMatch,
                                                  allowDocsOutOfOrder);
@@ -228,7 +228,7 @@ public class BooleanQuery extends Query {
       for (int i = 0 ; i < weights.size(); i++) {
         BooleanClause c = (BooleanClause)clauses.get(i);
         Weight w = (Weight)weights.get(i);
-        Scorer subScorer = w.scorer(reader);
+        Scorer subScorer = w.scorer(reader, true, false);
         if (subScorer != null)
           result.add(subScorer, c.isRequired(), c.isProhibited());
         else if (c.isRequired())

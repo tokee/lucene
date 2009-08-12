@@ -271,7 +271,7 @@ public class CustomScoreQuery extends Query {
 
   //=========================== W E I G H T ============================
   
-  private class CustomWeight implements Weight {
+  private class CustomWeight extends Weight {
     Similarity similarity;
     Weight subQueryWeight;
     Weight[] valSrcWeights;
@@ -326,18 +326,18 @@ public class CustomScoreQuery extends Query {
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#scorer(org.apache.lucene.index.IndexReader) */
-    public Scorer scorer(IndexReader reader) throws IOException {
-      Scorer subQueryScorer = subQueryWeight.scorer(reader);
+    public Scorer scorer(IndexReader reader, boolean order, boolean top) throws IOException {
+      Scorer subQueryScorer = subQueryWeight.scorer(reader, true, false);
       Scorer[] valSrcScorers = new Scorer[valSrcWeights.length];
       for(int i = 0; i < valSrcScorers.length; i++) {
-         valSrcScorers[i] = valSrcWeights[i].scorer(reader);
+         valSrcScorers[i] = valSrcWeights[i].scorer(reader, true, false);
       }
       return new CustomScorer(similarity, reader, this, subQueryScorer, valSrcScorers);
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#explain(org.apache.lucene.index.IndexReader, int) */
     public Explanation explain(IndexReader reader, int doc) throws IOException {
-      return scorer(reader).explain(doc);
+      return scorer(reader, true, false).explain(doc);
     }
   }
 

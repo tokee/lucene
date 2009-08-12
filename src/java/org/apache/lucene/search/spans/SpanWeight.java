@@ -29,7 +29,7 @@ import java.util.Set;
 /**
  * Expert-only.  Public for use by other weight implementations
  */
-public class SpanWeight implements Weight {
+public class SpanWeight extends Weight {
   protected Similarity similarity;
   protected float value;
   protected float idf;
@@ -63,7 +63,7 @@ public class SpanWeight implements Weight {
     value = queryWeight * idf;                    // idf for document
   }
 
-  public Scorer scorer(IndexReader reader) throws IOException {
+  public Scorer scorer(IndexReader reader, boolean order, boolean top) throws IOException {
     return new SpanScorer(query.getSpans(reader), this,
                           similarity,
                           reader.norms(query.getField()));
@@ -115,7 +115,7 @@ public class SpanWeight implements Weight {
     fieldExpl.setDescription("fieldWeight("+field+":"+query.toString(field)+
                              " in "+doc+"), product of:");
 
-    Explanation tfExpl = scorer(reader).explain(doc);
+    Explanation tfExpl = scorer(reader, true, false).explain(doc);
     fieldExpl.addDetail(tfExpl);
     fieldExpl.addDetail(idfExpl);
 

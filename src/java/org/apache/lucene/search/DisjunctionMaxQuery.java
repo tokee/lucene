@@ -86,7 +86,7 @@ public class DisjunctionMaxQuery extends Query {
   }
 
   /* The Weight for DisjunctionMaxQuery's, used to normalize, score and explain these queries */
-  private class DisjunctionMaxWeight implements Weight {
+  private class DisjunctionMaxWeight extends Weight {
 
     private Similarity similarity;   // The similarity which we are associated.
     private ArrayList weights = new ArrayList();  // The Weight's for our subqueries, in 1-1 correspondence with disjuncts
@@ -123,11 +123,11 @@ public class DisjunctionMaxQuery extends Query {
     }
 
     /* Create the scorer used to score our associated DisjunctionMaxQuery */
-    public Scorer scorer(IndexReader reader) throws IOException {
+    public Scorer scorer(IndexReader reader, boolean order, boolean top) throws IOException {
       DisjunctionMaxScorer result = new DisjunctionMaxScorer(tieBreakerMultiplier, similarity);
       for (int i = 0 ; i < weights.size(); i++) {
         Weight w = (Weight) weights.get(i);
-        Scorer subScorer = w.scorer(reader);
+        Scorer subScorer = w.scorer(reader, true, false);
         if (subScorer == null) return null;
         result.add(subScorer);
       }

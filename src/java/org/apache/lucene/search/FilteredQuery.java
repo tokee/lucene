@@ -99,8 +99,8 @@ extends Query {
       public Query getQuery() { return FilteredQuery.this; }
 
       // return a filtering scorer
-       public Scorer scorer (IndexReader indexReader) throws IOException {
-        final Scorer scorer = weight.scorer(indexReader);
+       public Scorer scorer (IndexReader indexReader, boolean order, boolean top) throws IOException {
+        final Scorer scorer = weight.scorer(indexReader, true, false);
         final DocIdSetIterator docIdSetIterator = filter.getDocIdSet(indexReader).iterator();
 
         return new Scorer(similarity) {

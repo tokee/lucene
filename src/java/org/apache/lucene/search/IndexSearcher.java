@@ -128,7 +128,7 @@ public class IndexSearcher extends Searcher {
   public void search(Weight weight, Filter filter,
                      final HitCollector results) throws IOException {
 
-    Scorer scorer = weight.scorer(reader);
+    Scorer scorer = weight.scorer(reader, true, false);
     if (scorer == null)
       return;
 
