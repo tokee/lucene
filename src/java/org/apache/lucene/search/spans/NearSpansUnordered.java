@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 
-class NearSpansUnordered implements Spans {
+class NearSpansUnordered extends Spans {
   private SpanNearQuery query;
 
   private List ordered = new ArrayList();         // spans in query order
@@ -62,7 +62,7 @@ class NearSpansUnordered implements Spans {
 
 
   /** Wraps a Spans, and can be used to form a linked list. */
-  private class SpansCell implements Spans {
+  private class SpansCell extends Spans {
     private Spans spans;
     private SpansCell next;
     private int length = -1;

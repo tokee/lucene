@@ -47,7 +47,7 @@ import java.util.Set;
  * <pre>t1 t2 .. t3      </pre>
  * <pre>      t1 .. t2 t3</pre>
  */
-class NearSpansOrdered implements Spans {
+class NearSpansOrdered extends Spans {
   private final int allowedSlop;
   private boolean firstTime = true;
   private boolean more = false;
