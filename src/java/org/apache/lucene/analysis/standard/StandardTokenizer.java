@@ -22,8 +22,6 @@ import java.io.Reader;
 
 import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.CharReader;
-import org.apache.lucene.analysis.CharStream;
 
 /** A grammar-based tokenizer constructed with JFlex
  *
@@ -89,7 +87,7 @@ public class StandardTokenizer extends Tokenizer {
   private boolean replaceInvalidAcronym = false;
     
   void setInput(Reader reader) {
-    this.input = CharReader.get(reader);
+    this.input = reader;
   }
 
   private int maxTokenLength = StandardAnalyzer.DEFAULT_MAX_TOKEN_LENGTH;
@@ -110,7 +108,7 @@ public class StandardTokenizer extends Tokenizer {
      * <code>input</code> to a newly created JFlex scanner.
      */
     public StandardTokenizer(Reader input) {
-	    this.input = CharReader.get(input);
+	    this.input = input;
 	    this.scanner = new StandardTokenizerImpl(input);
     }
 
@@ -125,7 +123,7 @@ public class StandardTokenizer extends Tokenizer {
    */
   public StandardTokenizer(Reader input, boolean replaceInvalidAcronym) {
     this.replaceInvalidAcronym = replaceInvalidAcronym;
-    setInput(input);
+    this.input = input;
     this.scanner = new StandardTokenizerImpl(input);
   }
 
@@ -184,7 +182,7 @@ public class StandardTokenizer extends Tokenizer {
     }
 
     public void reset(Reader reader) throws IOException {
-        setInput(reader);
+        input = reader;
         reset();
     }
 

@@ -34,14 +34,14 @@ import java.io.IOException;
 
 public abstract class Tokenizer extends TokenStream {
   /** The text source for this Tokenizer. */
-  protected CharStream input;
+  protected Reader input;
 
   /** Construct a tokenizer with null input. */
   protected Tokenizer() {}
 
   /** Construct a token stream processing the given input. */
   protected Tokenizer(Reader input) {
-    this.input = CharReader.get(input);
+    this.input = input;
   }
 
   /** By default, closes the input Reader. */
@@ -53,7 +53,7 @@ public abstract class Tokenizer extends TokenStream {
    *  analyzer (in its reusableTokenStream method) will use
    *  this to re-use a previously created tokenizer. */
   public void reset(Reader input) throws IOException {
-    this.input = CharReader.get(input);
+    this.input = input;
   }
 }
 
