@@ -245,7 +245,6 @@ final class JustCompileSearch {
     // Filter is just an abstract class with no abstract methods. However it is
     // still added here in case someone will add abstract methods in the future.
     
-    @Override
     public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
       return null;
     }
@@ -401,7 +400,6 @@ final class JustCompileSearch {
       throw new UnsupportedOperationException(UNSUPPORTED_MSG);
     }
     
-    @Override
     public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
       return null;
     }    
