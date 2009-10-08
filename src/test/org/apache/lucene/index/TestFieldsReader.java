@@ -65,7 +65,7 @@ public class TestFieldsReader extends LuceneTestCase {
     assertTrue(doc != null);
     assertTrue(doc.getField(DocHelper.TEXT_FIELD_1_KEY) != null);
 
-    Fieldable field = doc.getField(DocHelper.TEXT_FIELD_2_KEY);
+    Field field = doc.getField(DocHelper.TEXT_FIELD_2_KEY);
     assertTrue(field != null);
     assertTrue(field.isTermVectorStored() == true);
 

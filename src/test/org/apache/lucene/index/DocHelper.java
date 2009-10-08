@@ -160,7 +160,7 @@ class DocHelper {
     largeLazyField = new Field(LARGE_LAZY_FIELD_KEY, LARGE_LAZY_FIELD_TEXT, Field.Store.YES, Field.Index.ANALYZED);
     fields[fields.length - 1] = largeLazyField;
     for (int i=0; i<fields.length; i++) {
-      Fieldable f = fields[i];
+      Field f = fields[i];
       add(all,f);
       if (f.isIndexed()) add(indexed,f);
       else add(unindexed,f);
