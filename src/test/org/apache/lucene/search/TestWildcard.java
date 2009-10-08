@@ -67,11 +67,11 @@ public class TestWildcard
       RAMDirectory indexStore = getIndexStore("field", new String[]{"nowildcard", "nowildcardx"});
       IndexSearcher searcher = new IndexSearcher(indexStore, true);
 
-      Query wq = new WildcardQuery(new Term("field", "nowildcard"));
+      MultiTermQuery wq = new WildcardQuery(new Term("field", "nowildcard"));
+      wq.setRewriteMethod(MultiTermQuery.SCORING_BOOLEAN_QUERY_REWRITE);
       assertMatches(searcher, wq, 1);
 
-      wq = searcher.rewrite(wq);
-      assertTrue(wq instanceof TermQuery);
+      assertTrue(searcher.rewrite(wq) instanceof TermQuery);
   }
 
   /**
