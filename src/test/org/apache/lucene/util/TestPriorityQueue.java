@@ -57,7 +57,7 @@ public class TestPriorityQueue
 	{
 	    int next = gen.nextInt();
 	    sum += next;
-	    pq.put(new Integer(next));
+	    pq.add(new Integer(next));
 	}
 
 	//      Date end = new Date();
@@ -86,9 +86,9 @@ public class TestPriorityQueue
     public void testClear()
     {
 	PriorityQueue pq = new IntegerQueue(3);
-	pq.put(new Integer(2));
-	pq.put(new Integer(3));
-	pq.put(new Integer(1));
+	pq.add(new Integer(2));
+	pq.add(new Integer(3));
+	pq.add(new Integer(1));
 	assertEquals(3, pq.size());
 	pq.clear();
 	assertEquals(0, pq.size());
@@ -96,12 +96,12 @@ public class TestPriorityQueue
     
     public void testFixedSize(){
         PriorityQueue pq = new IntegerQueue(3);
-        pq.insert(new Integer(2));
-        pq.insert(new Integer(3));
-        pq.insert(new Integer(1));
-        pq.insert(new Integer(5));
-        pq.insert(new Integer(7));
-        pq.insert(new Integer(1));
+        pq.insertWithOverflow(new Integer(2));
+        pq.insertWithOverflow(new Integer(3));
+        pq.insertWithOverflow(new Integer(1));
+        pq.insertWithOverflow(new Integer(5));
+        pq.insertWithOverflow(new Integer(7));
+        pq.insertWithOverflow(new Integer(1));
         assertEquals(3, pq.size());
         assertEquals(3, ((Integer) pq.top()).intValue());
     }
