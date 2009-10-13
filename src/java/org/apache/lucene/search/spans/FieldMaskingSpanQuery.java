@@ -94,6 +94,11 @@ public class FieldMaskingSpanQuery extends SpanQuery {
     return maskedQuery.getSpans(reader);
   }
 
+  /** @deprecated use {@link #extractTerms(Set)} instead. */
+  public Collection getTerms() {
+    return maskedQuery.getTerms();
+  }
+  
   public void extractTerms(Set terms) {
     maskedQuery.extractTerms(terms);
   }  

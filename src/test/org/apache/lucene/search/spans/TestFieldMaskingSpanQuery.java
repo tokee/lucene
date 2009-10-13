@@ -17,21 +17,27 @@ package org.apache.lucene.search.spans;
  * limitations under the License.
  */
 
-import java.util.HashSet;
-import java.util.Set;
-
-import org.apache.lucene.analysis.WhitespaceAnalyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.search.CheckHits;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.Weight;
+import org.apache.lucene.search.CheckHits;
 import org.apache.lucene.search.QueryUtils;
+
 import org.apache.lucene.store.RAMDirectory;
+
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Term;
+
+import org.apache.lucene.analysis.WhitespaceAnalyzer;
+
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+
 import org.apache.lucene.util.LuceneTestCase;
+
+import java.util.HashSet;
 
 public class TestFieldMaskingSpanQuery extends LuceneTestCase {
 
@@ -131,9 +137,6 @@ public class TestFieldMaskingSpanQuery extends LuceneTestCase {
 
     QueryUtils.checkEqual(q, qr);
 
-    Set terms = new HashSet();
-    qr.extractTerms(terms);
-    assertEquals(1, terms.size());
   }
   
   public void testRewrite1() throws Exception {
@@ -151,9 +154,6 @@ public class TestFieldMaskingSpanQuery extends LuceneTestCase {
 
     QueryUtils.checkUnequal(q, qr);
 
-    Set terms = new HashSet();
-    qr.extractTerms(terms);
-    assertEquals(2, terms.size());
   }
   
   public void testRewrite2() throws Exception {

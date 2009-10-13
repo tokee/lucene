@@ -49,6 +49,12 @@ public class SpanNotQuery extends SpanQuery implements Cloneable {
 
   public String getField() { return include.getField(); }
 
+  /** Returns a collection of all terms matched by this query.
+   * @deprecated use extractTerms instead
+   * @see #extractTerms(Set)
+   */
+  public Collection getTerms() { return include.getTerms(); }
+  
   public void extractTerms(Set terms) { include.extractTerms(terms); }
 
   public String toString(String field) {
