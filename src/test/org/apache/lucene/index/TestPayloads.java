@@ -257,10 +257,12 @@ public class TestPayloads extends LuceneTestCase {
         tp.next();
         tp.nextPosition();
         // now we don't read this payload
+        tp.next();
         tp.nextPosition();
         assertEquals("Wrong payload length.", 1, tp.getPayloadLength());
         byte[] payload = tp.getPayload(null, 0);
         assertEquals(payload[0], payloadData[numTerms]);
+        tp.next();
         tp.nextPosition();
         
         // we don't read this payload and skip to a different document

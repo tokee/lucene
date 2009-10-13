@@ -61,6 +61,7 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockFactory;
+import org.apache.lucene.store.NoLockFactory;
 import org.apache.lucene.store.MockRAMDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SingleInstanceLockFactory;
@@ -527,10 +528,15 @@ public class TestIndexWriter extends BaseTokenStreamTestCase {
     }                                               
 
     public static void assertNoUnreferencedFiles(Directory dir, String message) throws IOException {
-      String[] startFiles = dir.listAll();
-      SegmentInfos infos = new SegmentInfos();
-      infos.read(dir);
-      new IndexFileDeleter(dir, new KeepOnlyLastCommitDeletionPolicy(), infos, null, null);
+      final LockFactory lf = dir.getLockFactory();
+      String[] startFiles;
+      try {
+        dir.setLockFactory(new NoLockFactory());
+        startFiles = dir.listAll();
+        new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED).close();
+      } finally {
+        dir.setLockFactory(lf);
+      }
       String[] endFiles = dir.listAll();
 
       Arrays.sort(startFiles);
@@ -4294,10 +4300,6 @@ public class TestIndexWriter extends BaseTokenStreamTestCase {
       new IndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED).close();
 
       assertTrue(dir.fileExists("myrandomfile"));
-
-      // Make sure this does not copy myrandomfile:
-      Directory dir2 = new RAMDirectory(dir);
-      assertTrue(!dir2.fileExists("myrandomfile"));
 
     } finally {
       dir.close();
