@@ -290,28 +290,6 @@ public class TestStressSort extends LuceneTestCase {
               } else {
                 sort = new Sort(new SortField[] {sort1.getSort()[0], sorts[s2].getSort()[0]});
               }
-
-              // Old
-              Sort oldSort = getOldSort(sort);
-
-              if (VERBOSE) {
-                System.out.println("query=" + query);
-                if (sx == 0) {
-                  System.out.println("  single-segment index");
-                } else if (sx == 1) {
-                  System.out.println("  few-segment index");
-                } else {
-                  System.out.println("  many-segment index");
-                }
-                System.out.println("  numHit=" + queueSize);
-                System.out.println("  old=" + oldSort);
-                System.out.println("  new=" + sort);
-              }
-
-              TopDocs newHits = searcher.search(query, null, queueSize, sort);
-              TopDocs oldHits = searcher.search(query, null, queueSize, oldSort);
-
-              compare(oldHits, newHits);
             }
           }
         }
@@ -348,24 +326,6 @@ public class TestStressSort extends LuceneTestCase {
     purgeFieldCache(FieldCache.DEFAULT); // so
 
     close();
-  }
-
-  private Sort getOldSort(Sort sort) {
-    SortField[] fields = sort.getSort();
-    SortField[] oldFields = new SortField[fields.length];
-    for(int i=0;i<fields.length;i++) {
-      int sortType;
-      if (fields[i].getField() != null && fields[i].getField().equals("string")) {
-        sortType = SortField.STRING;
-      } else {
-        sortType = fields[i].getType();
-      }
-      oldFields[i] = new SortField(fields[i].getField(),
-                                   sortType,
-                                   fields[i].getReverse());
-      oldFields[i].setUseLegacySearch(true);
-    }
-    return new Sort(oldFields);
   }
 
   private void compare(TopDocs oldHits, TopDocs newHits) {

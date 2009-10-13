@@ -105,7 +105,7 @@ implements Serializable {
 	  // log("Run testFieldSortCustomSearcher");
 		// define the sort criteria
 	    Sort custSort = new Sort(new SortField[] {
-	            new SortField("publicationDate_"), 
+	            new SortField("publicationDate_", SortField.STRING), 
 	            SortField.FIELD_SCORE
 	    });
 	    Searcher searcher = new CustomSearcher (index, 2);
@@ -119,7 +119,7 @@ implements Serializable {
 	  // log("Run testFieldSortSingleSearcher");
 		// define the sort criteria
 	    Sort custSort = new Sort(new SortField[] {
-	            new SortField("publicationDate_"), 
+	            new SortField("publicationDate_", SortField.STRING), 
 	            SortField.FIELD_SCORE
 	    });
 	    Searcher searcher = new MultiSearcher(new Searcher[] { new CustomSearcher(
@@ -134,7 +134,7 @@ implements Serializable {
 	  // log("Run testFieldSortMultiCustomSearcher");
 		// define the sort criteria
 	    Sort custSort = new Sort(new SortField[] {
-	            new SortField("publicationDate_"), 
+	            new SortField("publicationDate_", SortField.STRING), 
 	            SortField.FIELD_SCORE
 	    });
 	    Searcher searcher = 
