@@ -23,7 +23,11 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermDocs;
 import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.util.OpenBitSet;
+import org.apache.lucene.util.Bits;
 
 /**
  * A wrapper for {@link MultiTermQuery}, that exposes its
@@ -95,6 +99,7 @@ public class MultiTermQueryWrapperFilter extends Filter {
   }
 
   abstract class TermGenerator {
+    // @deprecated
     public void generate(IndexReader reader, TermEnum enumerator) throws IOException {
       final int[] docs = new int[32];
       final int[] freqs = new int[32];
@@ -125,6 +130,38 @@ public class MultiTermQueryWrapperFilter extends Filter {
         termDocs.close();
       }
     }
+
+    public void generate(IndexReader reader, TermsEnum enumerator) throws IOException {
+      //System.out.println("mtq.filter generate");
+      final int[] docs = new int[32];
+      final int[] freqs = new int[32];
+      int termCount = 0;
+      final Bits delDocs = reader.getDeletedDocs();
+      while(true) {
+        termCount++;
+        //System.out.println("  iter termCount=" + termCount + " term=" + enumerator.term().toBytesString());
+        DocsEnum docsEnum = enumerator.docs(delDocs);
+        while (true) {
+          final int count = docsEnum.read(docs, freqs);
+          if (count != 0) {
+            for(int i=0;i<count;i++) {
+              handleDoc(docs[i]);
+            }
+          } else {
+            break;
+          }
+        }
+        TermRef term = enumerator.next();
+        if (term == null) {
+          break;
+        }
+        //System.out.println("  enum next term=" + term.toBytesString());
+        assert term.termEquals(enumerator.term());
+      }
+      //System.out.println("  done termCount=" + termCount);
+
+      query.incTotalNumberOfTerms(termCount);
+    }
     abstract public void handleDoc(int doc);
   }
   
@@ -134,21 +171,37 @@ public class MultiTermQueryWrapperFilter extends Filter {
    */
   @Override
   public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
-    final TermEnum enumerator = query.getEnum(reader);
-    try {
-      // if current term in enum is null, the enum is empty -> shortcut
-      if (enumerator.term() == null)
+    final FilteredTermsEnum termsEnum = query.getTermsEnum(reader);
+    if (termsEnum != null) {
+      if (!termsEnum.empty()) {
+        // fill into a OpenBitSet
+        final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());
+        new TermGenerator() {
+          public void handleDoc(int doc) {
+            bitSet.set(doc);
+          }
+        }.generate(reader, termsEnum);
+        return bitSet;
+      } else {
         return DocIdSet.EMPTY_DOCIDSET;
-      // else fill into a OpenBitSet
-      final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());
-      new TermGenerator() {
-        public void handleDoc(int doc) {
-          bitSet.set(doc);
-        }
-      }.generate(reader, enumerator);
-      return bitSet;
-    } finally {
-      enumerator.close();
+      }
+    } else {
+      final TermEnum enumerator = query.getEnum(reader);
+      try {
+        // if current term in enum is null, the enum is empty -> shortcut
+        if (enumerator.term() == null)
+          return DocIdSet.EMPTY_DOCIDSET;
+        // else fill into a OpenBitSet
+        final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());
+        new TermGenerator() {
+          public void handleDoc(int doc) {
+            bitSet.set(doc);
+          }
+        }.generate(reader, enumerator);
+        return bitSet;
+      } finally {
+        enumerator.close();
+      }
     }
   }
 

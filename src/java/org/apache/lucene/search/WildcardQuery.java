@@ -34,7 +34,7 @@ import java.io.IOException;
  * MultiTermQuery#CONSTANT_SCORE_AUTO_REWRITE_DEFAULT}
  * rewrite method.
  *
- * @see WildcardTermEnum */
+ * @see WildcardTermEnums */
 public class WildcardQuery extends MultiTermQuery {
   private boolean termContainsWildcard;
   private boolean termIsPrefix;
@@ -49,7 +49,13 @@ public class WildcardQuery extends MultiTermQuery {
         && (text.indexOf('?') == -1) 
         && (text.indexOf('*') == text.length() - 1);
   }
-
+  
+  // nocommit: needs singletermenum stuff
+  protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
+    return new WildcardTermsEnum(reader, getTerm());
+  }
+  
+  // @deprecated see getTermsEnum
   protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
     if (termContainsWildcard)
       return new WildcardTermEnum(reader, getTerm());

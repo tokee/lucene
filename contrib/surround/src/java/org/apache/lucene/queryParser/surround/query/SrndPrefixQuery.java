@@ -17,16 +17,20 @@ package org.apache.lucene.queryParser.surround.query;
  */
 
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.IndexReader;
 
 import java.io.IOException;
 
 
 public class SrndPrefixQuery extends SimpleTerm {
+  private final TermRef prefixRef;
   public SrndPrefixQuery(String prefix, boolean quoted, char truncator) {
     super(quoted);
     this.prefix = prefix;
+    prefixRef = new TermRef(prefix);
     this.truncator = truncator;
   }
 
@@ -50,23 +54,41 @@ public class SrndPrefixQuery extends SimpleTerm {
     MatchingTermVisitor mtv) throws IOException
   {
     /* inspired by PrefixQuery.rewrite(): */
-    TermEnum enumerator = reader.terms(getLucenePrefixTerm(fieldName));
+    Terms terms = reader.fields().terms(fieldName);
     boolean expanded = false;
-    try {
-      do {
-        Term term = enumerator.term();
-        if ((term != null)
-            && term.text().startsWith(getPrefix())
-            && term.field().equals(fieldName)) {
-          mtv.visitMatchingTerm(term);
+    if (terms != null) {
+      TermsEnum termsEnum = terms.iterator();
+
+      boolean skip = false;
+      TermsEnum.SeekStatus status = termsEnum.seek(new TermRef(getPrefix()));
+      if (status == TermsEnum.SeekStatus.FOUND) {
+        mtv.visitMatchingTerm(getLucenePrefixTerm(fieldName));
+        expanded = true;
+      } else if (status == TermsEnum.SeekStatus.NOT_FOUND) {
+        if (termsEnum.term().startsWith(prefixRef)) {
+          mtv.visitMatchingTerm(new Term(fieldName, termsEnum.term().toString()));
           expanded = true;
         } else {
-          break;
+          skip = true;
         }
-      } while (enumerator.next());
-    } finally {
-      enumerator.close();
+      } else {
+        // EOF
+        skip = true;
+      }
+
+      if (!skip) {
+        while(true) {
+          TermRef text = termsEnum.next();
+          if (text != null && text.startsWith(prefixRef)) {
+            mtv.visitMatchingTerm(new Term(fieldName, text.toString()));
+            expanded = true;
+          } else {
+            break;
+          }
+        }
+      }
     }
+
     if (! expanded) {
       System.out.println("No terms in " + fieldName + " field for: " + toString());
     }

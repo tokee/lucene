@@ -29,6 +29,7 @@ import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util._TestUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -73,14 +74,8 @@ public class TestNorms extends LuceneTestCase {
    * Including optimize. 
    */
   public void testNorms() throws IOException {
-    // tmp dir
-    String tempDir = System.getProperty("java.io.tmpdir");
-    if (tempDir == null) {
-      throw new IOException("java.io.tmpdir undefined, cannot run test");
-    }
-    
     // test with a single index: index1
-    File indexDir1 = new File(tempDir, "lucenetestindex1");
+    File indexDir1 = _TestUtil.getTempDir("lucenetestindex1");
     Directory dir1 = FSDirectory.open(indexDir1);
 
     norms = new ArrayList();
@@ -98,14 +93,14 @@ public class TestNorms extends LuceneTestCase {
     modifiedNorms = new ArrayList();
     numDocNorms = 0;
     
-    File indexDir2 = new File(tempDir, "lucenetestindex2");
+    File indexDir2 = _TestUtil.getTempDir("lucenetestindex2");
     Directory dir2 = FSDirectory.open(indexDir2);
 
     createIndex(dir2);
     doTestNorms(dir2);
 
     // add index1 and index2 to a third index: index3
-    File indexDir3 = new File(tempDir, "lucenetestindex3");
+    File indexDir3 = _TestUtil.getTempDir("lucenetestindex3");
     Directory dir3 = FSDirectory.open(indexDir3);
 
     createIndex(dir3);
@@ -136,6 +131,9 @@ public class TestNorms extends LuceneTestCase {
     dir1.close();
     dir2.close();
     dir3.close();
+    _TestUtil.rmDir(indexDir1);
+    _TestUtil.rmDir(indexDir2);
+    _TestUtil.rmDir(indexDir3);
   }
 
   private void doTestNorms(Directory dir) throws IOException {

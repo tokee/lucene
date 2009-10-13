@@ -109,8 +109,13 @@ public class FuzzyQuery extends MultiTermQuery {
     return prefixLength;
   }
 
+  // @deprecated see #getTermsEnum
   protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
     return new FuzzyTermEnum(reader, getTerm(), minimumSimilarity, prefixLength);
+  }
+  
+  protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
+    return new FuzzyTermsEnum(reader, getTerm(), minimumSimilarity, prefixLength);
   }
   
   /**

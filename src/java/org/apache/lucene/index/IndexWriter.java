@@ -28,6 +28,7 @@ import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.util.Constants;
+import org.apache.lucene.index.codecs.Codecs;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -321,7 +322,7 @@ public class IndexWriter {
    *
    * <p>Note that this is functionally equivalent to calling
    * {#commit} and then using {@link IndexReader#open} to
-   * open a new reader.  But the turarnound time of this
+   * open a new reader.  But the turnaround time of this
    * method should be faster since it avoids the potentially
    * costly {@link #commit}.<p>
    *
@@ -401,7 +402,7 @@ public class IndexWriter {
     // reader; in theory we could do similar retry logic,
     // just like we do when loading segments_N
     synchronized(this) {
-      return new ReadOnlyDirectoryReader(this, segmentInfos, termInfosIndexDivisor);
+      return new ReadOnlyDirectoryReader(this, segmentInfos, termInfosIndexDivisor, codecs);
     }
   }
 
@@ -617,14 +618,14 @@ public class IndexWriter {
         if (doOpenStores) {
           sr.openDocStores();
         }
-        if (termsIndexDivisor != -1 && !sr.termsIndexLoaded()) {
+        if (termsIndexDivisor != -1) {
           // If this reader was originally opened because we
           // needed to merge it, we didn't load the terms
           // index.  But now, if the caller wants the terms
           // index (eg because it's doing deletes, or an NRT
           // reader is being opened) we ask the reader to
           // load its terms index.
-          sr.loadTermsIndex(termsIndexDivisor);
+          sr.loadTermsIndex();
         }
       }
 
@@ -870,7 +871,7 @@ public class IndexWriter {
    */
   public IndexWriter(Directory d, Analyzer a, boolean create, MaxFieldLength mfl)
        throws CorruptIndexException, LockObtainFailedException, IOException {
-    init(d, a, create, null, mfl.getLimit(), null, null);
+    init(d, a, create, null, mfl.getLimit(), null, null, null);
   }
 
   /**
@@ -945,7 +946,7 @@ public class IndexWriter {
    */
   public IndexWriter(Directory d, Analyzer a, boolean create, IndexDeletionPolicy deletionPolicy, MaxFieldLength mfl)
        throws CorruptIndexException, LockObtainFailedException, IOException {
-    init(d, a, create, deletionPolicy, mfl.getLimit(), null, null);
+    init(d, a, create, deletionPolicy, mfl.getLimit(), null, null, null);
   }
   
   /**
@@ -976,9 +977,10 @@ public class IndexWriter {
    *  <code>false</code> or if there is any other low-level
    *  IO error
    */
-  IndexWriter(Directory d, Analyzer a, boolean create, IndexDeletionPolicy deletionPolicy, MaxFieldLength mfl, IndexingChain indexingChain, IndexCommit commit)
+  // nocommit -- need IW.Config!!
+  public IndexWriter(Directory d, Analyzer a, boolean create, IndexDeletionPolicy deletionPolicy, MaxFieldLength mfl, IndexingChain indexingChain, IndexCommit commit, Codecs codecs)
        throws CorruptIndexException, LockObtainFailedException, IOException {
-    init(d, a, create, deletionPolicy, mfl.getLimit(), indexingChain, commit);
+    init(d, a, create, deletionPolicy, mfl.getLimit(), indexingChain, commit, codecs);
   }
   
   /**
@@ -1015,23 +1017,31 @@ public class IndexWriter {
    */
   public IndexWriter(Directory d, Analyzer a, IndexDeletionPolicy deletionPolicy, MaxFieldLength mfl, IndexCommit commit)
        throws CorruptIndexException, LockObtainFailedException, IOException {
-    init(d, a, false, deletionPolicy, mfl.getLimit(), null, commit);
+    init(d, a, false, deletionPolicy, mfl.getLimit(), null, commit, null);
   }
+  
+  Codecs codecs;
 
   private void init(Directory d, Analyzer a, IndexDeletionPolicy deletionPolicy, 
                     int maxFieldLength, IndexingChain indexingChain, IndexCommit commit)
     throws CorruptIndexException, LockObtainFailedException, IOException {
     if (IndexReader.indexExists(d)) {
-      init(d, a, false, deletionPolicy, maxFieldLength, indexingChain, commit);
+      init(d, a, false, deletionPolicy, maxFieldLength, indexingChain, commit, null);
     } else {
-      init(d, a, true, deletionPolicy, maxFieldLength, indexingChain, commit);
+      init(d, a, true, deletionPolicy, maxFieldLength, indexingChain, commit, null);
     }
   }
 
-  private void init(Directory d, Analyzer a, final boolean create,  
+  private void init(Directory d, Analyzer a, final boolean create, 
                     IndexDeletionPolicy deletionPolicy, int maxFieldLength,
-                    IndexingChain indexingChain, IndexCommit commit)
+                    IndexingChain indexingChain, IndexCommit commit, Codecs codecsIn)
     throws CorruptIndexException, LockObtainFailedException, IOException {
+
+    if (codecsIn == null) {
+      codecs = Codecs.getDefault();
+    } else {
+      codecs = codecsIn;
+    }
 
     directory = d;
     analyzer = a;
@@ -1059,7 +1069,7 @@ public class IndexWriter {
         // segments_N file with no segments:
         boolean doCommit;
         try {
-          segmentInfos.read(directory);
+          segmentInfos.read(directory, codecs);
           segmentInfos.clear();
           doCommit = false;
         } catch (IOException e) {
@@ -1078,7 +1088,7 @@ public class IndexWriter {
           changeCount++;
         }
       } else {
-        segmentInfos.read(directory);
+        segmentInfos.read(directory, codecs);
 
         if (commit != null) {
           // Swap out all segments, but, keep metadata in
@@ -1089,7 +1099,7 @@ public class IndexWriter {
           if (commit.getDirectory() != directory)
             throw new IllegalArgumentException("IndexCommit's directory doesn't match my directory");
           SegmentInfos oldInfos = new SegmentInfos();
-          oldInfos.read(directory, commit.getSegmentsFileName());
+          oldInfos.read(directory, commit.getSegmentsFileName(), codecs);
           segmentInfos.replace(oldInfos);
           changeCount++;
           if (infoStream != null)
@@ -1111,7 +1121,7 @@ public class IndexWriter {
       // KeepOnlyLastCommitDeleter:
       deleter = new IndexFileDeleter(directory,
                                      deletionPolicy == null ? new KeepOnlyLastCommitDeletionPolicy() : deletionPolicy,
-                                     segmentInfos, infoStream, docWriter);
+                                     segmentInfos, infoStream, docWriter, this.codecs);
 
       if (deleter.startingCommitDeleted)
         // Deletion policy deleted the "head" commit point.
@@ -2986,7 +2996,7 @@ public class IndexWriter {
           ensureOpen();
           for (int i = 0; i < dirs.length; i++) {
             SegmentInfos sis = new SegmentInfos();	  // read infos from dir
-            sis.read(dirs[i]);
+            sis.read(dirs[i], codecs);
             for (int j = 0; j < sis.size(); j++) {
               final SegmentInfo info = sis.info(j);
               docCount += info.docCount;
@@ -3116,7 +3126,7 @@ public class IndexWriter {
             }
 
             SegmentInfos sis = new SegmentInfos(); // read infos from dir
-            sis.read(dirs[i]);
+            sis.read(dirs[i], codecs);
             for (int j = 0; j < sis.size(); j++) {
               SegmentInfo info = sis.info(j);
               assert !segmentInfos.contains(info): "dup info dir=" + info.dir + " name=" + info.name;
@@ -3299,10 +3309,11 @@ public class IndexWriter {
       // call hits an exception it will release the write
       // lock:
       startTransaction(true);
-
+      success = false;
+      
       try {
         mergedName = newSegmentName();
-        merger = new SegmentMerger(this, mergedName, null);
+        merger = new SegmentMerger(this, mergedName, null, codecs);
 
         SegmentReader sReader = null;
         synchronized(this) {
@@ -3325,7 +3336,7 @@ public class IndexWriter {
           synchronized(this) {
             segmentInfos.clear();                      // pop old infos & add new
             info = new SegmentInfo(mergedName, docCount, directory, false, true,
-                                   -1, null, false, merger.hasProx());
+                                   -1, null, false, merger.hasProx(), merger.getCodec());
             setDiagnostics(info, "addIndexes(IndexReader[])");
             segmentInfos.add(info);
           }
@@ -3372,7 +3383,7 @@ public class IndexWriter {
           startTransaction(false);
 
           try {
-            merger.createCompoundFile(mergedName + ".cfs");
+            merger.createCompoundFile(mergedName + ".cfs", info);
             synchronized(this) {
               info.setUseCompoundFile(true);
             }
@@ -3725,7 +3736,9 @@ public class IndexWriter {
                                      directory, false, true,
                                      docStoreOffset, docStoreSegment,
                                      docStoreIsCompoundFile,    
-                                     docWriter.hasProx());
+                                     docWriter.hasProx(),
+                                     docWriter.getCodec());
+
         setDiagnostics(newSegment, "flush");
       }
 
@@ -3941,7 +3954,8 @@ public class IndexWriter {
       }
     }
 
-    merge.info.setHasProx(merger.hasProx());
+    // mxx
+    // System.out.println(Thread.currentThread().getName() + ": finish setHasProx=" + merger.hasProx() + " seg=" + merge.info.name);
 
     segmentInfos.subList(start, start + merge.segments.size()).clear();
     assert !segmentInfos.contains(merge.info);
@@ -4237,7 +4251,8 @@ public class IndexWriter {
                                  docStoreOffset,
                                  docStoreSegment,
                                  docStoreIsCompoundFile,
-                                 false);
+                                 false,
+                                 null);
 
 
     Map details = new HashMap();
@@ -4317,7 +4332,7 @@ public class IndexWriter {
     if (infoStream != null)
       message("merging " + merge.segString(directory));
 
-    merger = new SegmentMerger(this, mergedName, merge);
+    merger = new SegmentMerger(this, mergedName, merge, codecs);
 
     merge.readers = new SegmentReader[numSegments];
     merge.readersClone = new SegmentReader[numSegments];
@@ -4390,7 +4405,16 @@ public class IndexWriter {
       // This is where all the work happens:
       mergedDocCount = merge.info.docCount = merger.merge(merge.mergeDocStores);
 
+      // Record which codec was used to write the segment
+      merge.info.setCodec(merger.getCodec());
+      
       assert mergedDocCount == totDocCount;
+
+      // Very important to do this before opening the reader
+      // because codec must know if prox was written for
+      // this segment:
+      //System.out.println("merger set hasProx=" + merger.hasProx() + " seg=" + merge.info.name);
+      merge.info.setHasProx(merger.hasProx());
 
       // TODO: in the non-realtime case, we may want to only
       // keep deletes (it's costly to open entire reader
@@ -4430,7 +4454,7 @@ public class IndexWriter {
               } catch (Throwable t) {
               }
               // This was a private clone and we had the only reference
-              assert merge.readersClone[i].getRefCount() == 0;
+              // assert merge.readersClone[i].getRefCount() == 0: "refCount should be 0 but is " + merge.readersClone[i].getRefCount();
             }
           }
         } else {
@@ -4442,7 +4466,7 @@ public class IndexWriter {
             if (merge.readersClone[i] != null) {
               merge.readersClone[i].close();
               // This was a private clone and we had the only reference
-              assert merge.readersClone[i].getRefCount() == 0;
+              //assert merge.readersClone[i].getRefCount() == 0;
             }
           }
         }
@@ -4463,7 +4487,7 @@ public class IndexWriter {
       final String compoundFileName = mergedName + "." + IndexFileNames.COMPOUND_FILE_EXTENSION;
 
       try {
-        merger.createCompoundFile(compoundFileName);
+        merger.createCompoundFile(compoundFileName, merge.info);
         success = true;
       } catch (IOException ioe) {
         synchronized(this) {

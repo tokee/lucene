@@ -19,7 +19,7 @@ package org.apache.lucene.search.payloads;
 
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.TermPositions;
+import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.search.Searcher;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Weight;
@@ -80,14 +80,14 @@ public class PayloadTermQuery extends SpanTermQuery {
     protected class PayloadTermSpanScorer extends SpanScorer {
       // TODO: is this the best way to allocate this?
       protected byte[] payload = new byte[256];
-      protected TermPositions positions;
       protected float payloadScore;
       protected int payloadsSeen;
+      private final TermSpans termSpans;
 
       public PayloadTermSpanScorer(TermSpans spans, Weight weight,
           Similarity similarity, byte[] norms) throws IOException {
         super(spans, weight, similarity, norms);
-        positions = spans.getPositions();
+        termSpans = spans;
       }
 
       protected boolean setFreqCurrentDoc() throws IOException {
@@ -112,7 +112,8 @@ public class PayloadTermQuery extends SpanTermQuery {
       }
 
       protected void processPayload(Similarity similarity) throws IOException {
-        if (positions.isPayloadAvailable()) {
+        final PositionsEnum positions = termSpans.getPositions();
+        if (positions.hasPayload()) {
           payload = positions.getPayload(payload, 0);
           payloadScore = function.currentScore(doc, term.field(),
               spans.start(), spans.end(), payloadsSeen, payloadScore,

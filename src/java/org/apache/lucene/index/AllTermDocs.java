@@ -20,6 +20,7 @@ package org.apache.lucene.index;
 import org.apache.lucene.util.BitVector;
 import java.io.IOException;
 
+/** @deprecated Switch to AllDocsEnum */
 class AllTermDocs implements TermDocs {
   protected BitVector deletedDocs;
   protected int maxDoc;

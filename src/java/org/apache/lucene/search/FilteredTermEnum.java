@@ -24,7 +24,10 @@ import org.apache.lucene.index.TermEnum;
 /** Abstract class for enumerating a subset of all terms. 
 
   <p>Term enumerations are always ordered by Term.compareTo().  Each term in
-  the enumeration is greater than all that precede it.  */
+  the enumeration is greater than all that precede it.
+
+  @deprecated Switch to {@link FilteredTermsEnum} instead.
+*/
 public abstract class FilteredTermEnum extends TermEnum {
     /** the current term */
     protected Term currentTerm = null;

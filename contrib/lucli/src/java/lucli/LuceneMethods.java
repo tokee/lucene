@@ -45,7 +45,11 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.Fields;
+import org.apache.lucene.index.FieldsEnum;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.queryParser.MultiFieldQueryParser;
 import org.apache.lucene.queryParser.ParseException;
@@ -348,15 +352,39 @@ class LuceneMethods {
   public void terms(String field) throws IOException {
     TreeMap termMap = new TreeMap();
     IndexReader indexReader = IndexReader.open(indexName, true);
-    TermEnum terms = indexReader.terms();
-    while (terms.next()) {
-      Term term = terms.term();
-      //message(term.field() + ":" + term.text() + " freq:" + terms.docFreq());
-      //if we're either not looking by field or we're matching the specific field
-      if ((field == null) || field.equals(term.field()))
-        termMap.put(term.field() + ":" + term.text(), Integer.valueOf((terms.docFreq())));
+    if (field == null) {
+      FieldsEnum fields = indexReader.fields().iterator();
+      while(true) {
+        final String field2 = fields.next();
+        if (field2 != null) {
+          TermsEnum terms = fields.terms();
+          while(true) {
+            TermRef text = terms.next();
+            if (text != null) {
+              termMap.put(field2 + ":" + text, new Integer(terms.docFreq()));
+            } else {
+              break;
+            }
+          }
+        } else {
+          break;
+        }
+      }
+    } else {
+      Terms terms = indexReader.fields().terms(field);
+      if (terms != null) {
+        TermsEnum termsEnum = terms.iterator();
+        while(true) {
+          TermRef text = termsEnum.next();
+          if (text != null) {
+            termMap.put(field + ":" + text, new Integer(termsEnum.docFreq()));
+          } else {
+            break;
+          }
+        }
+      }
     }
-
+    
     Iterator termIterator = termMap.keySet().iterator();
     for (int ii = 0; termIterator.hasNext() && ii < 100; ii++) {
       String termDetails = (String) termIterator.next();

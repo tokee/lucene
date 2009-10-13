@@ -21,6 +21,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.document.FieldSelectorResult;
 import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.util.Bits;
 
 import java.io.IOException;
 import java.util.*;
@@ -47,13 +48,15 @@ public class ParallelReader extends IndexReader {
   private List readers = new ArrayList();
   private List decrefOnClose = new ArrayList(); // remember which subreaders to decRef on close
   boolean incRefReaders = false;
-  private SortedMap fieldToReader = new TreeMap();
+  private SortedMap< String, IndexReader> fieldToReader = new TreeMap<String, IndexReader>();
   private Map readerToFields = new HashMap();
   private List storedFieldReaders = new ArrayList();
 
   private int maxDoc;
   private int numDocs;
   private boolean hasDeletions;
+
+  private ParallelFields fields = new ParallelFields();
 
  /** Construct a ParallelReader. 
   * <p>Note that all subreaders are closed if this ParallelReader is closed.</p>
@@ -109,8 +112,10 @@ public class ParallelReader extends IndexReader {
     Iterator i = fields.iterator();
     while (i.hasNext()) {                         // update fieldToReader map
       String field = (String)i.next();
-      if (fieldToReader.get(field) == null)
+      if (fieldToReader.get(field) == null) {
         fieldToReader.put(field, reader);
+      }
+      this.fields.addField(field, reader);
     }
 
     if (!ignoreStoredFields)
@@ -121,6 +126,57 @@ public class ParallelReader extends IndexReader {
       reader.incRef();
     }
     decrefOnClose.add(Boolean.valueOf(incRefReaders));
+  }
+
+  private class ParallelFieldsEnum extends FieldsEnum {
+    String currentField;
+    IndexReader currentReader;
+    Iterator<String> keys;
+    private final HashMap<String, IndexReader> readerFields = new HashMap<String, IndexReader>();
+
+    ParallelFieldsEnum() {
+      keys = fieldToReader.keySet().iterator();
+    }
+
+    public String next() throws IOException {
+      if (keys.hasNext()) {
+        currentField = (String) keys.next();
+        currentReader = (IndexReader) fieldToReader.get(currentField);
+      } else {
+        currentField = null;
+        currentReader = null;
+      }
+      return currentField;
+    }
+
+    public TermsEnum terms() throws IOException {
+      assert currentReader != null;
+      return currentReader.fields().terms(currentField).iterator();
+    }
+  }
+
+  // Single instance of this, per ParallelReader instance
+  private class ParallelFields extends Fields {
+    final HashMap<String,Terms> fields = new HashMap<String,Terms>();
+
+    public void addField(String field, IndexReader r) throws IOException {
+      fields.put(field, r.fields().terms(field));
+    }
+
+    public FieldsEnum iterator() throws IOException {
+      return new ParallelFieldsEnum();
+    }
+    public Terms terms(String field) throws IOException {
+      return fields.get(field);
+    }
+  }
+
+  public Bits getDeletedDocs() throws IOException {
+    return ((IndexReader) readers.get(0)).getDeletedDocs();
+  }
+
+  public Fields fields() {
+    return fields;
   }
   
   public synchronized Object clone() {
@@ -374,6 +430,12 @@ public class ParallelReader extends IndexReader {
     return reader==null ? 0 : reader.docFreq(term);
   }
 
+  public int docFreq(String field, TermRef term) throws IOException {
+    ensureOpen();
+    IndexReader reader = ((IndexReader)fieldToReader.get(field));
+    return reader == null? 0 : reader.docFreq(field, term);
+  }
+
   public TermDocs termDocs(Term term) throws IOException {
     ensureOpen();
     return new ParallelTermDocs(term);
@@ -468,7 +530,7 @@ public class ParallelReader extends IndexReader {
 
   private class ParallelTermEnum extends TermEnum {
     private String field;
-    private Iterator fieldIterator;
+    private Iterator<String> fieldIterator;
     private TermEnum termEnum;
 
     public ParallelTermEnum() throws IOException {
@@ -479,12 +541,12 @@ public class ParallelReader extends IndexReader {
         return;
       }
       if (field != null)
-        termEnum = ((IndexReader)fieldToReader.get(field)).terms();
+        termEnum = fieldToReader.get(field).terms();
     }
 
     public ParallelTermEnum(Term term) throws IOException {
       field = term.field();
-      IndexReader reader = ((IndexReader)fieldToReader.get(field));
+      IndexReader reader = fieldToReader.get(field);
       if (reader!=null)
         termEnum = reader.terms(term);
     }
@@ -506,7 +568,7 @@ public class ParallelReader extends IndexReader {
       }
       while (fieldIterator.hasNext()) {
         field = (String) fieldIterator.next();
-        termEnum = ((IndexReader)fieldToReader.get(field)).terms(new Term(field));
+        termEnum = fieldToReader.get(field).terms(new Term(field));
         Term term = termEnum.term();
         if (term!=null && term.field()==field)
           return true;

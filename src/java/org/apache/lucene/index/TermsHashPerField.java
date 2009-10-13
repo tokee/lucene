@@ -350,6 +350,8 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     final char[] tokenText = termAtt.termBuffer();;
     final int tokenTextLen = termAtt.termLength();
 
+    // System.out.println("thpf.add: field=" + fieldInfo.name + " text=" + new String(tokenText, 0, tokenTextLen) + " c0=" + ((int) tokenText[0]) );
+
     // Compute hashcode & replace any invalid UTF16 sequences
     int downto = tokenTextLen;
     int code = 0;

@@ -26,6 +26,7 @@ import java.io.IOException;
  * positions of each occurrence of a term in a document.
  *
  * @see IndexReader#termPositions()
+ * @deprecated Use {@link PositionsEnum} instead 
  */
 
 public interface TermPositions

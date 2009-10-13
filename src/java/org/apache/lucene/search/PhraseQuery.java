@@ -22,10 +22,12 @@ import java.util.Set;
 import java.util.ArrayList;
 
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermPositions;
+import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.Explanation.IDFExplanation;
 import org.apache.lucene.util.ToStringUtils;
+import org.apache.lucene.util.Bits;
 
 /** A Query that matches documents containing a particular sequence of terms.
  * A PhraseQuery is built by QueryParser for input like <code>"new york"</code>.
@@ -143,20 +145,25 @@ public class PhraseQuery extends Query {
       if (terms.size() == 0)			  // optimize zero-term case
         return null;
 
-      TermPositions[] tps = new TermPositions[terms.size()];
+      DocsEnum[] docs = new DocsEnum[terms.size()];
+      final Bits delDocs = reader.getDeletedDocs();
       for (int i = 0; i < terms.size(); i++) {
-        TermPositions p = reader.termPositions((Term)terms.get(i));
-        if (p == null)
+        final Term t = (Term) terms.get(i);
+        DocsEnum docsEnum = reader.termDocsEnum(delDocs,
+                                                t.field(),
+                                                new TermRef(t.text()));
+        if (docsEnum == null) {
           return null;
-        tps[i] = p;
+        }
+        docs[i] = docsEnum;
       }
 
       if (slop == 0)				  // optimize exact case
-        return new ExactPhraseScorer(this, tps, getPositions(), similarity,
+        return new ExactPhraseScorer(this, docs, getPositions(), similarity,
                                      reader.norms(field));
       else
         return
-          new SloppyPhraseScorer(this, tps, getPositions(), similarity, slop,
+          new SloppyPhraseScorer(this, docs, getPositions(), similarity, slop,
                                  reader.norms(field));
 
     }

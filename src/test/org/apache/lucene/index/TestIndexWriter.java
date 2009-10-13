@@ -48,6 +48,7 @@ import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
@@ -64,6 +65,7 @@ import org.apache.lucene.store.LockFactory;
 import org.apache.lucene.store.MockRAMDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SingleInstanceLockFactory;
+import org.apache.lucene.store.NoLockFactory;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.util._TestUtil;
 
@@ -526,9 +528,8 @@ public class TestIndexWriter extends BaseTokenStreamTestCase {
       String[] startFiles = dir.listAll();
       SegmentInfos infos = new SegmentInfos();
       infos.read(dir);
-      new IndexFileDeleter(dir, new KeepOnlyLastCommitDeletionPolicy(), infos, null, null);
+      new IndexFileDeleter(dir, new KeepOnlyLastCommitDeletionPolicy(), infos, null, null, Codecs.getDefault());
       String[] endFiles = dir.listAll();
-
       Arrays.sort(startFiles);
       Arrays.sort(endFiles);
 
@@ -3489,6 +3490,7 @@ public class TestIndexWriter extends BaseTokenStreamTestCase {
     TermPositions tps = s.getIndexReader().termPositions(new Term("field", "a"));
     assertTrue(tps.next());
     assertEquals(1, tps.freq());
+    // would be -1 if we called w.setAllowMinus1Position();
     assertEquals(0, tps.nextPosition());
     w.close();
 
@@ -4289,10 +4291,6 @@ public class TestIndexWriter extends BaseTokenStreamTestCase {
       new IndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED).close();
 
       assertTrue(dir.fileExists("myrandomfile"));
-
-      // Make sure this does not copy myrandomfile:
-      Directory dir2 = new RAMDirectory(dir);
-      assertTrue(!dir2.fileExists("myrandomfile"));
 
     } finally {
       dir.close();

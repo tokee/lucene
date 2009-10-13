@@ -21,7 +21,9 @@ import org.apache.lucene.index.IndexReader;
 
 import java.util.Iterator;
 
-import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util.StringHelper;
 
@@ -52,55 +54,40 @@ public class LuceneDictionary implements Dictionary {
 
 
   final class LuceneIterator implements Iterator {
-    private TermEnum termEnum;
-    private Term actualTerm;
+    private TermsEnum termsEnum;
+    private TermRef pendingTerm;
     private boolean hasNextCalled;
 
     LuceneIterator() {
       try {
-        termEnum = reader.terms(new Term(field));
+        Terms terms = reader.fields().terms(field);
+        if (terms != null) {
+          termsEnum = terms.iterator();
+          pendingTerm = termsEnum.next();
+        }
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
 
     public Object next() {
-      if (!hasNextCalled) {
-        hasNext();
+      if (pendingTerm == null) {
+        return null;
       }
-      hasNextCalled = false;
+
+      String result = pendingTerm.toString();
 
       try {
-        termEnum.next();
+        pendingTerm = termsEnum.next();
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
 
-      return (actualTerm != null) ? actualTerm.text() : null;
+      return result;
     }
 
     public boolean hasNext() {
-      if (hasNextCalled) {
-        return actualTerm != null;
-      }
-      hasNextCalled = true;
-
-      actualTerm = termEnum.term();
-
-      // if there are no words return false
-      if (actualTerm == null) {
-        return false;
-      }
-
-      String currentField = actualTerm.field();
-
-      // if the next word doesn't have the same field return false
-      if (currentField != field) {
-        actualTerm = null;
-        return false;
-      }
-
-      return true;
+      return pendingTerm != null;
     }
 
     public void remove() {

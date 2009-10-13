@@ -38,7 +38,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.store.MockRAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.util._TestUtil;
@@ -98,7 +98,7 @@ public class TestPayloads extends LuceneTestCase {
     // payload bit in the FieldInfo
     public void testPayloadFieldBit() throws Exception {
         rnd = newRandom();
-        Directory ram = new RAMDirectory();
+        Directory ram = new MockRAMDirectory();
         PayloadAnalyzer analyzer = new PayloadAnalyzer();
         IndexWriter writer = new IndexWriter(ram, analyzer, true, IndexWriter.MaxFieldLength.LIMITED);
         Document d = new Document();
@@ -154,7 +154,7 @@ public class TestPayloads extends LuceneTestCase {
     public void testPayloadsEncoding() throws Exception {
         rnd = newRandom();
         // first perform the test using a RAMDirectory
-        Directory dir = new RAMDirectory();
+        Directory dir = new MockRAMDirectory();
         performTest(dir);
         
         // now use a FSDirectory and repeat same test
@@ -256,11 +256,17 @@ public class TestPayloads extends LuceneTestCase {
         TermPositions tp = reader.termPositions(terms[0]);
         tp.next();
         tp.nextPosition();
+        // NOTE: prior rev of this test was failing to first
+        // call next here:
+        tp.next();
         // now we don't read this payload
         tp.nextPosition();
         assertEquals("Wrong payload length.", 1, tp.getPayloadLength());
         byte[] payload = tp.getPayload(null, 0);
         assertEquals(payload[0], payloadData[numTerms]);
+        // NOTE: prior rev of this test was failing to first
+        // call next here:
+        tp.next();
         tp.nextPosition();
         
         // we don't read this payload and skip to a different document
@@ -465,7 +471,7 @@ public class TestPayloads extends LuceneTestCase {
         final int numDocs = 50;
         final ByteArrayPool pool = new ByteArrayPool(numThreads, 5);
         
-        Directory dir = new RAMDirectory();
+        Directory dir = new MockRAMDirectory();
         final IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
         final String field = "test";
         

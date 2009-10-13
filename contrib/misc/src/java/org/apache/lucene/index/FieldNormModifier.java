@@ -24,6 +24,7 @@ import org.apache.lucene.search.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.StringHelper;
+import org.apache.lucene.util.Bits;
 
 /**
  * Given a directory and a list of fields, updates the fieldNorms in place for every document.
@@ -109,33 +110,30 @@ public class FieldNormModifier {
     byte[] fakeNorms = new byte[0];
     
     IndexReader reader = null;
-    TermEnum termEnum = null;
-    TermDocs termDocs = null;
     try {
       reader = IndexReader.open(dir, true);
-      termCounts = new int[reader.maxDoc()];
+      final Bits delDocs = reader.getDeletedDocs();
+
       // if we are killing norms, get fake ones
-      if (sim == null)
+      if (sim == null) {
         fakeNorms = SegmentReader.createFakeNorms(reader.maxDoc());
-      try {
-        termEnum = reader.terms(new Term(field));
-        try {
-          termDocs = reader.termDocs();
-          do {
-            Term term = termEnum.term();
-            if (term != null && term.field().equals(fieldName)) {
-              termDocs.seek(termEnum.term());
-              while (termDocs.next()) {
-                termCounts[termDocs.doc()] += termDocs.freq();
+      } else {
+        termCounts = new int[reader.maxDoc()];
+        Terms terms = reader.fields().terms(field);
+        if (terms != null) {
+          TermsEnum termsEnum = terms.iterator();
+          while(termsEnum.next() != null) {
+            DocsEnum docs = termsEnum.docs(delDocs);
+            while(true) {
+              int docID = docs.next();
+              if (docID != docs.NO_MORE_DOCS) {
+                termCounts[docID] += docs.freq();
+              } else {
+                break;
               }
             }
-          } while (termEnum.next());
-          
-        } finally {
-          if (null != termDocs) termDocs.close();
+          }
         }
-      } finally {
-        if (null != termEnum) termEnum.close();
       }
     } finally {
       if (null != reader) reader.close();
@@ -156,5 +154,4 @@ public class FieldNormModifier {
       if (null != reader) reader.close();
     }
   }
-  
 }

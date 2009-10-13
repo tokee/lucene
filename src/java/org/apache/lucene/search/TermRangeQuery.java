@@ -135,6 +135,17 @@ public class TermRangeQuery extends MultiTermQuery {
         upperTerm, includeLower, includeUpper, collator);
   }
 
+  public String field() {
+    return field;
+  }
+
+  protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
+    return new TermRangeTermsEnum(reader, field,
+                                  lowerTerm, upperTerm,
+                                  includeLower, includeUpper,
+                                  collator);
+  }
+
   /** Prints a user-readable version of this query. */
   public String toString(String field) {
       StringBuilder buffer = new StringBuilder();

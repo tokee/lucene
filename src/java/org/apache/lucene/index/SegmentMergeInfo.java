@@ -19,22 +19,36 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 
+import org.apache.lucene.index.codecs.Codec;
+
 final class SegmentMergeInfo {
-  Term term;
   int base;
   int ord;  // the position of the segment in a MultiReader
-  TermEnum termEnum;
+  final FieldsEnum fields;
+  TermsEnum terms;
+  String field;
+  TermRef term;
+
   IndexReader reader;
   int delCount;
-  private TermPositions postings;  // use getPositions()
+  //private TermPositions postings;  // use getPositions()
   private int[] docMap;  // use getDocMap()
 
-  SegmentMergeInfo(int b, TermEnum te, IndexReader r)
+  // nocommit
+  private String segment;
+
+  SegmentMergeInfo(int b, IndexReader r)
     throws IOException {
     base = b;
     reader = r;
-    termEnum = te;
-    term = te.term();
+    fields = r.fields().iterator();
+    // nocommit
+    if (Codec.DEBUG) {
+      if (r instanceof SegmentReader) {
+        segment = ((SegmentReader) r).core.segment;
+      }
+      System.out.println("smi create seg=" + segment);
+    }
   }
 
   // maps around deleted docs
@@ -58,28 +72,29 @@ final class SegmentMergeInfo {
     return docMap;
   }
 
-  TermPositions getPositions() throws IOException {
-    if (postings == null) {
-      postings = reader.termPositions();
-    }
-    return postings;
-  }
-
-  final boolean next() throws IOException {
-    if (termEnum.next()) {
-      term = termEnum.term();
+  final boolean nextField() throws IOException {
+    field = fields.next();
+    if (field != null) {
+      terms = fields.terms();
       return true;
     } else {
-      term = null;
       return false;
     }
   }
 
-  final void close() throws IOException {
-    termEnum.close();
-    if (postings != null) {
-    postings.close();
+  final boolean nextTerm() throws IOException {
+    term = terms.next();
+    if (term != null) {
+      if (Codec.DEBUG) {
+        System.out.println("  smi.next: term=" + term + " seg=" + segment);
+      }
+      return true;
+    } else {
+      if (Codec.DEBUG) {
+        System.out.println("  smi.next: term=null seg=" + segment);
+      }
+      return false;
+    }
   }
-}
 }
 

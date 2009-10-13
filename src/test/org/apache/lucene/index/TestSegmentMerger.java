@@ -69,7 +69,8 @@ public class TestSegmentMerger extends LuceneTestCase {
     merger.closeReaders();
     assertTrue(docsMerged == 2);
     //Should be able to open a new SegmentReader against the new directory
-    SegmentReader mergedReader = SegmentReader.get(new SegmentInfo(mergedSegment, docsMerged, mergedDir, false, true));
+    SegmentReader mergedReader = SegmentReader.get(new SegmentInfo(mergedSegment, docsMerged, mergedDir, false, true,
+                                                                   -1, null, false, merger.hasProx(), merger.getCodec()));
     assertTrue(mergedReader != null);
     assertTrue(mergedReader.numDocs() == 2);
     Document newDoc1 = mergedReader.document(0);

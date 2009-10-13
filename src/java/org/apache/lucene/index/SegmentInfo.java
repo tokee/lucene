@@ -21,6 +21,8 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.BitVector;
+import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.Codecs;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -88,6 +90,11 @@ public final class SegmentInfo {
                                                   // (if it's an older index)
 
   private boolean hasProx;                        // True if this segment has any fields with omitTermFreqAndPositions==false
+  
+  // nocommit: unread field
+  private boolean flexPostings;                   // True if postings were written with new flex format
+  private Codec codec;
+
 
   private Map diagnostics;
 
@@ -95,7 +102,7 @@ public final class SegmentInfo {
     return "si: "+dir.toString()+" "+name+" docCount: "+docCount+" delCount: "+delCount+" delFileName: "+getDelFileName();
   }
   
-  public SegmentInfo(String name, int docCount, Directory dir) {
+  public SegmentInfo(String name, int docCount, Directory dir, Codec codec) {
     this.name = name;
     this.docCount = docCount;
     this.dir = dir;
@@ -108,15 +115,21 @@ public final class SegmentInfo {
     docStoreIsCompoundFile = false;
     delCount = 0;
     hasProx = true;
+    flexPostings = true;
+    this.codec = codec;
   }
 
+  // nocommit -- this ctor is only used by back-compat tests
   public SegmentInfo(String name, int docCount, Directory dir, boolean isCompoundFile, boolean hasSingleNormFile) { 
-    this(name, docCount, dir, isCompoundFile, hasSingleNormFile, -1, null, false, true);
+    this(name, docCount, dir, isCompoundFile, hasSingleNormFile, -1, null, false, true, null);
+    SegmentWriteState state = new SegmentWriteState(null, dir, name, null, null, docCount, docCount, -1, Codecs.getDefault());
+    codec = state.codec = Codecs.getDefault().getWriter(state);
   }
-
-  public SegmentInfo(String name, int docCount, Directory dir, boolean isCompoundFile, boolean hasSingleNormFile,
-                     int docStoreOffset, String docStoreSegment, boolean docStoreIsCompoundFile, boolean hasProx) { 
-    this(name, docCount, dir);
+  
+  public SegmentInfo(String name, int docCount, Directory dir, boolean isCompoundFile, boolean hasSingleNormFile, 
+                     int docStoreOffset, String docStoreSegment, boolean docStoreIsCompoundFile, boolean hasProx,
+                     Codec codec) { 
+    this(name, docCount, dir, codec);
     this.isCompoundFile = (byte) (isCompoundFile ? YES : NO);
     this.hasSingleNormFile = hasSingleNormFile;
     preLockless = false;
@@ -124,6 +137,7 @@ public final class SegmentInfo {
     this.docStoreSegment = docStoreSegment;
     this.docStoreIsCompoundFile = docStoreIsCompoundFile;
     this.hasProx = hasProx;
+    this.codec = codec;
     delCount = 0;
     assert docStoreOffset == -1 || docStoreSegment != null: "dso=" + docStoreOffset + " dss=" + docStoreSegment + " docCount=" + docCount;
   }
@@ -149,6 +163,7 @@ public final class SegmentInfo {
     isCompoundFile = src.isCompoundFile;
     hasSingleNormFile = src.hasSingleNormFile;
     delCount = src.delCount;
+    codec = src.codec;
   }
 
   // must be Map<String, String>
@@ -169,10 +184,11 @@ public final class SegmentInfo {
    * @param format format of the segments info file
    * @param input input handle to read segment info from
    */
-  SegmentInfo(Directory dir, int format, IndexInput input) throws IOException {
+  SegmentInfo(Directory dir, int format, IndexInput input, Codecs codecs) throws IOException {
     this.dir = dir;
     name = input.readString();
     docCount = input.readInt();
+    final String codecName;
     if (format <= SegmentInfos.FORMAT_LOCKLESS) {
       delGen = input.readLong();
       if (format <= SegmentInfos.FORMAT_SHARED_DOC_STORE) {
@@ -215,6 +231,13 @@ public final class SegmentInfo {
       else
         hasProx = true;
 
+      // System.out.println(Thread.currentThread().getName() + ": si.read hasProx=" + hasProx + " seg=" + name);
+      
+      if (format <= SegmentInfos.FORMAT_FLEX_POSTINGS)
+        codecName = input.readString();
+      else
+        codecName = "PreFlex";
+
       if (format <= SegmentInfos.FORMAT_DIAGNOSTICS) {
         diagnostics = input.readStringStringMap();
       } else {
@@ -231,8 +254,10 @@ public final class SegmentInfo {
       docStoreSegment = null;
       delCount = -1;
       hasProx = true;
+      codecName = "PreFlex";
       diagnostics = Collections.EMPTY_MAP;
     }
+    codec = codecs.lookup(codecName);
   }
   
   void setNumFields(int numFields) {
@@ -315,7 +340,7 @@ public final class SegmentInfo {
   }
 
   public Object clone () {
-    SegmentInfo si = new SegmentInfo(name, docCount, dir);
+    SegmentInfo si = new SegmentInfo(name, docCount, dir, codec);
     si.isCompoundFile = isCompoundFile;
     si.delGen = delGen;
     si.delCount = delCount;
@@ -329,6 +354,7 @@ public final class SegmentInfo {
     si.docStoreOffset = docStoreOffset;
     si.docStoreSegment = docStoreSegment;
     si.docStoreIsCompoundFile = docStoreIsCompoundFile;
+    si.codec = codec;
     return si;
   }
 
@@ -560,6 +586,9 @@ public final class SegmentInfo {
     output.writeByte(isCompoundFile);
     output.writeInt(delCount);
     output.writeByte((byte) (hasProx ? 1:0));
+    // mxx
+    //System.out.println(Thread.currentThread().getName() + ": si.write hasProx=" + hasProx + " seg=" + name);
+    output.writeString(codec.name);
     output.writeStringStringMap(diagnostics);
   }
 
@@ -570,6 +599,19 @@ public final class SegmentInfo {
 
   public boolean getHasProx() {
     return hasProx;
+  }
+
+  /** Can only be called once. */
+  public void setCodec(Codec codec) {
+    assert this.codec == null;
+    if (codec == null) {
+      throw new IllegalArgumentException("codec must be non-null");
+    }
+    this.codec = codec;
+  }
+
+  Codec getCodec() {
+    return codec;
   }
 
   private void addIfExists(List files, String fileName) throws IOException {
@@ -598,8 +640,12 @@ public final class SegmentInfo {
       files.add(name + "." + IndexFileNames.COMPOUND_FILE_EXTENSION);
     } else {
       final String[] exts = IndexFileNames.NON_STORE_INDEX_EXTENSIONS;
-      for(int i=0;i<exts.length;i++)
+      for(int i=0;i<exts.length;i++) {
+        // nocommit -- skip checking frq, prx, tii, tis if
+        // flex postings
         addIfExists(files, name + "." + exts[i]);
+      }
+      codec.files(dir, this, files);
     }
 
     if (docStoreOffset != -1) {

@@ -18,7 +18,9 @@ package org.apache.lucene.analysis.query;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.StopFilter;
@@ -140,20 +142,21 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
   public int addStopWords(IndexReader reader, String fieldName, int maxDocFreq) throws IOException {
     HashSet stopWords = new HashSet();
     String internedFieldName = StringHelper.intern(fieldName);
-    TermEnum te = reader.terms(new Term(fieldName));
-    Term term = te.term();
-    while (term != null) {
-      if (term.field() != internedFieldName) {
-        break;
+    Terms terms = reader.fields().terms(fieldName);
+    if (terms != null) {
+      TermsEnum termsEnum = terms.iterator();
+      while(true) {
+        TermRef text = termsEnum.next();
+        if (text != null) {
+          if (termsEnum.docFreq() > maxDocFreq) {
+            stopWords.add(text.toString());
+          }
+        } else {
+          break;
+        }
       }
-      if (te.docFreq() > maxDocFreq) {
-        stopWords.add(term.text());
-      }
-      if (!te.next()) {
-        break;
-      }
-      term = te.term();
     }
+
     stopWordsPerField.put(fieldName, stopWords);
     
     /* if the stopwords for a field are changed,

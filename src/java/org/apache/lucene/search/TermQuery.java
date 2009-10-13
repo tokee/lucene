@@ -20,8 +20,9 @@ package org.apache.lucene.search;
 import java.io.IOException;
 import java.util.Set;
 
+import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermDocs;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.Explanation.IDFExplanation;
 import org.apache.lucene.util.ToStringUtils;
@@ -64,12 +65,12 @@ public class TermQuery extends Query {
     }
 
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder, boolean topScorer) throws IOException {
-      TermDocs termDocs = reader.termDocs(term);
-
-      if (termDocs == null)
+      DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field(), new TermRef(term.text()));
+      if (docs == null) {
         return null;
+      }
 
-      return new TermScorer(this, termDocs, similarity, reader.norms(term.field()));
+      return new TermScorer(this, docs, similarity, reader.norms(term.field()));
     }
 
     public Explanation explain(IndexReader reader, int doc)

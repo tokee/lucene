@@ -33,7 +33,8 @@ import java.util.*;
  *  be adding documents at a time, with no other reader or writer threads
  *  accessing this object.
  */
-final class FieldInfos {
+// nocommit -- made this public:
+public final class FieldInfos {
 
   // Used internally (ie not written to *.fnm files) for pre-2.9 files
   public static final int FORMAT_PRE = -1;
@@ -121,14 +122,19 @@ final class FieldInfos {
   }
 
   /** Returns true if any fields do not omitTermFreqAndPositions */
-  boolean hasProx() {
+  // nocommit -- made public
+  public boolean hasProx() {
     final int numFields = byNumber.size();
     for(int i=0;i<numFields;i++) {
       final FieldInfo fi = fieldInfo(i);
       if (fi.isIndexed && !fi.omitTermFreqAndPositions) {
+        // mxx
+        //        System.out.println(Thread.currentThread().getName() + ": fieldInfos: hasProx=true");
         return true;
       }
     }
+    // mxx
+    //System.out.println(Thread.currentThread().getName() + ": fieldInfos: hasProx=false");
     return false;
   }
   

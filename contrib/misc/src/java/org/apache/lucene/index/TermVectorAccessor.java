@@ -1,12 +1,5 @@
 package org.apache.lucene.index;
 
-import org.apache.lucene.util.StringHelper;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Collection;
-import java.util.Iterator;
 /*
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,6 +14,15 @@ import java.util.Iterator;
  *  limitations under the License.
  *
  */
+
+import org.apache.lucene.util.StringHelper;
+import org.apache.lucene.util.Bits;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Collection;
+import java.util.Iterator;
 
 
 /**
@@ -99,43 +101,47 @@ public class TermVectorAccessor {
       positions.clear();
     }
 
-    TermEnum termEnum = indexReader.terms();
-    if (termEnum.skipTo(new Term(field, ""))) {
+    final Bits delDocs = indexReader.getDeletedDocs();
 
-      while (termEnum.term().field() == field) {
-        TermPositions termPositions = indexReader.termPositions(termEnum.term());
-        if (termPositions.skipTo(documentNumber)) {
+    Terms terms = indexReader.fields().terms(field);
+    boolean anyTerms = false;
+    if (terms != null) {
+      TermsEnum termsEnum = terms.iterator();
+      while(true) {
+        TermRef text = termsEnum.next();
+        if (text != null) {
+          anyTerms = true;
+          DocsEnum docs = termsEnum.docs(delDocs);
+          int docID = docs.advance(documentNumber);
+          if (docID == documentNumber) {
 
-          frequencies.add(Integer.valueOf(termPositions.freq()));
-          tokens.add(termEnum.term().text());
+            frequencies.add(new Integer(docs.freq()));
+            tokens.add(text.toString());
 
-
-          if (!mapper.isIgnoringPositions()) {
-            int[] positions = new int[termPositions.freq()];
-            for (int i = 0; i < positions.length; i++) {
-              positions[i] = termPositions.nextPosition();
+            if (!mapper.isIgnoringPositions()) {
+              int[] positions = new int[docs.freq()];
+              PositionsEnum posEnum = docs.positions();
+              for (int i = 0; i < positions.length; i++) {
+                positions[i] = posEnum.next();
+              }
+              this.positions.add(positions);
+            } else {
+              positions.add(null);
             }
-            this.positions.add(positions);
-          } else {
-            positions.add(null);
           }
-        }
-        termPositions.close();
-        if (!termEnum.next()) {
+        } else {
           break;
         }
       }
 
-      mapper.setDocumentNumber(documentNumber);
-      mapper.setExpectations(field, tokens.size(), false, !mapper.isIgnoringPositions());
-      for (int i = 0; i < tokens.size(); i++) {
-        mapper.map((String) tokens.get(i), ((Integer) frequencies.get(i)).intValue(), (TermVectorOffsetInfo[]) null, (int[]) positions.get(i));
+      if (anyTerms) {
+        mapper.setDocumentNumber(documentNumber);
+        mapper.setExpectations(field, tokens.size(), false, !mapper.isIgnoringPositions());
+        for (int i = 0; i < tokens.size(); i++) {
+          mapper.map((String) tokens.get(i), ((Integer) frequencies.get(i)).intValue(), (TermVectorOffsetInfo[]) null, (int[]) positions.get(i));
+        }
       }
-
     }
-    termEnum.close();
-
-
   }
 
 

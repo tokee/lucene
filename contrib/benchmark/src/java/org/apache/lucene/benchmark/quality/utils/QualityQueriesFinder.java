@@ -21,7 +21,9 @@ import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.PriorityQueue;
@@ -88,15 +90,19 @@ public class QualityQueriesFinder {
     IndexReader ir = IndexReader.open(dir, true);
     try {
       int threshold = ir.maxDoc() / 10; // ignore words too common.
-      TermEnum terms = ir.terms(new Term(field,""));
-      while (terms.next()) {
-        if (!field.equals(terms.term().field())) {
-          break;
-        }
-        int df = terms.docFreq();
-        if (df<threshold) {
-          String ttxt = terms.term().text();
-          pq.insertWithOverflow(new TermDf(ttxt,df));
+      Terms terms = ir.fields().terms(field);
+      if (terms != null) {
+        TermsEnum termsEnum = terms.iterator();
+        while(true) {
+          TermRef term = termsEnum.next();
+          if (term == null) {
+            break;
+          }
+          int df = termsEnum.docFreq();
+          if (df<threshold) {
+            String ttxt = term.toString();
+            pq.insertWithOverflow(new TermDf(ttxt,df));
+          }
         }
       }
     } finally {

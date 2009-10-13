@@ -28,40 +28,43 @@ final class PhrasePositions {
   int position;					  // position in doc
   int count;					  // remaining pos in this doc
   int offset;					  // position in phrase
-  TermPositions tp;				  // stream of positions
-  PhrasePositions next;				  // used to make lists
+  final DocsEnum docs;				  // stream of docs
+  PositionsEnum positions;                        // positions in current doc
+  PhrasePositions next;	                          // used to make lists
   boolean repeats;       // there's other pp for same term (e.g. query="1st word 2nd word"~1) 
 
-  PhrasePositions(TermPositions t, int o) {
-    tp = t;
+  PhrasePositions(DocsEnum docs, int o) {
+    this.docs = docs;
     offset = o;
   }
 
   final boolean next() throws IOException {	  // increments to next doc
-    if (!tp.next()) {
-      tp.close();				  // close stream
-      doc = Integer.MAX_VALUE;			  // sentinel value
+    doc = docs.next();
+    if (doc == docs.NO_MORE_DOCS) {
       return false;
     }
-    doc = tp.doc();
-    position = 0;
+    positions = docs.positions();
+
+    // nocommit -- really needed?
+    //position = 0;
+
     return true;
   }
 
   final boolean skipTo(int target) throws IOException {
-    if (!tp.skipTo(target)) {
-      tp.close();				  // close stream
-      doc = Integer.MAX_VALUE;			  // sentinel value
+    doc = docs.advance(target);
+    if (doc == docs.NO_MORE_DOCS) {
       return false;
     }
-    doc = tp.doc();
-    position = 0;
+    // nocommit -- really needed?
+    // position = 0;
     return true;
   }
 
 
   final void firstPosition() throws IOException {
-    count = tp.freq();				  // read first pos
+    count = docs.freq();				  // read first pos
+    positions = docs.positions();
     nextPosition();
   }
 
@@ -73,7 +76,7 @@ final class PhrasePositions {
    */
   final boolean nextPosition() throws IOException {
     if (count-- > 0) {				  // read subsequent pos's
-      position = tp.nextPosition() - offset;
+      position = positions.next() - offset;
       return true;
     } else
       return false;

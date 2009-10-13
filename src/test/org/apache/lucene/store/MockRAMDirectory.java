@@ -195,8 +195,10 @@ public class MockRAMDirectory extends RAMDirectory {
     if (crashed)
       throw new IOException("cannot createOutput after crash");
     init();
-    if (preventDoubleWrite && createdFiles.contains(name) && !name.equals("segments.gen"))
-      throw new IOException("file \"" + name + "\" was already written to");
+    synchronized(this) {
+      if (preventDoubleWrite && createdFiles.contains(name) && !name.equals("segments.gen"))
+        throw new IOException("file \"" + name + "\" was already written to");
+    }
     if (noDeleteOpenFile && openFiles.containsKey(name))
       throw new IOException("MockRAMDirectory: file \"" + name + "\" is still open: cannot overwrite");
     RAMFile file = new RAMFile(this);
@@ -219,21 +221,25 @@ public class MockRAMDirectory extends RAMDirectory {
 
     return new MockRAMOutputStream(this, file, name);
   }
+  
+  static class OpenFile {
+    final String name;
+    final Throwable stack;
+    OpenFile(String name) {
+      this.name = name;
+      this.stack = new Throwable();
+    }
+  }
 
   public synchronized IndexInput openInput(String name) throws IOException {
     RAMFile file = (RAMFile)fileMap.get(name);
     if (file == null)
       throw new FileNotFoundException(name);
     else {
-      if (openFiles.containsKey(name)) {
-        Integer v = (Integer) openFiles.get(name);
-        v = Integer.valueOf(v.intValue()+1);
-        openFiles.put(name, v);
-      } else {
-         openFiles.put(name, Integer.valueOf(1));
-      }
+      IndexInput in = new MockRAMInputStream(this, name, file);
+      openFiles.put(in, new OpenFile(name));
+      return in;
     }
-    return new MockRAMInputStream(this, name, file);
   }
 
   /** Provided for testing purposes.  Use sizeInBytes() instead. */
@@ -266,7 +272,14 @@ public class MockRAMDirectory extends RAMDirectory {
     if (noDeleteOpenFile && openFiles.size() > 0) {
       // RuntimeException instead of IOException because
       // super() does not throw IOException currently:
-      throw new RuntimeException("MockRAMDirectory: cannot close: there are still open files: " + openFiles);
+        Iterator it = openFiles.values().iterator();
+        System.out.println("\nMockRAMDirectory open files:");
+        while(it.hasNext()) {
+          OpenFile openFile = (OpenFile) it.next();
+          System.out.println("\nfile " + openFile.name + " opened from:\n");
+          openFile.stack.printStackTrace(System.out);
+        }
+        throw new RuntimeException("MockRAMDirectory: cannot close: there are still open files");
     }
   }
 

@@ -58,6 +58,8 @@ import org.apache.lucene.search.spans.Spans;
  */
 public class TestPositionIncrement extends BaseTokenStreamTestCase {
 
+  final static boolean VERBOSE = false;
+
   public void testSetPosition() throws Exception {
     Analyzer analyzer = new Analyzer() {
       public TokenStream tokenStream(String fieldName, Reader reader) {
@@ -232,6 +234,7 @@ public class TestPositionIncrement extends BaseTokenStreamTestCase {
   
   public void testPayloadsPos0() throws Exception {
     for(int x=0;x<2;x++) {
+      
       Directory dir = new MockRAMDirectory();
       IndexWriter writer = new IndexWriter(dir,
                                            new TestPayloadAnalyzer(), true,
@@ -277,16 +280,23 @@ public class TestPositionIncrement extends BaseTokenStreamTestCase {
 
       count = 0;
       boolean sawZero = false;
-      //System.out.println("\ngetPayloadSpans test");
+      if (VERBOSE) {
+        System.out.println("\ngetPayloadSpans test");
+      }
       Spans pspans = snq.getSpans(is.getIndexReader());
       while (pspans.next()) {
-        //System.out.println(pspans.doc() + " - " + pspans.start() + " - "+ pspans.end());
+        if (VERBOSE) {
+          System.out.println("doc " + pspans.doc() + ": span " + pspans.start() + " to "+ pspans.end());
+        }
         Collection payloads = pspans.getPayload();
         sawZero |= pspans.start() == 0;
         for (Iterator it = payloads.iterator(); it.hasNext();) {
           count++;
-          it.next();
-          //System.out.println(new String((byte[]) it.next()));
+          if (!VERBOSE) {
+            it.next();
+          } else {
+            System.out.println("  payload: " + new String((byte[]) it.next()));
+          }
         }
       }
       assertEquals(5, count);
@@ -364,7 +374,9 @@ class PayloadFilter extends TokenFilter {
       }
       posIncrAttr.setPositionIncrement(posIncr);
       pos += posIncr;
-      // System.out.println("term=" + termAttr.term() + " pos=" + pos);
+      if (TestPositionIncrement.VERBOSE) {
+        System.out.println("term=" + termAttr.term() + " pos=" + pos);
+      }
       i++;
       return true;
     } else {

@@ -36,6 +36,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util._TestUtil;
@@ -212,8 +213,8 @@ public class TestRemoteSort extends LuceneTestCase implements Serializable {
 
     public void setNextReader(IndexReader reader, int docBase) throws IOException {
       docValues = FieldCache.DEFAULT.getInts(reader, "parser", new FieldCache.IntParser() {
-          public final int parseInt(final String val) {
-            return (val.charAt(0)-'A') * 123456;
+          public final int parseInt(TermRef termRef) {
+            return (termRef.toString().charAt(0)-'A') * 123456;
           }
         });
     }
@@ -235,6 +236,29 @@ public class TestRemoteSort extends LuceneTestCase implements Serializable {
     MultiSearcher multi = new MultiSearcher (new Searchable[] { searcher });
     runMultiSorts(multi, true); // this runs on the full index
   }
+
+  // test custom search when remote
+  /* rewrite with new API
+  public void testRemoteCustomSort() throws Exception {
+    Searchable searcher = getRemote();
+    MultiSearcher multi = new MultiSearcher (new Searchable[] { searcher });
+    sort.setSort (new SortField ("custom", SampleComparable.getComparatorSource()));
+    assertMatches (multi, queryX, sort, "CAIEG");
+    sort.setSort (new SortField ("custom", SampleComparable.getComparatorSource(), true));
+    assertMatches (multi, queryY, sort, "HJDBF");
+
+    assertSaneFieldCaches(getName() + " ComparatorSource");
+    FieldCache.DEFAULT.purgeAllCaches();
+
+    SortComparator custom = SampleComparable.getComparator();
+    sort.setSort (new SortField ("custom", custom));
+    assertMatches (multi, queryX, sort, "CAIEG");
+    sort.setSort (new SortField ("custom", custom, true));
+    assertMatches (multi, queryY, sort, "HJDBF");
+
+    assertSaneFieldCaches(getName() + " Comparator");
+    FieldCache.DEFAULT.purgeAllCaches();
+  }*/
 
   // test that the relevancy scores are the same even if
   // hits are sorted
@@ -280,12 +304,12 @@ public class TestRemoteSort extends LuceneTestCase implements Serializable {
     assertSameValues (scoresY, getScores (remote.search (queryY, null, 1000, sort).scoreDocs, remote));
     assertSameValues (scoresA, getScores (remote.search (queryA, null, 1000, sort).scoreDocs, remote));
 
-    sort.setSort (new SortField ("int", SortField.INT, true), new SortField (null, SortField.DOC, true) );
+    sort.setSort (new SortField[] { new SortField ("int", SortField.INT, true), new SortField (null, SortField.DOC, true) });
     assertSameValues (scoresX, getScores (remote.search (queryX, null, 1000, sort).scoreDocs, remote));
     assertSameValues (scoresY, getScores (remote.search (queryY, null, 1000, sort).scoreDocs, remote));
     assertSameValues (scoresA, getScores (remote.search (queryA, null, 1000, sort).scoreDocs, remote));
 
-    sort.setSort (new SortField("float", SortField.FLOAT), new SortField("string", SortField.STRING));
+    sort.setSort (new SortField("float", SortField.FLOAT));
     assertSameValues (scoresX, getScores (remote.search (queryX, null, 1000, sort).scoreDocs, remote));
     assertSameValues (scoresY, getScores (remote.search (queryY, null, 1000, sort).scoreDocs, remote));
     assertSameValues (scoresA, getScores (remote.search (queryA, null, 1000, sort).scoreDocs, remote));
@@ -305,7 +329,11 @@ public class TestRemoteSort extends LuceneTestCase implements Serializable {
     expected = isFull ? "IDHFGJABEC" : "IDHFGJAEBC";
     assertMatches(multi, queryA, sort, expected);
 
-    sort.setSort(new SortField ("float", SortField.FLOAT), SortField.FIELD_DOC);
+    sort.setSort(new SortField ("int", SortField.INT));
+    expected = isFull ? "IDHFGJABEC" : "IDHFGJAEBC";
+    assertMatches(multi, queryA, sort, expected);
+
+    sort.setSort(new SortField[] {new SortField ("float", SortField.FLOAT), SortField.FIELD_DOC});
     assertMatches(multi, queryA, sort, "GDHJCIEFAB");
 
     sort.setSort(new SortField("float", SortField.FLOAT));

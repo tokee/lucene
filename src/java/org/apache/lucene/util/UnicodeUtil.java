@@ -73,14 +73,16 @@ final public class UnicodeUtil {
   private static final long HALF_MASK = 0x3FFL;
 
   public static final class UTF8Result {
-    public byte[] result = new byte[10];
+    public byte[] result;
     public int length;
+
+    public UTF8Result() {
+      result = new byte[10];
+    }
 
     public void setLength(int newLength) {
       if (result.length < newLength) {
-        byte[] newArray = new byte[(int) (1.5*newLength)];
-        System.arraycopy(result, 0, newArray, 0, length);
-        result = newArray;
+        result = ArrayUtil.grow(result, newLength);
       }
       length = newLength;
     }
@@ -91,18 +93,28 @@ final public class UnicodeUtil {
     public int[] offsets = new int[10];
     public int length;
 
+    /*
+    public String toString() {
+      return new String(result, 0, length);
+    }
+    */
+
     public void setLength(int newLength) {
-      if (result.length < newLength) {
-        char[] newArray = new char[(int) (1.5*newLength)];
-        System.arraycopy(result, 0, newArray, 0, length);
-        result = newArray;
-      }
+      if (result.length < newLength)
+        result = ArrayUtil.grow(result, newLength);
       length = newLength;
     }
 
     public void copyText(UTF16Result other) {
       setLength(other.length);
       System.arraycopy(other.result, 0, result, 0, length);
+    }
+
+    public void copyText(String other) {
+      final int otherLength = other.length();
+      setLength(otherLength);
+      other.getChars(0, otherLength, result, 0);
+      length = otherLength;
     }
   }
 

@@ -204,6 +204,29 @@ public final class ArrayUtil {
     return grow(array, 1 + array.length);
   }
 
+  public static char[] shrink(char[] array, int targetSize) {
+    final int newSize = getShrinkSize(array.length, targetSize);
+    if (newSize != array.length) {
+      char[] newArray = new char[newSize];
+      System.arraycopy(array, 0, newArray, 0, newSize);
+      return newArray;
+    } else
+      return array;
+  }
+
+  public static char[] grow(char[] array, int minSize) {
+    if (array.length < minSize) {
+      char[] newArray = new char[getNextSize(minSize)];
+      System.arraycopy(array, 0, newArray, 0, array.length);
+      return newArray;
+    } else
+      return array;
+  }
+
+  public static char[] grow(char[] array) {
+    return grow(array, 1 + array.length);
+  }
+
   public static byte[] shrink(byte[] array, int targetSize) {
     final int newSize = getShrinkSize(array.length, targetSize);
     if (newSize != array.length) {

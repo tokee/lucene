@@ -28,7 +28,8 @@ import java.util.List;
 /**
  * Allows you to iterate over the {@link TermPositions} for multiple {@link Term}s as
  * a single {@link TermPositions}.
- *
+ * @deprecated This class is being replaced by the package
+ * private MultiDocsEnum on org.apache.lucene.search.
  */
 public class MultipleTermPositions implements TermPositions {
 

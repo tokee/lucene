@@ -122,7 +122,7 @@ public class TestDirectoryReader extends LuceneTestCase {
   }
         
   
-  public void _testTermVectors() {
+  public void _testTermVectors() throws IOException {
     MultiReader reader = new MultiReader(readers);
     assertTrue(reader != null);
   }

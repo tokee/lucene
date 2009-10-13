@@ -26,7 +26,8 @@ import java.io.IOException;
  ordered by document number.
 
  @see IndexReader#termDocs()
- */
+ @deprecated Use {@link DocsEnum} instead
+*/
 
 public interface TermDocs {
   /** Sets this to the data for a term.

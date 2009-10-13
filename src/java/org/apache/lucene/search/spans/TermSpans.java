@@ -17,7 +17,8 @@ package org.apache.lucene.search.spans;
 
 
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermPositions;
+import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.PositionsEnum;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -28,47 +29,46 @@ import java.util.Collection;
  * Public for extension only
  */
 public class TermSpans extends Spans {
-  protected TermPositions positions;
-  protected Term term;
+  protected final DocsEnum docs;
+  protected PositionsEnum positions;
+  protected final Term term;
   protected int doc;
   protected int freq;
   protected int count;
   protected int position;
 
-
-  public TermSpans(TermPositions positions, Term term) throws IOException {
-
-    this.positions = positions;
+  public TermSpans(DocsEnum docs, Term term) throws IOException {
+    this.docs = docs;
     this.term = term;
     doc = -1;
   }
 
   public boolean next() throws IOException {
     if (count == freq) {
-      if (!positions.next()) {
-        doc = Integer.MAX_VALUE;
+      doc = docs.next();
+      if (doc == DocsEnum.NO_MORE_DOCS) {
         return false;
       }
-      doc = positions.doc();
-      freq = positions.freq();
+      freq = docs.freq();
+      positions = docs.positions();
       count = 0;
     }
-    position = positions.nextPosition();
+    position = positions.next();
     count++;
     return true;
   }
 
   public boolean skipTo(int target) throws IOException {
-    if (!positions.skipTo(target)) {
-      doc = Integer.MAX_VALUE;
+    doc = docs.advance(target);
+    if (doc == DocsEnum.NO_MORE_DOCS) {
       return false;
     }
 
-    doc = positions.doc();
-    freq = positions.freq();
+    freq = docs.freq();
     count = 0;
+    positions = docs.positions();
 
-    position = positions.nextPosition();
+    position = positions.next();
     count++;
 
     return true;
@@ -95,7 +95,7 @@ public class TermSpans extends Spans {
 
   // TODO: Remove warning after API has been finalized
  public boolean isPayloadAvailable() {
-    return positions.isPayloadAvailable();
+    return positions.hasPayload();
   }
 
   public String toString() {
@@ -103,8 +103,7 @@ public class TermSpans extends Spans {
             (doc == -1 ? "START" : (doc == Integer.MAX_VALUE) ? "END" : doc + "-" + position);
   }
 
-
-  public TermPositions getPositions() {
+  public PositionsEnum getPositions() {
     return positions;
   }
 }

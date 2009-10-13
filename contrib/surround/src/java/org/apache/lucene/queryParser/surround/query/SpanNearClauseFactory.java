@@ -89,7 +89,8 @@ public class SpanNearClauseFactory {
   public String getFieldName() {return fieldName;}
 
   public BasicQueryFactory getBasicQueryFactory() {return qf;}
-  
+
+  /* @deprecated */
   public TermEnum getTermEnum(String termText) throws IOException {
     return getIndexReader().terms(new Term(getFieldName(), termText));
   }

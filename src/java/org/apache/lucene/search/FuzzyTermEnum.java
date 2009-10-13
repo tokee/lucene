@@ -27,6 +27,8 @@ import java.io.IOException;
  *
  * <p>Term enumerations are always ordered by Term.compareTo().  Each term in
  * the enumeration is greater than all that precede it.
+ *
+ * @deprecated Please use {@link FuzzyTermsEnum} instead.
  */
 public final class FuzzyTermEnum extends FilteredTermEnum {
 

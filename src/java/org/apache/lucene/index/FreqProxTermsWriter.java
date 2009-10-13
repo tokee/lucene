@@ -17,17 +17,19 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.util.UnicodeUtil;
-
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.lucene.index.codecs.DocsConsumer;
+import org.apache.lucene.index.codecs.FieldsConsumer;
+import org.apache.lucene.index.codecs.PositionsConsumer;
+import org.apache.lucene.index.codecs.TermsConsumer;
+import org.apache.lucene.util.UnicodeUtil;
 
 final class FreqProxTermsWriter extends TermsHashConsumer {
 
@@ -60,6 +62,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
   void closeDocStore(SegmentWriteState state) {}
   void abort() {}
 
+  private int flushedDocCount;
 
   // TODO: would be nice to factor out more of this, eg the
   // FreqProxFieldMergeState, and code to visit all Fields
@@ -71,6 +74,8 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
     // Gather all FieldData's that have postings, across all
     // ThreadStates
     List allFields = new ArrayList();
+    
+    flushedDocCount = state.numDocs;
 
     Iterator it = threadsAndFields.entrySet().iterator();
     while(it.hasNext()) {
@@ -88,21 +93,23 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       }
     }
 
-    // Sort by field name
-    Collections.sort(allFields);
     final int numAllFields = allFields.size();
 
-    // TODO: allow Lucene user to customize this consumer:
-    final FormatPostingsFieldsConsumer consumer = new FormatPostingsFieldsWriter(state, fieldInfos);
+    // Sort by field name
+    Collections.sort(allFields);
+
+    // TODO: allow Lucene user to customize this codec:
+    final FieldsConsumer consumer = state.codec.fieldsConsumer(state);
+
     /*
     Current writer chain:
-      FormatPostingsFieldsConsumer
-        -> IMPL: FormatPostingsFieldsWriter
-          -> FormatPostingsTermsConsumer
-            -> IMPL: FormatPostingsTermsWriter
-              -> FormatPostingsDocConsumer
-                -> IMPL: FormatPostingsDocWriter
-                  -> FormatPostingsPositionsConsumer
+      FieldsConsumer
+        -> IMPL: FormatPostingsTermsDictWriter
+          -> TermsConsumer
+            -> IMPL: FormatPostingsTermsDictWriter.TermsWriter
+              -> DocsConsumer
+                -> IMPL: FormatPostingsDocsWriter
+                  -> PositionsConsumer
                     -> IMPL: FormatPostingsPositionsWriter
     */
 
@@ -145,8 +152,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       FreqProxTermsWriterPerThread perThread = (FreqProxTermsWriterPerThread) entry.getKey();
       perThread.termsHashPerThread.reset(true);
     }
-
-    consumer.finish();
+    consumer.close();
   }
 
   private byte[] payloadBuffer;
@@ -155,7 +161,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
    * instances) found in this field and serialize them
    * into a single RAM segment. */
   void appendPostings(FreqProxTermsWriterPerField[] fields,
-                      FormatPostingsFieldsConsumer consumer)
+                      FieldsConsumer consumer)
     throws CorruptIndexException, IOException {
 
     int numFields = fields.length;
@@ -172,7 +178,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       assert result;
     }
 
-    final FormatPostingsTermsConsumer termsConsumer = consumer.addField(fields[0].fieldInfo);
+    final TermsConsumer termsConsumer = consumer.addField(fields[0].fieldInfo);
 
     FreqProxFieldMergeState[] termStates = new FreqProxFieldMergeState[numFields];
 
@@ -196,11 +202,18 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
           termStates[numToMerge++] = mergeStates[i];
       }
 
-      final FormatPostingsDocsConsumer docConsumer = termsConsumer.addTerm(termStates[0].text, termStates[0].textOffset);
+      final char[] termText = termStates[0].text;
+      final int termTextOffset = termStates[0].textOffset;
+
+      // nocommit
+      //System.out.println("FLUSH term=" + new String(termText, termTextOffset, 10));
+
+      final DocsConsumer docConsumer = termsConsumer.startTerm(termText, termTextOffset);
 
       // Now termStates has numToMerge FieldMergeStates
       // which all share the same term.  Now we must
       // interleave the docID streams.
+      int numDocs = 0;
       while(numToMerge > 0) {
         
         FreqProxFieldMergeState minState = termStates[0];
@@ -209,8 +222,12 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
             minState = termStates[i];
 
         final int termDocFreq = minState.termFreq;
+        numDocs++;
 
-        final FormatPostingsPositionsConsumer posConsumer = docConsumer.addDoc(minState.docID, termDocFreq);
+        assert minState.docID < flushedDocCount: "doc=" + minState.docID + " maxDoc=" + flushedDocCount;
+
+        //System.out.println("  docID=" + minState.docID);
+        final PositionsConsumer posConsumer = docConsumer.addDoc(minState.docID, termDocFreq);
 
         final ByteSliceReader prox = minState.prox;
 
@@ -224,6 +241,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
           for(int j=0;j<termDocFreq;j++) {
             final int code = prox.readVInt();
             position += code >> 1;
+            //System.out.println("    pos=" + position);
 
             final int payloadLength;
             if ((code & 1) != 0) {
@@ -241,7 +259,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
             posConsumer.addPosition(position, payloadBuffer, 0, payloadLength);
           } //End for
 
-          posConsumer.finish();
+          posConsumer.finishDoc();
         }
 
         if (!minState.nextDoc()) {
@@ -269,13 +287,11 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
         }
       }
 
-      docConsumer.finish();
+      termsConsumer.finishTerm(termText, termTextOffset, numDocs);
     }
 
     termsConsumer.finish();
   }
-
-  private final TermInfo termInfo = new TermInfo(); // minimize consing
 
   final UnicodeUtil.UTF8Result termsUTF8 = new UnicodeUtil.UTF8Result();
 

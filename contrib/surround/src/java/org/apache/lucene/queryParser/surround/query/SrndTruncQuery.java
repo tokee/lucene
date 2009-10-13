@@ -17,7 +17,9 @@ package org.apache.lucene.queryParser.surround.query;
  */
 
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.IndexReader;
 
 import java.io.IOException;
@@ -40,6 +42,7 @@ public class SrndTruncQuery extends SimpleTerm {
   private final char mask;
   
   private String prefix;
+  private TermRef prefixRef;
   private Pattern pattern;
   
   
@@ -67,6 +70,7 @@ public class SrndTruncQuery extends SimpleTerm {
       i++;
     }
     prefix = truncated.substring(0, i);
+    prefixRef = new TermRef(prefix);
     
     StringBuilder re = new StringBuilder();
     while (i < truncated.length()) {
@@ -83,28 +87,40 @@ public class SrndTruncQuery extends SimpleTerm {
   {
     boolean expanded = false;
     int prefixLength = prefix.length();
-    TermEnum enumerator = reader.terms(new Term(fieldName, prefix));
-    Matcher matcher = pattern.matcher("");
-    try {
-      do {
-        Term term = enumerator.term();
-        if (term != null) {
-          String text = term.text();
-          if ((! text.startsWith(prefix)) || (! term.field().equals(fieldName))) {
-            break;
-          } else {
-            matcher.reset( text.substring(prefixLength));
+    Terms terms = reader.fields().terms(fieldName);
+    if (terms != null) {
+      Matcher matcher = pattern.matcher("");
+      try {
+        TermsEnum termsEnum = terms.iterator();
+
+        TermsEnum.SeekStatus status = termsEnum.seek(prefixRef);
+        TermRef text;
+        if (status == TermsEnum.SeekStatus.FOUND) {
+          text = prefixRef;
+        } else if (status == TermsEnum.SeekStatus.NOT_FOUND) {
+          text = termsEnum.term();
+        } else {
+          text = null;
+        }
+
+        while(text != null) {
+          if (text != null && text.startsWith(prefixRef)) {
+            String textString = text.toString();
+            matcher.reset(textString.substring(prefixLength));
             if (matcher.matches()) {
-              mtv.visitMatchingTerm(term);
+              mtv.visitMatchingTerm(new Term(fieldName, textString));
               expanded = true;
             }
+          } else {
+            break;
           }
+          text = termsEnum.next();
         }
-      } while (enumerator.next());
-    } finally {
-      enumerator.close();
-      matcher.reset();
+      } finally {
+        matcher.reset();
+      }
     }
+      
     if (! expanded) {
       System.out.println("No terms in " + fieldName + " field for: " + toString());
     }

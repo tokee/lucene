@@ -39,6 +39,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.util.IndexableBinaryStringTools;
 import org.apache.lucene.queryParser.analyzing.AnalyzingQueryParser;
+import org.apache.lucene.index.codecs.Codec;
 
 import java.io.IOException;
 import java.nio.CharBuffer;
@@ -92,10 +93,11 @@ public class CollationTestBase extends TestCase {
     // with a Farsi Collator (or an Arabic one for the case when Farsi is not
     // supported).
       
-    // Test TermRangeQuery
+    // Test ConstantScoreRangeQuery
+    Query q = aqp.parse("[ \u062F TO \u0698 ]");
     aqp.setUseOldRangeQuery(false);
     ScoreDoc[] result
-      = is.search(aqp.parse("[ \u062F TO \u0698 ]"), null, 1000).scoreDocs;
+      = is.search(q, null, 1000).scoreDocs;
     assertEquals("The index Term should not be included.", 0, result.length);
 
     result = is.search(aqp.parse("[ \u0633 TO \u0638 ]"), null, 1000).scoreDocs;

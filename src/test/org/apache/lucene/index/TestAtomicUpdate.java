@@ -16,16 +16,20 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import org.apache.lucene.util.*;
-import org.apache.lucene.store.*;
-import org.apache.lucene.document.*;
-import org.apache.lucene.analysis.*;
-import org.apache.lucene.search.*;
-import org.apache.lucene.queryParser.*;
-
-import java.util.Random;
 import java.io.File;
 import java.io.IOException;
+import java.util.Random;
+
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.SimpleAnalyzer;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.MockRAMDirectory;
+import org.apache.lucene.util.English;
+import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.util._TestUtil;
 
 public class TestAtomicUpdate extends LuceneTestCase {
   private static final Analyzer ANALYZER = new SimpleAnalyzer();
@@ -126,8 +130,8 @@ public class TestAtomicUpdate extends LuceneTestCase {
     TimedThread[] threads = new TimedThread[4];
 
     IndexWriter writer = new MockIndexWriter(directory, ANALYZER, true, IndexWriter.MaxFieldLength.UNLIMITED);
-    writer.setMaxBufferedDocs(7);
-    writer.setMergeFactor(3);
+    writer.setMaxBufferedDocs(4);
+    writer.setMergeFactor(2);
 
     // Establish a base index of 100 docs:
     for(int i=0;i<100;i++) {
@@ -145,33 +149,34 @@ public class TestAtomicUpdate extends LuceneTestCase {
     assertEquals(100, r.numDocs());
     r.close();
 
+    int upto = 0;
+
     IndexerThread indexerThread = new IndexerThread(writer, threads);
-    threads[0] = indexerThread;
+    threads[upto++] = indexerThread;
     indexerThread.start();
     
-    IndexerThread indexerThread2 = new IndexerThread(writer, threads);
-    threads[1] = indexerThread2;
-    indexerThread2.start();
+    //IndexerThread indexerThread2 = new IndexerThread(writer, threads);
+    //threads[upto++] = indexerThread2;
+    //indexerThread2.start();
       
     SearcherThread searcherThread1 = new SearcherThread(directory, threads);
-    threads[2] = searcherThread1;
+    threads[upto++] = searcherThread1;
     searcherThread1.start();
 
-    SearcherThread searcherThread2 = new SearcherThread(directory, threads);
-    threads[3] = searcherThread2;
-    searcherThread2.start();
+    //SearcherThread searcherThread2 = new SearcherThread(directory, threads);
+    //threads[upto++] = searcherThread2;
+    //searcherThread2.start();
 
-    indexerThread.join();
-    indexerThread2.join();
-    searcherThread1.join();
-    searcherThread2.join();
+    for(int i=0;i<upto;i++) {
+      threads[i].join();
+    }
 
     writer.close();
 
-    assertTrue("hit unexpected exception in indexer", !indexerThread.failed);
-    assertTrue("hit unexpected exception in indexer2", !indexerThread2.failed);
-    assertTrue("hit unexpected exception in search1", !searcherThread1.failed);
-    assertTrue("hit unexpected exception in search2", !searcherThread2.failed);
+    for(int i=0;i<upto;i++) {
+      assertTrue("hit unexpected exception in thread " + i, !threads[i].failed);
+    }
+
     //System.out.println("    Writer: " + indexerThread.count + " iterations");
     //System.out.println("Searcher 1: " + searcherThread1.count + " searchers created");
     //System.out.println("Searcher 2: " + searcherThread2.count + " searchers created");

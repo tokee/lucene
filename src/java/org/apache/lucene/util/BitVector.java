@@ -32,7 +32,7 @@ import org.apache.lucene.store.IndexOutput;
   <li>store and load, as bit set or d-gaps, depending on sparseness;</li> 
   </ul>
   */
-public final class BitVector implements Cloneable {
+public final class BitVector implements Cloneable, Bits {
 
   private byte[] bits;
   private int size;

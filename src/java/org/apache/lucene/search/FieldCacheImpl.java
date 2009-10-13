@@ -29,9 +29,13 @@ import java.util.WeakHashMap;
 
 import org.apache.lucene.document.NumericField; // javadoc
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermDocs;
+import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.TermDocs;          // deprecated
+import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.FieldCacheSanityChecker;
 
@@ -264,22 +268,28 @@ class FieldCacheImpl implements FieldCache {
         return wrapper.getBytes(reader, field, FieldCache.DEFAULT_BYTE_PARSER);
       }
       final byte[] retArray = new byte[reader.maxDoc()];
-      TermDocs termDocs = reader.termDocs();
-      TermEnum termEnum = reader.terms (new Term (field));
-      try {
-        do {
-          Term term = termEnum.term();
-          if (term==null || term.field() != field) break;
-          byte termval = parser.parseByte(term.text());
-          termDocs.seek (termEnum);
-          while (termDocs.next()) {
-            retArray[termDocs.doc()] = termval;
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        final TermsEnum termsEnum = terms.iterator();
+        final Bits delDocs = reader.getDeletedDocs();
+        try {
+          while(true) {
+            final TermRef term = termsEnum.next();
+            if (term == null) {
+              break;
+            }
+            final byte termval = parser.parseByte(term);
+            final DocsEnum docs = termsEnum.docs(delDocs);
+            while (true) {
+              final int docID = docs.next();
+              if (docID == DocsEnum.NO_MORE_DOCS) {
+                break;
+              }
+              retArray[docID] = termval;
+            }
           }
-        } while (termEnum.next());
-      } catch (StopFillCacheException stop) {
-      } finally {
-        termDocs.close();
-        termEnum.close();
+        } catch (StopFillCacheException stop) {
+        }
       }
       return retArray;
     }
@@ -310,22 +320,28 @@ class FieldCacheImpl implements FieldCache {
         return wrapper.getShorts(reader, field, FieldCache.DEFAULT_SHORT_PARSER);
       }
       final short[] retArray = new short[reader.maxDoc()];
-      TermDocs termDocs = reader.termDocs();
-      TermEnum termEnum = reader.terms (new Term (field));
-      try {
-        do {
-          Term term = termEnum.term();
-          if (term==null || term.field() != field) break;
-          short termval = parser.parseShort(term.text());
-          termDocs.seek (termEnum);
-          while (termDocs.next()) {
-            retArray[termDocs.doc()] = termval;
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        final TermsEnum termsEnum = terms.iterator();
+        final Bits delDocs = reader.getDeletedDocs();
+        try {
+          while(true) {
+            final TermRef term = termsEnum.next();
+            if (term == null) {
+              break;
+            }
+            final short termval = parser.parseShort(term);
+            final DocsEnum docs = termsEnum.docs(delDocs);
+            while (true) {
+              final int docID = docs.next();
+              if (docID == DocsEnum.NO_MORE_DOCS) {
+                break;
+              }
+              retArray[docID] = termval;
+            }
           }
-        } while (termEnum.next());
-      } catch (StopFillCacheException stop) {
-      } finally {
-        termDocs.close();
-        termEnum.close();
+        } catch (StopFillCacheException stop) {
+        }
       }
       return retArray;
     }
@@ -360,27 +376,40 @@ class FieldCacheImpl implements FieldCache {
         }
       }
       int[] retArray = null;
-      TermDocs termDocs = reader.termDocs();
-      TermEnum termEnum = reader.terms (new Term (field));
-      try {
-        do {
-          Term term = termEnum.term();
-          if (term==null || term.field() != field) break;
-          int termval = parser.parseInt(term.text());
-          if (retArray == null) // late init
-            retArray = new int[reader.maxDoc()];
-          termDocs.seek (termEnum);
-          while (termDocs.next()) {
-            retArray[termDocs.doc()] = termval;
+
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        final TermsEnum termsEnum = terms.iterator();
+        final Bits delDocs = reader.getDeletedDocs();
+        try {
+          while(true) {
+            final TermRef term = termsEnum.next();
+            if (term == null) {
+              break;
+            }
+            final int termval = parser.parseInt(term);
+            if (retArray == null) {
+              // late init so numeric fields don't double allocate
+              retArray = new int[reader.maxDoc()];
+            }
+
+            final DocsEnum docs = termsEnum.docs(delDocs);
+            while (true) {
+              final int docID = docs.next();
+              if (docID == DocsEnum.NO_MORE_DOCS) {
+                break;
+              }
+              retArray[docID] = termval;
+            }
           }
-        } while (termEnum.next());
-      } catch (StopFillCacheException stop) {
-      } finally {
-        termDocs.close();
-        termEnum.close();
+        } catch (StopFillCacheException stop) {
+        }
       }
-      if (retArray == null) // no values
+
+      if (retArray == null) {
+        // no values
         retArray = new int[reader.maxDoc()];
+      }
       return retArray;
     }
   };
@@ -415,29 +444,42 @@ class FieldCacheImpl implements FieldCache {
         } catch (NumberFormatException ne) {
           return wrapper.getFloats(reader, field, NUMERIC_UTILS_FLOAT_PARSER);      
         }
-    }
-      float[] retArray = null;
-      TermDocs termDocs = reader.termDocs();
-      TermEnum termEnum = reader.terms (new Term (field));
-      try {
-        do {
-          Term term = termEnum.term();
-          if (term==null || term.field() != field) break;
-          float termval = parser.parseFloat(term.text());
-          if (retArray == null) // late init
-            retArray = new float[reader.maxDoc()];
-          termDocs.seek (termEnum);
-          while (termDocs.next()) {
-            retArray[termDocs.doc()] = termval;
-          }
-        } while (termEnum.next());
-      } catch (StopFillCacheException stop) {
-      } finally {
-        termDocs.close();
-        termEnum.close();
       }
-      if (retArray == null) // no values
+      float[] retArray = null;
+
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        final TermsEnum termsEnum = terms.iterator();
+        final Bits delDocs = reader.getDeletedDocs();
+        try {
+          while(true) {
+            final TermRef term = termsEnum.next();
+            if (term == null) {
+              break;
+            }
+            final float termval = parser.parseFloat(term);
+            if (retArray == null) {
+              // late init so numeric fields don't double allocate
+              retArray = new float[reader.maxDoc()];
+            }
+
+            final DocsEnum docs = termsEnum.docs(delDocs);
+            while (true) {
+              final int docID = docs.next();
+              if (docID == DocsEnum.NO_MORE_DOCS) {
+                break;
+              }
+              retArray[docID] = termval;
+            }
+          }
+        } catch (StopFillCacheException stop) {
+        }
+      }
+
+      if (retArray == null) {
+        // no values
         retArray = new float[reader.maxDoc()];
+      }
       return retArray;
     }
   };
@@ -471,27 +513,39 @@ class FieldCacheImpl implements FieldCache {
         }
       }
       long[] retArray = null;
-      TermDocs termDocs = reader.termDocs();
-      TermEnum termEnum = reader.terms (new Term(field));
-      try {
-        do {
-          Term term = termEnum.term();
-          if (term==null || term.field() != field) break;
-          long termval = parser.parseLong(term.text());
-          if (retArray == null) // late init
-            retArray = new long[reader.maxDoc()];
-          termDocs.seek (termEnum);
-          while (termDocs.next()) {
-            retArray[termDocs.doc()] = termval;
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        final TermsEnum termsEnum = terms.iterator();
+        final Bits delDocs = reader.getDeletedDocs();
+        try {
+          while(true) {
+            final TermRef term = termsEnum.next();
+            if (term == null) {
+              break;
+            }
+            final long termval = parser.parseLong(term);
+            if (retArray == null) {
+              // late init so numeric fields don't double allocate
+              retArray = new long[reader.maxDoc()];
+            }
+
+            final DocsEnum docs = termsEnum.docs(delDocs);
+            while (true) {
+              final int docID = docs.next();
+              if (docID == DocsEnum.NO_MORE_DOCS) {
+                break;
+              }
+              retArray[docID] = termval;
+            }
           }
-        } while (termEnum.next());
-      } catch (StopFillCacheException stop) {
-      } finally {
-        termDocs.close();
-        termEnum.close();
+        } catch (StopFillCacheException stop) {
+        }
       }
-      if (retArray == null) // no values
+
+      if (retArray == null) {
+        // no values
         retArray = new long[reader.maxDoc()];
+      }
       return retArray;
     }
   };
@@ -526,24 +580,33 @@ class FieldCacheImpl implements FieldCache {
         }
       }
       double[] retArray = null;
-      TermDocs termDocs = reader.termDocs();
-      TermEnum termEnum = reader.terms (new Term (field));
-      try {
-        do {
-          Term term = termEnum.term();
-          if (term==null || term.field() != field) break;
-          double termval = parser.parseDouble(term.text());
-          if (retArray == null) // late init
-            retArray = new double[reader.maxDoc()];
-          termDocs.seek (termEnum);
-          while (termDocs.next()) {
-            retArray[termDocs.doc()] = termval;
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        final TermsEnum termsEnum = terms.iterator();
+        final Bits delDocs = reader.getDeletedDocs();
+        try {
+          while(true) {
+            final TermRef term = termsEnum.next();
+            if (term == null) {
+              break;
+            }
+            final double termval = parser.parseDouble(term);
+            if (retArray == null) {
+              // late init so numeric fields don't double allocate
+              retArray = new double[reader.maxDoc()];
+            }
+
+            final DocsEnum docs = termsEnum.docs(delDocs);
+            while (true) {
+              final int docID = docs.next();
+              if (docID == DocsEnum.NO_MORE_DOCS) {
+                break;
+              }
+              retArray[docID] = termval;
+            }
           }
-        } while (termEnum.next());
-      } catch (StopFillCacheException stop) {
-      } finally {
-        termDocs.close();
-        termEnum.close();
+        } catch (StopFillCacheException stop) {
+        }
       }
       if (retArray == null) // no values
         retArray = new double[reader.maxDoc()];
@@ -566,21 +629,26 @@ class FieldCacheImpl implements FieldCache {
         throws IOException {
       String field = StringHelper.intern((String) entryKey.field);
       final String[] retArray = new String[reader.maxDoc()];
-      TermDocs termDocs = reader.termDocs();
-      TermEnum termEnum = reader.terms (new Term (field));
-      try {
-        do {
-          Term term = termEnum.term();
-          if (term==null || term.field() != field) break;
-          String termval = term.text();
-          termDocs.seek (termEnum);
-          while (termDocs.next()) {
-            retArray[termDocs.doc()] = termval;
+
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        final TermsEnum termsEnum = terms.iterator();
+        final Bits delDocs = reader.getDeletedDocs();
+        while(true) {
+          final TermRef term = termsEnum.next();
+          if (term == null) {
+            break;
           }
-        } while (termEnum.next());
-      } finally {
-        termDocs.close();
-        termEnum.close();
+          final DocsEnum docs = termsEnum.docs(delDocs);
+          final String termval = term.toString();
+          while (true) {
+            final int docID = docs.next();
+            if (docID == DocsEnum.NO_MORE_DOCS) {
+              break;
+            }
+            retArray[docID] = termval;
+          }
+        }
       }
       return retArray;
     }
@@ -602,8 +670,9 @@ class FieldCacheImpl implements FieldCache {
       String field = StringHelper.intern((String) entryKey.field);
       final int[] retArray = new int[reader.maxDoc()];
       String[] mterms = new String[reader.maxDoc()+1];
-      TermDocs termDocs = reader.termDocs();
-      TermEnum termEnum = reader.terms (new Term (field));
+
+      Terms terms = reader.fields().terms(field);
+
       int t = 0;  // current term number
 
       // an entry for documents that have no terms in this field
@@ -612,28 +681,34 @@ class FieldCacheImpl implements FieldCache {
       // needs to change as well.
       mterms[t++] = null;
 
-      try {
-        do {
-          Term term = termEnum.term();
-          if (term==null || term.field() != field) break;
+      if (terms != null) {
+        final TermsEnum termsEnum = terms.iterator();
+        final Bits delDocs = reader.getDeletedDocs();
+        while(true) {
+          final TermRef term = termsEnum.next();
+          if (term == null) {
+            break;
+          }
 
           // store term text
           // we expect that there is at most one term per document
-          if (t >= mterms.length) throw new RuntimeException ("there are more terms than " +
-                  "documents in field \"" + field + "\", but it's impossible to sort on " +
-                  "tokenized fields");
-          mterms[t] = term.text();
-
-          termDocs.seek (termEnum);
-          while (termDocs.next()) {
-            retArray[termDocs.doc()] = t;
+          if (t >= mterms.length) {
+            throw new RuntimeException ("there are more terms than " +
+                                        "documents in field \"" + field + "\", but it's impossible to sort on " +
+                                        "tokenized fields");
           }
+          mterms[t] = term.toString();
 
+          final DocsEnum docs = termsEnum.docs(delDocs);
+          while (true) {
+            final int docID = docs.next();
+            if (docID == DocsEnum.NO_MORE_DOCS) {
+              break;
+            }
+            retArray[docID] = t;
+          }
           t++;
-        } while (termEnum.next());
-      } finally {
-        termDocs.close();
-        termEnum.close();
+        }
       }
 
       if (t == 0) {
@@ -643,16 +718,16 @@ class FieldCacheImpl implements FieldCache {
       } else if (t < mterms.length) {
         // if there are less terms than documents,
         // trim off the dead array space
-        String[] terms = new String[t];
-        System.arraycopy (mterms, 0, terms, 0, t);
-        mterms = terms;
+        String[] newTerms = new String[t];
+        System.arraycopy (mterms, 0, newTerms, 0, t);
+        mterms = newTerms;
       }
 
       StringIndex value = new StringIndex (retArray, mterms);
       return value;
     }
   };
-
+  
   private volatile PrintStream infoStream;
 
   public void setInfoStream(PrintStream stream) {
@@ -661,6 +736,30 @@ class FieldCacheImpl implements FieldCache {
 
   public PrintStream getInfoStream() {
     return infoStream;
+  }
+  
+  // Directly parses a numeric value from UTF8 bytes
+  // nocommit -- whitespace?  +e syntax?
+  final static long parseLong(TermRef term) {
+    int upto = term.offset;
+    final int negMul;
+    if (term.bytes[upto] == '-') {
+      negMul = -1;
+      upto++;
+    } else {
+      negMul = 1;
+    }
+    final int end = term.offset + term.length;
+    long number = 0;
+    while(upto < end) {
+      final int b = term.bytes[upto++];
+      if (b >= '0' && b <= '9') {
+        number = 10*number + (int) (b-'0');
+      } else {
+        throw new NumberFormatException("could not parse \"" + term + "\" to a number");
+      }
+    }
+    return negMul * number;
   }
 }
 

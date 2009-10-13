@@ -40,8 +40,8 @@ public class PrefixQuery extends MultiTermQuery {
   /** Returns the prefix of this query. */
   public Term getPrefix() { return prefix; }
   
-  protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
-    return new PrefixTermEnum(reader, prefix);
+  protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
+    return new PrefixTermsEnum(reader, prefix);
   }
 
   /** Prints a user-readable version of this query. */

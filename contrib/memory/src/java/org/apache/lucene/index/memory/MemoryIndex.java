@@ -34,21 +34,30 @@ import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
+import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.FieldInvertState;
+import org.apache.lucene.index.Fields;
+import org.apache.lucene.index.FieldsEnum;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermDocs;
 import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.index.TermFreqVector;
 import org.apache.lucene.index.TermPositionVector;
 import org.apache.lucene.index.TermPositions;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.TermVectorMapper;
 import org.apache.lucene.index.FieldInvertState;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Searcher;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Similarity;
+import org.apache.lucene.util.Bits;
 
 /**
  * High-performance single-document main memory Apache Lucene fulltext search index. 
@@ -726,7 +735,8 @@ public class MemoryIndex implements Serializable {
   private final class MemoryIndexReader extends IndexReader {
     
     private Searcher searcher; // needed to find searcher.getSimilarity() 
-    
+    private final MemoryFields memoryFields = new MemoryFields();
+
     private MemoryIndexReader() {
       super(); // avoid as much superclass baggage as possible
     }
@@ -741,6 +751,10 @@ public class MemoryIndex implements Serializable {
     private Info getInfo(int pos) {
       return (Info) sortedFields[pos].getValue();
     }
+
+    public Bits getDeletedDocs() {
+      return null;
+    }
     
     public int docFreq(Term term) {
       Info info = getInfo(term.field());
@@ -748,6 +762,203 @@ public class MemoryIndex implements Serializable {
       if (info != null) freq = info.getPositions(term.text()) != null ? 1 : 0;
       if (DEBUG) System.err.println("MemoryIndexReader.docFreq: " + term + ", freq:" + freq);
       return freq;
+    }
+
+    private final class MemoryFields extends Fields {
+
+      public FieldsEnum iterator() {
+        return new MemoryFieldsEnum();
+      }
+
+      public Terms terms(String field) {
+        return new MemoryTerms(field);
+      }
+    }
+
+    private final class MemoryTerms extends Terms {
+      private final String field;
+      private final Info info;
+
+      public MemoryTerms(String field) {
+        this.field = field;
+        info = getInfo(field);
+      }
+
+      public int docFreq(TermRef text) {
+        if (info != null) {
+          return info.getPositions(text.toString()) != null ? 1 : 0;
+        } else {
+          return 0;
+        }
+      }
+
+      public DocsEnum docs(Bits skipDocs, TermRef text) {
+        return new MemoryDocsEnum(skipDocs, info == null ? null : info.getPositions(text.toString()));
+      }
+
+      public TermsEnum iterator() {
+        return new MemoryTermsEnum(info);
+      }
+    }
+
+    private final class MemoryFieldsEnum extends FieldsEnum {
+      Map.Entry[] fields;
+      int pos;
+
+      public MemoryFieldsEnum() {
+        sortFields();
+        fields = MemoryIndex.this.sortedFields;
+      }
+
+      public String next() {
+        if (pos >= fields.length) {
+          return null;
+        } else {
+          return (String) fields[pos++].getKey();
+        }
+      }
+
+      public TermsEnum terms() {
+        return new MemoryTermsEnum(getInfo((String) fields[pos-1].getKey()));
+      }
+    }
+
+    private final class MemoryTermsEnum extends TermsEnum {
+      private final Info info;
+      private final TermRef term = new TermRef();
+      private final Map.Entry[] sortedTerms;
+      private int pos;
+
+      public MemoryTermsEnum(Info info) {
+        this.info = info;
+        info.sortTerms();
+        this.sortedTerms = info.sortedTerms;
+      }
+
+      public TermRef next() {
+        if (pos < sortedTerms.length) {
+          // TODO: would be more efficient to store TermRefs
+          // in MemoryIndex
+          term.copy((String) sortedTerms[pos++].getKey());
+          return term;
+        } else {
+          return null;
+        }
+      }
+
+      public long ord() {
+        return pos;
+      }
+
+      public TermRef term() {
+        return term;
+      }
+
+      public SeekStatus seek(TermRef seekTerm) {
+        int i = Arrays.binarySearch(sortedTerms, seekTerm.toString(), termComparator);
+        if (i < 0) {
+          // not found; choose successor
+          pos = -i-1;
+          if (pos < sortedTerms.length) {
+            term.copy((String) sortedTerms[pos].getKey());
+            return SeekStatus.NOT_FOUND;
+          } else {
+            // no successor
+            return SeekStatus.END;
+          }
+        } else {
+          // found
+          term.copy(seekTerm);
+          pos = i;
+          return SeekStatus.FOUND;
+        }
+      }
+
+      public SeekStatus seek(long ord) {
+        if (ord < sortedTerms.length) {
+          pos = (int) ord;
+          term.copy((String) sortedTerms[pos].getKey());
+          // always found
+          return SeekStatus.FOUND;
+        } else {
+          return SeekStatus.END;
+        }
+      }
+
+      public int docFreq() {
+        return 1;
+      }
+
+      public DocsEnum docs(Bits skipDocs) {
+        return new MemoryDocsEnum(skipDocs, (ArrayIntList) sortedTerms[pos].getValue());
+      }
+    }
+
+    private final class MemoryDocsEnum extends DocsEnum {
+      private final ArrayIntList positions;
+      private boolean hasNext = true;
+      private final MemoryPositionsEnum positionsEnum;
+
+      public MemoryDocsEnum(Bits skipDocs, ArrayIntList positions) {
+        this.positions = positions;
+        if (positions == null || (skipDocs != null && skipDocs.get(0))) {
+          hasNext = false;
+        }
+        positionsEnum = new MemoryPositionsEnum(positions);
+      }
+
+      public int next() {
+        if (hasNext) {
+          hasNext = false;
+          return 0;
+        } else {
+          return NO_MORE_DOCS;
+        }
+      }
+
+      public int advance(int target) {
+        return next();
+      }
+
+      public int freq() {
+        return positions == null ? 0 : numPositions(positions);
+      }
+
+      public PositionsEnum positions() {
+        return positionsEnum;
+      }
+    }
+
+    private final class MemoryPositionsEnum extends PositionsEnum {
+      private int cursor;
+      private final ArrayIntList positions;
+
+      public MemoryPositionsEnum(ArrayIntList positions) {
+        this.positions = positions;
+      }
+
+      public int next() {
+        final int pos = positions.get(cursor);
+        cursor += stride;
+        return pos;
+      }
+
+      public boolean hasPayload() {
+        return false;
+      }
+
+      public int getPayloadLength() {
+        throw new UnsupportedOperationException();
+      }
+
+      public byte[] getPayload(byte[] data, int offset) {
+        throw new UnsupportedOperationException();
+      }
+    }
+
+    // Flex API
+    public Fields fields() {
+      return memoryFields;
     }
   
     public TermEnum terms() {

@@ -1,0 +1,173 @@
+package org.apache.lucene.index.codecs.intblock;
+
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/** Naive int block API that writes vInts.  This is
+ *  expected to give poor performance; it's really only for
+ *  testing the pluggability.  One should typically use pfor instead. */
+
+import java.io.IOException;
+
+import org.apache.lucene.index.codecs.sep.IntIndexInput;
+import org.apache.lucene.store.IndexInput;
+
+/** Abstract base class that reads fixed-size blocks of ints
+ *  from an IndexInput.  While this is a simple approach, a
+ *  more performant approach would directly create an impl
+ *  of IntIndexInput inside Directory.  Wrapping a generic
+ *  IndexInput will likely cost performance.  */
+public abstract class FixedIntBlockIndexInput extends IntIndexInput {
+
+  private IndexInput in;
+  protected int blockSize;
+
+  protected void init(IndexInput in) throws IOException {
+    this.in = in;
+    blockSize = in.readVInt();
+  }
+
+  public Reader reader() throws IOException {
+    int[] buffer = new int[blockSize];
+    IndexInput clone = (IndexInput) in.clone();
+    // nocommit -- awkward
+    return new Reader(clone, buffer, getBlockReader(clone, buffer));
+  }
+
+  public void close() throws IOException {
+    in.close();
+  }
+
+  public Index index() {
+    return new Index();
+  }
+
+  protected abstract BlockReader getBlockReader(IndexInput in, int[] buffer) throws IOException;
+
+  public interface BlockReader {
+    public void readBlock() throws IOException;
+  }
+
+  private static class Reader extends IntIndexInput.Reader {
+    private final IndexInput in;
+
+    protected final int[] pending;
+    int upto;
+
+    private boolean seekPending;
+    private long pendingFP;
+    private int pendingUpto;
+    private long lastBlockFP;
+    private final BlockReader blockReader;
+    private final int blockSize;
+
+    private final BulkReadResult result = new BulkReadResult();
+
+    public Reader(IndexInput in, int[] pending, BlockReader blockReader) {
+      this.in = in;
+      this.pending = pending;
+      this.blockSize = pending.length;
+      result.buffer = pending;
+      this.blockReader = blockReader;
+    }
+
+    void seek(long fp, int upto) {
+      pendingFP = fp;
+      pendingUpto = upto;
+      seekPending = true;
+    }
+
+    private void maybeSeek() throws IOException {
+      if (seekPending) {
+        if (pendingFP != lastBlockFP) {
+          // need new block
+          in.seek(pendingFP);
+          lastBlockFP = pendingFP;
+          blockReader.readBlock();
+        }
+        upto = pendingUpto;
+        seekPending = false;
+      }
+    }
+
+    public int next() throws IOException {
+      maybeSeek();
+      if (upto == blockSize) {
+        lastBlockFP = in.getFilePointer();
+        blockReader.readBlock();
+        upto = 0;
+      }
+
+      return pending[upto++];
+    }
+
+    public BulkReadResult read(int[] buffer, int count) throws IOException {
+      maybeSeek();
+      if (upto == blockSize) {
+        blockReader.readBlock();
+        upto = 0;
+      }
+      result.offset = upto;
+      if (upto + count < blockSize) {
+        result.len = count;
+        upto += count;
+      } else {
+        result.len = blockSize - upto;
+        upto = blockSize;
+      }
+
+      return result;
+    }
+
+    public String descFilePointer() {
+      return in.getFilePointer() + ":" + upto;
+    }
+  }
+
+  private class Index extends IntIndexInput.Index {
+    private long fp;
+    private int upto;
+
+    public void read(IndexInput indexIn, boolean absolute) throws IOException {
+      if (absolute) {
+        fp = indexIn.readVLong();
+        upto = indexIn.readVInt();
+      } else {
+        final long delta = indexIn.readVLong();
+        if (delta == 0) {
+          // same block
+          upto += indexIn.readVInt();
+        } else {
+          // new block
+          fp += delta;
+          upto = indexIn.readVInt();
+        }
+      }
+      assert upto < blockSize;
+    }
+
+    public void seek(IntIndexInput.Reader other) throws IOException {
+      ((Reader) other).seek(fp, upto);
+    }
+
+    public void set(IntIndexInput.Index other) {
+      Index idx = (Index) other;
+      fp = idx.fp;
+      upto = idx.upto;
+    }
+  }
+}

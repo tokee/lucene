@@ -21,6 +21,7 @@ import org.apache.lucene.analysis.NumericTokenStream; // for javadocs
 import org.apache.lucene.document.NumericField; // for javadocs
 import org.apache.lucene.search.NumericRangeQuery; // for javadocs
 import org.apache.lucene.search.NumericRangeFilter; // for javadocs
+import org.apache.lucene.index.TermRef;
 
 /**
  * This is a helper class to generate prefix-encoded representations for numerical values
@@ -219,6 +220,26 @@ public final class NumericUtils {
     return (sortableBits << shift) ^ 0x8000000000000000L;
   }
 
+  public static long prefixCodedToLong(final TermRef term) {
+    final int shift = term.bytes[term.offset]-SHIFT_START_LONG;
+    if (shift>63 || shift<0)
+      throw new NumberFormatException("Invalid shift value in prefixCoded string (is encoded value really an INT?)");
+    long sortableBits = 0L;
+    final int limit = term.offset + term.length;
+    for (int i=term.offset+1; i<limit; i++) {
+      sortableBits <<= 7;
+      final byte ch = term.bytes[i];
+      if (ch < 0) {
+        throw new NumberFormatException(
+          "Invalid prefixCoded numerical value representation (char "+
+          Integer.toHexString((int)(ch&0xff))+" at position "+(i-term.offset)+" is invalid)"
+        );
+      }
+      sortableBits |= (long) ch;
+    }
+    return (sortableBits << shift) ^ 0x8000000000000000L;
+  }
+
   /**
    * Returns an int from prefixCoded characters.
    * Rightmost bits will be zero for lower precision codes.
@@ -242,6 +263,26 @@ public final class NumericUtils {
         );
       }
       sortableBits |= (int)ch;
+    }
+    return (sortableBits << shift) ^ 0x80000000;
+  }
+
+  public static int prefixCodedToInt(final TermRef term) {
+    final int shift = term.bytes[term.offset]-SHIFT_START_INT;
+    if (shift>31 || shift<0)
+      throw new NumberFormatException("Invalid shift value in prefixCoded string (is encoded value really an INT?)");
+    int sortableBits = 0;
+    final int limit = term.offset + term.length;
+    for (int i=term.offset+1; i<limit; i++) {
+      sortableBits <<= 7;
+      final byte ch = term.bytes[i];
+      if (ch < 0) {
+        throw new NumberFormatException(
+          "Invalid prefixCoded numerical value representation (char "+
+          Integer.toHexString((int)(ch&0xff))+" at position "+(i-term.offset)+" is invalid)"
+        );
+      }
+      sortableBits |= (int) ch;
     }
     return (sortableBits << shift) ^ 0x80000000;
   }

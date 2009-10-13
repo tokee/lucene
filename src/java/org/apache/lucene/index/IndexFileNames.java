@@ -20,7 +20,8 @@ package org.apache.lucene.index;
 /**
  * Useful constants representing filenames and extensions used by lucene
  */
-final class IndexFileNames {
+// nocommit -- made public
+public final class IndexFileNames {
 
   /** Name of the index segment file */
   static final String SEGMENTS = "segments";
@@ -36,16 +37,16 @@ final class IndexFileNames {
   static final String NORMS_EXTENSION = "nrm";
 
   /** Extension of freq postings file */
-  static final String FREQ_EXTENSION = "frq";
+  //static final String FREQ_EXTENSION = "frq";
 
   /** Extension of prox postings file */
-  static final String PROX_EXTENSION = "prx";
+  //static final String PROX_EXTENSION = "prx";
 
   /** Extension of terms file */
-  static final String TERMS_EXTENSION = "tis";
+  //static final String TERMS_EXTENSION = "tis";
 
   /** Extension of terms index file */
-  static final String TERMS_INDEX_EXTENSION = "tii";
+  //static final String TERMS_INDEX_EXTENSION = "tii";
 
   /** Extension of stored fields index file */
   static final String FIELDS_INDEX_EXTENSION = "fdx";
@@ -96,10 +97,10 @@ final class IndexFileNames {
     FIELD_INFOS_EXTENSION,
     FIELDS_INDEX_EXTENSION,
     FIELDS_EXTENSION,
-    TERMS_INDEX_EXTENSION,
-    TERMS_EXTENSION,
-    FREQ_EXTENSION,
-    PROX_EXTENSION,
+    //TERMS_INDEX_EXTENSION,
+    //TERMS_EXTENSION,
+    //FREQ_EXTENSION,
+    //PROX_EXTENSION,
     DELETES_EXTENSION,
     VECTORS_INDEX_EXTENSION,
     VECTORS_DOCUMENTS_EXTENSION,
@@ -107,6 +108,11 @@ final class IndexFileNames {
     GEN_EXTENSION,
     NORMS_EXTENSION,
     COMPOUND_FILE_STORE_EXTENSION,
+    // nocommit -- need cleaner way!
+    "doc",
+    "pos",
+    "pyl",
+    "skp"
   };
 
   /** File extensions that are added to a compound file
@@ -115,10 +121,10 @@ final class IndexFileNames {
     FIELD_INFOS_EXTENSION,
     FIELDS_INDEX_EXTENSION,
     FIELDS_EXTENSION,
-    TERMS_INDEX_EXTENSION,
-    TERMS_EXTENSION,
-    FREQ_EXTENSION,
-    PROX_EXTENSION,
+    //TERMS_INDEX_EXTENSION,
+    //TERMS_EXTENSION,
+    //FREQ_EXTENSION,
+    //PROX_EXTENSION,
     VECTORS_INDEX_EXTENSION,
     VECTORS_DOCUMENTS_EXTENSION,
     VECTORS_FIELDS_EXTENSION,
@@ -135,22 +141,28 @@ final class IndexFileNames {
 
   static final String[] NON_STORE_INDEX_EXTENSIONS = new String[] {
     FIELD_INFOS_EXTENSION,
-    FREQ_EXTENSION,
-    PROX_EXTENSION,
-    TERMS_EXTENSION,
-    TERMS_INDEX_EXTENSION,
+    //FREQ_EXTENSION,
+    //PROX_EXTENSION,
+    //TERMS_EXTENSION,
+    //TERMS_INDEX_EXTENSION,
     NORMS_EXTENSION
   };
   
   /** File extensions of old-style index files */
   static final String COMPOUND_EXTENSIONS[] = new String[] {
     FIELD_INFOS_EXTENSION,
-    FREQ_EXTENSION,
-    PROX_EXTENSION,
+    //FREQ_EXTENSION,
+    //PROX_EXTENSION,
     FIELDS_INDEX_EXTENSION,
     FIELDS_EXTENSION,
-    TERMS_INDEX_EXTENSION,
-    TERMS_EXTENSION
+    //TERMS_INDEX_EXTENSION,
+    //TERMS_EXTENSION
+  };
+
+  static final String COMPOUND_EXTENSIONS_NOT_CODEC[] = new String[] {
+    FIELD_INFOS_EXTENSION,
+    FIELDS_INDEX_EXTENSION,
+    FIELDS_EXTENSION,
   };
   
   /** File extensions for term vector support */
@@ -194,7 +206,8 @@ final class IndexFileNames {
     return false;
   }
 
-  static String segmentFileName(String segmentName, String ext) {
+  // nocommit -- made public
+  public static String segmentFileName(String segmentName, String ext) {
     return segmentName + "." + ext;
   }
 }

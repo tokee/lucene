@@ -17,25 +17,30 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collections;
-import java.util.ArrayList;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.search.DefaultSimilarity;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockObtainFailedException;
-import org.apache.lucene.store.AlreadyClosedException;
+import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.util.PriorityQueue;
+import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.ReaderUtil;
 
 /** 
  * An IndexReader which reads indexes with multiple segments.
@@ -43,6 +48,8 @@ import org.apache.lucene.store.AlreadyClosedException;
 class DirectoryReader extends IndexReader implements Cloneable {
   protected Directory directory;
   protected boolean readOnly;
+  
+  protected Codecs codecs;
 
   IndexWriter writer;
 
@@ -63,28 +70,52 @@ class DirectoryReader extends IndexReader implements Cloneable {
   private int numDocs = -1;
   private boolean hasDeletions = false;
 
+  private MultiFields fields;
+
+//  static IndexReader open(final Directory directory, final IndexDeletionPolicy deletionPolicy, final IndexCommit commit, final boolean readOnly,
+//      final int termInfosIndexDivisor) throws CorruptIndexException, IOException {
+//    return open(directory, deletionPolicy, commit, readOnly, termInfosIndexDivisor, null);
+//  }
+  
   static IndexReader open(final Directory directory, final IndexDeletionPolicy deletionPolicy, final IndexCommit commit, final boolean readOnly,
-                          final int termInfosIndexDivisor) throws CorruptIndexException, IOException {
+                          final int termInfosIndexDivisor, Codecs codecs) throws CorruptIndexException, IOException {
+    final Codecs codecs2;
+    if (codecs == null) {
+      codecs2 = Codecs.getDefault();
+    } else {
+      codecs2 = codecs;
+    }
     return (IndexReader) new SegmentInfos.FindSegmentsFile(directory) {
       protected Object doBody(String segmentFileName) throws CorruptIndexException, IOException {
         SegmentInfos infos = new SegmentInfos();
-        infos.read(directory, segmentFileName);
+        infos.read(directory, segmentFileName, codecs2);
         if (readOnly)
-          return new ReadOnlyDirectoryReader(directory, infos, deletionPolicy, termInfosIndexDivisor);
+          return new ReadOnlyDirectoryReader(directory, infos, deletionPolicy, termInfosIndexDivisor, codecs2);
         else
-          return new DirectoryReader(directory, infos, deletionPolicy, false, termInfosIndexDivisor);
+          return new DirectoryReader(directory, infos, deletionPolicy, false, termInfosIndexDivisor, codecs2);
       }
     }.run(commit);
   }
 
   /** Construct reading the named set of readers. */
-  DirectoryReader(Directory directory, SegmentInfos sis, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor) throws IOException {
+//  DirectoryReader(Directory directory, SegmentInfos sis, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor) throws IOException {
+//    this(directory, sis, deletionPolicy, readOnly, termInfosIndexDivisor, null);
+//  }
+  
+  /** Construct reading the named set of readers. */
+  DirectoryReader(Directory directory, SegmentInfos sis, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, Codecs codecs) throws IOException {
     this.directory = directory;
     this.readOnly = readOnly;
     this.segmentInfos = sis;
     this.deletionPolicy = deletionPolicy;
     this.termInfosIndexDivisor = termInfosIndexDivisor;
 
+    if (codecs == null) {
+      this.codecs = Codecs.getDefault();
+    } else {
+      this.codecs = codecs;
+    }
+    
     if (!readOnly) {
       // We assume that this segments_N was previously
       // properly sync'd:
@@ -120,11 +151,18 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   // Used by near real-time search
-  DirectoryReader(IndexWriter writer, SegmentInfos infos, int termInfosIndexDivisor) throws IOException {
+  DirectoryReader(IndexWriter writer, SegmentInfos infos, int termInfosIndexDivisor, Codecs codecs) throws IOException {
     this.directory = writer.getDirectory();
     this.readOnly = true;
     this.segmentInfos = infos;
     this.termInfosIndexDivisor = termInfosIndexDivisor;
+    if (codecs == null) {
+      this.codecs = Codecs.getDefault();
+    } else {
+      this.codecs = codecs;
+    }
+
+    
     if (!readOnly) {
       // We assume that this segments_N was previously
       // properly sync'd:
@@ -175,11 +213,17 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   /** This constructor is only used for {@link #reopen()} */
   DirectoryReader(Directory directory, SegmentInfos infos, SegmentReader[] oldReaders, int[] oldStarts,
-                  Map oldNormsCache, boolean readOnly, boolean doClone, int termInfosIndexDivisor) throws IOException {
+                  Map oldNormsCache, boolean readOnly, boolean doClone, int termInfosIndexDivisor, Codecs codecs) throws IOException {
     this.directory = directory;
     this.readOnly = readOnly;
     this.segmentInfos = infos;
     this.termInfosIndexDivisor = termInfosIndexDivisor;
+    if (codecs == null) {
+      this.codecs = Codecs.getDefault();
+    } else {
+      this.codecs = codecs;
+    }
+    
     if (!readOnly) {
       // We assume that this segments_N was previously
       // properly sync'd:
@@ -301,14 +345,75 @@ class DirectoryReader extends IndexReader implements Cloneable {
   private void initialize(SegmentReader[] subReaders) {
     this.subReaders = subReaders;
     starts = new int[subReaders.length + 1];    // build starts array
+    Bits[] subs = new Bits[subReaders.length];
     for (int i = 0; i < subReaders.length; i++) {
       starts[i] = maxDoc;
       maxDoc += subReaders[i].maxDoc();      // compute maxDocs
 
-      if (subReaders[i].hasDeletions())
+      if (subReaders[i].hasDeletions()) {
         hasDeletions = true;
+      }
+      subs[i] = subReaders[i].getDeletedDocs();
     }
     starts[subReaders.length] = maxDoc;
+
+    if (hasDeletions) {
+      deletedDocs = new MultiBits(subs, starts);
+    } else {
+      deletedDocs = null;
+    }
+
+    fields = new MultiFields(subReaders, starts);
+  }
+
+  private MultiBits deletedDocs;
+
+  // Exposes a slice of an existing Bits as a new Bits
+  final static class SubBits implements Bits {
+    private final Bits parent;
+    private final int start;
+    private final int length;
+
+    // start is inclusive; end is exclusive (length = end-start)
+    public SubBits(Bits parent, int start, int end) {
+      this.parent = parent;
+      this.start = start;
+      this.length = end - start;
+    }
+    
+    public boolean get(int doc) {
+      if (doc >= length) {
+        throw new RuntimeException("doc " + doc + " is out of bounds 0 .. " + (length-1));
+      }
+      return parent.get(doc-start);
+    }
+  }
+    
+  // Concatenates multiple Bits together
+  // nocommit -- if none of the subs have deletions we
+  // should return null from getDeletedDocs:
+  static final class MultiBits implements Bits {
+    private final Bits[] subs;
+    final int[] starts;
+
+    public MultiBits(Bits[] subs, int[] starts) {
+      this.subs = subs;
+      this.starts = starts;
+    }
+
+    public boolean get(int doc) {
+      final int reader = ReaderUtil.subIndex(doc, starts);
+      final Bits bits = subs[reader];
+      if (bits == null) {
+        return false;
+      } else {
+        return bits.get(doc-starts[reader]);
+      }
+    }
+  }
+
+  public Bits getDeletedDocs() {
+    return deletedDocs;
   }
 
   public final synchronized Object clone() {
@@ -423,7 +528,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return (IndexReader) new SegmentInfos.FindSegmentsFile(directory) {
       protected Object doBody(String segmentFileName) throws CorruptIndexException, IOException {
         SegmentInfos infos = new SegmentInfos();
-        infos.read(directory, segmentFileName);
+        infos.read(directory, segmentFileName, codecs);
         return doReopen(infos, false, openReadOnly);
       }
     }.run(commit);
@@ -432,9 +537,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
   private synchronized DirectoryReader doReopen(SegmentInfos infos, boolean doClone, boolean openReadOnly) throws CorruptIndexException, IOException {
     DirectoryReader reader;
     if (openReadOnly) {
-      reader = new ReadOnlyDirectoryReader(directory, infos, subReaders, starts, normsCache, doClone, termInfosIndexDivisor);
+      reader = new ReadOnlyDirectoryReader(directory, infos, subReaders, starts, normsCache, doClone, termInfosIndexDivisor, null);
     } else {
-      reader = new DirectoryReader(directory, infos, subReaders, starts, normsCache, false, doClone, termInfosIndexDivisor);
+      reader = new DirectoryReader(directory, infos, subReaders, starts, normsCache, false, doClone, termInfosIndexDivisor, null);
     }
     reader.setDisableFakeNorms(getDisableFakeNorms());
     return reader;
@@ -626,9 +731,22 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return total;
   }
 
+  public int docFreq(String field, TermRef term) throws IOException {
+    ensureOpen();
+    int total = 0;          // sum freqs in segments
+    for (int i = 0; i < subReaders.length; i++) {
+      total += subReaders[i].docFreq(field, term);
+    }
+    return total;
+  }
+
   public TermDocs termDocs() throws IOException {
     ensureOpen();
     return new MultiTermDocs(this, subReaders, starts);
+  }
+  
+  public Fields fields() throws IOException {
+    return fields;
   }
 
   public TermPositions termPositions() throws IOException {
@@ -669,7 +787,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
         // we have to check whether index has changed since this reader was opened.
         // if so, this reader is no longer valid for deletion
-        if (SegmentInfos.readCurrentVersion(directory) > segmentInfos.getVersion()) {
+        if (SegmentInfos.readCurrentVersion(directory, codecs) > segmentInfos.getVersion()) {
           stale = true;
           this.writeLock.release();
           this.writeLock = null;
@@ -699,7 +817,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       // KeepOnlyLastCommitDeleter:
       IndexFileDeleter deleter = new IndexFileDeleter(directory,
                                                       deletionPolicy == null ? new KeepOnlyLastCommitDeletionPolicy() : deletionPolicy,
-                                                      segmentInfos, null, null);
+                                                      segmentInfos, null, null, codecs);
 
       // Checkpoint the state we are about to change, in
       // case we have to roll back:
@@ -794,7 +912,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
    */
   public boolean isCurrent() throws CorruptIndexException, IOException {
     ensureOpen();
-    return SegmentInfos.readCurrentVersion(directory) == segmentInfos.getVersion();
+    return SegmentInfos.readCurrentVersion(directory, codecs) == segmentInfos.getVersion();
   }
 
   protected synchronized void doClose() throws IOException {
@@ -861,12 +979,17 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   /** @see org.apache.lucene.index.IndexReader#listCommits */
   public static Collection listCommits(Directory dir) throws IOException {
+    return listCommits(dir, Codecs.getDefault());
+  }
+
+  /** @see org.apache.lucene.index.IndexReader#listCommits */
+  public static Collection listCommits(Directory dir, Codecs codecs) throws IOException {
     final String[] files = dir.listAll();
 
     Collection commits = new ArrayList();
 
     SegmentInfos latest = new SegmentInfos();
-    latest.read(dir);
+    latest.read(dir, codecs);
     final long currentGen = latest.getGeneration();
 
     commits.add(new ReaderCommit(latest, dir));
@@ -883,7 +1006,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
         try {
           // IOException allowed to throw there, in case
           // segments_N is corrupt
-          sis.read(dir, fileName);
+          sis.read(dir, fileName, codecs);
         } catch (FileNotFoundException fnfe) {
           // LUCENE-948: on NFS (and maybe others), if
           // you have writers switching back and forth
@@ -954,20 +1077,496 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return userData;
     }
   }
+  
+  private final static class TermsWithBase {
+    Terms terms;
+    int base;
+    int length;
+    Bits deletedDocs;
 
+    public TermsWithBase(IndexReader reader, int base, String field) throws IOException {
+      this.base = base;
+      length = reader.maxDoc();
+      deletedDocs = reader.getDeletedDocs();
+      terms = reader.fields().terms(field);
+    }
+  }
+
+  private final static class FieldsEnumWithBase {
+    FieldsEnum fields;
+    String current;
+    int base;
+    int length;
+    Bits deletedDocs;
+
+    public FieldsEnumWithBase(IndexReader reader, int base) throws IOException {
+      this.base = base;
+      length = reader.maxDoc();
+      deletedDocs = reader.getDeletedDocs();
+      fields = reader.fields().iterator();
+    }
+  }
+
+  private final static class TermsEnumWithBase {
+    TermsEnum terms;
+    int base;
+    int length;
+    TermRef current;
+    Bits deletedDocs;
+
+    public TermsEnumWithBase(FieldsEnumWithBase start, TermsEnum terms, TermRef term) {
+      this.terms = terms;
+      current = term;
+      deletedDocs = start.deletedDocs;
+      base = start.base;
+      length = start.length;
+    }
+
+    public TermsEnumWithBase(TermsWithBase start, TermsEnum terms, TermRef term) {
+      this.terms = terms;
+      current = term;
+      deletedDocs = start.deletedDocs;
+      base = start.base;
+      length = start.length;
+    }
+  }
+
+  private final static class DocsEnumWithBase {
+    DocsEnum docs;
+    int base;
+  }
+
+  private final static class FieldMergeQueue extends PriorityQueue {
+    FieldMergeQueue(int size) {
+      initialize(size);
+    }
+
+    protected final boolean lessThan(Object a, Object b) {
+      FieldsEnumWithBase fieldsA = (FieldsEnumWithBase) a;
+      FieldsEnumWithBase fieldsB = (FieldsEnumWithBase) b;
+      return fieldsA.current.compareTo(fieldsB.current) < 0;
+    }
+  }
+
+  private final static class TermMergeQueue extends PriorityQueue {
+    TermMergeQueue(int size) {
+      initialize(size);
+    }
+
+    protected final boolean lessThan(Object a, Object b) {
+      TermsEnumWithBase termsA = (TermsEnumWithBase) a;
+      TermsEnumWithBase termsB = (TermsEnumWithBase) b;
+      final int cmp = termsA.current.compareTerm(termsB.current);
+      if (cmp != 0) {
+        return cmp < 0;
+      } else {
+        return termsA.base < termsB.base;
+      }
+    }
+  }
+
+  final static class MultiFields extends Fields {
+    private final IndexReader[] readers;
+    private final int[] starts;
+    private final HashMap<String,MultiTerms> terms = new HashMap<String,MultiTerms>();
+
+    public MultiFields(IndexReader[] readers, int[] starts) {
+      this.readers = readers;
+      this.starts = starts;
+    }
+
+    public FieldsEnum iterator() throws IOException {
+      FieldsEnumWithBase[] subs = new FieldsEnumWithBase[readers.length];
+      for(int i=0;i<subs.length;i++) {
+        subs[i] = new FieldsEnumWithBase(readers[i], starts[i]);
+      }
+      return new MultiFieldsEnum(subs);
+    }
+
+    public Terms terms(String field) throws IOException {
+      MultiTerms result = terms.get(field);
+      if (result == null) {
+
+        List<TermsWithBase> subs = new ArrayList<TermsWithBase>();
+
+        // Gather all sub-readers that have this field
+        for(int i=0;i<readers.length;i++) {
+          Terms subTerms = readers[i].fields().terms(field);
+          if (subTerms != null) {
+            subs.add(new TermsWithBase(readers[i], starts[i], field));
+          }
+        }
+        result = new MultiTerms(subs.toArray(new TermsWithBase[]{}));
+        terms.put(field, result);
+      }
+      return result;
+    }
+
+    public void close() {
+    }
+  }
+    
+  private final static class MultiTerms extends Terms {
+    private final TermsWithBase[] subs;
+    
+    public MultiTerms(TermsWithBase[] subs) {
+      this.subs = subs;
+    }
+
+    public TermsEnum iterator() throws IOException {
+      return new MultiTermsEnum(subs.length).reset(subs);
+    }
+  }
+
+  private final static class MultiFieldsEnum extends FieldsEnum {
+    private final FieldMergeQueue queue;
+
+    private String currentField;
+
+    private final FieldsEnumWithBase[] top;
+    private int numTop;
+
+    private final MultiTermsEnum terms;
+
+    MultiFieldsEnum(FieldsEnumWithBase[] subs) throws IOException {
+      terms = new MultiTermsEnum(subs.length);
+      queue = new FieldMergeQueue(subs.length);
+      top = new FieldsEnumWithBase[subs.length];
+      for(int i=0;i<subs.length;i++) {
+        subs[i].current = subs[i].fields.next();
+        if (subs[i].current != null) {
+          queue.add(subs[i]);
+        }
+      }
+    }
+
+    public String field() {
+      assert currentField != null;
+      return currentField;
+    }
+
+    public String next() throws IOException {
+
+      // restore queue
+      for(int i=0;i<numTop;i++) {
+        top[i].current = top[i].fields.next();
+        if (top[i].current != null) {
+          queue.add(top[i]);
+        } else {
+          // no more fields in this reader
+        }
+      }
+
+      numTop = 0;
+
+      // gather equal top fields
+      if (queue.size() > 0) {
+        while(true) {
+          top[numTop++] = (FieldsEnumWithBase) queue.pop();
+          if (queue.size() == 0 || ((FieldsEnumWithBase) queue.top()).current != top[0].current) {
+            break;
+          }
+        }
+        currentField = top[0].current;
+      } else {
+        currentField = null;
+      }
+
+      return currentField;
+    }
+
+    public TermsEnum terms() throws IOException {
+      return terms.reset(top, numTop);
+    }
+  }
+
+  private static final class MultiTermsEnum extends TermsEnum {
+    
+    private final TermMergeQueue queue;
+    private final TermsEnumWithBase[] subs;
+    private final TermsEnumWithBase[] top;
+    int numTop;
+    int numSubs;
+    private TermRef current;
+    private final MultiDocsEnum docs;
+
+    MultiTermsEnum(int size) {
+      queue = new TermMergeQueue(size);
+      top = new TermsEnumWithBase[size];
+      subs = new TermsEnumWithBase[size];
+      docs = new MultiDocsEnum(size);
+    }
+
+    public TermRef term() {
+      return current;
+    }
+
+    MultiTermsEnum reset(TermsWithBase[] terms) throws IOException {
+      assert terms.length <= top.length;
+      numSubs = 0;
+      numTop = 0;
+      for(int i=0;i<terms.length;i++) {
+        final TermsEnum termsEnum = terms[i].terms.iterator();
+        if (termsEnum != null) {
+          final TermRef term = termsEnum.next();
+          if (term != null) {
+            subs[numSubs] = new TermsEnumWithBase(terms[i], termsEnum, term);
+            queue.add(subs[numSubs]);
+            numSubs++;
+          } else {
+            // field has no terms
+          }
+        }
+      }
+
+      return this;
+    }
+
+    MultiTermsEnum reset(FieldsEnumWithBase[] fields, int numFields) throws IOException {
+      assert numFields <= top.length;
+      numSubs = 0;
+      numTop = 0;
+      for(int i=0;i<numFields;i++) {
+        final TermsEnum terms = fields[i].fields.terms();
+        if (terms != null) {
+          final TermRef term = terms.next();
+          if (term != null) {
+            subs[numSubs] = new TermsEnumWithBase(fields[i], terms, term);
+            queue.add(subs[numSubs]);
+            numSubs++;
+          } else {
+            // field has no terms
+          }
+        }
+      }
+
+      return this;
+    }
+
+    public SeekStatus seek(TermRef term) throws IOException {
+      queue.clear();
+      numTop = 0;
+      for(int i=0;i<numSubs;i++) {
+        final SeekStatus status = subs[i].terms.seek(term);
+        if (status == SeekStatus.FOUND) {
+          top[numTop++] = subs[i];
+          current = subs[i].current = term;
+        } else if (status == SeekStatus.NOT_FOUND) {
+          queue.add(subs[i]);
+          current = subs[i].current = subs[i].terms.term();
+        } else {
+          // enum exhausted
+        }
+      }
+
+      if (numTop > 0) {
+        return SeekStatus.FOUND;
+      } else if (queue.size() > 0) {
+        pullTop();
+        return SeekStatus.NOT_FOUND;
+      } else {
+        return SeekStatus.END;
+      }
+    }
+
+    public SeekStatus seek(long ord) throws IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    public long ord() throws IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    private final void pullTop() {
+      assert numTop == 0;
+      while(true) {
+        top[numTop++] = (TermsEnumWithBase) queue.pop();
+        if (queue.size() == 0 || !((TermsEnumWithBase) queue.top()).current.termEquals(top[0].current)) {
+          break;
+        }
+      } 
+      current = top[0].current;
+    }
+
+    private final void pushTop() throws IOException {
+      for(int i=0;i<numTop;i++) {
+        top[i].current = top[i].terms.next();
+        if (top[i].current != null) {
+          queue.add(top[i]);
+        } else {
+          // no more fields in this reader
+        }
+      }
+
+      numTop = 0;
+    }
+
+    public TermRef next() throws IOException {
+      // restore queue
+      pushTop();
+
+      // gather equal top fields
+      if (queue.size() > 0) {
+        pullTop();
+      } else {
+        current = null;
+      }
+
+      return current;
+    }
+
+    public int docFreq() {
+      int sum = 0;
+      for(int i=0;i<numTop;i++) {
+        sum += top[i].terms.docFreq();
+      }
+      return sum;
+    }
+
+    public DocsEnum docs(Bits skipDocs) throws IOException {
+      return docs.reset(top, numTop, skipDocs);
+    }
+  }
+
+  private static final class MultiDocsEnum extends DocsEnum {
+    final DocsEnumWithBase[] subs;
+    int numSubs;
+    int upto;
+    DocsEnum currentDocs;
+    int currentBase;
+    Bits skipDocs;
+
+    MultiDocsEnum(int count) {
+      subs = new DocsEnumWithBase[count];
+    }
+
+    MultiDocsEnum reset(TermsEnumWithBase[] subs, final int numSubs, final Bits skipDocs) throws IOException {
+      this.numSubs = 0;
+      this.skipDocs = skipDocs;
+      for(int i=0;i<numSubs;i++) {
+        Bits bits = null;
+        boolean handled = false;
+
+        // Optimize for common case: requested skip docs is simply our
+        // deleted docs
+        if (skipDocs instanceof MultiBits) {
+          MultiBits multiBits = (MultiBits) skipDocs;
+          int reader = ReaderUtil.subIndex(subs[i].base, multiBits.starts);
+          // System.out.println("bits=" + multiBits + " starts=" + multiBits.starts + " subs=" + subs + " subs[i]=" + subs[i] + " subs[1+i]=" + subs[1+i] + " i=" + i + " numSubs=" + numSubs);
+          if (multiBits.starts[reader] == subs[i].base &&
+              (i == numSubs-1 ||
+               reader == multiBits.starts.length-1 ||
+               multiBits.starts[1+reader] == subs[1+i].base)) {
+            bits = multiBits.subs[reader];
+            handled = true;
+          }
+        }
+
+        if (!handled && skipDocs != null) {
+          // custom case: requested skip docs is foreign
+          bits = new SubBits(skipDocs, subs[i].base, subs[i].length);
+        }
+
+        final DocsEnum docs = subs[i].terms.docs(bits);
+        if (docs != null) {
+          this.subs[this.numSubs] = new DocsEnumWithBase();
+          this.subs[this.numSubs].docs = docs;
+          this.subs[this.numSubs].base = subs[i].base;
+          this.numSubs++;
+        }
+      }
+      upto = -1;
+      currentDocs = null;
+      return this;
+    }
+
+    public int freq() {
+      return currentDocs.freq();
+    }
+
+    public int read(final int docs[], final int freqs[]) throws IOException {
+      while (true) {
+        while (currentDocs == null) {
+          if (upto == numSubs-1) {
+            return 0;
+          } else {
+            upto++;
+            currentDocs = subs[upto].docs;
+            currentBase = subs[upto].base;
+          }
+        }
+        final int end = currentDocs.read(docs, freqs);
+        if (end == 0) {          // none left in segment
+          currentDocs = null;
+        } else {            // got some
+          for (int i = 0; i < end; i++) {
+            docs[i] += currentBase;
+          }
+          return end;
+        }
+      }
+    }
+
+    public int advance(int target) throws IOException {
+      while(true) {
+        if (currentDocs != null) {
+          final int doc = currentDocs.advance(target-currentBase);
+          if (doc == NO_MORE_DOCS) {
+            currentDocs = null;
+          } else {
+            return doc + currentBase;
+          }
+        } else if (upto == numSubs-1) {
+          return NO_MORE_DOCS;
+        } else {
+          upto++;
+          currentDocs = subs[upto].docs;
+          currentBase = subs[upto].base;
+        }
+      }
+    }
+
+    public int next() throws IOException {
+      while(true) {
+        if (currentDocs == null) {
+          if (upto == numSubs-1) {
+            return NO_MORE_DOCS;
+          } else {
+            upto++;
+            currentDocs = subs[upto].docs;
+            currentBase = subs[upto].base;
+          }
+        }
+
+        final int doc = currentDocs.next();
+        if (doc != NO_MORE_DOCS) {
+          return currentBase + doc;
+        } else {
+          currentDocs = null;
+        }
+      }
+    }
+
+    public PositionsEnum positions() throws IOException {
+      return currentDocs.positions();
+    }
+  }
+
+
+  // Legacy API
   static class MultiTermEnum extends TermEnum {
     IndexReader topReader; // used for matching TermEnum to TermDocs
-    private SegmentMergeQueue queue;
+    private LegacySegmentMergeQueue queue;
   
     private Term term;
     private int docFreq;
-    final SegmentMergeInfo[] matchingSegments; // null terminated array of matching segments
+    final LegacySegmentMergeInfo[] matchingSegments; // null terminated array of matching segments
 
     public MultiTermEnum(IndexReader topReader, IndexReader[] readers, int[] starts, Term t)
       throws IOException {
       this.topReader = topReader;
-      queue = new SegmentMergeQueue(readers.length);
-      matchingSegments = new SegmentMergeInfo[readers.length+1];
+      queue = new LegacySegmentMergeQueue(readers.length);
+      matchingSegments = new LegacySegmentMergeInfo[readers.length+1];
       for (int i = 0; i < readers.length; i++) {
         IndexReader reader = readers[i];
         TermEnum termEnum;
@@ -977,7 +1576,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
         } else
           termEnum = reader.terms();
   
-        SegmentMergeInfo smi = new SegmentMergeInfo(starts[i], termEnum, reader);
+        LegacySegmentMergeInfo smi = new LegacySegmentMergeInfo(starts[i], termEnum, reader);
         smi.ord = i;
         if (t == null ? smi.next() : termEnum.term() != null)
           queue.add(smi);          // initialize queue
@@ -992,7 +1591,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   
     public boolean next() throws IOException {
       for (int i=0; i<matchingSegments.length; i++) {
-        SegmentMergeInfo smi = matchingSegments[i];
+        LegacySegmentMergeInfo smi = matchingSegments[i];
         if (smi==null) break;
         if (smi.next())
           queue.add(smi);
@@ -1003,7 +1602,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       int numMatchingSegments = 0;
       matchingSegments[0] = null;
 
-      SegmentMergeInfo top = (SegmentMergeInfo)queue.top();
+      LegacySegmentMergeInfo top = (LegacySegmentMergeInfo)queue.top();
 
       if (top == null) {
         term = null;
@@ -1017,7 +1616,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
         matchingSegments[numMatchingSegments++] = top;
         queue.pop();
         docFreq += top.termEnum.docFreq();    // increment freq
-        top = (SegmentMergeInfo)queue.top();
+        top = (LegacySegmentMergeInfo)queue.top();
       }
 
       matchingSegments[numMatchingSegments] = null;
@@ -1037,6 +1636,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  // Legacy API
   static class MultiTermDocs implements TermDocs {
     IndexReader topReader;  // used for matching TermEnum to TermDocs
     protected IndexReader[] readers;
@@ -1051,7 +1651,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
     private MultiTermEnum tenum;  // the term enum used for seeking... can be null
     int matchingSegmentPos;  // position into the matching segments from tenum
-    SegmentMergeInfo smi;     // current segment mere info... can be null
+    LegacySegmentMergeInfo smi;     // current segment mere info... can be null
 
     public MultiTermDocs(IndexReader topReader, IndexReader[] r, int[] s) {
       this.topReader = topReader;
@@ -1147,7 +1747,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
           return true;
         } else if (pointer < readers.length) {
           if (tenum != null) {
-            SegmentMergeInfo smi = tenum.matchingSegments[matchingSegmentPos++];
+            LegacySegmentMergeInfo smi = tenum.matchingSegments[matchingSegmentPos++];
             if (smi==null) {
               pointer = readers.length;
               return false;
@@ -1188,6 +1788,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  // Legacy API
   static class MultiTermPositions extends MultiTermDocs implements TermPositions {
     public MultiTermPositions(IndexReader topReader, IndexReader[] r, int[] s) {
       super(topReader,r,s);

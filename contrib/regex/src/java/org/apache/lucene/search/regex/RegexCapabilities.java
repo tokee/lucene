@@ -23,7 +23,7 @@ package org.apache.lucene.search.regex;
  */
 public interface RegexCapabilities {
   /**
-   * Called by the constructor of {@link RegexTermEnum} allowing
+   * Called by the constructor of {@link RegexTermsEnum} allowing
    * implementations to cache a compiled version of the regular
    * expression pattern.
    *

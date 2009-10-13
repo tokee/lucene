@@ -17,7 +17,6 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import java.io.IOException;
 import org.apache.lucene.util.PriorityQueue;
 
 final class SegmentMergeQueue extends PriorityQueue<SegmentMergeInfo> {
@@ -26,16 +25,10 @@ final class SegmentMergeQueue extends PriorityQueue<SegmentMergeInfo> {
   }
 
   protected final boolean lessThan(SegmentMergeInfo stiA, SegmentMergeInfo stiB) {
-    int comparison = stiA.term.compareTo(stiB.term);
+    int comparison = stiA.term.compareTerm(stiB.term);
     if (comparison == 0)
       return stiA.base < stiB.base; 
     else
       return comparison < 0;
   }
-
-  final void close() throws IOException {
-    while (top() != null)
-      ((SegmentMergeInfo)pop()).close();
-  }
-
 }

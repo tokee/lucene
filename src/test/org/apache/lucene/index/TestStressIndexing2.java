@@ -72,6 +72,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
     // dir1 = FSDirectory.open("foofoofoo");
     Directory dir2 = new MockRAMDirectory();
     // mergeFactor=2; maxBufferedDocs=2; Map docs = indexRandom(1, 3, 2, dir1);
+
     Map docs = indexRandom(10, 100, 100, dir1);
     indexSerial(docs, dir2);
 
@@ -96,8 +97,12 @@ public class TestStressIndexing2 extends LuceneTestCase {
       int range=r.nextInt(20)+1;
       Directory dir1 = new MockRAMDirectory();
       Directory dir2 = new MockRAMDirectory();
+      //System.out.println("iter=" + iter + " range=" + range);
+      //System.out.println("TEST: index random");
       Map docs = indexRandom(nThreads, iter, range, dir1);
+      //System.out.println("TEST: index serial");
       indexSerial(docs, dir2);
+      //System.out.println("TEST: verify");
       verifyEquals(dir1, dir2, "id");
     }
   }
@@ -199,7 +204,8 @@ public class TestStressIndexing2 extends LuceneTestCase {
         threads[i].join();
       }
 
-      // w.optimize();
+      // nocommit -- comment out again
+      //w.optimize();
       w.close();    
 
       for (int i=0; i<threads.length; i++) {
@@ -210,6 +216,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
       }
     }
 
+    //System.out.println("TEST: checkindex");
     _TestUtil.checkIndex(dir);
 
     return docs;
@@ -269,6 +276,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
     TermEnum termEnum = r1.terms (new Term (idField, ""));
     do {
       Term term = termEnum.term();
+      //System.out.println("TEST: match id term=" + term);
       if (term==null || term.field() != idField) break;
 
       termDocs1.seek (termEnum);
@@ -322,9 +330,12 @@ public class TestStressIndexing2 extends LuceneTestCase {
     } while (termEnum.next());
 
     termEnum.close();
+    //System.out.println("TEST: done match id");
 
     // Verify postings
+    //System.out.println("TEST: create te1");
     TermEnum termEnum1 = r1.terms (new Term ("", ""));
+    //System.out.println("TEST: create te2");
     TermEnum termEnum2 = r2.terms (new Term ("", ""));
 
     // pack both doc and freq into single element for easy sorting
@@ -339,6 +350,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
       for(;;) {
         len1=0;
         term1 = termEnum1.term();
+        //System.out.println("TEST: term1=" + term1);
         if (term1==null) break;
         termDocs1.seek(termEnum1);
         while (termDocs1.next()) {
@@ -356,6 +368,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
       for(;;) {
         len2=0;
         term2 = termEnum2.term();
+        //System.out.println("TEST: term2=" + term2);
         if (term2==null) break;
         termDocs2.seek(termEnum2);
         while (termDocs2.next()) {
@@ -368,13 +381,13 @@ public class TestStressIndexing2 extends LuceneTestCase {
         if (!termEnum2.next()) break;
       }
 
-      if (!hasDeletes)
-        assertEquals(termEnum1.docFreq(), termEnum2.docFreq());
-
       assertEquals(len1, len2);
       if (len1==0) break;  // no more terms
 
-      assertEquals(term1, term2);
+      if (!hasDeletes)
+        assertEquals(termEnum1.docFreq(), termEnum2.docFreq());
+
+      assertEquals("len1=" + len1 + " len2=" + len2 + " deletes?=" + hasDeletes, term1, term2);
 
       // sort info2 to get it into ascending docid
       Arrays.sort(info2, 0, len2);

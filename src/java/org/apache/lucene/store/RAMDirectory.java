@@ -19,7 +19,6 @@ package org.apache.lucene.store;
 
 import java.io.IOException;
 import java.io.FileNotFoundException;
-import java.io.File;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -193,7 +192,8 @@ public class RAMDirectory extends Directory implements Serializable {
       file = (RAMFile)fileMap.get(name);
     }
     if (file == null)
-      throw new FileNotFoundException(name);
+      // nocommit
+      throw new FileNotFoundException(name + " dir=" + this);
     return new RAMInputStream(file);
   }
 

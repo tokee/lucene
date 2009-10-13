@@ -22,6 +22,8 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.document.AbstractField;  // for javadocs
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.util.Bits;
 
 import java.text.NumberFormat;
 import java.io.PrintStream;
@@ -271,24 +273,6 @@ public class CheckIndex {
       infoStream.println(msg);
   }
 
-  private static class MySegmentTermDocs extends SegmentTermDocs {
-
-    int delCount;
-
-    MySegmentTermDocs(SegmentReader p) {    
-      super(p);
-    }
-
-    public void seek(Term term) throws IOException {
-      super.seek(term);
-      delCount = 0;
-    }
-
-    protected void skippingDoc() throws IOException {
-      delCount++;
-    }
-  }
-
   /** Returns true if index is clean, else false. 
    *  @deprecated Please instantiate a CheckIndex and then use {@link #checkIndex()} instead */
   public static boolean check(Directory dir, boolean doFix) throws IOException {
@@ -319,6 +303,10 @@ public class CheckIndex {
     return checkIndex(null);
   }
 
+  protected Status checkIndex(List onlySegments) throws IOException {
+    return checkIndex(onlySegments, Codecs.getDefault());
+  }
+  
   /** Returns a {@link Status} instance detailing
    *  the state of the index.
    * 
@@ -331,13 +319,13 @@ public class CheckIndex {
    *  <p><b>WARNING</b>: make sure
    *  you only call this when the index is not opened by any
    *  writer. */
-  public Status checkIndex(List onlySegments) throws IOException {
+  protected Status checkIndex(List onlySegments, Codecs codecs) throws IOException {
     NumberFormat nf = NumberFormat.getInstance();
     SegmentInfos sis = new SegmentInfos();
     Status result = new Status();
     result.dir = dir;
     try {
-      sis.read(dir);
+      sis.read(dir, codecs);
     } catch (Throwable t) {
       msg("ERROR: could not read any segments file in directory");
       result.missingSegments = true;
@@ -394,6 +382,8 @@ public class CheckIndex {
         sFormat = "FORMAT_USER_DATA [Lucene 2.9]";
       else if (format == SegmentInfos.FORMAT_DIAGNOSTICS)
         sFormat = "FORMAT_DIAGNOSTICS [Lucene 2.9]";
+      else if (format == SegmentInfos.FORMAT_FLEX_POSTINGS)
+        sFormat = "FORMAT_FLEX_POSTINGS [Lucene 2.9]";
       else if (format < SegmentInfos.CURRENT_FORMAT) {
         sFormat = "int=" + format + " [newer version of Lucene than this tool]";
         skip = true;
@@ -615,66 +605,87 @@ public class CheckIndex {
   private Status.TermIndexStatus testTermIndex(SegmentInfo info, SegmentReader reader) {
     final Status.TermIndexStatus status = new Status.TermIndexStatus();
 
+    final int maxDoc = reader.maxDoc();
+    final Bits delDocs = reader.getDeletedDocs();
+
     try {
+
       if (infoStream != null) {
         infoStream.print("    test: terms, freq, prox...");
       }
+      
+      final FieldsEnum fields = reader.fields().iterator();
+      while(true) {
+        final String field = fields.next();
+        if (field == null) {
+          break;
+        }
+        
+        final TermsEnum terms = fields.terms();
+        while(true) {
 
-      final TermEnum termEnum = reader.terms();
-      final TermPositions termPositions = reader.termPositions();
-
-      // Used only to count up # deleted docs for this term
-      final MySegmentTermDocs myTermDocs = new MySegmentTermDocs(reader);
-
-      final int maxDoc = reader.maxDoc();
-
-      while (termEnum.next()) {
-        status.termCount++;
-        final Term term = termEnum.term();
-        final int docFreq = termEnum.docFreq();
-        termPositions.seek(term);
-        int lastDoc = -1;
-        int freq0 = 0;
-        status.totFreq += docFreq;
-        while (termPositions.next()) {
-          freq0++;
-          final int doc = termPositions.doc();
-          final int freq = termPositions.freq();
-          if (doc <= lastDoc)
-            throw new RuntimeException("term " + term + ": doc " + doc + " <= lastDoc " + lastDoc);
-          if (doc >= maxDoc)
-            throw new RuntimeException("term " + term + ": doc " + doc + " >= maxDoc " + maxDoc);
-
-          lastDoc = doc;
-          if (freq <= 0)
-            throw new RuntimeException("term " + term + ": doc " + doc + ": freq " + freq + " is out of bounds");
-            
-          int lastPos = -1;
-          status.totPos += freq;
-          for(int j=0;j<freq;j++) {
-            final int pos = termPositions.nextPosition();
-            if (pos < -1)
-              throw new RuntimeException("term " + term + ": doc " + doc + ": pos " + pos + " is out of bounds");
-            if (pos < lastPos)
-              throw new RuntimeException("term " + term + ": doc " + doc + ": pos " + pos + " < lastPos " + lastPos);
-            lastPos = pos;
+          final TermRef term = terms.next();
+          if (term == null) {
+            break;
           }
-        }
+          final int docFreq = terms.docFreq();
+          status.totFreq += docFreq;
 
-        // Now count how many deleted docs occurred in
-        // this term:
-        final int delCount;
-        if (reader.hasDeletions()) {
-          myTermDocs.seek(term);
-          while(myTermDocs.next()) { }
-          delCount = myTermDocs.delCount;
-        } else {
-          delCount = 0; 
-        }
+          final DocsEnum docs = terms.docs(delDocs);
+          status.termCount++;
 
-        if (freq0 + delCount != docFreq) {
-          throw new RuntimeException("term " + term + " docFreq=" + 
-                                     docFreq + " != num docs seen " + freq0 + " + num docs deleted " + delCount);
+          int lastDoc = -1;
+          int freq0 = 0;
+          while(true) {
+            final int doc = docs.next();
+            if (doc == DocsEnum.NO_MORE_DOCS) {
+              break;
+            }
+            final int freq = docs.freq();
+            status.totPos += freq;
+
+            freq0++;
+            if (doc <= lastDoc) {
+              throw new RuntimeException("term " + term + ": doc " + doc + " <= lastDoc " + lastDoc);
+            }
+            if (doc >= maxDoc) {
+              throw new RuntimeException("term " + term + ": doc " + doc + " >= maxDoc " + maxDoc);
+            }
+
+            lastDoc = doc;
+            if (freq <= 0) {
+              throw new RuntimeException("term " + term + ": doc " + doc + ": freq " + freq + " is out of bounds");
+            }
+            
+            int lastPos = -1;
+            final PositionsEnum positions = docs.positions();
+            if (positions != null) {
+              for(int j=0;j<freq;j++) {
+                final int pos = positions.next();
+                if (pos < -1) {
+                  throw new RuntimeException("term " + term + ": doc " + doc + ": pos " + pos + " is out of bounds");
+                }
+                if (pos < lastPos) {
+                  throw new RuntimeException("term " + term + ": doc " + doc + ": pos " + pos + " < lastPos " + lastPos);
+                }
+                lastPos = pos;
+              }
+            }
+          }
+
+          // Now count how many deleted docs occurred in
+          // this term:
+
+          if (reader.hasDeletions()) {
+            final DocsEnum docsNoDel = terms.docs(null);
+            int count = 0;
+            while(docsNoDel.next() != DocsEnum.NO_MORE_DOCS) {
+              count++;
+            }
+            if (count != docFreq) {
+              throw new RuntimeException("term " + term + " docFreq=" + docFreq + " != tot docs w/o deletions " + count);
+            }
+          }
         }
       }
 

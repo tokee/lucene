@@ -20,6 +20,7 @@ package org.apache.lucene.index;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.Bits;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -109,6 +110,10 @@ public class FilterIndexReader extends IndexReader {
     return in.directory();
   }
   
+  public Bits getDeletedDocs() throws IOException {
+    return in.getDeletedDocs();
+  }
+  
   public TermFreqVector[] getTermFreqVectors(int docNumber)
           throws IOException {
     ensureOpen();
@@ -192,6 +197,11 @@ public class FilterIndexReader extends IndexReader {
   public int docFreq(Term t) throws IOException {
     ensureOpen();
     return in.docFreq(t);
+  }
+
+  public int docFreq(String field, TermRef t) throws IOException {
+    ensureOpen();
+    return in.docFreq(field, t);
   }
 
   public TermDocs termDocs() throws IOException {

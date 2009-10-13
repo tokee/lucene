@@ -19,7 +19,7 @@ package org.apache.lucene.search;
 
 import java.io.IOException;
 
-import org.apache.lucene.index.TermDocs;
+import org.apache.lucene.index.DocsEnum;
 
 /** Expert: A <code>Scorer</code> for documents matching a <code>Term</code>.
  */
@@ -28,7 +28,7 @@ final class TermScorer extends Scorer {
   private static final float[] SIM_NORM_DECODER = Similarity.getNormDecoder();
   
   private Weight weight;
-  private TermDocs termDocs;
+  private DocsEnum docsEnum;
   private byte[] norms;
   private float weightValue;
   private int doc = -1;
@@ -54,10 +54,10 @@ final class TermScorer extends Scorer {
    * @param norms
    *          The field norms of the document fields for the <code>Term</code>.
    */
-  TermScorer(Weight weight, TermDocs td, Similarity similarity, byte[] norms) {
+  TermScorer(Weight weight, DocsEnum td, Similarity similarity, byte[] norms) {
     super(similarity);
     this.weight = weight;
-    this.termDocs = td;
+    this.docsEnum = td;
     this.norms = norms;
     this.weightValue = weight.getValue();
 
@@ -71,17 +71,17 @@ final class TermScorer extends Scorer {
 
   // firstDocID is ignored since nextDoc() sets 'doc'
   protected boolean score(Collector c, int end, int firstDocID) throws IOException {
+    //System.out.println("top score " + firstDocID + " max=" + pointerMax);
     c.setScorer(this);
     while (doc < end) {                           // for docs in window
       c.collect(doc);                      // collect score
-        
+      //System.out.println("done collect");
       if (++pointer >= pointerMax) {
-        pointerMax = termDocs.read(docs, freqs);  // refill buffers
+        pointerMax = docsEnum.read(docs, freqs);  // refill buffers
         if (pointerMax != 0) {
           pointer = 0;
         } else {
-          termDocs.close();                       // close stream
-          doc = Integer.MAX_VALUE;                // set to sentinel value
+          doc = NO_MORE_DOCS;                // set to sentinel value
           return false;
         }
       } 
@@ -97,25 +97,28 @@ final class TermScorer extends Scorer {
    * The iterator over the matching documents is buffered using
    * {@link TermDocs#read(int[],int[])}.
    * 
-   * @return the document matching the query or -1 if there are no more documents.
+   * @return the document matching the query or NO_MORE_DOCS if there are no more documents.
    */
   public int nextDoc() throws IOException {
+    //System.out.println("ts.nextDoc pointer=" + pointer + " max=" + pointerMax + " this=" + this + " docsEnum=" + docsEnum);
     pointer++;
     if (pointer >= pointerMax) {
-      pointerMax = termDocs.read(docs, freqs);    // refill buffer
+      pointerMax = docsEnum.read(docs, freqs);    // refill buffer
+      //System.out.println("ts set max=" + pointerMax);
       if (pointerMax != 0) {
         pointer = 0;
       } else {
-        termDocs.close();                         // close stream
+        //System.out.println("ts no more docs");
         return doc = NO_MORE_DOCS;
       }
     } 
     doc = docs[pointer];
+    assert doc != NO_MORE_DOCS;
     return doc;
   }
   
   public float score() {
-    assert doc != -1;
+    assert doc != NO_MORE_DOCS;
     int f = freqs[pointer];
     float raw =                                   // compute tf(f)*weight
       f < SCORE_CACHE_SIZE                        // check cache
@@ -128,11 +131,11 @@ final class TermScorer extends Scorer {
   /**
    * Advances to the first match beyond the current whose document number is
    * greater than or equal to a given target. <br>
-   * The implementation uses {@link TermDocs#skipTo(int)}.
+   * The implementation uses {@link DocsEnum#adnvace(int)}.
    * 
    * @param target
    *          The target document number.
-   * @return the matching document or -1 if none exist.
+   * @return the matching document or NO_MORE_DOCS if none exist.
    */
   public int advance(int target) throws IOException {
     // first scan in cache
@@ -142,13 +145,14 @@ final class TermScorer extends Scorer {
       }
     }
 
-    // not found in cache, seek underlying stream
-    boolean result = termDocs.skipTo(target);
-    if (result) {
+    // not found in readahead cache, seek underlying stream
+    int newDoc = docsEnum.advance(target);
+    //System.out.println("ts.advance docsEnum=" + docsEnum);
+    if (newDoc != DocsEnum.NO_MORE_DOCS) {
       pointerMax = 1;
       pointer = 0;
-      docs[pointer] = doc = termDocs.doc();
-      freqs[pointer] = termDocs.freq();
+      docs[pointer] = doc = newDoc;
+      freqs[pointer] = docsEnum.freq();
     } else {
       doc = NO_MORE_DOCS;
     }
@@ -168,15 +172,11 @@ final class TermScorer extends Scorer {
       pointer++;
     }
     if (tf == 0) {
-        if (termDocs.skipTo(doc))
-        {
-            if (termDocs.doc() == doc)
-            {
-                tf = termDocs.freq();
-            }
-        }
+      int newDoc = docsEnum.advance(doc);
+      if (newDoc == doc) {
+        tf = docsEnum.freq();
+      }
     }
-    termDocs.close();
     tfExplanation.setValue(getSimilarity().tf(tf));
     tfExplanation.setDescription("tf(termFreq("+query.getTerm()+")="+tf+")");
     
@@ -184,5 +184,6 @@ final class TermScorer extends Scorer {
   }
 
   /** Returns a string representation of this <code>TermScorer</code>. */
-  public String toString() { return "scorer(" + weight + ")"; }
+  // nocommit
+  //public String toString() { return "scorer(" + weight + ")"; }
 }

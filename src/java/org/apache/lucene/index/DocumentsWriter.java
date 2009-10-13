@@ -40,6 +40,8 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.Constants;
 
+import org.apache.lucene.index.codecs.Codec;
+
 /**
  * This class accepts multiple added documents and directly
  * writes a single segment file.  It does this more
@@ -545,9 +547,16 @@ final class DocumentsWriter {
 
   synchronized private void initFlushState(boolean onlyDocStore) {
     initSegmentName(onlyDocStore);
-    flushState = new SegmentWriteState(this, directory, segment, docStoreSegment, numDocsInRAM, numDocsInStore, writer.getTermIndexInterval());
+    flushState = new SegmentWriteState(this, directory, segment, docFieldProcessor.fieldInfos,
+                                       docStoreSegment, numDocsInRAM, numDocsInStore, writer.getTermIndexInterval(),
+                                       writer.codecs);
   }
 
+  /** Returns the codec used to flush the last segment */
+  Codec getCodec() {
+    return flushState.codec;
+  }
+  
   /** Flush all pending docs to a new segment */
   synchronized int flush(boolean closeDocStore) throws IOException {
 
@@ -583,7 +592,8 @@ final class DocumentsWriter {
       consumer.flush(threads, flushState);
 
       if (infoStream != null) {
-        final long newSegmentSize = segmentSize(flushState.segmentName);
+        SegmentInfo si = new SegmentInfo(flushState.segmentName, flushState.numDocs, directory, flushState.codec);
+        final long newSegmentSize = si.sizeInBytes();
         String message = "  oldRAMSize=" + numBytesUsed +
           " newFlushedSize=" + newSegmentSize +
           " docs/MB=" + nf.format(numDocsInRAM/(newSegmentSize/1024./1024.)) +
@@ -613,8 +623,12 @@ final class DocumentsWriter {
     
     CompoundFileWriter cfsWriter = new CompoundFileWriter(directory, segment + "." + IndexFileNames.COMPOUND_FILE_EXTENSION);
     Iterator it = flushState.flushedFiles.iterator();
-    while(it.hasNext())
-      cfsWriter.addFile((String) it.next());
+    while(it.hasNext()) {
+      final String fileName = (String) it.next();
+      if (Codec.DEBUG)
+        System.out.println("make cfs " + fileName);
+      cfsWriter.addFile(fileName);
+    }
       
     // Perform the merge
     cfsWriter.close();
@@ -970,24 +984,27 @@ final class DocumentsWriter {
 
     // Delete by term
     Iterator iter = deletesFlushed.terms.entrySet().iterator();
-    TermDocs docs = reader.termDocs();
+    
     try {
       while (iter.hasNext()) {
         Entry entry = (Entry) iter.next();
         Term term = (Term) entry.getKey();
 
-        docs.seek(term);
-        int limit = ((BufferedDeletes.Num) entry.getValue()).getNum();
-        while (docs.next()) {
-          int docID = docs.doc();
-          if (docIDStart+docID >= limit)
-            break;
-          reader.deleteDocument(docID);
-          any = true;
+        DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field, new TermRef(term.text));
+        if (docs != null) {
+          int limit = ((BufferedDeletes.Num) entry.getValue()).getNum();
+          while (true) {
+            final int docID = docs.next();
+            if (docID == DocsEnum.NO_MORE_DOCS || docIDStart+docID >= limit) {
+              break;
+            }
+            reader.deleteDocument(docID);
+            any = true;
+          }
         }
       }
     } finally {
-      docs.close();
+      //docs.close();
     }
 
     // Delete by docID
@@ -1139,24 +1156,6 @@ final class DocumentsWriter {
   long numBytesUsed;
 
   NumberFormat nf = NumberFormat.getInstance();
-
-  // TODO FI: this is not flexible -- we can't hardwire
-  // extensions in here:
-  private long segmentSize(String segmentName) throws IOException {
-    // Used only when infoStream != null
-    assert infoStream != null;
-    
-    long size = directory.fileLength(segmentName + ".tii") +
-      directory.fileLength(segmentName + ".tis") +
-      directory.fileLength(segmentName + ".frq") +
-      directory.fileLength(segmentName + ".prx");
-
-    final String normFileName = segmentName + ".nrm";
-    if (directory.fileExists(normFileName))
-      size += directory.fileLength(normFileName);
-
-    return size;
-  }
 
   // Coarse estimates used to measure RAM usage of buffered deletes
   final static int OBJECT_HEADER_BYTES = 8;

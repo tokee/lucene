@@ -22,7 +22,8 @@ import java.io.IOException;
 /** Abstract class for enumerating terms.
 
   <p>Term enumerations are always ordered by Term.compareTo().  Each term in
-  the enumeration is greater than all that precede it.  */
+  the enumeration is greater than all that precede it.
+* @deprecated Use TermsEnum instead */
 
 public abstract class TermEnum {
   /** Increments the enumeration to the next element.  True if one exists.*/

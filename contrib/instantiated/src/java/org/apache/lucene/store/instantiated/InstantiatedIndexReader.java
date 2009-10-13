@@ -126,7 +126,7 @@ public class InstantiatedIndexReader extends IndexReader {
   public boolean isDeleted(int n) {
     return getIndex().getDeletedDocuments().contains(n) || deletedDocumentNumbers.contains(n);
   }
-
+  
   public boolean hasDeletions() {
     return getIndex().getDeletedDocuments().size() > 0 || deletedDocumentNumbers.size() > 0;
   }

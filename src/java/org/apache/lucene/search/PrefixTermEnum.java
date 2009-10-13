@@ -29,6 +29,7 @@ import org.apache.lucene.index.Term;
  * Term enumerations are always ordered by Term.compareTo().  Each term in
  * the enumeration is greater than all that precede it.
  *
+ * @deprecated Use {@link PrefixTermsEnum} instead.
  */
 public class PrefixTermEnum extends FilteredTermEnum {
 

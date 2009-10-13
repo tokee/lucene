@@ -27,6 +27,8 @@ import org.apache.lucene.util.ToStringUtils;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.Terms;
 
 /**
  * <p>A {@link Query} that matches numeric values within a
@@ -305,6 +307,10 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     return new NumericRangeTermEnum(reader);
   }
 
+  protected FilteredTermsEnum getTermsEnum(final IndexReader reader) throws IOException {
+    return new NumericRangeTermsEnum(reader);
+  }
+
   /** Returns the field name for this query */
   public String getField() { return field; }
 
@@ -378,7 +384,11 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
    * The ordering depends on how {@link NumericUtils#splitLongRange} and
    * {@link NumericUtils#splitIntRange} generates the sub-ranges. For
    * {@link MultiTermQuery} ordering is not relevant.
+   *
+   * @deprecated use NumericRangeTermsEnum instead
    */
+  // nocommit -- can we remove this?  only back compat
+  // concern would be subclasses of NRQ that invoke getEnum
   private final class NumericRangeTermEnum extends FilteredTermEnum {
 
     private final IndexReader reader;
@@ -531,6 +541,175 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
       super.close();
     }
 
+  }
+
+
+  /**
+   * Subclass of FilteredTermsEnum for enumerating all terms that match the
+   * sub-ranges for trie range queries, using flex API.
+   * <p>
+   * WARNING: This term enumeration is not guaranteed to be always ordered by
+   * {@link Term#compareTo}.
+   * The ordering depends on how {@link NumericUtils#splitLongRange} and
+   * {@link NumericUtils#splitIntRange} generates the sub-ranges. For
+   * {@link MultiTermQuery} ordering is not relevant.
+   */
+  private final class NumericRangeTermsEnum extends FilteredTermsEnum {
+
+    private final IndexReader reader;
+    private final LinkedList<String> rangeBounds = new LinkedList<String>();
+    private TermRef currentUpperBound = null;
+    private final boolean empty;
+
+    NumericRangeTermsEnum(final IndexReader reader) throws IOException {
+      this.reader = reader;
+      
+      switch (valSize) {
+        case 64: {
+          // lower
+          long minBound = Long.MIN_VALUE;
+          if (min instanceof Long) {
+            minBound = min.longValue();
+          } else if (min instanceof Double) {
+            minBound = NumericUtils.doubleToSortableLong(min.doubleValue());
+          }
+          if (!minInclusive && min != null) {
+            if (minBound == Long.MAX_VALUE) break;
+            minBound++;
+          }
+          
+          // upper
+          long maxBound = Long.MAX_VALUE;
+          if (max instanceof Long) {
+            maxBound = max.longValue();
+          } else if (max instanceof Double) {
+            maxBound = NumericUtils.doubleToSortableLong(max.doubleValue());
+          }
+          if (!maxInclusive && max != null) {
+            if (maxBound == Long.MIN_VALUE) break;
+            maxBound--;
+          }
+          
+          NumericUtils.splitLongRange(new NumericUtils.LongRangeBuilder() {
+            //@Override
+            public final void addRange(String minPrefixCoded, String maxPrefixCoded) {
+              rangeBounds.add(minPrefixCoded);
+              rangeBounds.add(maxPrefixCoded);
+            }
+          }, precisionStep, minBound, maxBound);
+          break;
+        }
+          
+        case 32: {
+          // lower
+          int minBound = Integer.MIN_VALUE;
+          if (min instanceof Integer) {
+            minBound = min.intValue();
+          } else if (min instanceof Float) {
+            minBound = NumericUtils.floatToSortableInt(min.floatValue());
+          }
+          if (!minInclusive && min != null) {
+            if (minBound == Integer.MAX_VALUE) break;
+            minBound++;
+          }
+          
+          // upper
+          int maxBound = Integer.MAX_VALUE;
+          if (max instanceof Integer) {
+            maxBound = max.intValue();
+          } else if (max instanceof Float) {
+            maxBound = NumericUtils.floatToSortableInt(max.floatValue());
+          }
+          if (!maxInclusive && max != null) {
+            if (maxBound == Integer.MIN_VALUE) break;
+            maxBound--;
+          }
+          
+          NumericUtils.splitIntRange(new NumericUtils.IntRangeBuilder() {
+            //@Override
+            public final void addRange(String minPrefixCoded, String maxPrefixCoded) {
+              rangeBounds.add(minPrefixCoded);
+              rangeBounds.add(maxPrefixCoded);
+            }
+          }, precisionStep, minBound, maxBound);
+          break;
+        }
+          
+        default:
+          // should never happen
+          throw new IllegalArgumentException("valSize must be 32 or 64");
+      }
+      
+      // seek to first term
+      empty = next() == null;
+    }
+
+    @Override
+    public float difference() {
+      return 1.0f;
+    }
+    
+    /** this is a dummy, it is not used by this class. */
+    @Override
+    public boolean empty() {
+      return empty;
+    }
+
+    public String field() {
+      return field;
+    }
+
+    /**
+     * Compares if current upper bound is reached,
+     * this also updates the term count for statistics.
+     * In contrast to {@link FilteredTermEnum}, a return value
+     * of <code>false</code> ends iterating the current enum
+     * and forwards to the next sub-range.
+     */
+    @Override
+    protected boolean accept(TermRef term) {
+      return (term.compareTerm(currentUpperBound) <= 0);
+    }
+
+    /** Increments the enumeration to the next element.  True if one exists. */
+    @Override
+    public TermRef next() throws IOException {
+      //System.out.println("nrq.next");
+      // if the actual enum is initialized, try change to
+      // next term, if no such term exists, fall-through
+      if (actualEnum != null) {
+        TermRef term = actualEnum.next();
+        if (term != null && accept(term)) {
+          //System.out.println("  return term=" + term.toBytesString());
+          return term;
+        }
+      }
+
+      //System.out.println("  ranges = " + rangeBounds.size());
+
+      // if all above fails, we go forward to the next enum,
+      // if one is available
+      if (rangeBounds.size() < 2) {
+        assert rangeBounds.size() == 0;
+        //System.out.println("  return null0");
+        return null;
+      }
+
+      final TermRef lowerBound = new TermRef(rangeBounds.removeFirst());
+      this.currentUpperBound = new TermRef(rangeBounds.removeFirst());
+
+      // this call recursively uses next(), if no valid term in
+      // next enum found.
+      // if this behavior is changed/modified in the superclass,
+      // this enum will not work anymore!
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        return setEnum(terms.iterator(), lowerBound);
+      } else {
+        //System.out.println("  return null");
+        return null;
+      }
+    }
   }
   
 }

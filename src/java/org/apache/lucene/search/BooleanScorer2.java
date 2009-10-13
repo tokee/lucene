@@ -292,6 +292,7 @@ class BooleanScorer2 extends Scorer {
   public float score() throws IOException {
     coordinator.nrMatchers = 0;
     float sum = countingSumScorer.score();
+    assert coordinator.nrMatchers >= 0;
     return sum * coordinator.coordFactors[coordinator.nrMatchers];
   }
 

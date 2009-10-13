@@ -17,18 +17,21 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import org.apache.lucene.store.Directory;
-
-import java.io.IOException;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Collection;
+import java.util.Map;
+
+import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.store.Directory;
 
 /*
  * This class keeps track of each SegmentInfos instance that
@@ -114,6 +117,8 @@ final class IndexFileDeleter {
     infoStream.println("IFD [" + Thread.currentThread().getName() + "]: " + message);
   }
 
+  private final FilenameFilter indexFilenameFilter;
+
   /**
    * Initialize the deleter: find all previous commits in
    * the Directory, incref the files they reference, call
@@ -122,7 +127,8 @@ final class IndexFileDeleter {
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
    */
-  public IndexFileDeleter(Directory directory, IndexDeletionPolicy policy, SegmentInfos segmentInfos, PrintStream infoStream, DocumentsWriter docWriter)
+  public IndexFileDeleter(Directory directory, IndexDeletionPolicy policy, SegmentInfos segmentInfos, PrintStream infoStream, DocumentsWriter docWriter,
+                          Codecs codecs)
     throws CorruptIndexException, IOException {
 
     this.docWriter = docWriter;
@@ -137,8 +143,28 @@ final class IndexFileDeleter {
     // First pass: walk the files and initialize our ref
     // counts:
     long currentGen = segmentInfos.getGeneration();
-    IndexFileNameFilter filter = IndexFileNameFilter.getFilter();
+    final Collection codecsExtensions = codecs.getAllExtensions();
+    final FilenameFilter mainFilter = IndexFileNameFilter.getFilter();
 
+    indexFilenameFilter = new FilenameFilter() {
+        public boolean accept(File dir, String name) {
+          if (mainFilter.accept(dir, name)) {
+            return true;
+          } else {
+            // See if any of the codecs claim this
+            // extension:
+            int i = name.lastIndexOf('.');
+            if (i != -1) {
+              String extension = name.substring(1+i);
+              if (codecsExtensions.contains(extension)) {
+                return true;
+              }
+            }
+            return false;
+        }
+      }
+      };
+    
     String[] files = directory.listAll();
 
     CommitPoint currentCommitPoint = null;
@@ -147,7 +173,7 @@ final class IndexFileDeleter {
 
       String fileName = files[i];
 
-      if (filter.accept(null, fileName) && !fileName.equals(IndexFileNames.SEGMENTS_GEN)) {
+      if ((indexFilenameFilter.accept(null, fileName)) && !fileName.endsWith("write.lock") && !fileName.equals(IndexFileNames.SEGMENTS_GEN)) {
 
         // Add this file to refCounts with initial count 0:
         getRefCount(fileName);
@@ -163,7 +189,7 @@ final class IndexFileDeleter {
             }
             SegmentInfos sis = new SegmentInfos();
             try {
-              sis.read(directory, fileName);
+              sis.read(directory, fileName, codecs);
             } catch (FileNotFoundException e) {
               // LUCENE-948: on NFS (and maybe others), if
               // you have writers switching back and forth
@@ -200,7 +226,7 @@ final class IndexFileDeleter {
       // try now to explicitly open this commit point:
       SegmentInfos sis = new SegmentInfos();
       try {
-        sis.read(directory, segmentInfos.getCurrentSegmentFileName());
+        sis.read(directory, segmentInfos.getCurrentSegmentFileName(), codecs);
       } catch (IOException e) {
         throw new CorruptIndexException("failed to locate current segments_N file");
       }
@@ -298,7 +324,6 @@ final class IndexFileDeleter {
    */
   public void refresh(String segmentName) throws IOException {
     String[] files = directory.listAll();
-    IndexFileNameFilter filter = IndexFileNameFilter.getFilter();
     String segmentPrefix1;
     String segmentPrefix2;
     if (segmentName != null) {
@@ -311,8 +336,8 @@ final class IndexFileDeleter {
     
     for(int i=0;i<files.length;i++) {
       String fileName = files[i];
-      if (filter.accept(null, fileName) &&
-          (segmentName == null || fileName.startsWith(segmentPrefix1) || fileName.startsWith(segmentPrefix2)) &&
+      if ((segmentName == null || fileName.startsWith(segmentPrefix1) || fileName.startsWith(segmentPrefix2)) &&
+          indexFilenameFilter.accept(null, fileName) &&
           !refCounts.containsKey(fileName) &&
           !fileName.equals(IndexFileNames.SEGMENTS_GEN)) {
         // Unreferenced file, so remove it

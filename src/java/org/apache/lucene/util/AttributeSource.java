@@ -406,7 +406,7 @@ public class AttributeSource {
     } else
       return false;
   }
-  
+
   public String toString() {
     StringBuilder sb = new StringBuilder().append('(');
     if (hasAttributes()) {

@@ -36,7 +36,16 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BitVector;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.CloseableThreadLocal;
+import org.apache.lucene.util.cache.Cache;
+import org.apache.lucene.util.cache.SimpleLRUCache;
+import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.preflex.PreFlexFields;
+import org.apache.lucene.index.codecs.preflex.SegmentTermDocs;
+import org.apache.lucene.index.codecs.preflex.SegmentTermPositions;
+import org.apache.lucene.index.codecs.FieldsProducer;
 
 /** @version $Id */
 /**
@@ -48,6 +57,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   private SegmentInfo si;
   private int readBufferSize;
+  boolean isPreFlex;
 
   CloseableThreadLocal fieldsReaderLocal = new FieldsReaderLocal();
   CloseableThreadLocal termVectorsLocal = new CloseableThreadLocal();
@@ -83,23 +93,35 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
     final String segment;
     final FieldInfos fieldInfos;
-    final IndexInput freqStream;
-    final IndexInput proxStream;
-    final TermInfosReader tisNoIndex;
 
+    final FieldsProducer fields;
+    final boolean isPreFlex;
+    final Codecs codecs;
+    
     final Directory dir;
     final Directory cfsDir;
     final int readBufferSize;
     final int termsIndexDivisor;
 
-    TermInfosReader tis;
     FieldsReader fieldsReaderOrig;
     TermVectorsReader termVectorsReaderOrig;
     CompoundFileReader cfsReader;
     CompoundFileReader storeCFSReader;
 
-    CoreReaders(Directory dir, SegmentInfo si, int readBufferSize, int termsIndexDivisor) throws IOException {
+    CoreReaders(Directory dir, SegmentInfo si, int readBufferSize, int termsIndexDivisor, Codecs codecs) throws IOException {
+
+      if (termsIndexDivisor < 1 && termsIndexDivisor != -1) {
+        throw new IllegalArgumentException("indexDivisor must be -1 (don't load terms index) or greater than 0: got " + termsIndexDivisor);
+      }
+
       segment = si.name;
+      if (Codec.DEBUG) {
+        System.out.println("sr: init core for segment=" + segment);
+      }
+      if (codecs == null) {
+        codecs = Codecs.getDefault();
+      }
+      this.codecs = codecs;      
       this.readBufferSize = readBufferSize;
       this.dir = dir;
 
@@ -116,23 +138,15 @@ public class SegmentReader extends IndexReader implements Cloneable {
         fieldInfos = new FieldInfos(cfsDir, segment + "." + IndexFileNames.FIELD_INFOS_EXTENSION);
 
         this.termsIndexDivisor = termsIndexDivisor;
-        TermInfosReader reader = new TermInfosReader(cfsDir, segment, fieldInfos, readBufferSize, termsIndexDivisor);
-        if (termsIndexDivisor == -1) {
-          tisNoIndex = reader;
-        } else {
-          tis = reader;
-          tisNoIndex = null;
-        }
 
-        // make sure that all index files have been read or are kept open
-        // so that if an index update removes them we'll still have them
-        freqStream = cfsDir.openInput(segment + "." + IndexFileNames.FREQ_EXTENSION, readBufferSize);
-
-        if (fieldInfos.hasProx()) {
-          proxStream = cfsDir.openInput(segment + "." + IndexFileNames.PROX_EXTENSION, readBufferSize);
-        } else {
-          proxStream = null;
+        // Ask codec for its Fields
+        if (Codec.DEBUG) {
+          System.out.println("sr.core.init: seg=" + si.name + " codec=" + si.getCodec());
         }
+        fields = si.getCodec().fieldsProducer(cfsDir, fieldInfos, si, readBufferSize, termsIndexDivisor);
+        assert fields != null;
+
+        isPreFlex = fields instanceof PreFlexFields;
         success = true;
       } finally {
         if (!success) {
@@ -157,64 +171,12 @@ public class SegmentReader extends IndexReader implements Cloneable {
       return cfsReader;
     }
 
-    synchronized TermInfosReader getTermsReader() {
-      if (tis != null) {
-        return tis;
-      } else {
-        return tisNoIndex;
-      }
-    }      
-
-    synchronized boolean termsIndexIsLoaded() {
-      return tis != null;
-    }      
-
-    // NOTE: only called from IndexWriter when a near
-    // real-time reader is opened, or applyDeletes is run,
-    // sharing a segment that's still being merged.  This
-    // method is not fully thread safe, and relies on the
-    // synchronization in IndexWriter
-    synchronized void loadTermsIndex(SegmentInfo si, int termsIndexDivisor) throws IOException {
-      if (tis == null) {
-        Directory dir0;
-        if (si.getUseCompoundFile()) {
-          // In some cases, we were originally opened when CFS
-          // was not used, but then we are asked to open the
-          // terms reader with index, the segment has switched
-          // to CFS
-          if (cfsReader == null) {
-            cfsReader = new CompoundFileReader(dir, segment + "." + IndexFileNames.COMPOUND_FILE_EXTENSION, readBufferSize);
-          }
-          dir0 = cfsReader;
-        } else {
-          dir0 = dir;
-        }
-
-        tis = new TermInfosReader(dir0, segment, fieldInfos, readBufferSize, termsIndexDivisor);
-      }
-    }
-
     synchronized void decRef() throws IOException {
 
       if (ref.decRef() == 0) {
 
-        // close everything, nothing is shared anymore with other readers
-        if (tis != null) {
-          tis.close();
-          // null so if an app hangs on to us we still free most ram
-          tis = null;
-        }
-        
-        if (tisNoIndex != null) {
-          tisNoIndex.close();
-        }
-        
-        if (freqStream != null) {
-          freqStream.close();
-        }
-
-        if (proxStream != null) {
-          proxStream.close();
+        if (fields != null) {
+          fields.close();
         }
 
         if (termVectorsReaderOrig != null) {
@@ -588,7 +550,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
    * @deprecated
    */
   public static SegmentReader get(SegmentInfo si) throws CorruptIndexException, IOException {
-    return get(false, si.dir, si, BufferedIndexInput.BUFFER_SIZE, true, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR);
+    return get(false, si.dir, si, BufferedIndexInput.BUFFER_SIZE, true, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR, null);
   }
 
   /**
@@ -596,7 +558,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
    * @throws IOException if there is a low-level IO error
    */
   public static SegmentReader get(boolean readOnly, SegmentInfo si, int termInfosIndexDivisor) throws CorruptIndexException, IOException {
-    return get(readOnly, si.dir, si, BufferedIndexInput.BUFFER_SIZE, true, termInfosIndexDivisor);
+    return get(readOnly, si.dir, si, BufferedIndexInput.BUFFER_SIZE, true, termInfosIndexDivisor, null);
   }
 
   /**
@@ -605,7 +567,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
    * @deprecated
    */
   static SegmentReader get(SegmentInfo si, int readBufferSize, boolean doOpenStores, int termInfosIndexDivisor) throws CorruptIndexException, IOException {
-    return get(false, si.dir, si, readBufferSize, doOpenStores, termInfosIndexDivisor);
+    return get(false, si.dir, si, readBufferSize, doOpenStores, termInfosIndexDivisor, null);
   }
 
   /**
@@ -617,8 +579,13 @@ public class SegmentReader extends IndexReader implements Cloneable {
                                   SegmentInfo si,
                                   int readBufferSize,
                                   boolean doOpenStores,
-                                  int termInfosIndexDivisor)
+                                  int termInfosIndexDivisor,
+                                  Codecs codecs)
     throws CorruptIndexException, IOException {
+    if (codecs == null)  {
+      codecs = Codecs.getDefault();
+    }
+    
     SegmentReader instance;
     try {
       if (readOnly)
@@ -635,7 +602,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     boolean success = false;
 
     try {
-      instance.core = new CoreReaders(dir, si, readBufferSize, termInfosIndexDivisor);
+      instance.core = new CoreReaders(dir, si, readBufferSize, termInfosIndexDivisor, codecs);
       if (doOpenStores) {
         instance.core.openDocStores(si);
       }
@@ -658,6 +625,10 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   void openDocStores() throws IOException {
     core.openDocStores(si);
+  }
+
+  public synchronized Bits getDeletedDocs() {
+    return deletedDocs;
   }
 
   private void loadDeletedDocs() throws IOException {
@@ -929,14 +900,32 @@ public class SegmentReader extends IndexReader implements Cloneable {
     return new ArrayList(si.files());
   }
 
-  public TermEnum terms() {
+  public TermEnum terms() throws IOException {
     ensureOpen();
-    return core.getTermsReader().terms();
+    if (isPreFlex) {
+      // For old API on an old segment, instead of
+      // converting old API -> new API -> old API, just give
+      // direct access to old:
+      return ((PreFlexFields) core.fields).tis.terms();
+    } else {
+      // Emulate old API on top of new index
+      return new LegacyTermEnum(null);
+    }
   }
 
+  /** @deprecated Please switch to the flex API ({@link
+   * #fields}) instead. */
   public TermEnum terms(Term t) throws IOException {
     ensureOpen();
-    return core.getTermsReader().terms(t);
+    if (isPreFlex) {
+      // For old API on an old segment, instead of
+      // converting old API -> new API -> old API, just give
+      // direct access to old:
+      return ((PreFlexFields) core.fields).tis.terms(t);
+    } else {
+      // Emulate old API on top of new index
+      return new LegacyTermEnum(t);
+    }
   }
 
   FieldInfos fieldInfos() {
@@ -952,6 +941,8 @@ public class SegmentReader extends IndexReader implements Cloneable {
     return (deletedDocs != null && deletedDocs.get(n));
   }
 
+  /** @deprecated Switch to the flex API ({@link
+   * IndexReader#termDocsEnum}) instead. */
   public TermDocs termDocs(Term term) throws IOException {
     if (term == null) {
       return new AllTermDocs(this);
@@ -959,24 +950,86 @@ public class SegmentReader extends IndexReader implements Cloneable {
       return super.termDocs(term);
     }
   }
+  
+  public Fields fields() throws IOException {
+    return core.fields;
+  }
 
+  /** @deprecated Switch to the flex API {@link
+   *  IndexReader#termDocsEnum} instead. */
   public TermDocs termDocs() throws IOException {
     ensureOpen();
-    return new SegmentTermDocs(this);
+    if (isPreFlex) {
+      // For old API on an old segment, instead of
+      // converting old API -> new API -> old API, just give
+      // direct access to old:
+      final PreFlexFields pre = (PreFlexFields) core.fields;
+      return new SegmentTermDocs(pre.freqStream, deletedDocs, pre.tis, core.fieldInfos);
+    } else {
+      // Emulate old API
+      return new LegacyTermDocs();
+    }
   }
 
+  /** @deprecated Switch to the flex API {@link
+   *  IndexReader#termDocsEnum} instead */
   public TermPositions termPositions() throws IOException {
     ensureOpen();
-    return new SegmentTermPositions(this);
+    if (isPreFlex) {
+      // For old API on an old segment, instead of
+      // converting old API -> new API -> old API, just give
+      // direct access to old:
+      final PreFlexFields pre = (PreFlexFields) core.fields;
+      return new SegmentTermPositions(pre.freqStream, pre.proxStream, deletedDocs, pre.tis, core.fieldInfos);
+    } else
+      // Emulate old API
+      return new LegacyTermPositions();
   }
 
+  private final CloseableThreadLocal perThread = new CloseableThreadLocal();
+
+  // nocommit -- move term vectors under here
+  private static final class PerThread {
+    LegacyTermEnum terms;
+    
+    // Used for caching the least recently looked-up Terms
+    Cache termsCache;
+  }
+
+  private final static int DEFAULT_TERMS_CACHE_SIZE = 1024;
+
+  private PerThread getPerThread() throws IOException {
+    PerThread resources = (PerThread) perThread.get();
+    if (resources == null) {
+      resources = new PerThread();
+      resources.terms = new LegacyTermEnum(null);
+      // Cache does not have to be thread-safe, it is only used by one thread at the same time
+      resources.termsCache = new SimpleLRUCache(DEFAULT_TERMS_CACHE_SIZE);
+      perThread.set(resources);
+    }
+    return resources;
+  }
+
+  
   public int docFreq(Term t) throws IOException {
     ensureOpen();
-    TermInfo ti = core.getTermsReader().get(t);
-    if (ti != null)
-      return ti.docFreq;
-    else
+    Terms terms = core.fields.terms(t.field);
+    if (terms != null) {
+      return terms.docFreq(new TermRef(t.text));
+    } else {
       return 0;
+    }
+  }
+
+  public int docFreq(String field, TermRef term) throws IOException {
+    ensureOpen();
+
+    Terms terms = core.fields.terms(field);
+    if (terms != null) {
+      return terms.docFreq(term);
+    } else {
+      return 0;
+    }
   }
 
   public int numDocs() {
@@ -1146,17 +1199,13 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
   }
 
-  boolean termsIndexLoaded() {
-    return core.termsIndexIsLoaded();
-  }
-
   // NOTE: only called from IndexWriter when a near
   // real-time reader is opened, or applyDeletes is run,
   // sharing a segment that's still being merged.  This
   // method is not thread safe, and relies on the
   // synchronization in IndexWriter
-  void loadTermsIndex(int termsIndexDivisor) throws IOException {
-    core.loadTermsIndex(si, termsIndexDivisor);
+  void loadTermsIndex() throws IOException {
+    core.fields.loadTermsIndex();
   }
 
   // for testing only
@@ -1323,12 +1372,9 @@ public class SegmentReader extends IndexReader implements Cloneable {
   // This is necessary so that cloned SegmentReaders (which
   // share the underlying postings data) will map to the
   // same entry in the FieldCache.  See LUCENE-1579.
+  // nocommit - what to return here?
   public final Object getFieldCacheKey() {
-    return core.freqStream;
-  }
-
-  public long getUniqueTermCount() {
-    return core.getTermsReader().size();
+    return core;
   }
 
   /**
@@ -1339,7 +1385,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
    * @deprecated Remove this when tests are fixed!
    */
   static SegmentReader getOnlySegmentReader(Directory dir) throws IOException {
-    return getOnlySegmentReader(IndexReader.open(dir,false));
+    return getOnlySegmentReader(IndexReader.open(dir, false));
   }
 
   static SegmentReader getOnlySegmentReader(IndexReader reader) {
@@ -1360,4 +1406,254 @@ public class SegmentReader extends IndexReader implements Cloneable {
   public int getTermInfosIndexDivisor() {
     return core.termsIndexDivisor;
   }
+  
+  // Back compat: legacy TermEnum API over flex API
+  final private class LegacyTermEnum extends TermEnum {
+    FieldsEnum fields;
+    TermsEnum terms;
+    boolean done;
+    String currentField;
+    TermRef currentTerm;
+
+    public LegacyTermEnum(Term t) throws IOException {
+      //System.out.println("sr.lte.init: term=" + t);
+      fields = core.fields.iterator();
+      currentField = fields.next();
+      if (currentField == null) {
+        done = true;
+      } else if (t != null) {
+        // Pre-seek
+
+        // nocommit -- inefficient; do we need
+        // FieldsEnum.seek? (but this is slow only for
+        // legacy API, and, when field count is high)
+        while(currentField.compareTo(t.field) < 0) {
+          currentField = fields.next();
+          if (currentField == null) {
+            // Didn't find the field
+            done = true;
+            break;
+          }
+        }
+
+        if (!done) {
+          if (currentField == t.field) {
+            // Field matches -- get terms
+            terms = fields.terms();
+            TermRef tr = new TermRef(t.text());
+            TermsEnum.SeekStatus status = terms.seek(tr);
+            if (status == TermsEnum.SeekStatus.END) {
+              // leave currentTerm null
+            } else if (status == TermsEnum.SeekStatus.FOUND) {
+              currentTerm = tr;
+            } else {
+              currentTerm = terms.term();
+            }
+          }
+        }
+      } else {
+        terms = fields.terms();
+      }
+    }
+
+    public boolean next() throws IOException {
+
+      if (Codec.DEBUG) {
+        System.out.println("tdte.next done=" + done + " seg=" + core.segment);
+      }
+
+      if (done) {
+        return false;
+      }
+
+      while(true) {
+        if (terms == null) {
+          // Advance to the next field
+          currentField = fields.next();
+          if (currentField == null) {
+            if (Codec.DEBUG)
+              System.out.println("  fields.next returned false");
+            done = true;
+            return false;
+          }
+          terms = fields.terms();
+        }
+        currentTerm = terms.next();
+        if (currentTerm != null) {
+          // This field still has terms
+          return true;
+        } else {
+          // Done producing terms from this field
+          terms = null;
+        }
+      }
+    }
+
+    public Term term() {
+      if (terms != null && !done) {
+        if (currentTerm != null) {
+          return new Term(currentField, currentTerm.toString());
+        }
+      }
+      return null;
+    }
+
+    public int docFreq() {
+      return terms == null ? 0 : terms.docFreq();
+    }
+
+    public void close() {}
+  }
+
+  // Back compat: emulates legacy TermDocs API on top of
+  // flex API
+  private class LegacyTermDocs implements TermDocs {
+
+    String currentField;
+    final Fields fields;
+    TermsEnum terms;
+    DocsEnum docs;
+    int doc;
+
+    LegacyTermDocs() throws IOException {
+      fields = core.fields;
+    }
+
+    public void close() {}
+
+    public void seek(TermEnum termEnum) throws IOException {
+      // nocommit -- optimize for the special cases here
+      seek(termEnum.term());
+    }
+
+    public boolean skipTo(int target) throws IOException {
+      if (docs == null) return false;
+      doc = docs.advance(target);
+      return doc != docs.NO_MORE_DOCS;
+    }
+
+    public int read(int[] docs, int[] freqs) throws IOException {
+      if (this.docs == null) {
+        return 0;
+      }
+      return this.docs.read(docs, freqs);
+    }
+
+    public void seek(Term term) throws IOException {
+
+      if (Codec.DEBUG) {
+        System.out.println("\nwrapper termdocs.seek term=" + term);
+      }
+
+      docs = null;
+
+      if (terms != null && !term.field.equals(currentField)) {
+        if (Codec.DEBUG) {
+          System.out.println("  switch field");
+        }
+        if (terms != null) {
+          terms = null;
+        }
+      }
+
+      if (terms == null) {
+        currentField = term.field;
+        Terms terms1 = fields.terms(term.field);
+        if (terms1 == null) {
+          // no such field
+          return;
+        } else {
+          terms = terms1.iterator();
+        }
+      }
+
+      if (terms.seek(new TermRef(term.text)) == TermsEnum.SeekStatus.FOUND) {
+        // Term exists
+        docs = terms.docs(deletedDocs);
+        if (Codec.DEBUG) {
+          System.out.println("  init docs enum");
+        }
+      } else {
+        docs = null;
+        if (Codec.DEBUG) {
+          System.out.println("  clear docs enum");
+        }
+      }
+    }
+
+    public int doc() {
+      if (docs == null) return 0;
+      else return doc;
+    }
+
+    public int freq() {
+      if (docs == null) return 0;
+      return docs.freq();
+    }
+
+    public boolean next() throws IOException {
+      if (docs == null) return false;
+      doc = docs.next();
+      return doc != DocsEnum.NO_MORE_DOCS;
+    }
+  }
+
+  // Back compat: implements legacy TermPositions API on top
+  // of flex API
+  final private class LegacyTermPositions extends LegacyTermDocs implements TermPositions {
+
+    PositionsEnum positions;
+
+    LegacyTermPositions() throws IOException {
+      super();
+    }
+
+    public void seek(TermEnum termEnum) throws IOException {
+      super.seek(termEnum);
+      if (docs != null)
+        positions = docs.positions();
+    }
+
+    public boolean skipTo(int target) throws IOException {
+      boolean result = super.skipTo(target);
+      positions = null;
+      return result;
+    }
+
+    public int read(int[] docs, int[] freqs) throws IOException {
+      throw new UnsupportedOperationException("TermPositions does not support processing multiple documents in one call. Use TermDocs instead.");
+    }
+
+    public void seek(Term term) throws IOException {
+      super.seek(term);
+      positions = null;
+    }
+
+    public boolean next() throws IOException {
+      boolean result = super.next();
+      positions = null;
+      return result;
+    }
+
+    public int nextPosition() throws IOException {     
+      if (positions == null) {
+        positions = docs.positions();
+      }
+      return positions.next();
+    }
+
+    public int getPayloadLength() {
+      return positions.getPayloadLength();
+    }
+
+    public byte[] getPayload(byte[] data, int offset) throws IOException {
+      return positions.getPayload(data, offset);
+    }
+
+    public boolean isPayloadAvailable() {
+      return positions.hasPayload();
+    }
+  }
+
+
 }

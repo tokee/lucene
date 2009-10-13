@@ -25,7 +25,7 @@ import org.apache.lucene.analysis.SimpleAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.search.FilteredTermsEnum;
 
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanQuery;
@@ -79,10 +79,10 @@ public class TestRegexQuery extends TestCase {
   }
 
   public void testMatchAll() throws Exception {
-    TermEnum terms = new RegexQuery(new Term(FN, "jum.")).getEnum(searcher.getIndexReader());
+    RegexTermsEnum terms = (RegexTermsEnum) new RegexQuery(new Term(FN, "jum.")).getTermsEnum(searcher.getIndexReader());
     // no term should match
     assertNull(terms.term());
-    assertFalse(terms.next());
+    assertNull(terms.next());
   }
 
   public void testRegex1() throws Exception {

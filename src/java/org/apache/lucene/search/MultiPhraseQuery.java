@@ -21,10 +21,13 @@ import java.io.IOException;
 import java.util.*;
 
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.MultipleTermPositions;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermPositions;
+import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.PositionsEnum;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.util.ToStringUtils;
+import org.apache.lucene.util.PriorityQueue;
+import org.apache.lucene.util.Bits;
 
 /**
  * MultiPhraseQuery is a generalized version of PhraseQuery, with an added
@@ -113,7 +116,7 @@ public class MultiPhraseQuery extends Query {
   }
 
   // inherit javadoc
-  public void extractTerms(Set<Term> terms) {
+  public void extractTerms(Set terms) {
     for (Iterator iter = termArrays.iterator(); iter.hasNext();) {
       Term[] arr = (Term[])iter.next();
       for (int i=0; i<arr.length; i++) {
@@ -162,27 +165,31 @@ public class MultiPhraseQuery extends Query {
       if (termArrays.size() == 0)                  // optimize zero-term case
         return null;
 
-      TermPositions[] tps = new TermPositions[termArrays.size()];
-      for (int i=0; i<tps.length; i++) {
+      DocsEnum[] docs = new DocsEnum[termArrays.size()];
+      for (int i=0; i<docs.length; i++) {
         Term[] terms = (Term[])termArrays.get(i);
 
-        TermPositions p;
-        if (terms.length > 1)
-          p = new MultipleTermPositions(reader, terms);
-        else
-          p = reader.termPositions(terms[0]);
+        final DocsEnum docsEnum;
+        if (terms.length > 1) {
+          docsEnum = new UnionDocsEnum(reader, terms);
+        } else {
+          docsEnum = reader.termDocsEnum(reader.getDeletedDocs(),
+                                         terms[0].field(),
+                                         new TermRef(terms[0].text()));
+        }
 
-        if (p == null)
+        if (docsEnum == null) {
           return null;
+        }
 
-        tps[i] = p;
+        docs[i] = docsEnum;
       }
 
       if (slop == 0)
-        return new ExactPhraseScorer(this, tps, getPositions(), similarity,
+        return new ExactPhraseScorer(this, docs, getPositions(), similarity,
                                      reader.norms(field));
       else
-        return new SloppyPhraseScorer(this, tps, getPositions(), similarity,
+        return new SloppyPhraseScorer(this, docs, getPositions(), similarity,
                                       slop, reader.norms(field));
     }
 
@@ -369,5 +376,189 @@ public class MultiPhraseQuery extends Query {
       }
     }
     return true;
+  }
+}
+
+/**
+ * Takes the logical union of multiple DocsEnum iterators.
+ */
+
+class UnionDocsEnum extends DocsEnum {
+
+  private final static class DocsEnumWrapper {
+    int doc;
+    final DocsEnum docsEnum;
+    public DocsEnumWrapper(DocsEnum docsEnum) {
+      this.docsEnum = docsEnum;
+    }
+  }
+
+  private static final class DocsQueue extends PriorityQueue {
+    DocsQueue(List docsEnums) throws IOException {
+      initialize(docsEnums.size());
+
+      Iterator i = docsEnums.iterator();
+      while (i.hasNext()) {
+        DocsEnumWrapper docs = (DocsEnumWrapper) i.next();
+        docs.doc = docs.docsEnum.next();
+        if (docs.doc != DocsEnum.NO_MORE_DOCS) {
+          add(docs);
+        }
+      }
+    }
+
+    final public DocsEnumWrapper peek() {
+      return (DocsEnumWrapper) top();
+    }
+
+    public final boolean lessThan(Object a, Object b) {
+      return ((DocsEnumWrapper) a).doc < ((DocsEnumWrapper) b).doc;
+    }
+  }
+
+  private static final class IntQueue {
+    private int _arraySize = 16;
+    private int _index = 0;
+    private int _lastIndex = 0;
+    private int[] _array = new int[_arraySize];
+
+    final void add(int i) {
+      if (_lastIndex == _arraySize)
+        growArray();
+
+      _array[_lastIndex++] = i;
+    }
+
+    final int next() {
+      return _array[_index++];
+    }
+
+    final void sort() {
+      Arrays.sort(_array, _index, _lastIndex);
+    }
+
+    final void clear() {
+      _index = 0;
+      _lastIndex = 0;
+    }
+
+    final int size() {
+      return (_lastIndex - _index);
+    }
+
+    private void growArray() {
+      int[] newArray = new int[_arraySize * 2];
+      System.arraycopy(_array, 0, newArray, 0, _arraySize);
+      _array = newArray;
+      _arraySize *= 2;
+    }
+  }
+
+  private int _doc;
+  private int _freq;
+  private DocsQueue _queue;
+  private IntQueue _posList;
+
+  private final UnionPositionsEnum unionPositionsEnum;
+
+  public UnionDocsEnum(IndexReader indexReader, Term[] terms) throws IOException {
+    List docsEnums = new LinkedList();
+    final Bits delDocs = indexReader.getDeletedDocs();
+
+    for (int i = 0; i < terms.length; i++) {
+      DocsEnum docs = indexReader.termDocsEnum(delDocs,
+                                               terms[i].field(),
+                                               new TermRef(terms[i].text()));
+      if (docs != null) {
+        docsEnums.add(new DocsEnumWrapper(docs));
+      }
+    }
+
+    _queue = new DocsQueue(docsEnums);
+    _posList = new IntQueue();
+    unionPositionsEnum = new UnionPositionsEnum();
+  }
+
+  public PositionsEnum positions() {
+    return unionPositionsEnum;
+  }
+
+  public final int next() throws IOException {
+    if (_queue.size() == 0) {
+      return NO_MORE_DOCS;
+    }
+
+    // TODO: move this init into positions(): if the search
+    // doesn't need the positions for this doc then don't
+    // waste CPU merging them:
+    _posList.clear();
+    _doc = _queue.peek().doc;
+
+    // merge sort all positions together
+    DocsEnumWrapper docs;
+    do {
+      docs = _queue.peek();
+      final PositionsEnum positions = docs.docsEnum.positions();
+
+      final int freq = docs.docsEnum.freq();
+      for (int i = 0; i < freq; i++) {
+        _posList.add(positions.next());
+      }
+
+      docs.doc = docs.docsEnum.next();
+
+      if (docs.doc != NO_MORE_DOCS) {
+        _queue.updateTop();
+      } else {
+        _queue.pop();
+      }
+    } while (_queue.size() > 0 && _queue.peek().doc == _doc);
+
+    _posList.sort();
+    _freq = _posList.size();
+
+    return _doc;
+  }
+
+  private class UnionPositionsEnum extends PositionsEnum {
+
+    public int next() {
+      return _posList.next();
+    }
+
+    public int getPayloadLength() {
+      throw new UnsupportedOperationException();
+    }
+
+    public byte[] getPayload(byte[] data, int offset) {
+      throw new UnsupportedOperationException();
+    }
+
+    public boolean hasPayload() {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  public final int advance(int target) throws IOException {
+    while (_queue.peek() != null && target > _queue.peek().doc) {
+      DocsEnumWrapper docs = (DocsEnumWrapper) _queue.pop();
+      docs.doc = docs.docsEnum.advance(target);
+      if (docs.doc != NO_MORE_DOCS) {
+        _queue.add(docs);
+      }
+    }
+    return next();
+  }
+
+  public final int freq() {
+    return _freq;
+  }
+
+  /**
+   * Not implemented.
+   * @throws UnsupportedOperationException
+   */
+  public int read(int[] arg0, int[] arg1) throws IOException {
+    throw new UnsupportedOperationException();
   }
 }
