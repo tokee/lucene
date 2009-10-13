@@ -47,12 +47,6 @@ public class SpanFirstQuery extends SpanQuery implements Cloneable {
 
   public String getField() { return match.getField(); }
 
-  /** Returns a collection of all terms matched by this query.
-   * @deprecated use extractTerms instead
-   * @see #extractTerms(Set)
-   */
-  public Collection getTerms() { return match.getTerms(); }
-
   public String toString(String field) {
     StringBuffer buffer = new StringBuffer();
     buffer.append("spanFirst(");

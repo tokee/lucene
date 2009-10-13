@@ -80,20 +80,6 @@ public class SpanNearQuery extends SpanQuery implements Cloneable {
 
   public String getField() { return field; }
   
-  /** Returns a collection of all terms matched by this query.
-   * @deprecated use extractTerms instead
-   * @see #extractTerms(Set)
-   */
-  public Collection getTerms() {
-    Collection terms = new ArrayList();
-    Iterator i = clauses.iterator();
-    while (i.hasNext()) {
-      SpanQuery clause = (SpanQuery)i.next();
-      terms.addAll(clause.getTerms());
-    }
-    return terms;
-  }
-  
   public void extractTerms(Set terms) {
 	    Iterator i = clauses.iterator();
 	    while (i.hasNext()) {
