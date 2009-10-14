@@ -1748,7 +1748,7 @@ public class TestIndexReader extends LuceneTestCase
       // expected
     }
 
-    assertEquals(-1, r.getTermInfosIndexDivisor());
+    assertEquals(-1, ((SegmentReader) r.getSequentialSubReaders()[0]).getTermInfosIndexDivisor());
     writer = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
     writer.addDocument(doc);
     writer.close();

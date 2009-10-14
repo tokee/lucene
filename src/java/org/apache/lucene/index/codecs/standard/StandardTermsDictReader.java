@@ -19,9 +19,12 @@ package org.apache.lucene.index.codecs.standard;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import org.apache.lucene.index.DocsEnum;
@@ -189,7 +192,7 @@ public class StandardTermsDictReader extends FieldsProducer {
   private class FieldReader extends Terms {
     private final CloseableThreadLocal threadResources = new CloseableThreadLocal();
     // nocommit: check placement
-
+    Collection<ThreadResources> threadResourceSet = new HashSet<ThreadResources>();
     final long numTerms;
     final FieldInfo fieldInfo;
     final long termsStartPointer;
@@ -205,6 +208,9 @@ public class StandardTermsDictReader extends FieldsProducer {
 
     public void close() {
       threadResources.close();
+      for(ThreadResources threadResource : threadResourceSet) {
+        threadResource.termInfoCache = null;
+      }
     }
     
     private ThreadResources getThreadResources() {
@@ -213,6 +219,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         resources = new ThreadResources();
         // Cache does not have to be thread-safe, it is only used by one thread at the same time
         resources.termInfoCache = new ReuseLRUCache(1024);
+        threadResourceSet.add(resources);
         threadResources.set(resources);
       }
       return resources;
@@ -225,7 +232,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     public long getUniqueTermCount() {
       return numTerms;
     }
-
+    ThreadResources resources = getThreadResources();
     // Iterates through terms in this field
     private class SegmentTermsEnum extends TermsEnum {
       private final IndexInput in;
@@ -235,7 +242,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       private final DocsProducer.Reader docs;
       private int docFreq;
       private final StandardTermsIndexReader.TermsIndexResult indexResult = new StandardTermsIndexReader.TermsIndexResult();
-      ThreadResources resources = getThreadResources();
+
       
       SegmentTermsEnum() throws IOException {
         if (Codec.DEBUG) {
@@ -491,6 +498,17 @@ public class StandardTermsDictReader extends FieldsProducer {
       return remove;
     }
     
+    @Override
+    public synchronized Object put(Object key, Object value) {
+      // TODO Auto-generated method stub
+      return super.put(key, value);
+    }
+    
+    @Override
+    public synchronized Object get(Object key) {
+      // TODO Auto-generated method stub
+      return super.get(key);
+    }
   }
 
 }

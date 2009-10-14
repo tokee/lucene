@@ -115,7 +115,7 @@ public class TermVectorAccessor {
           int docID = docs.advance(documentNumber);
           if (docID == documentNumber) {
 
-            frequencies.add(new Integer(docs.freq()));
+            frequencies.add(Integer.valueOf(docs.freq()));
             tokens.add(text.toString());
 
             if (!mapper.isIgnoringPositions()) {
