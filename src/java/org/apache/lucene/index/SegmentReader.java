@@ -751,7 +751,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
         }
       }
 
-      clone.setDisableFakeNorms(getDisableFakeNorms());
       clone.norms = new HashMap();
 
       // Clone norms
@@ -1108,11 +1107,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
 
   private byte[] ones;
-  private byte[] fakeNorms() {
-    assert !getDisableFakeNorms();
-    if (ones==null) ones=createFakeNorms(maxDoc());
-    return ones;
-  }
 
   // can return null if norms aren't stored
   protected synchronized byte[] getNorms(String field) throws IOException {
@@ -1125,7 +1119,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
   public synchronized byte[] norms(String field) throws IOException {
     ensureOpen();
     byte[] bytes = getNorms(field);
-    if (bytes==null && !getDisableFakeNorms()) bytes=fakeNorms();
     return bytes;
   }
 

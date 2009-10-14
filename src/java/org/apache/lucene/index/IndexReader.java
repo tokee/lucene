@@ -1126,18 +1126,9 @@ public abstract class IndexReader implements Cloneable {
     hasChanges = false;
   }
 
-  /** Implements commit.
-   *  @deprecated Please implement {@link #doCommit(Map)
-   *  instead}. */
-  protected abstract void doCommit() throws IOException;
-
   /** Implements commit.  NOTE: subclasses should override
    *  this.  In 3.0 this will become an abstract method. */
-  void doCommit(Map commitUserData) throws IOException {
-    // Default impl discards commitUserData; all Lucene
-    // subclasses override this (do not discard it).
-    doCommit();
-  }
+  protected abstract void doCommit(Map commitUserData) throws IOException;
 
   /**
    * Closes files associated with this index.
@@ -1316,8 +1307,7 @@ public abstract class IndexReader implements Cloneable {
     return null;
   }
 
-  /** Expert    
-   *  @deprecated */
+  /** Expert */
   public Object getFieldCacheKey() {
     return this;
   }
@@ -1346,26 +1336,4 @@ public abstract class IndexReader implements Cloneable {
     }
     return numTerms;
   }
-
-  /** Expert: Return the state of the flag that disables fakes norms in favor of representing the absence of field norms with null.
-   * @return true if fake norms are disabled
-   * @deprecated This currently defaults to false (to remain
-   * back-compatible), but in 3.0 it will be hardwired to
-   * true, meaning the norms() methods will return null for
-   * fields that had disabled norms.
-   */
-  public boolean getDisableFakeNorms() {
-    return disableFakeNorms;
-  }
-
-  /** Expert: Set the state of the flag that disables fakes norms in favor of representing the absence of field norms with null.
-   * @param disableFakeNorms true to disable fake norms, false to preserve the legacy behavior
-   * @deprecated This currently defaults to false (to remain
-   * back-compatible), but in 3.0 it will be hardwired to
-   * true, meaning the norms() methods will return null for
-   * fields that had disabled norms.
-   */
-  public void setDisableFakeNorms(boolean disableFakeNorms) {
-    this.disableFakeNorms = disableFakeNorms;
- }
 }

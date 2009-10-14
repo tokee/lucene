@@ -485,7 +485,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
       // the future we could have write make some effort to
       // detect that no changes have occurred
       IndexReader reader = writer.getReader();
-      reader.setDisableFakeNorms(getDisableFakeNorms());
       return reader;
     }
 
@@ -541,7 +540,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
     } else {
       reader = new DirectoryReader(directory, infos, subReaders, starts, normsCache, false, doClone, termInfosIndexDivisor, null);
     }
-    reader.setDisableFakeNorms(getDisableFakeNorms());
     return reader;
   }
 
@@ -669,18 +667,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   private byte[] ones;
-  private byte[] fakeNorms() {
-    if (ones==null) ones=SegmentReader.createFakeNorms(maxDoc());
-    return ones;
-  }
-
   public synchronized byte[] norms(String field) throws IOException {
     ensureOpen();
     byte[] bytes = (byte[])normsCache.get(field);
     if (bytes != null)
       return bytes;          // cache hit
     if (!hasNorms(field))
-      return getDisableFakeNorms() ? null : fakeNorms();
+      return null;
 
     bytes = new byte[maxDoc()];
     for (int i = 0; i < subReaders.length; i++)
@@ -795,11 +788,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
         }
       }
     }
-  }
-
-  /** @deprecated  */
-  protected void doCommit() throws IOException {
-    doCommit(null);
   }
 
   /**
@@ -948,12 +936,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
   
   public IndexReader[] getSequentialSubReaders() {
     return subReaders;
-  }
-
-  public void setDisableFakeNorms(boolean disableFakeNorms) {
-    super.setDisableFakeNorms(disableFakeNorms);
-    for (int i = 0; i < subReaders.length; i++)
-        subReaders[i].setDisableFakeNorms(disableFakeNorms);
   }
 
   /** Returns the directory this index resides in. */

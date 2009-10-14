@@ -49,8 +49,8 @@ public class TestSegmentMerger extends LuceneTestCase {
     SegmentInfo info1 = DocHelper.writeDoc(merge1Dir, doc1);
     DocHelper.setupDoc(doc2);
     SegmentInfo info2 = DocHelper.writeDoc(merge2Dir, doc2);
-    reader1 = SegmentReader.get(info1);
-    reader2 = SegmentReader.get(info2);
+    reader1 = SegmentReader.get(true, info1, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR);
+    reader2 = SegmentReader.get(true, info2, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR);
   }
 
   public void test() {

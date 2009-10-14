@@ -201,7 +201,6 @@ public class MultiReader extends IndexReader implements Cloneable {
       }
       MultiReader mr = new MultiReader(newSubReaders);
       mr.decrefOnClose = newDecrefOnClose;
-      mr.setDisableFakeNorms(getDisableFakeNorms());
       return mr;
     } else {
       return this;
@@ -311,7 +310,7 @@ public class MultiReader extends IndexReader implements Cloneable {
     if (bytes != null)
       return bytes;          // cache hit
     if (!hasNorms(field))
-      return getDisableFakeNorms() ? null : fakeNorms();
+      return null;
 
     bytes = new byte[maxDoc()];
     for (int i = 0; i < subReaders.length; i++)
