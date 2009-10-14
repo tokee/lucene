@@ -1460,8 +1460,7 @@ public abstract class IndexReader implements Cloneable {
     return null;
   }
 
-  /** Expert    
-   *  @deprecated */
+  /** Expert */
   public Object getFieldCacheKey() {
     return this;
   }
