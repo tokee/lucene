@@ -73,8 +73,6 @@ public class TestThreadedOptimize extends LuceneTestCase {
       writer.setMergeFactor(4);
       //writer.setInfoStream(System.out);
 
-      final int docCount = writer.docCount();
-
       Thread[] threads = new Thread[NUM_THREADS];
       
       for(int i=0;i<NUM_THREADS;i++) {
@@ -116,7 +114,7 @@ public class TestThreadedOptimize extends LuceneTestCase {
 
       // System.out.println("TEST: now index=" + writer.segString());
 
-      assertEquals(expectedDocCount, writer.docCount());
+      assertEquals(expectedDocCount, writer.maxDoc());
 
       writer.close();
       writer = new IndexWriter(directory, ANALYZER, false, IndexWriter.MaxFieldLength.UNLIMITED);
