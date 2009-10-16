@@ -501,7 +501,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     }
   }
 
-  // nocommit -- wonder if simple double-barrel LRU cache
+  // TODO: -- wonder if simple double-barrel LRU cache
   // would be better
   private static class ReuseLRUCache<K, V> extends LinkedHashMap<K,V> {
     
@@ -513,7 +513,7 @@ public class StandardTermsDictReader extends FieldsProducer {
      * Creates a last-recently-used cache with the specified size. 
      */
     public ReuseLRUCache(int cacheSize) {
-      // nocommit -- we should not init cache w/ full
+      // TODO: -- we should not init cache w/ full
       // capacity?  init it at 0, and only start evicting
       // once #entries is over our max
       super((int) Math.ceil(cacheSize/ LOADFACTOR) + 1, LOADFACTOR, true);
