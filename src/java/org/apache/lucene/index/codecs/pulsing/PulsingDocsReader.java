@@ -187,9 +187,9 @@ class PulsingDocsReader extends DocsProducer {
     }
 
     class PulsingDocsEnum extends DocsEnum {
-      int nextRead;
+      private int nextRead;
       private Bits skipDocs;
-      Document doc;
+      private Document doc;
 
       public void close() {}
 
