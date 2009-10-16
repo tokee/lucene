@@ -342,9 +342,6 @@ public class StandardTermsDictReader extends FieldsProducer {
               //new Throwable().printStackTrace(System.out);
             }
 
-            // nocommit -- why scanCnt > 1?
-            //if (docs.canCaptureState() && scanCnt > 1) {
-
             if (docs.canCaptureState()) {
               // Store in cache
               if (cache.eldest != null) {

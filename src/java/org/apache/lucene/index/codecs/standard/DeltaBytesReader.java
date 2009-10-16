@@ -24,8 +24,7 @@ import java.io.IOException;
 
 // Handles reading incremental UTF8 encoded terms
 final class DeltaBytesReader {
-  // nocommit: was final
-  TermRef term = new TermRef();
+  final TermRef term = new TermRef();
   final IndexInput in;
   boolean started;
 
