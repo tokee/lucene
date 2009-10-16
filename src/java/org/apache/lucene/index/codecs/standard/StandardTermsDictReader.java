@@ -157,7 +157,7 @@ public class StandardTermsDictReader extends FieldsProducer {
 
   // Iterates through all known fields
   private class TermFieldsEnum extends FieldsEnum {
-    final Iterator it;
+    final Iterator<FieldReader> it;
     FieldReader current;
 
     TermFieldsEnum() {
@@ -170,7 +170,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         //new Throwable().printStackTrace(System.out);
       }
       if (it.hasNext()) {
-        current = (FieldReader) it.next();
+        current = it.next();
         if (Codec.DEBUG) {
           System.out.println("  hasNext set current field=" + current.fieldInfo.name);
         }
@@ -219,7 +219,6 @@ public class StandardTermsDictReader extends FieldsProducer {
       if (resources == null) {
         // Cache does not have to be thread-safe, it is only used by one thread at the same time
         resources = new ThreadResources(new SegmentTermsEnum(), numTerms);
-        //threadResourceSet.add(resources);
         threadResources.set(resources);
       }
       return resources;
@@ -261,14 +260,14 @@ public class StandardTermsDictReader extends FieldsProducer {
        *  is found, SeekStatus.NOT_FOUND if a different term
        *  was found, SeekStatus.END if we hit EOF */
       public SeekStatus seek(TermRef term) throws IOException {
-        ReuseLRUCache cache = null;
+        ReuseLRUCache<TermRef, CacheEntry> cache = null;
         CacheEntry entry = null;
 
         if (docs.canCaptureState()) {
           final ThreadResources resources = getThreadResources();
           cache = resources.cache;
 
-          entry = (CacheEntry) cache.get(term);
+          entry = cache.get(term);
           if (entry != null) {
             docFreq = entry.freq;
             bytesReader.term.copy(entry.term);
@@ -336,10 +335,10 @@ public class StandardTermsDictReader extends FieldsProducer {
             if (docs.canCaptureState()) {
               // Store in cache
               if (cache.eldest != null) {
-                entry = (CacheEntry) cache.eldest;
+                entry = cache.eldest;
                 cache.eldest = null;
                 docs.captureState(entry);
-                entry.term.copy((TermRef) bytesReader.term);
+                entry.term.copy(bytesReader.term);
               } else {
                 entry = docs.captureState(null);
                 entry.term = (TermRef) bytesReader.term.clone();
@@ -479,7 +478,7 @@ public class StandardTermsDictReader extends FieldsProducer {
    */
   private static final class ThreadResources {
     // Used for caching the least recently looked-up Terms
-    final ReuseLRUCache cache;
+    final ReuseLRUCache<TermRef, CacheEntry> cache;
     final TermsEnum termsEnum;
 
     ThreadResources(TermsEnum termsEnum, long numTerms) {
@@ -492,18 +491,18 @@ public class StandardTermsDictReader extends FieldsProducer {
         cacheSize = (int) numTerms;
       }
 
-      cache = new ReuseLRUCache(cacheSize);
+      cache = new ReuseLRUCache<TermRef, CacheEntry>(cacheSize);
       this.termsEnum = termsEnum;
     }
   }
 
   // nocommit -- wonder if simple double-barrel LRU cache
   // would be better
-  private static class ReuseLRUCache extends LinkedHashMap {
+  private static class ReuseLRUCache<K, V> extends LinkedHashMap<K,V> {
     
     private final static float LOADFACTOR = 0.75f;
     private int cacheSize;
-    Object eldest;
+    V eldest;
 
     /**
      * Creates a last-recently-used cache with the specified size. 
@@ -516,7 +515,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       this.cacheSize = cacheSize;
     }
     
-    protected boolean removeEldestEntry(Map.Entry eldest) {
+    protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
       boolean remove = size() > ReuseLRUCache.this.cacheSize;
       if (remove) {
         this.eldest = eldest.getValue();
