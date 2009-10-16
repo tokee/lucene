@@ -188,9 +188,6 @@ public class StandardTermsDictReader extends FieldsProducer {
   
   private class FieldReader extends Terms {
     private final CloseableThreadLocal threadResources = new CloseableThreadLocal();
-    // nocommit: not needed?
-    // nocommit: check placement
-    //Collection<ThreadResources> threadResourceSet = new HashSet<ThreadResources>();
     final long numTerms;
     final FieldInfo fieldInfo;
     final long termsStartPointer;
@@ -215,12 +212,6 @@ public class StandardTermsDictReader extends FieldsProducer {
 
     public void close() {
       threadResources.close();
-      // nocommit should not be needed?
-      /*
-      for(ThreadResources threadResource : threadResourceSet) {
-        threadResource.termInfoCache = null;
-      }
-      */
     }
     
     private ThreadResources getThreadResources() throws IOException {
@@ -532,23 +523,6 @@ public class StandardTermsDictReader extends FieldsProducer {
       } 
       return remove;
     }
-
-    // nocommit -- not needed?  we don't need to sync since
-    // only one thread works with this?
-
-    /*
-    @Override
-    public synchronized Object put(Object key, Object value) {
-      // TODO Auto-generated method stub
-      return super.put(key, value);
-    }
-    
-    @Override
-    public synchronized Object get(Object key) {
-      // TODO Auto-generated method stub
-      return super.get(key);
-    }
-    */
   }
 
 }
