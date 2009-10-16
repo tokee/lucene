@@ -19,12 +19,9 @@ package org.apache.lucene.index.codecs.standard;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 import org.apache.lucene.index.DocsEnum;
