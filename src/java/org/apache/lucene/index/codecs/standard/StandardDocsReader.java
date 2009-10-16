@@ -76,6 +76,7 @@ public class StandardDocsReader extends DocsProducer {
     StandardPositionsReader.files(segmentInfo, files);
   }
 
+  @Override
   public void start(IndexInput termsIn) throws IOException {
     this.termsIn = termsIn;
 
@@ -88,6 +89,7 @@ public class StandardDocsReader extends DocsProducer {
       posReader.start(termsIn);
   }
 
+  @Override
   public Reader reader(FieldInfo fieldInfo, IndexInput termsIn) {
 
     final StandardPositionsReader.TermsDictReader posReader2;
@@ -100,6 +102,7 @@ public class StandardDocsReader extends DocsProducer {
     return new TermsDictReader(fieldInfo, posReader2, termsIn);
   }
 
+  @Override
   public void close() throws IOException {
     try {
       freqIn.close();
@@ -133,6 +136,7 @@ public class StandardDocsReader extends DocsProducer {
       }
     }
 
+    @Override
     public void readTerm(int docFreq, boolean isIndexTerm) throws IOException {
 
       this.docFreq = docFreq;
@@ -205,10 +209,12 @@ public class StandardDocsReader extends DocsProducer {
       }
     }
     
+    @Override
     public boolean canCaptureState() {
       return true;
     }
 
+    @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
 
       if (docs == null) {
