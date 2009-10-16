@@ -36,6 +36,7 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.DocsProducer;
 import org.apache.lucene.index.codecs.FieldsProducer;
+import org.apache.lucene.index.codecs.pulsing.PulsingDocsWriter.Document;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
@@ -466,9 +467,13 @@ public class StandardTermsDictReader extends FieldsProducer {
   // nocommit -- scrutinize API
   public static class CacheEntry {
     int termUpTo;
-    int freq;
-    long filePointer;
     TermRef term;
+    long filePointer;
+    // nocommit
+    public int freq;
+    public Document docs[];
+    public boolean pendingIndexTerm;
+
   }
 
   private static final int MAX_CACHE_SIZE = 1024;

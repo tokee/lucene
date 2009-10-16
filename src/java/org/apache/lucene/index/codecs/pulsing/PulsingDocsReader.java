@@ -189,7 +189,7 @@ class PulsingDocsReader extends DocsProducer {
     class PulsingDocsEnum extends DocsEnum {
       int nextRead;
       private Bits skipDocs;
-      private Document doc;
+      Document doc;
 
       public void close() {}
 
@@ -212,7 +212,6 @@ class PulsingDocsReader extends DocsProducer {
       }
 
       public int read(int[] retDocs, int[] retFreqs) {
-        final int limit;
         int i=0;
         // nocommit -- ob1?
         while(nextRead < docFreq) {
@@ -299,14 +298,29 @@ class PulsingDocsReader extends DocsProducer {
 
     @Override
     public CacheEntry captureState(CacheEntry reusableState) {
-      // TODO Auto-generated method stub
-      return null;
+      CacheEntry cacheEntry = wrappedReader.captureState(reusableState);
+      cacheEntry.docs = new Document[docs.length];
+      for(int i = 0; i < docs.length; i++) {
+        cacheEntry.docs[i] = (Document) docs[i].clone();
+      }
+      cacheEntry.pendingIndexTerm = pendingIndexTerm;
+
+      return cacheEntry;
     }
 
     @Override
     public void setState(CacheEntry state, int docFreq) throws IOException {
-      // TODO Auto-generated method stub
-      
+      this.docFreq = docFreq;
+      pendingIndexTerm = state.pendingIndexTerm;
+      wrappedReader.setState(state, docFreq);
+      for(int i = 0; i < docs.length; i++) {
+        docs[i] = (Document) state.docs[i].clone();
+      }
+    }
+    
+    @Override
+    public boolean canCaptureState() {
+      return true;
     }
   }
 

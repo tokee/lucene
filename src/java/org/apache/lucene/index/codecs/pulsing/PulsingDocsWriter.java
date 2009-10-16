@@ -34,7 +34,8 @@ import org.apache.lucene.index.codecs.Codec;
 // positions would not be inlined.  Though this is
 // presumably rare in practice...
 
-final class PulsingDocsWriter extends DocsConsumer {
+//nocommit: public 
+public final class PulsingDocsWriter extends DocsConsumer {
 
   final static String CODEC = "PulsedPostings";
 
@@ -55,7 +56,8 @@ final class PulsingDocsWriter extends DocsConsumer {
   // nocommit
   String desc;
 
-  static class Document {
+  // nocommit: public
+  public static class Document {
     int docID;
     int termDocFreq;
     int numPositions;
@@ -63,6 +65,19 @@ final class PulsingDocsWriter extends DocsConsumer {
     Document() {
       positions = new Position[1];
       positions[0] = new Position();
+    }
+    
+    public Object clone() {
+      Document doc = new Document();
+      doc.docID = docID;
+      doc.termDocFreq = termDocFreq;
+      doc.numPositions = numPositions;
+      doc.positions = new Position[positions.length];
+      for(int i = 0; i < positions.length; i++) {
+        doc.positions[i] = (Position)positions[i].clone();
+      }
+
+      return doc;
     }
 
     void reallocPositions(int minSize) {
@@ -83,6 +98,17 @@ final class PulsingDocsWriter extends DocsConsumer {
     byte[] payload;
     int pos;
     int payloadLength;
+    
+    public Object clone() {
+      Position position = new Position();
+      position.pos = pos;
+      position.payloadLength = payloadLength;
+      if(payload != null) {
+        position.payload = new byte[payload.length];
+        System.arraycopy(payload, 0, position.payload, 0, payloadLength);
+      }
+      return position;
+    }
   }
 
   // nocommit -- lazy init this?  ie, if every single term
