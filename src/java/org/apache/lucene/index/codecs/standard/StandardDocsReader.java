@@ -30,6 +30,7 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.index.codecs.DocsProducer;
+import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 
 /** Concrete class that reads the current doc/freq/skip
  *  postings format */
@@ -114,7 +115,7 @@ public class StandardDocsReader extends DocsProducer {
     final IndexInput termsIn;
     final FieldInfo fieldInfo;
     long freqOffset;
-    long skipOffset;
+    int skipOffset;
     int docFreq;
 
     // TODO: abstraction violation (we are storing this with
@@ -152,7 +153,7 @@ public class StandardDocsReader extends DocsProducer {
       }
 
       if (docFreq >= skipInterval) {
-        skipOffset = termsIn.readVLong();
+        skipOffset = termsIn.readVInt();
       } else {
         skipOffset = 0;
       }
@@ -162,54 +163,45 @@ public class StandardDocsReader extends DocsProducer {
       }
     }
     
-    public class TermDictsReaderState extends State {
-      long termsInPos;
+    public class TermDictsReaderState extends CacheEntry {
       long freqOffset;
-      long skipOffset;
-      long freqInPos;
-      int freq;
-      long proxPos;
-      public long proxOffset;
+      int skipOffset;
+      long proxOffset;
     }
     
     @Override
-    public State captureState(State reusableState) {
+    public CacheEntry captureState(CacheEntry reusableState) {
       TermDictsReaderState state;
-      if(reusableState == null) {
+      if (reusableState == null) {
         state = new TermDictsReaderState();
       } else {
         state = (TermDictsReaderState) reusableState;
-        state.proxPos = 0;
+      }
+      if (posReader != null) {
+        state.proxOffset = posReader.proxOffset;
+      } else {
         state.proxOffset = 0;
       }
-      if(posReader != null) {
-        if(posReader.positions != null) {
-          state.proxPos = posReader.positions.proxIn.getFilePointer();
-        }
-        state.proxOffset = posReader.proxOffset;
-      }
-      state.termsInPos = termsIn.getFilePointer();
       state.freqOffset = freqOffset;
-      state.freqInPos = freqIn.getFilePointer();
-      state.freq = docFreq;
       state.skipOffset = skipOffset;
       return state;
     }
 
     @Override
-    public void setState(State state) throws IOException {
-      TermDictsReaderState readerState = (TermDictsReaderState)state;
+    public void setState(CacheEntry state, int docFreq) throws IOException {
+      TermDictsReaderState readerState = (TermDictsReaderState) state;
       skipOffset = readerState.skipOffset;
-      termsIn.seek(readerState.termsInPos);
       freqOffset = readerState.freqOffset;
-      freqIn.seek(readerState.freqInPos);
-      docFreq = readerState.freq;
+
+      this.docFreq = docFreq;
       
-      if(posReader != null) {
-        if(posReader.positions != null) {
-          posReader.positions.proxIn.seek(readerState.proxPos);
-        }
+      if (posReader != null) {
         posReader.proxOffset = readerState.proxOffset;
+        if (posReader.positions != null) {
+          posReader.positions.seekPending = true;
+          posReader.positions.skipOffset = posReader.proxOffset;
+          posReader.positions.skipPosCount = 0;
+        }
       }
     }
     

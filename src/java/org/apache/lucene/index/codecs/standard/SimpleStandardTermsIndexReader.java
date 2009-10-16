@@ -130,6 +130,8 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
   int blockUpto;
   int blockOffset;
 
+  // nocommit -- is this big enough, given max allowed term
+  // size (measured in chars!!) ?
   private static final int BYTE_BLOCK_SHIFT = 15;
   private static final int BYTE_BLOCK_SIZE = 1 << BYTE_BLOCK_SHIFT;
   private static final int BYTE_BLOCK_MASK = BYTE_BLOCK_SIZE - 1;

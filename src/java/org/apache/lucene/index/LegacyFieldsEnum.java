@@ -48,9 +48,10 @@ class LegacyFieldsEnum extends FieldsEnum {
 
   public String next() throws IOException {
 
-    final Term seekTo = new Term(field, "\uFFFF");
-
-    doSeek(seekTo);
+    if (field != null) {
+      final Term seekTo = new Term(field, "\uFFFF");
+      doSeek(seekTo);
+    }
     if (terms.term() != null) {
       String newField = terms.term().field;
       assert !newField.equals(field);

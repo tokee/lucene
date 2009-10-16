@@ -26,6 +26,7 @@ import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.DocsProducer;
 import org.apache.lucene.index.codecs.pulsing.PulsingDocsWriter.Document;
+import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.ArrayUtil;
@@ -297,13 +298,13 @@ class PulsingDocsReader extends DocsProducer {
     }
 
     @Override
-    public State captureState(State reusableState) {
+    public CacheEntry captureState(CacheEntry reusableState) {
       // TODO Auto-generated method stub
       return null;
     }
 
     @Override
-    public void setState(State state) throws IOException {
+    public void setState(CacheEntry state, int docFreq) throws IOException {
       // TODO Auto-generated method stub
       
     }

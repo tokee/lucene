@@ -24,6 +24,9 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 
+// nocommit -- circular, not clean
+import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
+
 
 // nocommit -- this is tied to StandarTermsDictWriter;
 // shouldn't it be named StandardDocsProducer?  hmm, though,
@@ -38,7 +41,6 @@ import org.apache.lucene.util.Bits;
 public abstract class DocsProducer {
   
   public abstract class Reader {
-    public class State {}
     
     public abstract void readTerm(int docFreq, boolean isIndexTerm) throws IOException;
 
@@ -46,9 +48,9 @@ public abstract class DocsProducer {
     public abstract DocsEnum docs(Bits deletedDocs) throws IOException;
     
     // nocommit: fooling around with reusable
-    public abstract State captureState(State reusableState);
+    public abstract CacheEntry captureState(CacheEntry reusableState);
     
-    public abstract void setState(State state) throws IOException;
+    public abstract void setState(CacheEntry state, int docFreq) throws IOException;
     
     public boolean canCaptureState() {
       return false;

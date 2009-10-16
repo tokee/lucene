@@ -115,18 +115,19 @@ public class TermRef {
   }
   
   private int hash(byte a[]) {
-    if (a == null)
-        return 0;
+    if (a == null) {
+      return 0;
+    }
     int result = 1;
     int upTo = offset;
-    for(int i = 0; i < length; i++)
-        result = 31 * result + bytes[upTo++];
+    for(int i = 0; i < length; i++) {
+      result = 31 * result + bytes[upTo++];
+    }
     return result;
-}
+  }
 
   @Override
   public boolean equals(Object other) {
-
     return this.termEquals((TermRef) other);
   }
 

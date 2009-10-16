@@ -39,7 +39,6 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.DocsProducer;
 import org.apache.lucene.index.codecs.FieldsProducer;
-import org.apache.lucene.index.codecs.DocsProducer.Reader.State;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
@@ -103,6 +102,7 @@ public class StandardTermsDictReader extends FieldsProducer {
           fieldIndexReader = null;
         }
         if (numTerms > 0) {
+          assert !fields.containsKey(fieldInfo.name);
           fields.put(fieldInfo.name, new FieldReader(fieldIndexReader, fieldInfo, numTerms, termsStartPointer));
         }
       }
@@ -191,8 +191,9 @@ public class StandardTermsDictReader extends FieldsProducer {
   
   private class FieldReader extends Terms {
     private final CloseableThreadLocal threadResources = new CloseableThreadLocal();
+    // nocommit: not needed?
     // nocommit: check placement
-    Collection<ThreadResources> threadResourceSet = new HashSet<ThreadResources>();
+    //Collection<ThreadResources> threadResourceSet = new HashSet<ThreadResources>();
     final long numTerms;
     final FieldInfo fieldInfo;
     final long termsStartPointer;
@@ -206,20 +207,31 @@ public class StandardTermsDictReader extends FieldsProducer {
       this.indexReader = fieldIndexReader;
     }
 
+    public int docFreq(TermRef text) throws IOException {
+      ThreadResources resources = getThreadResources();
+      if (resources.termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
+        return resources.termsEnum.docFreq();
+      } else {
+        return 0;
+      }
+    }
+
     public void close() {
       threadResources.close();
+      // nocommit should not be needed?
+      /*
       for(ThreadResources threadResource : threadResourceSet) {
         threadResource.termInfoCache = null;
       }
+      */
     }
     
-    private ThreadResources getThreadResources() {
-      ThreadResources resources = (ThreadResources)threadResources.get();
+    private ThreadResources getThreadResources() throws IOException {
+      ThreadResources resources = (ThreadResources) threadResources.get();
       if (resources == null) {
-        resources = new ThreadResources();
         // Cache does not have to be thread-safe, it is only used by one thread at the same time
-        resources.termInfoCache = new ReuseLRUCache(1024);
-        threadResourceSet.add(resources);
+        resources = new ThreadResources(new SegmentTermsEnum(), numTerms);
+        //threadResourceSet.add(resources);
         threadResources.set(resources);
       }
       return resources;
@@ -232,7 +244,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     public long getUniqueTermCount() {
       return numTerms;
     }
-    ThreadResources resources = getThreadResources();
+
     // Iterates through terms in this field
     private class SegmentTermsEnum extends TermsEnum {
       private final IndexInput in;
@@ -242,7 +254,6 @@ public class StandardTermsDictReader extends FieldsProducer {
       private final DocsProducer.Reader docs;
       private int docFreq;
       private final StandardTermsIndexReader.TermsIndexResult indexResult = new StandardTermsIndexReader.TermsIndexResult();
-
       
       SegmentTermsEnum() throws IOException {
         if (Codec.DEBUG) {
@@ -266,17 +277,19 @@ public class StandardTermsDictReader extends FieldsProducer {
         CacheEntry entry = null;
 
         if (docs.canCaptureState()) {
-          cache = resources.termInfoCache;
+          final ThreadResources resources = getThreadResources();
+          cache = resources.cache;
 
           entry = (CacheEntry) cache.get(term);
           if (entry != null) {
             docFreq = entry.freq;
-            bytesReader.term = (TermRef) entry.term.clone();
-            docs.setState(entry.state);
+            bytesReader.term.copy(entry.term);
+            docs.setState(entry, docFreq);
             termUpto = entry.termUpTo;
-
+            // nocommit -- would be better to do this lazy?
+            in.seek(entry.filePointer);
             return SeekStatus.FOUND;
-          } 
+          }
         }
         
         // mxx
@@ -290,6 +303,7 @@ public class StandardTermsDictReader extends FieldsProducer {
           if (Codec.DEBUG) {
             System.out.println(Thread.currentThread().getName() + ":  already here!");
           }
+          // nocommit -- cache this
           return SeekStatus.FOUND;
         }
 
@@ -330,21 +344,25 @@ public class StandardTermsDictReader extends FieldsProducer {
               System.out.println(Thread.currentThread().getName() + ":  seek done found term=" + bytesReader.term);
               //new Throwable().printStackTrace(System.out);
             }
-        
-            if(docs.canCaptureState() && scanCnt > 1) {
-             if(cache.eldest != null) {
-               entry = (CacheEntry) cache.eldest;
-               cache.eldest = null;
-               entry.state = docs.captureState(entry.state);
+
+            // nocommit -- why scanCnt > 1?
+            //if (docs.canCaptureState() && scanCnt > 1) {
+
+            if (docs.canCaptureState()) {
+              // Store in cache
+              if (cache.eldest != null) {
+                entry = (CacheEntry) cache.eldest;
+                cache.eldest = null;
+                docs.captureState(entry);
+                entry.term.copy((TermRef) bytesReader.term);
               } else {
-                entry = new CacheEntry();
-                entry.state = docs.captureState(null);
+                entry = docs.captureState(null);
+                entry.term = (TermRef) bytesReader.term.clone();
               }
               entry.freq = docFreq;
               entry.termUpTo = termUpto;
+              entry.filePointer = in.getFilePointer();
             
-              entry.term = (TermRef) bytesReader.term.clone();
-             
               cache.put(entry.term, entry);
             }
             return SeekStatus.FOUND;
@@ -461,22 +479,42 @@ public class StandardTermsDictReader extends FieldsProducer {
     }
   }
 
-  private class CacheEntry {
+  // nocommit -- scrutinize API
+  public static class CacheEntry {
     int termUpTo;
     int freq;
-    State state;
+    long filePointer;
     TermRef term;
   }
+
+  private static final int MAX_CACHE_SIZE = 1024;
   
   /**
    * Per-thread resources managed by ThreadLocal
    */
-  private final class ThreadResources {
+  private static final class ThreadResources {
     // Used for caching the least recently looked-up Terms
-    ReuseLRUCache termInfoCache;
+    final ReuseLRUCache cache;
+    final TermsEnum termsEnum;
+
+    ThreadResources(TermsEnum termsEnum, long numTerms) {
+      final int cacheSize;
+      if (numTerms >= MAX_CACHE_SIZE) {
+        cacheSize = MAX_CACHE_SIZE;
+      } else if (numTerms < 1) {
+        cacheSize = 1;
+      } else {
+        cacheSize = (int) numTerms;
+      }
+
+      cache = new ReuseLRUCache(cacheSize);
+      this.termsEnum = termsEnum;
+    }
   }
-  
-  private class ReuseLRUCache extends LinkedHashMap {
+
+  // nocommit -- wonder if simple double-barrel LRU cache
+  // would be better
+  private static class ReuseLRUCache extends LinkedHashMap {
     
     private final static float LOADFACTOR = 0.75f;
     private int cacheSize;
@@ -486,18 +524,25 @@ public class StandardTermsDictReader extends FieldsProducer {
      * Creates a last-recently-used cache with the specified size. 
      */
     public ReuseLRUCache(int cacheSize) {
+      // nocommit -- we should not init cache w/ full
+      // capacity?  init it at 0, and only start evicting
+      // once #entries is over our max
       super((int) Math.ceil(cacheSize/ LOADFACTOR) + 1, LOADFACTOR, true);
       this.cacheSize = cacheSize;
     }
     
     protected boolean removeEldestEntry(Map.Entry eldest) {
       boolean remove = size() > ReuseLRUCache.this.cacheSize;
-      if(remove) {
+      if (remove) {
         this.eldest = eldest.getValue();
       } 
       return remove;
     }
-    
+
+    // nocommit -- not needed?  we don't need to sync since
+    // only one thread works with this?
+
+    /*
     @Override
     public synchronized Object put(Object key, Object value) {
       // TODO Auto-generated method stub
@@ -509,6 +554,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       // TODO Auto-generated method stub
       return super.get(key);
     }
+    */
   }
 
 }

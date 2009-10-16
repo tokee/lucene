@@ -83,8 +83,9 @@ public final class StandardDocsWriter extends DocsConsumer {
 
   public void startTerm() {
     freqStart = out.getFilePointer();
-    if (!omitTermFreqAndPositions)
+    if (!omitTermFreqAndPositions) {
       posWriter.startTerm();
+    }
     skipListWriter.resetSkip();
   }
 
@@ -178,7 +179,7 @@ public final class StandardDocsWriter extends DocsConsumer {
       if (Codec.DEBUG) {
         System.out.println(Thread.currentThread().getName() + ":  writeSkip @ freqFP=" + out.getFilePointer() + " freqStartFP=" + freqStart);
       }
-      termsOut.writeVLong(skipListWriter.writeSkip(out)-freqStart);
+      termsOut.writeVInt((int) (skipListWriter.writeSkip(out)-freqStart));
     }
      
     if (!omitTermFreqAndPositions) {
@@ -194,8 +195,9 @@ public final class StandardDocsWriter extends DocsConsumer {
   }
 
   public void close() throws IOException {
-    if (Codec.DEBUG)
+    if (Codec.DEBUG) {
       System.out.println("docs writer close pointer=" + out.getFilePointer());
+    }
     try {
       out.close();
     } finally {

@@ -30,6 +30,7 @@ import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 
 /** Concrete class that reads the current doc/freq/skip
  *  postings format */
@@ -519,15 +520,14 @@ public class SepDocsReader extends DocsProducer {
     }
 
     @Override
-    public State captureState(State reusableState) {
+    public CacheEntry captureState(CacheEntry reusableState) {
       // TODO Auto-generated method stub
       return null;
     }
 
     @Override
-    public void setState(State state) throws IOException {
+    public void setState(CacheEntry state, int docFreq) throws IOException {
       // TODO Auto-generated method stub
-      
     }
   }
 }
