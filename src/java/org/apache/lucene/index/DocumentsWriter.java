@@ -975,12 +975,9 @@ final class DocumentsWriter {
     boolean any = false;
 
     // Delete by term
-    Iterator iter = deletesFlushed.terms.entrySet().iterator();
-    
     try {
-      while (iter.hasNext()) {
-        Entry entry = (Entry) iter.next();
-        Term term = (Term) entry.getKey();
+      for (Entry<Term, BufferedDeletes.Num> entry: deletesFlushed.terms.entrySet()) {
+        Term term = entry.getKey();
 
         DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field, new TermRef(term.text));
         if (docs != null) {
@@ -1000,9 +997,8 @@ final class DocumentsWriter {
     }
 
     // Delete by docID
-    iter = deletesFlushed.docIDs.iterator();
-    while(iter.hasNext()) {
-      int docID = ((Integer) iter.next()).intValue();
+    for (Integer docIdInt : deletesFlushed.docIDs) {
+      int docID = docIdInt.intValue();
       if (docID >= docIDStart && docID < docEnd) {
         reader.deleteDocument(docID-docIDStart);
         any = true;
@@ -1011,11 +1007,9 @@ final class DocumentsWriter {
 
     // Delete by query
     IndexSearcher searcher = new IndexSearcher(reader);
-    iter = deletesFlushed.queries.entrySet().iterator();
-    while(iter.hasNext()) {
-      Entry entry = (Entry) iter.next();
-      Query query = (Query) entry.getKey();
-      int limit = ((Integer) entry.getValue()).intValue();
+    for (Entry<Query, Integer> entry : deletesFlushed.queries.entrySet()) {
+      Query query = entry.getKey();
+      int limit = entry.getValue().intValue();
       Weight weight = query.weight(searcher);
       Scorer scorer = weight.scorer(reader, true, false);
       if (scorer != null) {
@@ -1037,7 +1031,7 @@ final class DocumentsWriter {
   // delete term will be applied to those documents as well
   // as the disk segments.
   synchronized private void addDeleteTerm(Term term, int docCount) {
-    BufferedDeletes.Num num = (BufferedDeletes.Num) deletesInRAM.terms.get(term);
+    BufferedDeletes.Num num = deletesInRAM.terms.get(term);
     final int docIDUpto = flushedDocCount + docCount;
     if (num == null)
       deletesInRAM.terms.put(term, new BufferedDeletes.Num(docIDUpto));

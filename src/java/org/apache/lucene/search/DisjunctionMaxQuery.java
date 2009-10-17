@@ -209,7 +209,7 @@ public class DisjunctionMaxQuery extends Query {
    * @return a copy of us (but reuse, don't copy, our subqueries) */
   public Object clone() {
     DisjunctionMaxQuery clone = (DisjunctionMaxQuery)super.clone();
-    clone.disjuncts = (ArrayList)this.disjuncts.clone();
+    clone.disjuncts = (ArrayList<Query>)this.disjuncts.clone();
     return clone;
   }
 

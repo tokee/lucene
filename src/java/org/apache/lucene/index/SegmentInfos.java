@@ -42,7 +42,7 @@ import java.util.Map;
  * <p><b>NOTE:</b> This API is new and still experimental
  * (subject to change suddenly in the next release)</p>
  */
-public final class SegmentInfos extends Vector {
+public final class SegmentInfos extends Vector<SegmentInfo> {
 
   /** The file format version, a negative number. */
   /* Works since counter, the old 1st entry, is always >= 0 */
@@ -108,7 +108,7 @@ public final class SegmentInfos extends Vector {
                                    // or wrote; this is normally the same as generation except if
                                    // there was an IOException that had interrupted a commit
 
-  private Map userData = Collections.EMPTY_MAP;       // Opaque Map<String, String> that user can specify during IndexWriter.commit
+  private Map<String,String> userData = Collections.<String,String>emptyMap();       // Opaque Map<String, String> that user can specify during IndexWriter.commit
 
   /**
    * If non-null, information about loading segments_N files
@@ -275,10 +275,10 @@ public final class SegmentInfos extends Vector {
         } else if (0 != input.readByte()) {
           userData = Collections.singletonMap("userData", input.readString());
         } else {
-          userData = Collections.EMPTY_MAP;
+          userData = Collections.<String,String>emptyMap();
         }
       } else {
-        userData = Collections.EMPTY_MAP;
+        userData = Collections.<String,String>emptyMap();
       }
 
       if (format <= FORMAT_CHECKSUM) {
@@ -383,9 +383,9 @@ public final class SegmentInfos extends Vector {
     for(int i=0;i<sis.size();i++) {
       // nocommit
       assert sis.info(i).getCodec() != null;
-      sis.set(i, sis.info(i).clone());
+      sis.set(i, (SegmentInfo) sis.info(i).clone());
     }
-    sis.userData = new HashMap(userData);
+    sis.userData = new HashMap<String,String>(userData);
     return sis;
   }
 
@@ -446,7 +446,7 @@ public final class SegmentInfos extends Vector {
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
    */
-  public static Map readCurrentUserData(Directory directory, Codecs codecs)
+  public static Map<String,String> readCurrentUserData(Directory directory, Codecs codecs)
     throws CorruptIndexException, IOException {
     SegmentInfos sis = new SegmentInfos();
     sis.read(directory, codecs);
@@ -825,8 +825,8 @@ public final class SegmentInfos extends Vector {
    *  associated with any "external" segments are skipped).
    *  The returned collection is recomputed on each
    *  invocation.  */
-  public Collection files(Directory dir, boolean includeSegmentsFile) throws IOException {
-    HashSet files = new HashSet();
+  public Collection<String> files(Directory dir, boolean includeSegmentsFile) throws IOException {
+    HashSet<String> files = new HashSet<String>();
     if (includeSegmentsFile) {
       files.add(getCurrentSegmentFileName());
     }
@@ -920,13 +920,13 @@ public final class SegmentInfos extends Vector {
     return buffer.toString();
   }
 
-  public Map getUserData() {
+  public Map<String,String> getUserData() {
     return userData;
   }
 
-  void setUserData(Map data) {
+  void setUserData(Map<String,String> data) {
     if (data == null) {
-      userData = Collections.EMPTY_MAP;
+      userData = Collections.<String,String>emptyMap();
     } else {
       userData = data;
     }
