@@ -503,28 +503,28 @@ public class StandardTermsDictReader extends FieldsProducer {
 
   // TODO: -- wonder if simple double-barrel LRU cache
   // would be better
-  private static class ReuseLRUCache<K, V> extends LinkedHashMap<K,V> {
-    
+  private static class ReuseLRUCache<K,V> extends LinkedHashMap<K, V> {
+
     private final static float LOADFACTOR = 0.75f;
     private int cacheSize;
     V eldest;
 
     /**
-     * Creates a last-recently-used cache with the specified size. 
+     * Creates a last-recently-used cache with the specified size.
      */
     public ReuseLRUCache(int cacheSize) {
       // TODO: -- we should not init cache w/ full
-      // capacity?  init it at 0, and only start evicting
+      // capacity? init it at 0, and only start evicting
       // once #entries is over our max
-      super((int) Math.ceil(cacheSize/ LOADFACTOR) + 1, LOADFACTOR, true);
+      super((int) Math.ceil(cacheSize / LOADFACTOR) + 1, LOADFACTOR, true);
       this.cacheSize = cacheSize;
     }
-    
-    protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
+
+    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
       boolean remove = size() > ReuseLRUCache.this.cacheSize;
       if (remove) {
         this.eldest = eldest.getValue();
-      } 
+      }
       return remove;
     }
   }
