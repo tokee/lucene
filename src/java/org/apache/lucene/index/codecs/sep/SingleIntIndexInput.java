@@ -17,10 +17,11 @@ package org.apache.lucene.index.codecs.sep;
  * limitations under the License.
  */
 
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.index.codecs.Codec;
 import java.io.IOException;
+
+import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IndexInput;
 
 /** Reads IndexInputs written with {@link
  * SingleIntIndexoutput} */
@@ -71,8 +72,13 @@ public class SingleIntIndexInput extends IntIndexInput {
       return Long.toString(in.getFilePointer());
     }
   }
-
-  private static class Index extends IntIndexInput.Index {
+  
+  class State extends IndexState {
+    long fp;
+    boolean first;
+  }
+  
+  class Index extends IntIndexInput.Index {
     private long fp;
     boolean first = true;
 
@@ -103,6 +109,25 @@ public class SingleIntIndexInput extends IntIndexInput {
     public String toString() {
       return Long.toString(fp);
     }
+
+    // nocommit handle with set and/or clone?
+    @Override
+    public IndexState captureState() {
+      State state = SingleIntIndexInput.this.new State();
+      state.fp = fp;
+      state.first = first;
+      return state;
+    }
+
+    // nocommit handle with set and/or clone?
+    @Override
+    public void setState(IndexState state) {
+      State iState = (State) state;
+      this.fp = iState.fp;
+      this.first = iState.first;
+      
+    }
+    
   }
 
   public Index index() {

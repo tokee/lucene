@@ -169,5 +169,28 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
       fp = idx.fp;
       upto = idx.upto;
     }
+    
+    public class State extends IndexState {
+      long fp;
+      int upto;
+    }
+
+    // nocommit handle with set and/or clone?
+    @Override
+    public IndexState captureState() {
+      State state = new State();
+      state.fp = fp;
+      state.upto = upto;
+      return state;
+    }
+
+    // nocommit handle with set and/or clone?
+    @Override
+    public void setState(IndexState state) {
+      State iState = (State) state;
+      this.fp = iState.fp;
+      this.upto = iState.upto;
+      
+    }
   }
 }

@@ -20,17 +20,20 @@ package org.apache.lucene.index.codecs.sep;
 import java.io.IOException;
 import java.util.Collection;
 
+import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.IndexFileNames;
+import org.apache.lucene.index.PositionsEnum;
+import org.apache.lucene.index.SegmentInfo;
+import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.DocsProducer;
+import org.apache.lucene.index.codecs.sep.IntIndexInput.IndexState;
+import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.index.codecs.DocsProducer;
 import org.apache.lucene.util.Bits;
-import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.DocsEnum;
-import org.apache.lucene.index.PositionsEnum;
-import org.apache.lucene.index.IndexFileNames;
-import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
+
+import sun.security.util.PendingException;
 
 /** Concrete class that reads the current doc/freq/skip
  *  postings format */
@@ -60,6 +63,7 @@ public class SepDocsReader extends DocsProducer {
 
       // nocommit -- freqIn is null if omitTF?
       final String frqFileName = IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.FREQ_EXTENSION);
+
       freqIn = intFactory.openInput(dir, frqFileName);
 
       final String docFileName = IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.DOC_EXTENSION);
@@ -67,7 +71,7 @@ public class SepDocsReader extends DocsProducer {
 
       skipIn = dir.openInput(IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.SKIP_EXTENSION), readBufferSize);
       if (segmentInfo.getHasProx()) {
-        final String posFileName = IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.POS_EXTENSION);
+        //final String posFileName = IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.POS_EXTENSION);
         posReader = new SepPositionsReader(dir, segmentInfo, readBufferSize, intFactory);
       } else {
         posReader = null;
@@ -87,6 +91,7 @@ public class SepDocsReader extends DocsProducer {
     SepPositionsReader.files(segmentInfo, files);
   }
 
+  @Override
   public void start(IndexInput termsIn) throws IOException {
     this.termsIn = termsIn;
 
@@ -100,6 +105,7 @@ public class SepDocsReader extends DocsProducer {
     }
   }
 
+  @Override
   public Reader reader(FieldInfo fieldInfo, IndexInput termsIn) throws IOException {
 
     final SepPositionsReader.TermsDictReader posReader2;
@@ -112,6 +118,7 @@ public class SepDocsReader extends DocsProducer {
     return new TermsDictReader(fieldInfo, posReader2, termsIn);
   }
 
+  @Override
   public void close() throws IOException {
     try {
       if (freqIn != null)
@@ -167,7 +174,8 @@ public class SepDocsReader extends DocsProducer {
         docFreq = 1;
       }
     }
-
+    
+    @Override
     public void readTerm(int docFreq, boolean isIndexTerm) throws IOException {
 
       this.docFreq = docFreq;
@@ -272,6 +280,7 @@ public class SepDocsReader extends DocsProducer {
         }
       }
 
+      @Override
       public int next() throws IOException {
 
         if (Codec.DEBUG) {
@@ -419,6 +428,7 @@ public class SepDocsReader extends DocsProducer {
         return positions;
       }
 
+      @Override
       public int advance(int target) throws IOException {
 
         // TODO: jump right to next() if target is < X away
@@ -518,16 +528,79 @@ public class SepDocsReader extends DocsProducer {
         return doc;
       }
     }
+    
+    public class TermDictsReaderState extends CacheEntry {
+      IndexState freqIndexState;
+      long skipOffset;
+      IndexState posIndexState;
+      
+      long skipInPos;
+      IndexState docIndexState;
+      public long payloadOffset;
+      public long payloadPos;
+      public int posSkipCount;
 
-    @Override
-    public CacheEntry captureState(CacheEntry reusableState) {
-      // TODO Auto-generated method stub
-      return null;
+      
     }
 
+    // nocommit: rought start
+    @Override
+    public CacheEntry captureState(CacheEntry reusableState) throws IOException {
+      TermDictsReaderState state;
+      if (reusableState == null) {
+        state = new TermDictsReaderState();
+      } else {
+        state = (TermDictsReaderState) reusableState;
+      }
+      if (posReader != null) {
+        state.posIndexState = posReader.posIndex.captureState();
+        state.payloadOffset = posReader.payloadOffset;
+        if(posReader.positions != null) {
+          state.posSkipCount = posReader.positions.posSkipCount;
+        }
+      }
+      if(freqIndex != null) {
+        state.freqIndexState = freqIndex.captureState();
+      } else {
+        state.freqIndexState = null;
+      }
+      state.docIndexState = docIndex.captureState();
+      state.skipInPos = skipIn.getFilePointer();
+      state.skipOffset = skipOffset;
+      
+      return state;
+    }
+
+    // nocommit: rought start
     @Override
     public void setState(CacheEntry state, int docFreq) throws IOException {
-      // TODO Auto-generated method stub
+      TermDictsReaderState readerState = (TermDictsReaderState) state;
+      skipOffset = readerState.skipOffset;
+
+      this.docFreq = docFreq;
+      
+      if (posReader != null) {
+        SepDocsReader.this.posReader.payloadIn.seek(readerState.payloadPos);
+        posReader.posIndex.setState(readerState.posIndexState);
+        posReader.payloadOffset = readerState.payloadOffset;
+        if (posReader.positions != null) {
+          //nocommit
+          posReader.positions.pendingPosIndex.setState(readerState.posIndexState);
+          //posReader.positions.payloadPending = true;
+          posReader.positions.seekPending = true;
+          posReader.positions.payloadOffset = posReader.payloadOffset;
+        }
+      }
+      if(readerState.freqIndexState != null) {
+        freqIndex.setState(readerState.freqIndexState);
+      }
+      docIndex.setState(readerState.docIndexState);
+      skipIn.seek(readerState.skipInPos);
+    }
+    
+    @Override
+    public boolean canCaptureState() {
+      return true;
     }
   }
 }
@@ -535,15 +608,19 @@ public class SepDocsReader extends DocsProducer {
 /** Returned when someone asks for positions() enum on field
  *  with omitTf true */
 class FakePositionsEnum extends PositionsEnum {
+  @Override
   public int next() {
     return 0;
   }
+  @Override
   public int getPayloadLength() {
     return 0;
   }
+  @Override
   public boolean hasPayload() {
     return false;
   }
+  @Override
   public byte[] getPayload(byte[] data, int offset) {
     return null;
   }

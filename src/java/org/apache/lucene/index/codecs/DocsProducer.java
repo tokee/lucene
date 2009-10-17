@@ -48,7 +48,7 @@ public abstract class DocsProducer {
     public abstract DocsEnum docs(Bits deletedDocs) throws IOException;
     
     // nocommit: fooling around with reusable
-    public abstract CacheEntry captureState(CacheEntry reusableState);
+    public abstract CacheEntry captureState(CacheEntry reusableState) throws IOException;
     
     public abstract void setState(CacheEntry state, int docFreq) throws IOException;
     

@@ -297,7 +297,7 @@ class PulsingDocsReader extends DocsProducer {
     }
 
     @Override
-    public CacheEntry captureState(CacheEntry reusableState) {
+    public CacheEntry captureState(CacheEntry reusableState) throws IOException {
       CacheEntry cacheEntry = wrappedReader.captureState(reusableState);
       cacheEntry.docs = new Document[docs.length];
       for(int i = 0; i < docs.length; i++) {

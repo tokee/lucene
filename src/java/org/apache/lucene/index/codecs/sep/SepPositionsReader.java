@@ -142,7 +142,7 @@ public class SepPositionsReader extends PositionsProducer {
 
       final boolean storePayloads;
 
-      boolean payloadPending;                     // True if we must skip payload beore reading next position
+      boolean payloadPending;                     // True if we must skip payload before reading next position
 
       long payloadOffset;
 
@@ -150,7 +150,7 @@ public class SepPositionsReader extends PositionsProducer {
       int payloadLength;
       int posSkipCount;
 
-      private boolean seekPending;
+      boolean seekPending;
 
       SegmentPositionsEnum(IntIndexInput.Index posIndex, long payloadOffset) throws IOException {
         //posIn = SepPositionsReader.this.posIn.reader();

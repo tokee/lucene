@@ -31,6 +31,8 @@ public abstract class IntIndexInput {
   public abstract void close() throws IOException;
 
   public abstract Index index() throws IOException;
+  
+  public class IndexState {};
 
   public abstract static class Index {
 
@@ -43,6 +45,12 @@ public abstract class IntIndexInput {
     public abstract void seek(IntIndexInput.Reader stream) throws IOException;
 
     public abstract void set(Index other);
+    
+    // nocommit handle with set and/or clone?
+    public abstract IndexState captureState();
+    
+    // nocommit handle with set and/or clone?
+    public abstract void setState(IndexState state);
   }
 
   public static final class BulkReadResult {
