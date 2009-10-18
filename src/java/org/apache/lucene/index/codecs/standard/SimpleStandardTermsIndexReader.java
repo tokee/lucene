@@ -115,6 +115,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     } finally {
       if (indexDivisor != -1) {
         in.close();
+        trimByteBlock();
         indexLoaded = true;
         this.in = null;
       } else {
@@ -123,6 +124,35 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       }
     }
   }
+
+  /* Called when index is fully loaded.  We know we will use
+   * no more bytes in the final byte[], so trim it down to
+   * its actual usagee.  This substantially reduces memory
+   * usage of SegmentReader searching a tiny segment. */
+  private final void trimByteBlock() {
+    if (blockUpto != 0) {
+      if (blockOffset == 0) {
+        // nocommit -- should not happen?  fields w/ no terms
+        // are not written by STDW.  hmmm it does
+        // happen... must explain why
+        // assert false;
+        blocks[blockUpto] = null;
+      } else {
+        byte[] last = new byte[blockOffset];
+        System.arraycopy(blocks[blockUpto], 0, last, 0, blockOffset);
+        blocks[blockUpto] = last;
+      }
+    } else {
+      // nocommit -- we shouldn't get here, but we do -- fix it!
+    }
+  }
+
+  // nocommit -- we can record precisely how many bytes are
+  // required during indexing, save that into file, and be
+  // precise when we allocate the blocks; we even don't need
+  // to use blocks anymore (though my still want to, to
+  // prevent allocation failure due to mem fragmentation on
+  // 32bit)
 
   // Fixed size byte blocks, to hold all term bytes; these
   // blocks are shared across fields
@@ -432,6 +462,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         it.next().loadTermsIndex();
       }
       indexLoaded = true;
+      trimByteBlock();
     }
   }
 
