@@ -83,8 +83,8 @@ class DefaultCodecs extends Codecs {
   }
 
   public Codec getWriter(SegmentWriteState state) {
-    //return lookup("Standard");
-    return lookup("Pulsing");
+    return lookup("Standard");
+    //return lookup("Pulsing");
     //return lookup("Sep");
     //return lookup("IntBlock");
   }
