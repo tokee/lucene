@@ -18,6 +18,7 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
+import java.io.Closeable;
 
 /** TermDocs provides an interface for enumerating &lt;document, frequency&gt;
  pairs for a term.  <p> The document portion names each document containing
@@ -29,7 +30,7 @@ import java.io.IOException;
  @deprecated Use {@link DocsEnum} instead
 */
 
-public interface TermDocs {
+public interface TermDocs extends Closeable {
   /** Sets this to the data for a term.
    * The enumeration is reset to the start of the data for this term.
    */

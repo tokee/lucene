@@ -18,6 +18,7 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
+import java.io.Closeable;
 
 /** Abstract class for enumerating terms.
 
@@ -25,7 +26,7 @@ import java.io.IOException;
   the enumeration is greater than all that precede it.
 * @deprecated Use TermsEnum instead */
 
-public abstract class TermEnum {
+public abstract class TermEnum implements Closeable {
   /** Increments the enumeration to the next element.  True if one exists.*/
   public abstract boolean next() throws IOException;
 

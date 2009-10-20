@@ -26,20 +26,20 @@ import org.apache.lucene.document.NumericField; // for javadocs
 /**
  * A range filter built on top of a cached single term field (in {@link FieldCache}).
  * 
- * <p>FieldCacheRangeFilter builds a single cache for the field the first time it is used.
- * Each subsequent FieldCacheRangeFilter on the same field then reuses this cache,
+ * <p>{@code FieldCacheRangeFilter} builds a single cache for the field the first time it is used.
+ * Each subsequent {@code FieldCacheRangeFilter} on the same field then reuses this cache,
  * even if the range itself changes. 
  * 
- * <p>This means that FieldCacheRangeFilter is much faster (sometimes more than 100x as fast) 
- * as building a {@link TermRangeFilter} (or {@link ConstantScoreRangeQuery} on a {@link TermRangeFilter})
- * for each query, if using a {@link #newStringRange}. However, if the range never changes it
- * is slower (around 2x as slow) than building a CachingWrapperFilter on top of a single TermRangeFilter.
+ * <p>This means that {@code FieldCacheRangeFilter} is much faster (sometimes more than 100x as fast) 
+ * as building a {@link TermRangeFilter}, if using a {@link #newStringRange}.
+ * However, if the range never changes it is slower (around 2x as slow) than building
+ * a CachingWrapperFilter on top of a single {@link TermRangeFilter}.
  *
  * For numeric data types, this filter may be significantly faster than {@link NumericRangeFilter}.
  * Furthermore, it does not need the numeric values encoded by {@link NumericField}. But
  * it has the problem that it only works with exact one value/document (see below).
  *
- * <p>As with all {@link FieldCache} based functionality, FieldCacheRangeFilter is only valid for 
+ * <p>As with all {@link FieldCache} based functionality, {@code FieldCacheRangeFilter} is only valid for 
  * fields which exact one term for each document (except for {@link #newStringRange}
  * where 0 terms are also allowed). Due to a restriction of {@link FieldCache}, for numeric ranges
  * all terms that do not have a numeric value, 0 is assumed.
@@ -52,15 +52,15 @@ import org.apache.lucene.document.NumericField; // for javadocs
  * that create a correct instance for different data types supported by {@link FieldCache}.
  */
 
-public abstract class FieldCacheRangeFilter extends Filter {
+public abstract class FieldCacheRangeFilter<T> extends Filter {
   final String field;
   final FieldCache.Parser parser;
-  final Object lowerVal;
-  final Object upperVal;
+  final T lowerVal;
+  final T upperVal;
   final boolean includeLower;
   final boolean includeUpper;
   
-  private FieldCacheRangeFilter(String field, FieldCache.Parser parser, Object lowerVal, Object upperVal, boolean includeLower, boolean includeUpper) {
+  private FieldCacheRangeFilter(String field, FieldCache.Parser parser, T lowerVal, T upperVal, boolean includeLower, boolean includeUpper) {
     this.field = field;
     this.parser = parser;
     this.lowerVal = lowerVal;
@@ -73,16 +73,16 @@ public abstract class FieldCacheRangeFilter extends Filter {
   public abstract DocIdSet getDocIdSet(IndexReader reader) throws IOException;
 
   /**
-   * Creates a string range query using {@link FieldCache#getStringIndex}. This works with all
+   * Creates a string range filter using {@link FieldCache#getStringIndex}. This works with all
    * fields containing zero or one term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newStringRange(String field, String lowerVal, String upperVal, boolean includeLower, boolean includeUpper) {
-    return new FieldCacheRangeFilter(field, null, lowerVal, upperVal, includeLower, includeUpper) {
+  public static FieldCacheRangeFilter<String> newStringRange(String field, String lowerVal, String upperVal, boolean includeLower, boolean includeUpper) {
+    return new FieldCacheRangeFilter<String>(field, null, lowerVal, upperVal, includeLower, includeUpper) {
       public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
         final FieldCache.StringIndex fcsi = FieldCache.DEFAULT.getStringIndex(reader, field);
-        final int lowerPoint = fcsi.binarySearchLookup((String) lowerVal);
-        final int upperPoint = fcsi.binarySearchLookup((String) upperVal);
+        final int lowerPoint = fcsi.binarySearchLookup(lowerVal);
+        final int upperPoint = fcsi.binarySearchLookup(upperVal);
         
         final int inclusiveLowerPoint, inclusiveUpperPoint;
 
@@ -129,25 +129,25 @@ public abstract class FieldCacheRangeFilter extends Filter {
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getBytes(IndexReader,String)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getBytes(IndexReader,String)}. This works with all
    * byte fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newByteRange(String field, Byte lowerVal, Byte upperVal, boolean includeLower, boolean includeUpper) {
+  public static FieldCacheRangeFilter<Byte> newByteRange(String field, Byte lowerVal, Byte upperVal, boolean includeLower, boolean includeUpper) {
     return newByteRange(field, null, lowerVal, upperVal, includeLower, includeUpper);
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getBytes(IndexReader,String,FieldCache.ByteParser)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getBytes(IndexReader,String,FieldCache.ByteParser)}. This works with all
    * byte fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newByteRange(String field, FieldCache.ByteParser parser, Byte lowerVal, Byte upperVal, boolean includeLower, boolean includeUpper) {
-    return new FieldCacheRangeFilter(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
+  public static FieldCacheRangeFilter<Byte> newByteRange(String field, FieldCache.ByteParser parser, Byte lowerVal, Byte upperVal, boolean includeLower, boolean includeUpper) {
+    return new FieldCacheRangeFilter<Byte>(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
       public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
         final byte inclusiveLowerPoint, inclusiveUpperPoint;
         if (lowerVal != null) {
-          final byte i = ((Number) lowerVal).byteValue();
+          final byte i = lowerVal.byteValue();
           if (!includeLower && i == Byte.MAX_VALUE)
             return DocIdSet.EMPTY_DOCIDSET;
           inclusiveLowerPoint = (byte) (includeLower ?  i : (i + 1));
@@ -155,7 +155,7 @@ public abstract class FieldCacheRangeFilter extends Filter {
           inclusiveLowerPoint = Byte.MIN_VALUE;
         }
         if (upperVal != null) {
-          final byte i = ((Number) upperVal).byteValue();
+          final byte i = upperVal.byteValue();
           if (!includeUpper && i == Byte.MIN_VALUE)
             return DocIdSet.EMPTY_DOCIDSET;
           inclusiveUpperPoint = (byte) (includeUpper ? i : (i - 1));
@@ -178,25 +178,25 @@ public abstract class FieldCacheRangeFilter extends Filter {
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getShorts(IndexReader,String)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getShorts(IndexReader,String)}. This works with all
    * short fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newShortRange(String field, Short lowerVal, Short upperVal, boolean includeLower, boolean includeUpper) {
+  public static FieldCacheRangeFilter<Short> newShortRange(String field, Short lowerVal, Short upperVal, boolean includeLower, boolean includeUpper) {
     return newShortRange(field, null, lowerVal, upperVal, includeLower, includeUpper);
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getShorts(IndexReader,String,FieldCache.ShortParser)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getShorts(IndexReader,String,FieldCache.ShortParser)}. This works with all
    * short fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newShortRange(String field, FieldCache.ShortParser parser, Short lowerVal, Short upperVal, boolean includeLower, boolean includeUpper) {
-    return new FieldCacheRangeFilter(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
+  public static FieldCacheRangeFilter<Short> newShortRange(String field, FieldCache.ShortParser parser, Short lowerVal, Short upperVal, boolean includeLower, boolean includeUpper) {
+    return new FieldCacheRangeFilter<Short>(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
       public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
         final short inclusiveLowerPoint, inclusiveUpperPoint;
         if (lowerVal != null) {
-          short i = ((Number) lowerVal).shortValue();
+          short i = lowerVal.shortValue();
           if (!includeLower && i == Short.MAX_VALUE)
             return DocIdSet.EMPTY_DOCIDSET;
           inclusiveLowerPoint = (short) (includeLower ? i : (i + 1));
@@ -204,7 +204,7 @@ public abstract class FieldCacheRangeFilter extends Filter {
           inclusiveLowerPoint = Short.MIN_VALUE;
         }
         if (upperVal != null) {
-          short i = ((Number) upperVal).shortValue();
+          short i = upperVal.shortValue();
           if (!includeUpper && i == Short.MIN_VALUE)
             return DocIdSet.EMPTY_DOCIDSET;
           inclusiveUpperPoint = (short) (includeUpper ? i : (i - 1));
@@ -227,25 +227,25 @@ public abstract class FieldCacheRangeFilter extends Filter {
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getInts(IndexReader,String)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getInts(IndexReader,String)}. This works with all
    * int fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newIntRange(String field, Integer lowerVal, Integer upperVal, boolean includeLower, boolean includeUpper) {
+  public static FieldCacheRangeFilter<Integer> newIntRange(String field, Integer lowerVal, Integer upperVal, boolean includeLower, boolean includeUpper) {
     return newIntRange(field, null, lowerVal, upperVal, includeLower, includeUpper);
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getInts(IndexReader,String,FieldCache.IntParser)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getInts(IndexReader,String,FieldCache.IntParser)}. This works with all
    * int fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newIntRange(String field, FieldCache.IntParser parser, Integer lowerVal, Integer upperVal, boolean includeLower, boolean includeUpper) {
-    return new FieldCacheRangeFilter(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
+  public static FieldCacheRangeFilter<Integer> newIntRange(String field, FieldCache.IntParser parser, Integer lowerVal, Integer upperVal, boolean includeLower, boolean includeUpper) {
+    return new FieldCacheRangeFilter<Integer>(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
       public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
         final int inclusiveLowerPoint, inclusiveUpperPoint;
         if (lowerVal != null) {
-          int i = ((Number) lowerVal).intValue();
+          int i = lowerVal.intValue();
           if (!includeLower && i == Integer.MAX_VALUE)
             return DocIdSet.EMPTY_DOCIDSET;
           inclusiveLowerPoint = includeLower ? i : (i + 1);
@@ -253,7 +253,7 @@ public abstract class FieldCacheRangeFilter extends Filter {
           inclusiveLowerPoint = Integer.MIN_VALUE;
         }
         if (upperVal != null) {
-          int i = ((Number) upperVal).intValue();
+          int i = upperVal.intValue();
           if (!includeUpper && i == Integer.MIN_VALUE)
             return DocIdSet.EMPTY_DOCIDSET;
           inclusiveUpperPoint = includeUpper ? i : (i - 1);
@@ -276,25 +276,25 @@ public abstract class FieldCacheRangeFilter extends Filter {
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getLongs(IndexReader,String)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getLongs(IndexReader,String)}. This works with all
    * long fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newLongRange(String field, Long lowerVal, Long upperVal, boolean includeLower, boolean includeUpper) {
+  public static FieldCacheRangeFilter<Long> newLongRange(String field, Long lowerVal, Long upperVal, boolean includeLower, boolean includeUpper) {
     return newLongRange(field, null, lowerVal, upperVal, includeLower, includeUpper);
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getLongs(IndexReader,String,FieldCache.LongParser)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getLongs(IndexReader,String,FieldCache.LongParser)}. This works with all
    * long fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newLongRange(String field, FieldCache.LongParser parser, Long lowerVal, Long upperVal, boolean includeLower, boolean includeUpper) {
-    return new FieldCacheRangeFilter(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
+  public static FieldCacheRangeFilter<Long> newLongRange(String field, FieldCache.LongParser parser, Long lowerVal, Long upperVal, boolean includeLower, boolean includeUpper) {
+    return new FieldCacheRangeFilter<Long>(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
       public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
         final long inclusiveLowerPoint, inclusiveUpperPoint;
         if (lowerVal != null) {
-          long i = ((Number) lowerVal).longValue();
+          long i = lowerVal.longValue();
           if (!includeLower && i == Long.MAX_VALUE)
             return DocIdSet.EMPTY_DOCIDSET;
           inclusiveLowerPoint = includeLower ? i : (i + 1L);
@@ -302,7 +302,7 @@ public abstract class FieldCacheRangeFilter extends Filter {
           inclusiveLowerPoint = Long.MIN_VALUE;
         }
         if (upperVal != null) {
-          long i = ((Number) upperVal).longValue();
+          long i = upperVal.longValue();
           if (!includeUpper && i == Long.MIN_VALUE)
             return DocIdSet.EMPTY_DOCIDSET;
           inclusiveUpperPoint = includeUpper ? i : (i - 1L);
@@ -325,27 +325,27 @@ public abstract class FieldCacheRangeFilter extends Filter {
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getFloats(IndexReader,String)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getFloats(IndexReader,String)}. This works with all
    * float fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newFloatRange(String field, Float lowerVal, Float upperVal, boolean includeLower, boolean includeUpper) {
+  public static FieldCacheRangeFilter<Float> newFloatRange(String field, Float lowerVal, Float upperVal, boolean includeLower, boolean includeUpper) {
     return newFloatRange(field, null, lowerVal, upperVal, includeLower, includeUpper);
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getFloats(IndexReader,String,FieldCache.FloatParser)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getFloats(IndexReader,String,FieldCache.FloatParser)}. This works with all
    * float fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newFloatRange(String field, FieldCache.FloatParser parser, Float lowerVal, Float upperVal, boolean includeLower, boolean includeUpper) {
-    return new FieldCacheRangeFilter(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
+  public static FieldCacheRangeFilter<Float> newFloatRange(String field, FieldCache.FloatParser parser, Float lowerVal, Float upperVal, boolean includeLower, boolean includeUpper) {
+    return new FieldCacheRangeFilter<Float>(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
       public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
         // we transform the floating point numbers to sortable integers
         // using NumericUtils to easier find the next bigger/lower value
         final float inclusiveLowerPoint, inclusiveUpperPoint;
         if (lowerVal != null) {
-          float f = ((Number) lowerVal).floatValue();
+          float f = lowerVal.floatValue();
           if (!includeUpper && f > 0.0f && Float.isInfinite(f))
             return DocIdSet.EMPTY_DOCIDSET;
           int i = NumericUtils.floatToSortableInt(f);
@@ -354,7 +354,7 @@ public abstract class FieldCacheRangeFilter extends Filter {
           inclusiveLowerPoint = Float.NEGATIVE_INFINITY;
         }
         if (upperVal != null) {
-          float f = ((Number) upperVal).floatValue();
+          float f = upperVal.floatValue();
           if (!includeUpper && f < 0.0f && Float.isInfinite(f))
             return DocIdSet.EMPTY_DOCIDSET;
           int i = NumericUtils.floatToSortableInt(f);
@@ -378,27 +378,27 @@ public abstract class FieldCacheRangeFilter extends Filter {
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getDoubles(IndexReader,String)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getDoubles(IndexReader,String)}. This works with all
    * double fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newDoubleRange(String field, Double lowerVal, Double upperVal, boolean includeLower, boolean includeUpper) {
+  public static FieldCacheRangeFilter<Double> newDoubleRange(String field, Double lowerVal, Double upperVal, boolean includeLower, boolean includeUpper) {
     return newDoubleRange(field, null, lowerVal, upperVal, includeLower, includeUpper);
   }
   
   /**
-   * Creates a numeric range query using {@link FieldCache#getDoubles(IndexReader,String,FieldCache.DoubleParser)}. This works with all
+   * Creates a numeric range filter using {@link FieldCache#getDoubles(IndexReader,String,FieldCache.DoubleParser)}. This works with all
    * double fields containing exactly one numeric term in the field. The range can be half-open by setting one
    * of the values to <code>null</code>.
    */
-  public static FieldCacheRangeFilter newDoubleRange(String field, FieldCache.DoubleParser parser, Double lowerVal, Double upperVal, boolean includeLower, boolean includeUpper) {
-    return new FieldCacheRangeFilter(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
+  public static FieldCacheRangeFilter<Double> newDoubleRange(String field, FieldCache.DoubleParser parser, Double lowerVal, Double upperVal, boolean includeLower, boolean includeUpper) {
+    return new FieldCacheRangeFilter<Double>(field, parser, lowerVal, upperVal, includeLower, includeUpper) {
       public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
         // we transform the floating point numbers to sortable integers
         // using NumericUtils to easier find the next bigger/lower value
         final double inclusiveLowerPoint, inclusiveUpperPoint;
         if (lowerVal != null) {
-          double f = ((Number) lowerVal).doubleValue();
+          double f = lowerVal.doubleValue();
           if (!includeUpper && f > 0.0 && Double.isInfinite(f))
             return DocIdSet.EMPTY_DOCIDSET;
           long i = NumericUtils.doubleToSortableLong(f);
@@ -407,7 +407,7 @@ public abstract class FieldCacheRangeFilter extends Filter {
           inclusiveLowerPoint = Double.NEGATIVE_INFINITY;
         }
         if (upperVal != null) {
-          double f = ((Number) upperVal).doubleValue();
+          double f = upperVal.doubleValue();
           if (!includeUpper && f < 0.0 && Double.isInfinite(f))
             return DocIdSet.EMPTY_DOCIDSET;
           long i = NumericUtils.doubleToSortableLong(f);
@@ -464,6 +464,24 @@ public abstract class FieldCacheRangeFilter extends Filter {
     h ^= (includeLower ? 1549299360 : -365038026) ^ (includeUpper ? 1721088258 : 1948649653);
     return h;
   }
+
+  /** Returns the field name for this filter */
+  public String getField() { return field; }
+
+  /** Returns <code>true</code> if the lower endpoint is inclusive */
+  public boolean includesLower() { return includeLower; }
+  
+  /** Returns <code>true</code> if the upper endpoint is inclusive */
+  public boolean includesUpper() { return includeUpper; }
+
+  /** Returns the lower value of this range filter */
+  public T getLowerVal() { return lowerVal; }
+
+  /** Returns the upper value of this range filter */
+  public T getUpperVal() { return upperVal; }
+  
+  /** Returns the current numeric parser ({@code null} for {@code T} is {@code String}} */
+  public FieldCache.Parser getParser() { return parser; }
   
   static abstract class FieldCacheDocIdSet extends DocIdSet {
     private final IndexReader reader;

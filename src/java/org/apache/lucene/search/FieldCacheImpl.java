@@ -21,13 +21,10 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-import org.apache.lucene.document.NumericField; // javadoc
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.Terms;
@@ -49,12 +46,12 @@ import org.apache.lucene.util.FieldCacheSanityChecker;
  */
 class FieldCacheImpl implements FieldCache {
 	
-  private Map caches;
+  private Map<Class<?>,Cache> caches;
   FieldCacheImpl() {
     init();
   }
   private synchronized void init() {
-    caches = new HashMap(7);
+    caches = new HashMap<Class<?>,Cache>(7);
     caches.put(Byte.TYPE, new ByteCache(this));
     caches.put(Short.TYPE, new ShortCache(this));
     caches.put(Integer.TYPE, new IntCache(this));
@@ -70,23 +67,18 @@ class FieldCacheImpl implements FieldCache {
   }
   
   public CacheEntry[] getCacheEntries() {
-    List result = new ArrayList(17);
-    Iterator outerKeys = caches.keySet().iterator();
-    while (outerKeys.hasNext()) {
-      Class cacheType = (Class)outerKeys.next();
-      Cache cache = (Cache)caches.get(cacheType);
-      Iterator innerKeys = cache.readerCache.keySet().iterator();
-      while (innerKeys.hasNext()) {
+    List<CacheEntry> result = new ArrayList<CacheEntry>(17);
+    for(final Class<?> cacheType: caches.keySet()) {
+      Cache cache = caches.get(cacheType);
+      for (final Object readerKey : cache.readerCache.keySet()) {
         // we've now materialized a hard ref
-        Object readerKey = innerKeys.next();
+        
         // innerKeys was backed by WeakHashMap, sanity check
         // that it wasn't GCed before we made hard ref
         if (null != readerKey && cache.readerCache.containsKey(readerKey)) {
-          Map innerCache = ((Map)cache.readerCache.get(readerKey));
-          Iterator entrySetIterator = innerCache.entrySet().iterator();
-          while (entrySetIterator.hasNext()) {
-            Map.Entry mapEntry = (Map.Entry) entrySetIterator.next();
-            Entry entry = (Entry) mapEntry.getKey();
+          Map<Entry, Object> innerCache = cache.readerCache.get(readerKey);
+          for (final Map.Entry<Entry, Object> mapEntry : innerCache.entrySet()) {
+            Entry entry = mapEntry.getKey();
             result.add(new CacheEntryImpl(readerKey, entry.field,
                                           cacheType, entry.custom,
                                           mapEntry.getValue()));
@@ -94,17 +86,17 @@ class FieldCacheImpl implements FieldCache {
         }
       }
     }
-    return (CacheEntry[]) result.toArray(new CacheEntry[result.size()]);
+    return result.toArray(new CacheEntry[result.size()]);
   }
   
   private static final class CacheEntryImpl extends CacheEntry {
     private final Object readerKey;
     private final String fieldName;
-    private final Class cacheType;
+    private final Class<?> cacheType;
     private final Object custom;
     private final Object value;
     CacheEntryImpl(Object readerKey, String fieldName,
-                   Class cacheType,
+                   Class<?> cacheType,
                    Object custom,
                    Object value) {
         this.readerKey = readerKey;
@@ -121,7 +113,7 @@ class FieldCacheImpl implements FieldCache {
     }
     public Object getReaderKey() { return readerKey; }
     public String getFieldName() { return fieldName; }
-    public Class getCacheType() { return cacheType; }
+    public Class<?> getCacheType() { return cacheType; }
     public Object getCustom() { return custom; }
     public Object getValue() { return value; }
   }
@@ -146,19 +138,19 @@ class FieldCacheImpl implements FieldCache {
 
     final FieldCache wrapper;
 
-    final Map readerCache = new WeakHashMap();
+    final Map<Object,Map<Entry,Object>> readerCache = new WeakHashMap<Object,Map<Entry,Object>>();
     
     protected abstract Object createValue(IndexReader reader, Entry key)
         throws IOException;
 
     public Object get(IndexReader reader, Entry key) throws IOException {
-      Map innerCache;
+      Map<Entry,Object> innerCache;
       Object value;
       final Object readerKey = reader.getFieldCacheKey();
       synchronized (readerCache) {
-        innerCache = (Map) readerCache.get(readerKey);
+        innerCache = readerCache.get(readerKey);
         if (innerCache == null) {
-          innerCache = new HashMap();
+          innerCache = new HashMap<Entry,Object>();
           readerCache.put(readerKey, innerCache);
           value = null;
         } else {
@@ -252,7 +244,7 @@ class FieldCacheImpl implements FieldCache {
   // inherit javadocs
   public byte[] getBytes(IndexReader reader, String field, ByteParser parser)
       throws IOException {
-    return (byte[]) ((Cache)caches.get(Byte.TYPE)).get(reader, new Entry(field, parser));
+    return (byte[]) caches.get(Byte.TYPE).get(reader, new Entry(field, parser));
   }
 
   static final class ByteCache extends Cache {
@@ -261,7 +253,7 @@ class FieldCacheImpl implements FieldCache {
     }
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
-      Entry entry = (Entry) entryKey;
+      Entry entry = entryKey;
       String field = entry.field;
       ByteParser parser = (ByteParser) entry.custom;
       if (parser == null) {
@@ -303,7 +295,7 @@ class FieldCacheImpl implements FieldCache {
   // inherit javadocs
   public short[] getShorts(IndexReader reader, String field, ShortParser parser)
       throws IOException {
-    return (short[]) ((Cache)caches.get(Short.TYPE)).get(reader, new Entry(field, parser));
+    return (short[]) caches.get(Short.TYPE).get(reader, new Entry(field, parser));
   }
 
   static final class ShortCache extends Cache {
@@ -313,7 +305,7 @@ class FieldCacheImpl implements FieldCache {
 
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
-      Entry entry = (Entry) entryKey;
+      Entry entry =  entryKey;
       String field = entry.field;
       ShortParser parser = (ShortParser) entry.custom;
       if (parser == null) {
@@ -355,7 +347,7 @@ class FieldCacheImpl implements FieldCache {
   // inherit javadocs
   public int[] getInts(IndexReader reader, String field, IntParser parser)
       throws IOException {
-    return (int[]) ((Cache)caches.get(Integer.TYPE)).get(reader, new Entry(field, parser));
+    return (int[]) caches.get(Integer.TYPE).get(reader, new Entry(field, parser));
   }
 
   static final class IntCache extends Cache {
@@ -365,7 +357,7 @@ class FieldCacheImpl implements FieldCache {
 
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
-      Entry entry = (Entry) entryKey;
+      Entry entry = entryKey;
       String field = entry.field;
       IntParser parser = (IntParser) entry.custom;
       if (parser == null) {
@@ -425,7 +417,7 @@ class FieldCacheImpl implements FieldCache {
   public float[] getFloats(IndexReader reader, String field, FloatParser parser)
     throws IOException {
 
-    return (float[]) ((Cache)caches.get(Float.TYPE)).get(reader, new Entry(field, parser));
+    return (float[]) caches.get(Float.TYPE).get(reader, new Entry(field, parser));
   }
 
   static final class FloatCache extends Cache {
@@ -435,7 +427,7 @@ class FieldCacheImpl implements FieldCache {
 
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
-      Entry entry = (Entry) entryKey;
+      Entry entry = entryKey;
       String field = entry.field;
       FloatParser parser = (FloatParser) entry.custom;
       if (parser == null) {
@@ -492,7 +484,7 @@ class FieldCacheImpl implements FieldCache {
   // inherit javadocs
   public long[] getLongs(IndexReader reader, String field, FieldCache.LongParser parser)
       throws IOException {
-    return (long[]) ((Cache)caches.get(Long.TYPE)).get(reader, new Entry(field, parser));
+    return (long[]) caches.get(Long.TYPE).get(reader, new Entry(field, parser));
   }
 
   static final class LongCache extends Cache {
@@ -559,7 +551,7 @@ class FieldCacheImpl implements FieldCache {
   // inherit javadocs
   public double[] getDoubles(IndexReader reader, String field, FieldCache.DoubleParser parser)
       throws IOException {
-    return (double[]) ((Cache)caches.get(Double.TYPE)).get(reader, new Entry(field, parser));
+    return (double[]) caches.get(Double.TYPE).get(reader, new Entry(field, parser));
   }
 
   static final class DoubleCache extends Cache {
@@ -569,7 +561,7 @@ class FieldCacheImpl implements FieldCache {
 
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
-      Entry entry = (Entry) entryKey;
+      Entry entry = entryKey;
       String field = entry.field;
       FieldCache.DoubleParser parser = (FieldCache.DoubleParser) entry.custom;
       if (parser == null) {
@@ -617,7 +609,7 @@ class FieldCacheImpl implements FieldCache {
   // inherit javadocs
   public String[] getStrings(IndexReader reader, String field)
       throws IOException {
-    return (String[]) ((Cache)caches.get(String.class)).get(reader, new Entry(field, (Parser)null));
+    return (String[]) caches.get(String.class).get(reader, new Entry(field, (Parser)null));
   }
 
   static final class StringCache extends Cache {
@@ -657,7 +649,7 @@ class FieldCacheImpl implements FieldCache {
   // inherit javadocs
   public StringIndex getStringIndex(IndexReader reader, String field)
       throws IOException {
-    return (StringIndex) ((Cache)caches.get(StringIndex.class)).get(reader, new Entry(field, (Parser)null));
+    return (StringIndex) caches.get(StringIndex.class).get(reader, new Entry(field, (Parser)null));
   }
 
   static final class StringIndexCache extends Cache {

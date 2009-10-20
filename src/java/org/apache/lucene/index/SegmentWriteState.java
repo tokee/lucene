@@ -42,7 +42,7 @@ public class SegmentWriteState {
   public int numDocs;
   int numDocsInStore;
   // nocommit -- made public
-  public Collection flushedFiles;
+  public Collection<String> flushedFiles;
 
   // Actual codec used
   Codec codec;
@@ -82,7 +82,7 @@ public class SegmentWriteState {
     this.numDocsInStore = numDocsInStore;
     this.termIndexInterval = termIndexInterval;
     this.codec = codecs.getWriter(this);
-    flushedFiles = new HashSet();
+    flushedFiles = new HashSet<String>();
   }
 
   public String segmentFileName(String ext) {

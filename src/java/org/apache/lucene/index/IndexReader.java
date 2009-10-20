@@ -28,6 +28,7 @@ import org.apache.lucene.util.Bits;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.Closeable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -78,7 +79,7 @@ import java.util.Map;
  <code>IndexReader</code> instance; use your own
  (non-Lucene) objects instead.
 */
-public abstract class IndexReader implements Cloneable {
+public abstract class IndexReader implements Cloneable,Closeable {
 
   /**
    * Constants describing field properties, for example used for
@@ -537,7 +538,7 @@ public abstract class IndexReader implements Cloneable {
    *
    * @see #getCommitUserData()
    */
-  public static Map getCommitUserData(Directory directory) throws CorruptIndexException, IOException {
+  public static Map<String,String> getCommitUserData(Directory directory) throws CorruptIndexException, IOException {
     return SegmentInfos.readCurrentUserData(directory, Codecs.getDefault());
   }
 
@@ -557,7 +558,7 @@ public abstract class IndexReader implements Cloneable {
    *
    * @see #getCommitUserData(Directory)
    */
-  public Map getCommitUserData() {
+  public Map<String,String> getCommitUserData() {
     throw new UnsupportedOperationException("This reader does not support this method.");
   }
 
@@ -1059,7 +1060,7 @@ public abstract class IndexReader implements Cloneable {
    *  IndexReader#getCommitUserData}.
    * @throws IOException
    */
-  public final synchronized void flush(Map commitUserData) throws IOException {
+  public final synchronized void flush(Map<String, String> commitUserData) throws IOException {
     ensureOpen();
     commit(commitUserData);
   }
@@ -1086,7 +1087,7 @@ public abstract class IndexReader implements Cloneable {
    * (transactional semantics).
    * @throws IOException if there is a low-level IO error
    */
-  protected final synchronized void commit(Map commitUserData) throws IOException {
+  protected final synchronized void commit(Map<String, String> commitUserData) throws IOException {
     if (hasChanges) {
       doCommit(commitUserData);
     }
@@ -1095,7 +1096,7 @@ public abstract class IndexReader implements Cloneable {
 
   /** Implements commit.  NOTE: subclasses should override
    *  this.  In 3.0 this will become an abstract method. */
-  protected abstract void doCommit(Map commitUserData) throws IOException;
+  protected abstract void doCommit(Map<String, String> commitUserData) throws IOException;
 
   /**
    * Closes files associated with this index.
@@ -1121,7 +1122,7 @@ public abstract class IndexReader implements Cloneable {
    * @return Collection of Strings indicating the names of the fields.
    * @see IndexReader.FieldOption
    */
-  public abstract Collection getFieldNames(FieldOption fldOption);
+  public abstract Collection<String> getFieldNames(FieldOption fldOption);
 
   private final class DeletedDocsBits implements Bits {
     public boolean get(int docID) {
@@ -1251,7 +1252,7 @@ public abstract class IndexReader implements Cloneable {
    *  java.io.IOException}.  Note that if a commit is in
    *  progress while this method is running, that commit
    *  may or may not be returned array.  */
-  public static Collection listCommits(Directory dir) throws IOException {
+  public static Collection<IndexCommit> listCommits(Directory dir) throws IOException {
     return DirectoryReader.listCommits(dir);
   }
 

@@ -21,13 +21,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
+
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermRef;
-import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.util.ToStringUtils;
 import org.apache.lucene.queryParser.QueryParser; // for javadoc
 
 /**
@@ -70,7 +68,7 @@ public abstract class MultiTermQuery extends Query {
 
   private static final class ConstantScoreFilterRewrite extends RewriteMethod implements Serializable {
     public Query rewrite(IndexReader reader, MultiTermQuery query) {
-      Query result = new ConstantScoreQuery(new MultiTermQueryWrapperFilter(query));
+      Query result = new ConstantScoreQuery(new MultiTermQueryWrapperFilter<MultiTermQuery>(query));
       result.setBoost(query.getBoost());
       return result;
     }
@@ -245,7 +243,8 @@ public abstract class MultiTermQuery extends Query {
       // exhaust the enum before hitting either of the
       // cutoffs, we use ConstantBooleanQueryRewrite; else,
       // ConstantFilterRewrite:
-      final Collection pendingTerms = new ArrayList();
+      final Collection<TermRef> pendingTerms = new ArrayList<TermRef>();
+      final Collection<Term> oldApiPendingTerms = new ArrayList<Term>();
       final int docCountCutoff = (int) ((docCountPercent / 100.) * reader.maxDoc());
       final int termCountLimit = Math.min(BooleanQuery.getMaxClauseCount(), termCountCutoff);
       int docVisitCount = 0;
@@ -259,7 +258,7 @@ public abstract class MultiTermQuery extends Query {
           // first term must exist since termsEnum wasn't null
           assert term != null;
           do {
-            pendingTerms.add(term.clone());
+            pendingTerms.add((TermRef) term.clone());
             if (pendingTerms.size() >= termCountLimit || docVisitCount >= docCountCutoff) {
               // Too many terms -- cut our losses now and make a filter.
               Query result = new ConstantScoreQuery(new MultiTermQueryWrapperFilter(query));
@@ -277,10 +276,9 @@ public abstract class MultiTermQuery extends Query {
           // Enumeration is done, and we hit a small
           // enough number of terms & docs -- just make a
           // BooleanQuery, now
-          Iterator it = pendingTerms.iterator();
           BooleanQuery bq = new BooleanQuery(true);
-          while(it.hasNext()) {
-            TermQuery tq = new TermQuery(new Term(field, ((TermRef) it.next()).toString()));
+          for(TermRef termRef : pendingTerms) {
+            TermQuery tq = new TermQuery(new Term(field, termRef.toString()));
             bq.add(tq, BooleanClause.Occur.SHOULD);
           }
           // Strip scores
@@ -300,7 +298,7 @@ public abstract class MultiTermQuery extends Query {
           while(true) {
             Term t = enumerator.term();
             if (t != null) {
-              pendingTerms.add(t);
+              oldApiPendingTerms.add(t);
               // Loading the TermInfo from the terms dict here
               // should not be costly, because 1) the
               // query/filter will load the TermInfo when it
@@ -317,11 +315,10 @@ public abstract class MultiTermQuery extends Query {
               // Enumeration is done, and we hit a small
               // enough number of terms & docs -- just make a
               // BooleanQuery, now
-              Iterator it = pendingTerms.iterator();
               BooleanQuery bq = new BooleanQuery(true);
-              while(it.hasNext()) {
-                TermQuery tq = new TermQuery((Term) it.next());
-                bq.add(tq, BooleanClause.Occur.SHOULD);
+           	  for (final Term term: oldApiPendingTerms) {
+              	TermQuery tq = new TermQuery(term);
+              	bq.add(tq, BooleanClause.Occur.SHOULD);
               }
               // Strip scores
               Query result = new ConstantScoreQuery(new QueryWrapperFilter(bq));
@@ -336,11 +333,13 @@ public abstract class MultiTermQuery extends Query {
       }
     }
     
+    @Override
     public int hashCode() {
       final int prime = 1279;
       return (int) (prime * termCountCutoff + Double.doubleToLongBits(docCountPercent));
     }
 
+    @Override
     public boolean equals(Object obj) {
       if (this == obj)
         return true;

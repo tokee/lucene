@@ -39,7 +39,7 @@ public class MultiReader extends IndexReader implements Cloneable {
   protected IndexReader[] subReaders;
   private int[] starts;                           // 1st docno for each segment
   private boolean[] decrefOnClose;                // remember which subreaders to decRef on close
-  private Map normsCache = new HashMap();
+  private Map<String,byte[]> normsCache = new HashMap<String,byte[]>();
   private int maxDoc = 0;
   private int numDocs = -1;
   private boolean hasDeletions = false;
@@ -52,9 +52,10 @@ public class MultiReader extends IndexReader implements Cloneable {
   * left to the subreaders. </p>
   * <p>Note that all subreaders are closed if this Multireader is closed.</p>
   * @param subReaders set of (sub)readers
+ * @throws IOException 
   * @throws IOException
   */
-  public MultiReader(IndexReader[] subReaders) throws IOException {
+  public MultiReader(IndexReader... subReaders) throws IOException {
     initialize(subReaders, true);
   }
 
@@ -306,7 +307,7 @@ public class MultiReader extends IndexReader implements Cloneable {
   
   public synchronized byte[] norms(String field) throws IOException {
     ensureOpen();
-    byte[] bytes = (byte[])normsCache.get(field);
+    byte[] bytes = normsCache.get(field);
     if (bytes != null)
       return bytes;          // cache hit
     if (!hasNorms(field))
@@ -322,7 +323,7 @@ public class MultiReader extends IndexReader implements Cloneable {
   public synchronized void norms(String field, byte[] result, int offset)
     throws IOException {
     ensureOpen();
-    byte[] bytes = (byte[])normsCache.get(field);
+    byte[] bytes = normsCache.get(field);
     for (int i = 0; i < subReaders.length; i++)      // read from segments
       subReaders[i].norms(field, result, offset + starts[i]);
 
@@ -388,7 +389,7 @@ public class MultiReader extends IndexReader implements Cloneable {
     doCommit(null);
   }
   
-  protected void doCommit(Map commitUserData) throws IOException {
+  protected void doCommit(Map<String,String> commitUserData) throws IOException {
     for (int i = 0; i < subReaders.length; i++)
       subReaders[i].commit(commitUserData);
   }
@@ -403,7 +404,7 @@ public class MultiReader extends IndexReader implements Cloneable {
     }
   }
   
-  public Collection getFieldNames (IndexReader.FieldOption fieldNames) {
+  public Collection<String> getFieldNames (IndexReader.FieldOption fieldNames) {
     ensureOpen();
     return DirectoryReader.getFieldNames(fieldNames, this.subReaders);
   }  

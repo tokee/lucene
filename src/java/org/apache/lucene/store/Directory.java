@@ -18,6 +18,7 @@ package org.apache.lucene.store;
  */
 
 import java.io.IOException;
+import java.io.Closeable;
 
 /** A Directory is a flat list of files.  Files may be written once, when they
  * are created.  Once a file is created it may only be opened for read, or
@@ -35,7 +36,7 @@ import java.io.IOException;
  * instance using {@link #setLockFactory}.
  *
  */
-public abstract class Directory {
+public abstract class Directory implements Closeable {
 
   volatile protected boolean isOpen = true;
 

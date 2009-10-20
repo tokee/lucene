@@ -61,7 +61,7 @@ import java.util.Set;
  * these APIs.
  */
 
-public abstract class MergePolicy {
+public abstract class MergePolicy implements java.io.Closeable {
 
   /** OneMerge provides the information necessary to perform
    *  an individual primitive merge operation, resulting in
@@ -152,7 +152,7 @@ public abstract class MergePolicy {
      * The subset of segments to be included in the primitive merge.
      */
 
-    public List merges = new ArrayList();
+    public List<OneMerge> merges = new ArrayList<OneMerge>();
 
     public void add(OneMerge merge) {
       merges.add(merge);
@@ -233,7 +233,7 @@ public abstract class MergePolicy {
    *          away. This may be a subset of all SegmentInfos.
    */
   public abstract MergeSpecification findMergesForOptimize(
-      SegmentInfos segmentInfos, int maxSegmentCount, Set segmentsToOptimize)
+      SegmentInfos segmentInfos, int maxSegmentCount, Set<SegmentInfo> segmentsToOptimize)
       throws CorruptIndexException, IOException;
 
   /**

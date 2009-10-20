@@ -75,6 +75,16 @@ API Changes
 * LUCENE-1979: Remove remaining deprecations from indexer package.
   (Uwe Schindler, Michael Busch)
 
+* LUCENE-1989: Generify CharArraySet. (Uwe Schindler)
+
+* LUCENE-1987: Rremove deprecations from analysis package and Token.
+  Un-deprecate some ctors of Token, as they are still useful.
+  (Uwe Schindler)
+
+* LUCENE-1945: All public classes that have a close() method now
+  also implement java.io.Closeable (IndexReader, IndexWriter, Directory,...).
+  (Uwe Schindler)
+
 Bug fixes
 
 * LUCENE-1951: When the text provided to WildcardQuery has no wildcard
@@ -86,6 +96,16 @@ Bug fixes
 * LUCENE-1974: Fixed nasty bug in BooleanQuery (when it used
   BooleanScorer for scoring), whereby some matching documents fail to
   be collected.  (Fulin Tang via Mike McCandless)
+
+* LUCENE-1986: Fix NPE when scoring PayloadNearQuery (Peter Keegan,
+  Mark Miller via Mike McCandless)
+
+* LUCENE-1992: Fix thread hazard if a merge is committing just as an
+  exception occurs during sync (Uwe Schindler, Mike McCandless)
+
+* LUCENE-1995: Note in javadocs that IndexWriter.setRAMBufferSizeMB
+  cannot exceed 2048 MB, and throw IllegalArgumentException if it
+  does.  (Aaron McKee, Yonik Seeley, Mike McCandless)
 
 New features
 

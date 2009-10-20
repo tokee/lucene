@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -126,7 +125,7 @@ final class DocumentsWriter {
   // than this they share ThreadStates
   private final static int MAX_THREAD_STATE = 5;
   private DocumentsWriterThreadState[] threadStates = new DocumentsWriterThreadState[0];
-  private final HashMap threadBindings = new HashMap();
+  private final HashMap<Thread,DocumentsWriterThreadState> threadBindings = new HashMap<Thread,DocumentsWriterThreadState>();
 
   private int pauseThreads;               // Non-zero when we need all threads to
                                           // pause (eg to flush)
@@ -140,7 +139,7 @@ final class DocumentsWriter {
   int maxFieldLength = IndexWriter.DEFAULT_MAX_FIELD_LENGTH;
   Similarity similarity;
 
-  List newFiles;
+  List<String> newFiles;
 
   static class DocState {
     DocumentsWriter docWriter;
@@ -385,11 +384,11 @@ final class DocumentsWriter {
     }
   }
 
-  private Collection abortedFiles;               // List of files that were written before last abort()
+  private Collection<String> abortedFiles;               // List of files that were written before last abort()
 
   private SegmentWriteState flushState;
 
-  Collection abortedFiles() {
+  Collection<String> abortedFiles() {
     return abortedFiles;
   }
 
@@ -398,17 +397,17 @@ final class DocumentsWriter {
       writer.message("DW: " + message);
   }
 
-  final List openFiles = new ArrayList();
-  final List closedFiles = new ArrayList();
+  final List<String> openFiles = new ArrayList<String>();
+  final List<String> closedFiles = new ArrayList<String>();
 
   /* Returns Collection of files in use by this instance,
    * including any flushed segments. */
-  synchronized List openFiles() {
-    return (List) ((ArrayList) openFiles).clone();
+  synchronized List<String> openFiles() {
+    return ( List<String>) ((ArrayList<String>) openFiles).clone();
   }
 
-  synchronized List closedFiles() {
-    return (List) ((ArrayList) closedFiles).clone();
+  synchronized List<String> closedFiles() {
+    return (List<String>) ((ArrayList<String>) closedFiles).clone();
   }
 
   synchronized void addOpenFile(String name) {
@@ -578,7 +577,7 @@ final class DocumentsWriter {
         flushState.numDocsInStore = 0;
       }
 
-      Collection threads = new HashSet();
+      Collection<DocConsumerPerThread> threads = new HashSet<DocConsumerPerThread>();
       for(int i=0;i<threadStates.length;i++)
         threads.add(threadStates[i].consumer);
       consumer.flush(threads, flushState);
@@ -614,9 +613,7 @@ final class DocumentsWriter {
   void createCompoundFile(String segment) throws IOException {
     
     CompoundFileWriter cfsWriter = new CompoundFileWriter(directory, segment + "." + IndexFileNames.COMPOUND_FILE_EXTENSION);
-    Iterator it = flushState.flushedFiles.iterator();
-    while(it.hasNext()) {
-      final String fileName = (String) it.next();
+    for(String fileName : flushState.flushedFiles) {
       if (Codec.DEBUG)
         System.out.println("make cfs " + fileName);
       cfsWriter.addFile(fileName);
@@ -835,7 +832,7 @@ final class DocumentsWriter {
   }
 
   // for testing
-  synchronized HashMap getBufferedDeleteTerms() {
+  synchronized HashMap<Term,BufferedDeletes.Num> getBufferedDeleteTerms() {
     return deletesInRAM.terms;
   }
 
@@ -981,7 +978,7 @@ final class DocumentsWriter {
 
         DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field, new TermRef(term.text));
         if (docs != null) {
-          int limit = ((BufferedDeletes.Num) entry.getValue()).getNum();
+          int limit = entry.getValue().getNum();
           while (true) {
             final int docID = docs.next();
             if (docID == DocsEnum.NO_MORE_DOCS || docIDStart+docID >= limit) {
@@ -1182,7 +1179,7 @@ final class DocumentsWriter {
 
   private class ByteBlockAllocator extends ByteBlockPool.Allocator {
 
-    ArrayList freeByteBlocks = new ArrayList();
+    ArrayList<byte[]> freeByteBlocks = new ArrayList<byte[]>();
     
     /* Allocate another byte[] from the shared pool */
     byte[] getByteBlock(boolean trackAllocations) {
@@ -1222,7 +1219,7 @@ final class DocumentsWriter {
   final static int INT_BLOCK_SIZE = 1 << INT_BLOCK_SHIFT;
   final static int INT_BLOCK_MASK = INT_BLOCK_SIZE - 1;
 
-  private ArrayList freeIntBlocks = new ArrayList();
+  private ArrayList<int[]> freeIntBlocks = new ArrayList<int[]>();
 
   /* Allocate another int[] from the shared pool */
   synchronized int[] getIntBlock(boolean trackAllocations) {
@@ -1271,7 +1268,7 @@ final class DocumentsWriter {
 
   final static int MAX_TERM_LENGTH = CHAR_BLOCK_SIZE-1;
 
-  private ArrayList freeCharBlocks = new ArrayList();
+  private ArrayList<char[]> freeCharBlocks = new ArrayList<char[]>();
 
   /* Allocate another char[] from the shared pool */
   synchronized char[] getCharBlock() {

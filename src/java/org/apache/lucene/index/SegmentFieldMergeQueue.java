@@ -20,14 +20,14 @@ package org.apache.lucene.index;
 import org.apache.lucene.util.PriorityQueue;
 
 // Used to merge-sort by SegmentMergeInfo.field
-final class SegmentFieldMergeQueue extends PriorityQueue {
+final class SegmentFieldMergeQueue extends PriorityQueue<SegmentMergeInfo> {
   SegmentFieldMergeQueue(int size) {
     initialize(size);
   }
 
-  protected final boolean lessThan(Object a, Object b) {
-    SegmentMergeInfo stiA = (SegmentMergeInfo)a;
-    SegmentMergeInfo stiB = (SegmentMergeInfo)b;
+  protected final boolean lessThan(SegmentMergeInfo a, SegmentMergeInfo b) {
+    SegmentMergeInfo stiA = a;
+    SegmentMergeInfo stiB = b;
     // nocommit ok not to break ties?
     return stiA.field.compareTo(stiB.field) < 0;
   }

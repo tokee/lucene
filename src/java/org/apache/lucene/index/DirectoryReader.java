@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,7 +53,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   IndexWriter writer;
 
   private IndexDeletionPolicy deletionPolicy;
-  private final HashSet synced = new HashSet();
+  private final HashSet<String> synced = new HashSet<String>();
   private Lock writeLock;
   private SegmentInfos segmentInfos;
   private boolean stale;
@@ -65,7 +64,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   private SegmentReader[] subReaders;
   private int[] starts;                           // 1st docno for each segment
-  private Map normsCache = new HashMap();
+  private Map<String,byte[]> normsCache = new HashMap<String,byte[]>();
   private int maxDoc = 0;
   private int numDocs = -1;
   private boolean hasDeletions = false;
@@ -213,7 +212,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   /** This constructor is only used for {@link #reopen()} */
   DirectoryReader(Directory directory, SegmentInfos infos, SegmentReader[] oldReaders, int[] oldStarts,
-                  Map oldNormsCache, boolean readOnly, boolean doClone, int termInfosIndexDivisor, Codecs codecs) throws IOException {
+                  Map<String,byte[]> oldNormsCache, boolean readOnly, boolean doClone, int termInfosIndexDivisor, Codecs codecs) throws IOException {
     this.directory = directory;
     this.readOnly = readOnly;
     this.segmentInfos = infos;
@@ -232,7 +231,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
     // we put the old SegmentReaders in a map, that allows us
     // to lookup a reader using its segment name
-    Map segmentReaders = new HashMap();
+    Map<String,Integer> segmentReaders = new HashMap<String,Integer>();
 
     if (oldReaders != null) {
       // create a Map SegmentName->SegmentReader
@@ -309,10 +308,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
     
     // try to copy unchanged norms from the old normsCache to the new one
     if (oldNormsCache != null) {
-      Iterator it = oldNormsCache.entrySet().iterator();
-      while (it.hasNext()) {
-        Map.Entry entry = (Map.Entry) it.next();
-        String field = (String) entry.getKey();
+      for (Map.Entry<String,byte[]> entry: oldNormsCache.entrySet()) {
+        String field = entry.getKey();
         if (!hasNorms(field)) {
           continue;
         }
@@ -797,7 +794,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
    *
    * @throws IOException if there is a low-level IO error
    */
-  protected void doCommit(Map commitUserData) throws IOException {
+  protected void doCommit(Map<String,String> commitUserData) throws IOException {
     if (hasChanges) {
       segmentInfos.setUserData(commitUserData);
       // Default deleter (for backwards compatibility) is
@@ -816,9 +813,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
           subReaders[i].commit();
 
         // Sync all files we just wrote
-        Iterator it = segmentInfos.files(directory, false).iterator();
-        while (it.hasNext()) {
-          final String fileName = (String) it.next();
+        final Collection<String> files = segmentInfos.files(directory, false);
+        for (final String fileName : files) { 
           if (!synced.contains(fileName)) {
             assert directory.fileExists(fileName);
             directory.sync(fileName);
@@ -882,7 +878,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
-  public Map getCommitUserData() {
+  public Map<String,String> getCommitUserData() {
     ensureOpen();
     return segmentInfos.getUserData();
   }
@@ -917,17 +913,16 @@ class DirectoryReader extends IndexReader implements Cloneable {
     if (ioe != null) throw ioe;
   }
 
-  public Collection getFieldNames (IndexReader.FieldOption fieldNames) {
+  public Collection<String> getFieldNames (IndexReader.FieldOption fieldNames) {
     ensureOpen();
     return getFieldNames(fieldNames, this.subReaders);
   }
   
-  static Collection getFieldNames (IndexReader.FieldOption fieldNames, IndexReader[] subReaders) {
+  static Collection<String> getFieldNames (IndexReader.FieldOption fieldNames, IndexReader[] subReaders) {
     // maintain a unique set of field names
-    Set fieldSet = new HashSet();
-    for (int i = 0; i < subReaders.length; i++) {
-      IndexReader reader = subReaders[i];
-      Collection names = reader.getFieldNames(fieldNames);
+    Set<String> fieldSet = new HashSet<String>();
+    for (IndexReader reader : subReaders) {
+      Collection<String> names = reader.getFieldNames(fieldNames);
       fieldSet.addAll(names);
     }
     return fieldSet;
@@ -959,15 +954,15 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   /** @see org.apache.lucene.index.IndexReader#listCommits */
-  public static Collection listCommits(Directory dir) throws IOException {
+  public static Collection<IndexCommit> listCommits(Directory dir) throws IOException {
     return listCommits(dir, Codecs.getDefault());
   }
 
   /** @see org.apache.lucene.index.IndexReader#listCommits */
-  public static Collection listCommits(Directory dir, Codecs codecs) throws IOException {
+  public static Collection<IndexCommit> listCommits(Directory dir, Codecs codecs) throws IOException {
     final String[] files = dir.listAll();
 
-    Collection commits = new ArrayList();
+    Collection<IndexCommit> commits = new ArrayList<IndexCommit>();
 
     SegmentInfos latest = new SegmentInfos();
     latest.read(dir, codecs);
@@ -1009,12 +1004,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   private static final class ReaderCommit extends IndexCommit {
     private String segmentsFileName;
-    Collection files;
+    Collection<String> files;
     Directory dir;
     long generation;
     long version;
     final boolean isOptimized;
-    final Map userData;
+    final Map<String,String> userData;
 
     ReaderCommit(SegmentInfos infos, Directory dir) throws IOException {
       segmentsFileName = infos.getCurrentSegmentFileName();
@@ -1034,7 +1029,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return segmentsFileName;
     }
 
-    public Collection getFileNames() {
+    public Collection<String> getFileNames() {
       return files;
     }
 
@@ -1054,7 +1049,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return false;
     }
 
-    public Map getUserData() {
+    public Map<String,String> getUserData() {
       return userData;
     }
   }

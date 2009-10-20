@@ -30,7 +30,7 @@ import java.io.PrintStream;
 import java.io.IOException;
 import java.io.File;
 import java.util.Collection;
-import java.util.Iterator;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -115,7 +115,7 @@ public class CheckIndex {
     public boolean partial;
 
     /** Holds the userData of the last commit in the index */
-    public Map userData;
+    public Map<String, String> userData;
 
     /** Holds the status of each segment in the index.
      *  See {@link #segmentInfos}.
@@ -174,10 +174,10 @@ public class CheckIndex {
        *  @see AbstractField#setOmitTermFreqAndPositions */
       public boolean hasProx;
 
-      /** Map<String, String> that includes certain
+      /** Map that includes certain
        *  debugging details that IndexWriter records into
        *  each segment it creates */
-      public Map diagnostics;
+      public Map<String,String> diagnostics;
 
       /** Status for testing of field norms (null if field norms could not be tested). */
       public FieldNormStatus fieldNormStatus;
@@ -281,7 +281,7 @@ public class CheckIndex {
     return checkIndex(null);
   }
 
-  protected Status checkIndex(List onlySegments) throws IOException {
+  protected Status checkIndex(List<String> onlySegments) throws IOException {
     return checkIndex(onlySegments, Codecs.getDefault());
   }
   
@@ -297,7 +297,7 @@ public class CheckIndex {
    *  <p><b>WARNING</b>: make sure
    *  you only call this when the index is not opened by any
    *  writer. */
-  protected Status checkIndex(List onlySegments, Codecs codecs) throws IOException {
+  protected Status checkIndex(List<String> onlySegments, Codecs codecs) throws IOException {
     NumberFormat nf = NumberFormat.getInstance();
     SegmentInfos sis = new SegmentInfos();
     Status result = new Status();
@@ -387,10 +387,9 @@ public class CheckIndex {
       result.partial = true;
       if (infoStream != null)
         infoStream.print("\nChecking only these segments:");
-      Iterator it = onlySegments.iterator();
-      while (it.hasNext()) {
+      for (String s : onlySegments) {
         if (infoStream != null)
-          infoStream.print(" " + it.next());
+          infoStream.print(" " + s);
       }
       result.segmentsChecked.addAll(onlySegments);
       msg(":");
@@ -429,7 +428,7 @@ public class CheckIndex {
         segInfoStat.numFiles = info.files().size();
         msg("    size (MB)=" + nf.format(info.sizeInBytes()/(1024.*1024.)));
         segInfoStat.sizeMB = info.sizeInBytes()/(1024.*1024.);
-        Map diagnostics = info.getDiagnostics();
+        Map<String,String> diagnostics = info.getDiagnostics();
         segInfoStat.diagnostics = diagnostics;
         if (diagnostics.size() > 0) {
           msg("    diagnostics = " + diagnostics);
@@ -487,7 +486,7 @@ public class CheckIndex {
         if (infoStream != null) {
           infoStream.print("    test: fields..............");
         }         
-        Collection fieldNames = reader.getFieldNames(IndexReader.FieldOption.ALL);
+        Collection<String> fieldNames = reader.getFieldNames(IndexReader.FieldOption.ALL);
         msg("OK [" + fieldNames.size() + " fields]");
         segInfoStat.numFields = fieldNames.size();
         
@@ -549,7 +548,7 @@ public class CheckIndex {
   /**
    * Test field norms.
    */
-  private Status.FieldNormStatus testFieldNorms(Collection fieldNames, SegmentReader reader) {
+  private Status.FieldNormStatus testFieldNorms(Collection<String> fieldNames, SegmentReader reader) {
     final Status.FieldNormStatus status = new Status.FieldNormStatus();
 
     try {
@@ -557,10 +556,8 @@ public class CheckIndex {
       if (infoStream != null) {
         infoStream.print("    test: field norms.........");
       }
-      Iterator it = fieldNames.iterator();
       final byte[] b = new byte[reader.maxDoc()];
-      while (it.hasNext()) {
-        final String fieldName = (String) it.next();
+      for (final String fieldName : fieldNames) {
         reader.norms(fieldName, b, 0);
         ++status.totFields;
       }
@@ -818,7 +815,7 @@ public class CheckIndex {
   public static void main(String[] args) throws IOException, InterruptedException {
 
     boolean doFix = false;
-    List onlySegments = new ArrayList();
+    List<String> onlySegments = new ArrayList<String>();
     String indexPath = null;
     int i = 0;
     while(i < args.length) {

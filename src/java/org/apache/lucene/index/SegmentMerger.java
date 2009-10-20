@@ -20,7 +20,7 @@ package org.apache.lucene.index;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
+
 import java.util.List;
 
 import org.apache.lucene.document.Document;
@@ -57,7 +57,7 @@ final class SegmentMerger {
   private String segment;
   private int termIndexInterval = IndexWriter.DEFAULT_TERM_INDEX_INTERVAL;
 
-  private List readers = new ArrayList();
+  private List<IndexReader> readers = new ArrayList<IndexReader>();
   private FieldInfos fieldInfos;
   
   private int mergedDocs;
@@ -176,23 +176,23 @@ final class SegmentMerger {
    * @throws IOException
    */
   final void closeReaders() throws IOException {
-    for (Iterator iter = readers.iterator(); iter.hasNext();) {
-      ((IndexReader) iter.next()).close();
+    for (final IndexReader reader : readers) {
+      reader.close();
     }
   }
 
-  final List createCompoundFile(String fileName) throws IOException {
+  final List<String> createCompoundFile(String fileName) throws IOException {
     // nocommit -- messy!
     final SegmentWriteState state = new SegmentWriteState(null, directory, segment, fieldInfos, null, mergedDocs, 0, 0, Codecs.getDefault());
     return createCompoundFile(fileName, new SegmentInfo(segment, mergedDocs, directory,
                                                         Codecs.getDefault().getWriter(state)));
   }
 
-  final List createCompoundFile(String fileName, final SegmentInfo info)
+  final List<String> createCompoundFile(String fileName, final SegmentInfo info)
           throws IOException {
     CompoundFileWriter cfsWriter = new CompoundFileWriter(directory, fileName, checkAbort);
 
-    List files = new ArrayList();
+    List<String> files = new ArrayList<String>();
 
     // Basic files
     for (int i = 0; i < IndexFileNames.COMPOUND_EXTENSIONS_NOT_CODEC.length; i++) {
@@ -229,9 +229,8 @@ final class SegmentMerger {
     }
 
     // Now merge all added files
-    Iterator it = files.iterator();
-    while (it.hasNext()) {
-      cfsWriter.addFile((String) it.next());
+    for (String file : files) {
+      cfsWriter.addFile(file);
     }
     
     // Perform the merge
@@ -241,13 +240,11 @@ final class SegmentMerger {
   }
 
   private void addIndexed(IndexReader reader, FieldInfos fInfos,
-      Collection names, boolean storeTermVectors,
+      Collection<String> names, boolean storeTermVectors,
       boolean storePositionWithTermVector, boolean storeOffsetWithTermVector,
       boolean storePayloads, boolean omitTFAndPositions)
       throws IOException {
-    Iterator i = names.iterator();
-    while (i.hasNext()) {
-      String field = (String) i.next();
+    for (String field : names) {
       fInfos.add(field, true, storeTermVectors,
           storePositionWithTermVector, storeOffsetWithTermVector, !reader
               .hasNorms(field), storePayloads, omitTFAndPositions);
@@ -309,8 +306,7 @@ final class SegmentMerger {
       fieldInfos = new FieldInfos();		  // merge field names
     }
 
-    for (Iterator iter = readers.iterator(); iter.hasNext();) {
-      IndexReader reader = (IndexReader) iter.next();
+    for (IndexReader reader : readers) {
       if (reader instanceof SegmentReader) {
         SegmentReader segmentReader = (SegmentReader) reader;
         FieldInfos readerFieldInfos = segmentReader.fieldInfos();
@@ -345,8 +341,7 @@ final class SegmentMerger {
 
       try {
         int idx = 0;
-        for (Iterator iter = readers.iterator(); iter.hasNext();) {
-          final IndexReader reader = (IndexReader) iter.next();
+        for (IndexReader reader : readers) {
           final SegmentReader matchingSegmentReader = matchingSegmentReaders[idx++];
           FieldsReader matchingFieldsReader = null;
           if (matchingSegmentReader != null) {
@@ -382,8 +377,8 @@ final class SegmentMerger {
       // If we are skipping the doc stores, that means there
       // are no deletions in any of these segments, so we
       // just sum numDocs() of each segment to get total docCount
-      for (Iterator iter = readers.iterator(); iter.hasNext();) {
-        docCount += ((IndexReader) iter.next()).numDocs();
+      for (final IndexReader reader : readers) {
+        docCount += reader.numDocs();
       }
 
     return docCount;
@@ -473,7 +468,7 @@ final class SegmentMerger {
 
     try {
       int idx = 0;
-      for (Iterator iter = readers.iterator(); iter.hasNext();) {
+      for (final IndexReader reader : readers) {
         final SegmentReader matchingSegmentReader = matchingSegmentReaders[idx++];
         TermVectorsReader matchingVectorsReader = null;
         if (matchingSegmentReader != null) {
@@ -484,7 +479,6 @@ final class SegmentMerger {
             matchingVectorsReader = vectorsReader;
           }
         }
-        final IndexReader reader = (IndexReader) iter.next();
         if (reader.hasDeletions()) {
           copyVectorsWithDeletions(termVectorsWriter, matchingVectorsReader, reader);
         } else {
@@ -640,7 +634,7 @@ final class SegmentMerger {
     while (fieldsQueue.size() > 0) {
 
       while(true) {
-        SegmentMergeInfo smi = (SegmentMergeInfo) fieldsQueue.pop();
+        SegmentMergeInfo smi = fieldsQueue.pop();
         if (smi.nextTerm()) {
           termsQueue.add(smi);
         } else if (smi.nextField()) {
@@ -649,7 +643,7 @@ final class SegmentMerger {
         } else {
           // done with a segment
         }
-        SegmentMergeInfo top = (SegmentMergeInfo) fieldsQueue.top();
+        SegmentMergeInfo top = fieldsQueue.top();
         if (top == null || (termsQueue.size() > 0 && ((SegmentMergeInfo) termsQueue.top()).field != top.field)) {
           break;
         }
@@ -658,7 +652,7 @@ final class SegmentMerger {
       if (termsQueue.size() > 0) {          
         // merge one field
 
-        final String field  = ((SegmentMergeInfo) termsQueue.top()).field;
+        final String field  = termsQueue.top().field;
         if (Codec.DEBUG) {
           System.out.println("merge field=" + field + " segCount=" + termsQueue.size());
         }
@@ -670,8 +664,8 @@ final class SegmentMerger {
           // pop matching terms
           int matchSize = 0;
           while(true) {
-            match[matchSize++] = (SegmentMergeInfo) termsQueue.pop();
-            SegmentMergeInfo top = (SegmentMergeInfo) termsQueue.top();
+            match[matchSize++] = termsQueue.pop();
+            SegmentMergeInfo top = termsQueue.top();
             if (top == null || !top.term.termEquals(match[0].term)) {
               break;
             }
@@ -814,8 +808,7 @@ final class SegmentMerger {
             output = directory.createOutput(segment + "." + IndexFileNames.NORMS_EXTENSION);
             output.writeBytes(NORMS_HEADER,NORMS_HEADER.length);
           }
-          for (Iterator iter = readers.iterator(); iter.hasNext();) {
-            IndexReader reader = (IndexReader) iter.next();
+          for ( IndexReader reader : readers) {
             int maxDoc = reader.maxDoc();
             if (normBuffer == null || normBuffer.length < maxDoc) {
               // the buffer is too small for the current segment

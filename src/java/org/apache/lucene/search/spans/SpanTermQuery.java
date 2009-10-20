@@ -23,8 +23,6 @@ import org.apache.lucene.index.TermRef;
 import org.apache.lucene.util.ToStringUtils;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Set;
 
 /** Matches spans containing a term. */

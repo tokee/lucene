@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -59,8 +59,8 @@ public class SegmentReader extends IndexReader implements Cloneable {
   private int readBufferSize;
   boolean isPreFlex;
 
-  CloseableThreadLocal fieldsReaderLocal = new FieldsReaderLocal();
-  CloseableThreadLocal termVectorsLocal = new CloseableThreadLocal();
+  CloseableThreadLocal<FieldsReader> fieldsReaderLocal = new FieldsReaderLocal();
+  CloseableThreadLocal<TermVectorsReader> termVectorsLocal = new CloseableThreadLocal<TermVectorsReader>();
 
   BitVector deletedDocs = null;
   Ref deletedDocsRef = null;
@@ -254,9 +254,9 @@ public class SegmentReader extends IndexReader implements Cloneable {
   /**
    * Sets the initial value 
    */
-  private class FieldsReaderLocal extends CloseableThreadLocal {
-    protected Object initialValue() {
-      return core.getFieldsReaderOrig().clone();
+  private class FieldsReaderLocal extends CloseableThreadLocal<FieldsReader> {
+    protected FieldsReader initialValue() {
+      return (FieldsReader) core.getFieldsReaderOrig().clone();
     }
   }
   
@@ -503,7 +503,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
   }
 
-  Map norms = new HashMap();
+  Map<String,Norm> norms = new HashMap<String,Norm>();
   
   /** The class which implements SegmentReader. */
   // @deprecated (LUCENE-1677)
@@ -751,7 +751,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         }
       }
 
-      clone.norms = new HashMap();
+      clone.norms = new HashMap<String,Norm>();
 
       // Clone norms
       for (int i = 0; i < fieldNormsChanged.length; i++) {
@@ -759,9 +759,9 @@ public class SegmentReader extends IndexReader implements Cloneable {
         // Clone unchanged norms to the cloned reader
         if (doClone || !fieldNormsChanged[i]) {
           final String curField = core.fieldInfos.fieldInfo(i).name;
-          Norm norm = (Norm) this.norms.get(curField);
+          Norm norm = this.norms.get(curField);
           if (norm != null)
-            clone.norms.put(curField, norm.clone());
+            clone.norms.put(curField, (Norm) norm.clone());
         }
       }
 
@@ -781,7 +781,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     return clone;
   }
 
-  protected void doCommit(Map commitUserData) throws IOException {
+  protected void doCommit(Map<String,String> commitUserData) throws IOException {
     if (hasChanges) {
       if (deletedDocsDirty) {               // re-write deleted
         si.advanceDelGen();
@@ -800,9 +800,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
       if (normsDirty) {               // re-write norms
         si.setNumFields(core.fieldInfos.size());
-        Iterator it = norms.values().iterator();
-        while (it.hasNext()) {
-          Norm norm = (Norm) it.next();
+        for (final Norm norm : norms.values()) {
           if (norm.dirty) {
             norm.reWrite(si);
           }
@@ -815,7 +813,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
 
   FieldsReader getFieldsReader() {
-    return (FieldsReader) fieldsReaderLocal.get();
+    return fieldsReaderLocal.get();
   }
 
   protected void doClose() throws IOException {
@@ -828,9 +826,8 @@ public class SegmentReader extends IndexReader implements Cloneable {
       deletedDocs = null;
     }
 
-    Iterator it = norms.values().iterator();
-    while (it.hasNext()) {
-      ((Norm) it.next()).decRef();
+    for (final Norm norm : norms.values()) {
+      norm.decRef();
     }
     if (core != null) {
       core.decRef();
@@ -890,8 +887,8 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
   }
 
-  List files() throws IOException {
-    return new ArrayList(si.files());
+  List<String> files() throws IOException {
+    return new ArrayList<String>(si.files());
   }
 
   public TermEnum terms() throws IOException {
@@ -1042,10 +1039,10 @@ public class SegmentReader extends IndexReader implements Cloneable {
   /**
    * @see IndexReader#getFieldNames(IndexReader.FieldOption fldOption)
    */
-  public Collection getFieldNames(IndexReader.FieldOption fieldOption) {
+  public Collection<String> getFieldNames(IndexReader.FieldOption fieldOption) {
     ensureOpen();
 
-    Set fieldSet = new HashSet();
+    Set<String> fieldSet = new HashSet<String>();
     for (int i = 0; i < core.fieldInfos.size(); i++) {
       FieldInfo fi = core.fieldInfos.fieldInfo(i);
       if (fieldOption == IndexReader.FieldOption.ALL) {
@@ -1105,7 +1102,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   // can return null if norms aren't stored
   protected synchronized byte[] getNorms(String field) throws IOException {
-    Norm norm = (Norm) norms.get(field);
+    Norm norm = norms.get(field);
     if (norm == null) return null;  // not indexed, or norms not stored
     return norm.bytes();
   }
@@ -1119,7 +1116,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   protected void doSetNorm(int doc, String field, byte value)
           throws IOException {
-    Norm norm = (Norm) norms.get(field);
+    Norm norm = norms.get(field);
     if (norm == null)                             // not an indexed field
       return;
 
@@ -1132,7 +1129,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     throws IOException {
 
     ensureOpen();
-    Norm norm = (Norm) norms.get(field);
+    Norm norm = norms.get(field);
     if (norm == null) {
       Arrays.fill(bytes, offset, bytes.length, DefaultSimilarity.encodeNorm(1.0f));
       return;
@@ -1201,9 +1198,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     if (singleNormStream != null) {
       return false;
     }
-    Iterator it = norms.values().iterator();
-    while (it.hasNext()) {
-      Norm norm = (Norm) it.next();
+    for (final Norm norm : norms.values()) {
       if (norm.refCount > 0) {
         return false;
       }
@@ -1213,8 +1208,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   // for testing only
   boolean normsClosed(String field) {
-    Norm norm = (Norm) norms.get(field);
-    return norm.refCount == 0;
+    return norms.get(field).refCount == 0;
   }
 
   /**
@@ -1222,7 +1216,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
    * @return TermVectorsReader
    */
   TermVectorsReader getTermVectorsReader() {
-    TermVectorsReader tvReader = (TermVectorsReader) termVectorsLocal.get();
+    TermVectorsReader tvReader = termVectorsLocal.get();
     if (tvReader == null) {
       TermVectorsReader orig = core.getTermVectorsReaderOrig();
       if (orig == null) {
@@ -1330,9 +1324,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     rollbackDeletedDocsDirty = deletedDocsDirty;
     rollbackNormsDirty = normsDirty;
     rollbackPendingDeleteCount = pendingDeleteCount;
-    Iterator it = norms.values().iterator();
-    while (it.hasNext()) {
-      Norm norm = (Norm) it.next();
+    for (Norm norm : norms.values()) {
       norm.rollbackDirty = norm.dirty;
     }
   }
@@ -1342,9 +1334,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     deletedDocsDirty = rollbackDeletedDocsDirty;
     normsDirty = rollbackNormsDirty;
     pendingDeleteCount = rollbackPendingDeleteCount;
-    Iterator it = norms.values().iterator();
-    while (it.hasNext()) {
-      Norm norm = (Norm) it.next();
+    for (Norm norm : norms.values()) {
       norm.dirty = norm.rollbackDirty;
     }
   }

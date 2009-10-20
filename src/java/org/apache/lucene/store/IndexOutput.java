@@ -18,8 +18,8 @@ package org.apache.lucene.store;
  */
 
 import java.io.IOException;
+import java.io.Closeable;
 import java.util.Map;
-import java.util.Iterator;
 import org.apache.lucene.util.UnicodeUtil;
 
 /** Abstract base class for output to a file in a Directory.  A random-access
@@ -27,7 +27,7 @@ import org.apache.lucene.util.UnicodeUtil;
  * @see Directory
  * @see IndexInput
  */
-public abstract class IndexOutput {
+public abstract class IndexOutput implements Closeable {
 
   private UnicodeUtil.UTF8Result utf8Result = new UnicodeUtil.UTF8Result();
 
@@ -210,17 +210,14 @@ public abstract class IndexOutput {
    */
   public void setLength(long length) throws IOException {};
 
-  // map must be Map<String, String>
-  public void writeStringStringMap(Map map) throws IOException {
+  public void writeStringStringMap(Map<String,String> map) throws IOException {
     if (map == null) {
       writeInt(0);
     } else {
       writeInt(map.size());
-      final Iterator it = map.entrySet().iterator();
-      while(it.hasNext()) {
-        Map.Entry entry = (Map.Entry) it.next();
-        writeString((String) entry.getKey());
-        writeString((String) entry.getValue());
+      for(final Map.Entry<String, String> entry: map.entrySet()) {
+        writeString(entry.getKey());
+        writeString(entry.getValue());
       }
     }
   }

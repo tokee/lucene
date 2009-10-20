@@ -52,8 +52,8 @@ public final class FieldInfos {
   static final byte STORE_PAYLOADS = 0x20;
   static final byte OMIT_TERM_FREQ_AND_POSITIONS = 0x40;
   
-  private final ArrayList byNumber = new ArrayList();
-  private final HashMap byName = new HashMap();
+  private final ArrayList<FieldInfo> byNumber = new ArrayList<FieldInfo>();
+  private final HashMap<String,FieldInfo> byName = new HashMap<String,FieldInfo>();
   private int format;
 
   FieldInfos() { }
@@ -112,10 +112,8 @@ public final class FieldInfos {
 
   /** Adds field info for a Document. */
   synchronized public void add(Document doc) {
-    List fields = doc.getFields();
-    Iterator fieldIterator = fields.iterator();
-    while (fieldIterator.hasNext()) {
-      Fieldable field = (Fieldable) fieldIterator.next();
+    List<Fieldable> fields = doc.getFields();
+    for (Fieldable field : fields) {
       add(field.name(), field.isIndexed(), field.isTermVectorStored(), field.isStorePositionWithTermVector(),
               field.isStoreOffsetWithTermVector(), field.getOmitNorms(), false, field.getOmitTermFreqAndPositions());
     }
@@ -146,11 +144,10 @@ public final class FieldInfos {
    * @param storePositionWithTermVector true if positions should be stored.
    * @param storeOffsetWithTermVector true if offsets should be stored
    */
-  synchronized public void addIndexed(Collection names, boolean storeTermVectors, boolean storePositionWithTermVector, 
+  synchronized public void addIndexed(Collection<String> names, boolean storeTermVectors, boolean storePositionWithTermVector, 
                          boolean storeOffsetWithTermVector) {
-    Iterator i = names.iterator();
-    while (i.hasNext()) {
-      add((String)i.next(), true, storeTermVectors, storePositionWithTermVector, storeOffsetWithTermVector);
+    for (String name : names) {
+      add(name, true, storeTermVectors, storePositionWithTermVector, storeOffsetWithTermVector);
     }
   }
 
@@ -162,10 +159,9 @@ public final class FieldInfos {
    * 
    * @see #add(String, boolean)
    */
-  synchronized public void add(Collection names, boolean isIndexed) {
-    Iterator i = names.iterator();
-    while (i.hasNext()) {
-      add((String)i.next(), isIndexed);
+  synchronized public void add(Collection<String> names, boolean isIndexed) {
+    for (String name : names) {
+      add(name, isIndexed);
     }
   }
 

@@ -75,8 +75,7 @@ public class PayloadNearQuery extends SpanNearQuery {
     SpanQuery[] newClauses = new SpanQuery[sz];
 
     for (int i = 0; i < sz; i++) {
-      SpanQuery clause = (SpanQuery) clauses.get(i);
-      newClauses[i] = (SpanQuery) clause.clone();
+      newClauses[i] = (SpanQuery) clauses.get(i).clone();
     }
     PayloadNearQuery boostingNearQuery = new PayloadNearQuery(newClauses, slop,
         inOrder);
@@ -87,9 +86,9 @@ public class PayloadNearQuery extends SpanNearQuery {
   public String toString(String field) {
     StringBuilder buffer = new StringBuilder();
     buffer.append("payloadNear([");
-    Iterator i = clauses.iterator();
+    Iterator<SpanQuery> i = clauses.iterator();
     while (i.hasNext()) {
-      SpanQuery clause = (SpanQuery) i.next();
+      SpanQuery clause = i.next();
       buffer.append(clause.toString(field));
       if (i.hasNext()) {
         buffer.append(", ");
@@ -195,9 +194,8 @@ public class PayloadNearQuery extends SpanNearQuery {
      * 
      * @see Spans
      */
-    protected void processPayloads(Collection payLoads, int start, int end) {
-      for (Iterator iterator = payLoads.iterator(); iterator.hasNext();) {
-        byte[] thePayload = (byte[]) iterator.next();
+    protected void processPayloads(Collection<byte[]> payLoads, int start, int end) {
+      for (final byte[] thePayload : payLoads) {
         payloadScore = function.currentScore(doc, fieldName, start, end,
             payloadsSeen, payloadScore, similarity.scorePayload(doc, fieldName,
                 spans.start(), spans.end(), thePayload, 0, thePayload.length));
@@ -207,6 +205,9 @@ public class PayloadNearQuery extends SpanNearQuery {
 
     //
     protected boolean setFreqCurrentDoc() throws IOException {
+      if (!more) {
+        return false;
+      }
       Spans[] spansArr = new Spans[1];
       spansArr[0] = spans;
       payloadScore = 0;
