@@ -27,11 +27,12 @@ public class TestParameterToEnumBW extends LuceneTestCase {
     assertEquals(Field.Store.YES, Field.Store.YES);
     assertEquals("YES", Field.Store.YES.toString());
     assertEquals("NO", Field.Store.NO.toString());
-    
-    if (Constants.LUCENE_VERSION.compareTo("3.0") >= 0) {
-      assertEquals("java.lang.Enum", Field.Store.class.getSuperclass().getName());
+    if (Constants.LUCENE_MAIN_VERSION.startsWith("2.")) {
+      assertEquals("Implementing class should be org.apache.lucene.util.Parameter in version "+Constants.LUCENE_MAIN_VERSION,
+        "org.apache.lucene.util.Parameter", Field.Store.class.getSuperclass().getName());    
     } else {
-      assertEquals("org.apache.lucene.util.Parameter", Field.Store.class.getSuperclass().getName());    
+      assertEquals("Implementing class should be java.lang.Enum in version "+Constants.LUCENE_MAIN_VERSION,
+        "java.lang.Enum", Field.Store.class.getSuperclass().getName());
     }
   }
 
