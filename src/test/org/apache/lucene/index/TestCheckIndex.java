@@ -96,8 +96,6 @@ public class TestCheckIndex extends LuceneTestCase {
     assertNotNull(version);
     assertTrue(version.equals(Constants.LUCENE_MAIN_VERSION+"-dev") ||
                version.equals(Constants.LUCENE_MAIN_VERSION));
-    // TODO: does not work on hudson, because tests are run against a JAR version,
-    // which has a package version like "20091013*" not "3.0*":
-    //assertTrue(Constants.LUCENE_VERSION.startsWith(version));
+    assertTrue(Constants.LUCENE_VERSION.startsWith(version));
   }
 }
