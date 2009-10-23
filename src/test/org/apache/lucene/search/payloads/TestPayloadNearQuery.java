@@ -40,6 +40,7 @@ import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.English;
 import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.search.Explanation.IDFExplanation;
 
 
 public class TestPayloadNearQuery extends LuceneTestCase {
@@ -214,8 +215,17 @@ public class TestPayloadNearQuery extends LuceneTestCase {
 			return 1;
 		}
 		// idf used for phrase queries
-		public float idf(Collection terms, Searcher searcher) {
-			return 1;
-		}
+    // idf used for phrase queries
+    public IDFExplanation idfExplain(Collection terms, Searcher searcher) throws IOException {
+      return new IDFExplanation() {
+        public float getIdf() {
+          return 1.0f;
+        }
+
+        public String explain() {
+          return "Inexplicable";
+        }
+      };
+    }
 	}
 }
