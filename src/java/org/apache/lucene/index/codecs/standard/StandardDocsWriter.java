@@ -23,7 +23,6 @@ package org.apache.lucene.index.codecs.standard;
 import java.io.IOException;
 
 import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.index.codecs.DocsConsumer;
 import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentWriteState;
@@ -31,7 +30,7 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.codecs.Codec;
 
-public final class StandardDocsWriter extends DocsConsumer {
+public final class StandardDocsWriter extends StandardDocsConsumer {
   final static String CODEC = "SingleFileDocFreqSkip";
   
   // Increment version to change it:

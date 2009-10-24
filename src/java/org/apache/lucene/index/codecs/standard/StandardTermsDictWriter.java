@@ -27,8 +27,8 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.DocsConsumer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
+import org.apache.lucene.index.codecs.DocsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.UnicodeUtil;
@@ -55,7 +55,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   private final DeltaBytesWriter termWriter;
 
   final IndexOutput out;
-  final DocsConsumer consumer;
+  final StandardDocsConsumer consumer;
   final FieldInfos fieldInfos;
   FieldInfo currentField;
   private final StandardTermsIndexWriter indexWriter;
@@ -64,7 +64,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   // nocommit
   private String segment;
 
-  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, DocsConsumer consumer) throws IOException {
+  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardDocsConsumer consumer) throws IOException {
     final String termsFileName = IndexFileNames.segmentFileName(state.segmentName, StandardCodec.TERMS_EXTENSION);
     this.indexWriter = indexWriter;
     out = state.directory.createOutput(termsFileName);
@@ -146,12 +146,12 @@ public class StandardTermsDictWriter extends FieldsConsumer {
 
   class TermsWriter extends TermsConsumer {
     final FieldInfo fieldInfo;
-    final DocsConsumer consumer;
+    final StandardDocsConsumer consumer;
     final long termsStartPointer;
     int numTerms;
     final StandardTermsIndexWriter.FieldWriter fieldIndexWriter;
 
-    TermsWriter(StandardTermsIndexWriter.FieldWriter fieldIndexWriter, FieldInfo fieldInfo, DocsConsumer consumer) {
+    TermsWriter(StandardTermsIndexWriter.FieldWriter fieldIndexWriter, FieldInfo fieldInfo, StandardDocsConsumer consumer) {
       this.fieldInfo = fieldInfo;
       this.consumer = consumer;
       this.fieldIndexWriter = fieldIndexWriter;

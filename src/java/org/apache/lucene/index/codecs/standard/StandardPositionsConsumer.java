@@ -1,4 +1,4 @@
-package org.apache.lucene.index.codecs;
+package org.apache.lucene.index.codecs.standard;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -19,22 +19,16 @@ package org.apache.lucene.index.codecs;
 
 import java.io.IOException;
 
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.PositionsEnum;
+import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.index.codecs.PositionsConsumer;
 
-public abstract class PositionsProducer {
+public abstract class StandardPositionsConsumer extends PositionsConsumer{
 
-  public abstract class Reader {
-    public abstract void readTerm(int docFreq, boolean isIndexTerm) throws IOException;
+  public abstract void start(IndexOutput termsOut) throws IOException;
 
-    /** Returns a pos enum for the last term read */
-    public abstract PositionsEnum positions() throws IOException;
-  }
+  public abstract void startTerm() throws IOException;
 
-  public abstract void start(IndexInput termsIn) throws IOException;
-
-  public abstract Reader reader(FieldInfo fieldInfo, IndexInput termsIn) throws IOException;
-
+  public abstract void finishTerm(boolean isIndexTerm) throws IOException;
+  
   public abstract void close() throws IOException;
 }

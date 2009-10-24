@@ -24,7 +24,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.DocsProducer;
+import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.pulsing.PulsingDocsWriter.Document;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 import org.apache.lucene.store.Directory;
@@ -39,14 +39,14 @@ import org.apache.lucene.util.Bits;
 // create two separate docs readers, one that also reads
 // prox and one that doesn't?
 
-class PulsingDocsReader extends DocsProducer {
+class PulsingDocsReader extends StandardDocsProducer {
 
   // Fallback reader for non-pulsed terms:
-  final DocsProducer wrappedDocsReader;
+  final StandardDocsProducer wrappedDocsReader;
   IndexInput termsIn;
   int maxPulsingDocFreq;
 
-  PulsingDocsReader(Directory dir, SegmentInfo segmentInfo, int readBufferSize, DocsProducer wrappedDocsReader) throws IOException {
+  PulsingDocsReader(Directory dir, SegmentInfo segmentInfo, int readBufferSize, StandardDocsProducer wrappedDocsReader) throws IOException {
     this.wrappedDocsReader = wrappedDocsReader;
   }
 

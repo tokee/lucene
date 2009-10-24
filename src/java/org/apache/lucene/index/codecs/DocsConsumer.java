@@ -39,19 +39,8 @@ public abstract class DocsConsumer {
   }
   */
 
-  public abstract void start(IndexOutput termsOut) throws IOException;
-
-  public abstract void startTerm() throws IOException;
-
   /** Adds a new doc in this term.  Return null if this
    *  consumer doesn't need to see the positions for this
    *  doc. */
   public abstract PositionsConsumer addDoc(int docID, int termDocFreq) throws IOException;
-
-  /** Finishes the current term */
-  public abstract void finishTerm(int numDocs, boolean isIndexTerm) throws IOException;
-
-  public abstract void setField(FieldInfo fieldInfo);
-
-  public abstract void close() throws IOException;
 }

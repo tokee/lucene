@@ -1,4 +1,4 @@
-package org.apache.lucene.index.codecs;
+package org.apache.lucene.index.codecs.standard;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -20,16 +20,23 @@ package org.apache.lucene.index.codecs;
 import java.io.IOException;
 
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.codecs.DocsConsumer;
 
-public abstract class PositionsConsumer {
+/**
+ * NOTE: this API is experimental and will likely change
+ */
 
-  /** Add a new position & payload.  If payloadLength > 0
-   *  you must read those bytes from the IndexInput.  NOTE:
-   *  you must fully consume the byte[] payload, since
-   *  caller is free to reuse it on subsequent calls. */
-  public abstract void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) throws IOException;
+public abstract class StandardDocsConsumer extends DocsConsumer {
 
-  /** Called when we are done adding positions & payloads
-   * for each doc */
-  public abstract void finishDoc() throws IOException;
+  public abstract void start(IndexOutput termsOut) throws IOException;
+
+  public abstract void startTerm() throws IOException;
+
+  /** Finishes the current term */
+  public abstract void finishTerm(int numDocs, boolean isIndexTerm) throws IOException;
+
+  public abstract void setField(FieldInfo fieldInfo);
+
+  public abstract void close() throws IOException;
 }

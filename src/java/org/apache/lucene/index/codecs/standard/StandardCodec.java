@@ -37,7 +37,7 @@ public class StandardCodec extends Codec {
   }
 
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
-    DocsConsumer docs = new StandardDocsWriter(state);
+    StandardDocsConsumer docs = new StandardDocsWriter(state);
 
     StandardTermsIndexWriter indexWriter;
     boolean success = false;

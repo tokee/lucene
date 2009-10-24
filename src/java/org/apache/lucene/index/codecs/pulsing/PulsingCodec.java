@@ -25,7 +25,8 @@ import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.DocsConsumer;
-import org.apache.lucene.index.codecs.DocsProducer;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexReader;
@@ -33,6 +34,7 @@ import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexWriter;
 import org.apache.lucene.index.codecs.standard.StandardCodec;
 import org.apache.lucene.index.codecs.standard.StandardDocsReader;
 import org.apache.lucene.index.codecs.standard.StandardDocsWriter;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexReader;
@@ -55,12 +57,12 @@ public class PulsingCodec extends Codec {
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
     // We wrap StandardDocsWriter, but any DocsConsumer
     // will work:
-    DocsConsumer docsWriter = new StandardDocsWriter(state);
+    StandardDocsConsumer docsWriter = new StandardDocsWriter(state);
 
     // Terms that have <= freqCutoff number of docs are
     // "pulsed" (inlined):
     final int freqCutoff = 1;
-    DocsConsumer pulsingWriter = new PulsingDocsWriter(state, freqCutoff, docsWriter);
+    StandardDocsConsumer pulsingWriter = new PulsingDocsWriter(state, freqCutoff, docsWriter);
 
     // Terms dict index
     StandardTermsIndexWriter indexWriter;
@@ -95,8 +97,8 @@ public class PulsingCodec extends Codec {
 
     // We wrap StandardDocsReader, but any DocsProducer
     // will work:
-    DocsProducer docs = new StandardDocsReader(dir, si, readBufferSize);
-    DocsProducer docsReader = new PulsingDocsReader(dir, si, readBufferSize, docs);
+    StandardDocsProducer docs = new StandardDocsReader(dir, si, readBufferSize);
+    StandardDocsProducer docsReader = new PulsingDocsReader(dir, si, readBufferSize, docs);
 
     // Terms dict index reader
     StandardTermsIndexReader indexReader;

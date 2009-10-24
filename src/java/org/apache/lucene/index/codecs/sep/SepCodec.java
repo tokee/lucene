@@ -25,7 +25,8 @@ import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.DocsConsumer;
-import org.apache.lucene.index.codecs.DocsProducer;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexReader;
@@ -44,7 +45,7 @@ public class SepCodec extends Codec {
 
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
 
-    DocsConsumer docsWriter = new SepDocsWriter(state, new SingleIntFactory());
+    StandardDocsConsumer docsWriter = new SepDocsWriter(state, new SingleIntFactory());
 
     boolean success = false;
     StandardTermsIndexWriter indexWriter;
@@ -81,7 +82,7 @@ public class SepCodec extends Codec {
 
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
 
-    DocsProducer docsReader = new SepDocsReader(dir, si, readBufferSize, new SingleIntFactory());
+    StandardDocsProducer docsReader = new SepDocsReader(dir, si, readBufferSize, new SingleIntFactory());
 
     StandardTermsIndexReader indexReader;
     boolean success = false;

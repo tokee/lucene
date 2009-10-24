@@ -29,7 +29,6 @@ import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
-import org.apache.lucene.index.codecs.DocsProducer;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 
 /** Concrete class that reads the current doc/freq/skip
@@ -39,7 +38,7 @@ import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntr
 // create two separate docs readers, one that also reads
 // prox and one that doesn't?
 
-public class StandardDocsReader extends DocsProducer {
+public class StandardDocsReader extends StandardDocsProducer {
 
   final IndexInput freqIn;
   IndexInput termsIn;

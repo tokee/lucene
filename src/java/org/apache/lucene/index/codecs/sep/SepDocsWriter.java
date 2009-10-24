@@ -21,7 +21,9 @@ import java.io.IOException;
 
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.index.codecs.DocsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.index.codecs.PositionsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardPositionsConsumer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.IndexFileNames;
@@ -31,7 +33,7 @@ import org.apache.lucene.index.codecs.Codec;
 /** Writes frq to .frq, docs to .doc, pos to .pos, payloads
  *  to .pyl, skip data to .skp */
 
-public final class SepDocsWriter extends DocsConsumer {
+public final class SepDocsWriter extends StandardDocsConsumer {
   final static String CODEC = "SepDocFreqSkip";
 
   // Increment version to change it:

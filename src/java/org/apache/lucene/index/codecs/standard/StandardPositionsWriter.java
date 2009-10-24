@@ -23,10 +23,9 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.store.IndexOutput;
 
-final class StandardPositionsWriter extends PositionsConsumer {
+final class StandardPositionsWriter extends StandardPositionsConsumer {
   final static String CODEC = "SingleFilePositionsPayloads";
 
   // Increment version to change it:

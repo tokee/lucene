@@ -26,14 +26,12 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.DocsProducer;
+import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.sep.IntIndexInput.IndexState;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
-
-import sun.security.util.PendingException;
 
 /** Concrete class that reads the current doc/freq/skip
  *  postings format */
@@ -42,7 +40,7 @@ import sun.security.util.PendingException;
 // create two separate docs readers, one that also reads
 // prox and one that doesn't?
 
-public class SepDocsReader extends DocsProducer {
+public class SepDocsReader extends StandardDocsProducer {
 
   final IntIndexInput freqIn;
   final IntIndexInput docIn;
@@ -545,7 +543,7 @@ public class SepDocsReader extends DocsProducer {
 
     // nocommit: rought start
     @Override
-    public CacheEntry captureState(CacheEntry reusableState) throws IOException {
+      public CacheEntry captureState(CacheEntry reusableState) throws IOException {
       TermDictsReaderState state;
       if (reusableState == null) {
         state = new TermDictsReaderState();

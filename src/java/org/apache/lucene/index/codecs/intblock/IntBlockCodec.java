@@ -25,7 +25,7 @@ import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.DocsConsumer;
-import org.apache.lucene.index.codecs.DocsProducer;
+import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.index.codecs.sep.SepCodec;
@@ -37,6 +37,7 @@ import org.apache.lucene.index.codecs.standard.StandardTermsDictReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexWriter;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.store.Directory;
 
 public class IntBlockCodec extends Codec {
@@ -46,7 +47,7 @@ public class IntBlockCodec extends Codec {
   }
 
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
-    DocsConsumer docsWriter = new SepDocsWriter(state, new SimpleIntBlockFactory(1024));
+    StandardDocsConsumer docsWriter = new SepDocsWriter(state, new SimpleIntBlockFactory(1024));
 
     boolean success = false;
     StandardTermsIndexWriter indexWriter;
@@ -84,7 +85,7 @@ public class IntBlockCodec extends Codec {
   */
 
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
-    DocsProducer docsReader = new SepDocsReader(dir, si, readBufferSize, new SimpleIntBlockFactory(1024));
+    StandardDocsProducer docsReader = new SepDocsReader(dir, si, readBufferSize, new SimpleIntBlockFactory(1024));
 
     StandardTermsIndexReader indexReader;
     boolean success = false;

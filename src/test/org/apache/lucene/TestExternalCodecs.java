@@ -153,21 +153,11 @@ public class TestExternalCodecs extends LuceneTestCase {
       public void reset(RAMTerm term) {
         this.term = term;
       }
-      public void start(IndexOutput termsOut) {
-      }
-      public void startTerm() {
-      }
       public PositionsConsumer addDoc(int docID, int freq) {
         current = new RAMDoc(docID, freq);
         term.docs.add(current);
         positions.reset(current);
         return positions;
-      }
-      public void finishTerm(int numDocs, boolean isIndexTerm) {
-      }
-      public void setField(FieldInfo fieldInfo) {
-      }
-      public void close() {
       }
     }
 
@@ -179,12 +169,6 @@ public class TestExternalCodecs extends LuceneTestCase {
         upto = 0;
       }
 
-      public void start(IndexOutput termsOut) {
-      }
-
-      public void startTerm() {
-      }
-
       public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) {
         if (payload != null) {
           throw new UnsupportedOperationException("can't handle payloads");
@@ -194,12 +178,6 @@ public class TestExternalCodecs extends LuceneTestCase {
 
       public void finishDoc() {
         assert upto == current.positions.length;
-      }
-
-      public void finishTerm(boolean isIndexTerm) {
-      }
-  
-      public void close() {
       }
     }
 

@@ -25,13 +25,13 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.PositionsProducer;
+import org.apache.lucene.index.codecs.standard.StandardPositionsProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 
 // nocommit -- base class should not be named terms dict:
 // this class interacts w/ a docsreader
-public class StandardPositionsReader extends PositionsProducer {
+public class StandardPositionsReader extends StandardPositionsProducer {
   
   final IndexInput proxIn;
   IndexInput termsIn;

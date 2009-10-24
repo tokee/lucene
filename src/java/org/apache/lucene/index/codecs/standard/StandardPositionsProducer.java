@@ -1,4 +1,4 @@
-package org.apache.lucene.index.codecs;
+package org.apache.lucene.index.codecs.standard;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -19,17 +19,22 @@ package org.apache.lucene.index.codecs;
 
 import java.io.IOException;
 
-import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.PositionsEnum;
 
-public abstract class PositionsConsumer {
+public abstract class StandardPositionsProducer {
 
-  /** Add a new position & payload.  If payloadLength > 0
-   *  you must read those bytes from the IndexInput.  NOTE:
-   *  you must fully consume the byte[] payload, since
-   *  caller is free to reuse it on subsequent calls. */
-  public abstract void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) throws IOException;
+  public abstract class Reader {
+    public abstract void readTerm(int docFreq, boolean isIndexTerm) throws IOException;
 
-  /** Called when we are done adding positions & payloads
-   * for each doc */
-  public abstract void finishDoc() throws IOException;
+    /** Returns a pos enum for the last term read */
+    public abstract PositionsEnum positions() throws IOException;
+  }
+
+  public abstract void start(IndexInput termsIn) throws IOException;
+
+  public abstract Reader reader(FieldInfo fieldInfo, IndexInput termsIn) throws IOException;
+
+  public abstract void close() throws IOException;
 }

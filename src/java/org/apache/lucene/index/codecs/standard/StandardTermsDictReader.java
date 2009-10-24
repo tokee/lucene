@@ -34,7 +34,6 @@ import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.DocsProducer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.index.codecs.pulsing.PulsingDocsWriter.Document;
 import org.apache.lucene.store.Directory;
@@ -51,7 +50,7 @@ import org.apache.lucene.util.CloseableThreadLocal;
 public class StandardTermsDictReader extends FieldsProducer {
   private final IndexInput in;
 
-  private final DocsProducer docs;
+  private final StandardDocsProducer docs;
 
   final TreeMap<String,FieldReader> fields = new TreeMap<String,FieldReader>();
 
@@ -59,7 +58,7 @@ public class StandardTermsDictReader extends FieldsProducer {
   private StandardTermsIndexReader indexReader;
 
 
-  public StandardTermsDictReader(StandardTermsIndexReader indexReader, Directory dir, FieldInfos fieldInfos, String segment, DocsProducer docs, int readBufferSize)
+  public StandardTermsDictReader(StandardTermsIndexReader indexReader, Directory dir, FieldInfos fieldInfos, String segment, StandardDocsProducer docs, int readBufferSize)
     throws IOException {
 
     in = dir.openInput(IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_EXTENSION), readBufferSize);
@@ -239,7 +238,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       private final DeltaBytesReader bytesReader;
       // nocommit: long?
       private int termUpto;
-      private final DocsProducer.Reader docs;
+      private final StandardDocsProducer.Reader docs;
       private int docFreq;
       private final StandardTermsIndexReader.TermsIndexResult indexResult = new StandardTermsIndexReader.TermsIndexResult();
       

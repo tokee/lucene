@@ -1,4 +1,4 @@
-package org.apache.lucene.index.codecs;
+package org.apache.lucene.index.codecs.standard;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -27,18 +27,13 @@ import org.apache.lucene.util.Bits;
 // nocommit -- circular, not clean
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 
-
-// nocommit -- this is tied to StandarTermsDictWriter;
-// shouldn't it be named StandardDocsProducer?  hmm, though,
-// it's API is fairly generic in that any other terms dict
-// codec could re-use it
-
 /** StandardTermsDictReader interacts with a single instance
  *  of this to manage creation of multiple docs enum
  *  instances.  It provides an IndexInput (termsIn) where
  *  this class may read any previously stored data that it
- *  had written in its corresponding DocsConsumer. */
-public abstract class DocsProducer {
+ *  had written in its corresponding StandarDocsConsumer at
+ *  indexing time. */
+public abstract class StandardDocsProducer {
   
   public abstract class Reader {
     

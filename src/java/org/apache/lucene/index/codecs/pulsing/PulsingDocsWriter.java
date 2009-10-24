@@ -24,6 +24,8 @@ import org.apache.lucene.util.ArrayUtil;
 
 import org.apache.lucene.index.codecs.DocsConsumer;
 import org.apache.lucene.index.codecs.PositionsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardPositionsConsumer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
@@ -35,7 +37,7 @@ import org.apache.lucene.index.codecs.Codec;
 // presumably rare in practice...
 
 //nocommit: public 
-public final class PulsingDocsWriter extends DocsConsumer {
+public final class PulsingDocsWriter extends StandardDocsConsumer {
 
   final static String CODEC = "PulsedPostings";
 
@@ -114,11 +116,11 @@ public final class PulsingDocsWriter extends DocsConsumer {
   // nocommit -- lazy init this?  ie, if every single term
   // was pulsed then we never need to use this fallback?
   // Fallback writer for non-pulsed terms:
-  final DocsConsumer wrappedDocsWriter;
+  final StandardDocsConsumer wrappedDocsWriter;
 
   /** If docFreq <= maxPulsingDocFreq, its postings are
    *  inlined into terms dict */
-  PulsingDocsWriter(SegmentWriteState state, int maxPulsingDocFreq, DocsConsumer wrappedDocsWriter) throws IOException {
+  PulsingDocsWriter(SegmentWriteState state, int maxPulsingDocFreq, StandardDocsConsumer wrappedDocsWriter) throws IOException {
     super();
 
     pendingDocs = new Document[maxPulsingDocFreq];
@@ -156,7 +158,7 @@ public final class PulsingDocsWriter extends DocsConsumer {
   }
 
   /** Simply buffers up positions */
-  class PositionsWriter extends PositionsConsumer {
+  class PositionsWriter extends StandardPositionsConsumer {
     public void start(IndexOutput termsOut) {}
     public void startTerm() {}
     public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) {

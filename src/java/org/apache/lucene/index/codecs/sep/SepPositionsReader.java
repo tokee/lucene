@@ -25,11 +25,11 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.PositionsProducer;
+import org.apache.lucene.index.codecs.standard.StandardPositionsProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 
-public class SepPositionsReader extends PositionsProducer {
+public class SepPositionsReader extends StandardPositionsProducer {
   
   final IntIndexInput posIn;
 
