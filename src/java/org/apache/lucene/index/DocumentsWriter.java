@@ -402,10 +402,12 @@ final class DocumentsWriter {
 
   /* Returns Collection of files in use by this instance,
    * including any flushed segments. */
+  @SuppressWarnings("unchecked")
   synchronized List<String> openFiles() {
-    return ( List<String>) ((ArrayList<String>) openFiles).clone();
+    return (List<String>) ((ArrayList<String>) openFiles).clone();
   }
 
+  @SuppressWarnings("unchecked")
   synchronized List<String> closedFiles() {
     return (List<String>) ((ArrayList<String>) closedFiles).clone();
   }
@@ -670,7 +672,7 @@ final class DocumentsWriter {
     // First, find a thread state.  If this thread already
     // has affinity to a specific ThreadState, use that one
     // again.
-    DocumentsWriterThreadState state = (DocumentsWriterThreadState) threadBindings.get(Thread.currentThread());
+    DocumentsWriterThreadState state = threadBindings.get(Thread.currentThread());
     if (state == null) {
 
       // First time this thread has called us since last

@@ -40,6 +40,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.util.IndexableBinaryStringTools;
 import org.apache.lucene.queryParser.analyzing.AnalyzingQueryParser;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.util.Version;
 
 import java.io.IOException;
 import java.nio.CharBuffer;
@@ -84,9 +85,9 @@ public class CollationTestBase extends TestCase {
     writer.close();
     IndexSearcher is = new IndexSearcher(ramDir, true);
 
-    AnalyzingQueryParser aqp = new AnalyzingQueryParser("content", analyzer);
+    AnalyzingQueryParser aqp = new AnalyzingQueryParser(Version.LUCENE_CURRENT, "content", analyzer);
     aqp.setLowercaseExpandedTerms(false);
-
+    aqp.setUseOldRangeQuery(false);
     // Unicode order would include U+0633 in [ U+062F - U+0698 ], but Farsi
     // orders the U+0698 character before the U+0633 character, so the single
     // index Term below should NOT be returned by a TermRangeQuery
@@ -95,7 +96,7 @@ public class CollationTestBase extends TestCase {
       
     // Test ConstantScoreRangeQuery
     Query q = aqp.parse("[ \u062F TO \u0698 ]");
-    aqp.setUseOldRangeQuery(false);
+
     ScoreDoc[] result
       = is.search(q, null, 1000).scoreDocs;
     assertEquals("The index Term should not be included.", 0, result.length);
@@ -103,7 +104,7 @@ public class CollationTestBase extends TestCase {
     result = is.search(aqp.parse("[ \u0633 TO \u0638 ]"), null, 1000).scoreDocs;
     assertEquals("The index Term should be included.", 1, result.length);
 
-    // Test TermRangeQuery
+    // Test Old TermRangeQuery
     aqp.setUseOldRangeQuery(true);
     result = is.search(aqp.parse("[ \u062F TO \u0698 ]"), null, 1000).scoreDocs;
     assertEquals("The index Term should not be included.", 0, result.length);

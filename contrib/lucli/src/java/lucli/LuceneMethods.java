@@ -61,6 +61,7 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Searcher;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Version;
 
 /**
  * Various methods that interact with Lucene and provide info about the 
@@ -84,18 +85,18 @@ class LuceneMethods {
   }
 
     private Analyzer createAnalyzer() {
-        if (analyzerClassFQN == null) return new StandardAnalyzer();
+        if (analyzerClassFQN == null) return new StandardAnalyzer(Version.LUCENE_CURRENT);
         try {
             Class aClass = Class.forName(analyzerClassFQN);
             Object obj = aClass.newInstance();
             if (!(obj instanceof Analyzer)) {
                 message("Given class is not an Analyzer: " + analyzerClassFQN);
-                return new StandardAnalyzer();
+                return new StandardAnalyzer(Version.LUCENE_CURRENT);
             }
             return (Analyzer)obj;
         } catch (Exception e) {
             message("Unable to use Analyzer " + analyzerClassFQN);
-            return new StandardAnalyzer();
+            return new StandardAnalyzer(Version.LUCENE_CURRENT);
         }
     }
 
@@ -198,7 +199,7 @@ class LuceneMethods {
     for (int ii = 0; ii < arraySize; ii++) {
       indexedArray[ii] = (String) indexedFields.get(ii);
     }
-    MultiFieldQueryParser parser = new MultiFieldQueryParser(indexedArray, analyzer);
+    MultiFieldQueryParser parser = new MultiFieldQueryParser(Version.LUCENE_CURRENT, indexedArray, analyzer);
     query = parser.parse(queryString);
     System.out.println("Searching for: " + query.toString());
     return (query);
@@ -219,7 +220,7 @@ class LuceneMethods {
     for (int ii = 0; ii < arraySize; ii++) {
       fieldsArray[ii] = (String) fields.get(ii);
     }
-    MultiFieldQueryParser parser = new MultiFieldQueryParser(fieldsArray, analyzer);
+    MultiFieldQueryParser parser = new MultiFieldQueryParser(Version.LUCENE_CURRENT, fieldsArray, analyzer);
     query = parser.parse(queryString);
     System.out.println("Searching for: " + query.toString());
   }

@@ -64,7 +64,13 @@ public final class Constants {
     }
   }
 
-  public static final String LUCENE_MAIN_VERSION = "3.0";
+  // this method prevents inlining the final version constant in compiled classes,
+  // see: http://www.javaworld.com/community/node/3400
+  private static String ident(final String s) {
+    return s.toString();
+  }
+  
+  public static final String LUCENE_MAIN_VERSION = ident("3.0");
 
   public static final String LUCENE_VERSION;
   static {
@@ -72,9 +78,9 @@ public final class Constants {
     String v = (pkg == null) ? null : pkg.getImplementationVersion();
     if (v == null) {
       v = LUCENE_MAIN_VERSION + "-dev";
-    } else if (v.indexOf(LUCENE_MAIN_VERSION) == -1) {
-      v = v + " [" + LUCENE_MAIN_VERSION + "]";
+    } else if (!v.startsWith(LUCENE_MAIN_VERSION)) {
+      v = LUCENE_MAIN_VERSION + "-dev " + v;
     }
-    LUCENE_VERSION = v;
+    LUCENE_VERSION = ident(v);
   }
 }

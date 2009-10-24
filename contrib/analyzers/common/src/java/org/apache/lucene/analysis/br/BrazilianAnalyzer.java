@@ -23,6 +23,7 @@ import java.io.Reader;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.Collections;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.LowerCaseFilter;
@@ -32,6 +33,7 @@ import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.WordlistLoader;
 import org.apache.lucene.analysis.standard.StandardFilter;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
+import org.apache.lucene.util.Version;
 
 /**
  * {@link Analyzer} for Brazilian Portuguese language. 
@@ -40,6 +42,9 @@ import org.apache.lucene.analysis.standard.StandardTokenizer;
  * will not be indexed at all) and an external list of exclusions (words that will
  * not be stemmed, but indexed).
  * </p>
+ *
+ * <p><b>NOTE</b>: This class uses the same {@link Version}
+ * dependent settings as {@link StandardAnalyzer}.</p>
  */
 public final class BrazilianAnalyzer extends Analyzer {
 
@@ -71,45 +76,50 @@ public final class BrazilianAnalyzer extends Analyzer {
 	/**
 	 * Contains the stopwords used with the {@link StopFilter}.
 	 */
-	private Set stoptable = new HashSet();
+	private Set stoptable = Collections.emptySet();
 	
 	/**
 	 * Contains words that should be indexed but not stemmed.
 	 */
-	private Set excltable = new HashSet();
+	private Set excltable = Collections.emptySet();
+        private final Version matchVersion;
 
 	/**
 	 * Builds an analyzer with the default stop words ({@link #BRAZILIAN_STOP_WORDS}).
 	 */
-	public BrazilianAnalyzer() {
-		stoptable = StopFilter.makeStopSet( BRAZILIAN_STOP_WORDS );
+	public BrazilianAnalyzer(Version matchVersion) {
+          stoptable = StopFilter.makeStopSet( BRAZILIAN_STOP_WORDS );
+          this.matchVersion = matchVersion;
 	}
 
 	/**
 	 * Builds an analyzer with the given stop words.
 	 */
-	public BrazilianAnalyzer( String[] stopwords ) {
-		stoptable = StopFilter.makeStopSet( stopwords );
+        public BrazilianAnalyzer( Version matchVersion, String... stopwords ) {
+          stoptable = StopFilter.makeStopSet( stopwords );
+          this.matchVersion = matchVersion;
 	}
 
 	/**
 	 * Builds an analyzer with the given stop words.
 	 */
-	public BrazilianAnalyzer( Map stopwords ) {
-		stoptable = new HashSet(stopwords.keySet());
+        public BrazilianAnalyzer( Version matchVersion, Map stopwords ) {
+          stoptable = new HashSet(stopwords.keySet());
+          this.matchVersion = matchVersion;
 	}
 
 	/**
 	 * Builds an analyzer with the given stop words.
 	 */
-	public BrazilianAnalyzer( File stopwords ) throws IOException {
-		stoptable = WordlistLoader.getWordSet( stopwords );
+        public BrazilianAnalyzer( Version matchVersion, File stopwords ) throws IOException {
+          stoptable = WordlistLoader.getWordSet( stopwords );
+          this.matchVersion = matchVersion;
 	}
 
 	/**
 	 * Builds an exclusionlist from an array of Strings.
 	 */
-	public void setStemExclusionTable( String[] exclusionlist ) {
+	public void setStemExclusionTable( String... exclusionlist ) {
 		excltable = StopFilter.makeStopSet( exclusionlist );
 		setPreviousTokenStream(null); // force a new stemmer to be created
 	}
@@ -136,10 +146,11 @@ public final class BrazilianAnalyzer extends Analyzer {
 	 *          {@link BrazilianStemFilter}.
 	 */
 	public final TokenStream tokenStream(String fieldName, Reader reader) {
-		TokenStream result = new StandardTokenizer( reader );
+                TokenStream result = new StandardTokenizer( matchVersion, reader );
 		result = new LowerCaseFilter( result );
 		result = new StandardFilter( result );
-		result = new StopFilter( result, stoptable );
+		result = new StopFilter( StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
+                                         result, stoptable );
 		result = new BrazilianStemFilter( result, excltable );
 		return result;
 	}
@@ -162,10 +173,11 @@ public final class BrazilianAnalyzer extends Analyzer {
       SavedStreams streams = (SavedStreams) getPreviousTokenStream();
       if (streams == null) {
         streams = new SavedStreams();
-        streams.source = new StandardTokenizer(reader);
+        streams.source = new StandardTokenizer(matchVersion, reader);
         streams.result = new LowerCaseFilter(streams.source);
         streams.result = new StandardFilter(streams.result);
-        streams.result = new StopFilter(streams.result, stoptable);
+        streams.result = new StopFilter(StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
+                                        streams.result, stoptable);
         streams.result = new BrazilianStemFilter(streams.result, excltable);
         setPreviousTokenStream(streams);
       } else {

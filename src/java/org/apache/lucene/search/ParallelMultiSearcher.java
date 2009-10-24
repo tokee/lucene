@@ -34,7 +34,7 @@ public class ParallelMultiSearcher extends MultiSearcher {
   private int[] starts;
 	
   /** Creates a searchable which searches <i>searchables</i>. */
-  public ParallelMultiSearcher(Searchable[] searchables) throws IOException {
+  public ParallelMultiSearcher(Searchable... searchables) throws IOException {
     super(searchables);
     this.searchables = searchables;
     this.starts = getStarts();
@@ -85,7 +85,7 @@ public class ParallelMultiSearcher extends MultiSearcher {
 
     ScoreDoc[] scoreDocs = new ScoreDoc[hq.size()];
     for (int i = hq.size() - 1; i >= 0; i--) // put docs in array
-      scoreDocs[i] = (ScoreDoc) hq.pop();
+      scoreDocs[i] = hq.pop();
 
     float maxScore = (totalHits==0) ? Float.NEGATIVE_INFINITY : scoreDocs[0].score;
     
@@ -133,7 +133,7 @@ public class ParallelMultiSearcher extends MultiSearcher {
 
     ScoreDoc[] scoreDocs = new ScoreDoc[hq.size()];
     for (int i = hq.size() - 1; i >= 0; i--) // put docs in array
-      scoreDocs[i] = (ScoreDoc) hq.pop();
+      scoreDocs[i] = hq.pop();
 
     return new TopFieldDocs(totalHits, scoreDocs, hq.getFields(), maxScore);
   }
@@ -199,7 +199,7 @@ class MultiSearcherThread extends Thread {
   private int nDocs;
   private TopDocs docs;
   private int i;
-  private PriorityQueue hq;
+  private PriorityQueue<? extends ScoreDoc> hq;
   private int[] starts;
   private IOException ioe;
   private Sort sort;
@@ -230,6 +230,7 @@ class MultiSearcherThread extends Thread {
     this.sort = sort;
   }
 
+  @SuppressWarnings ("unchecked")
   public void run() {
     try {
       docs = (sort == null) ? searchable.search (weight, filter, nDocs)
@@ -266,7 +267,9 @@ class MultiSearcherThread extends Thread {
         scoreDoc.doc += starts[i]; // convert doc 
         //it would be so nice if we had a thread-safe insert 
         synchronized (hq) {
-          if (scoreDoc == hq.insertWithOverflow(scoreDoc))
+          // this cast is bad, because we assume that the list has correct type.
+          // Because of that we have the @SuppressWarnings :-(
+          if (scoreDoc == ((PriorityQueue<ScoreDoc>) hq).insertWithOverflow(scoreDoc))
             break;
         } // no more scores > minScore
       }

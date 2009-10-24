@@ -73,7 +73,7 @@ public class MultiReader extends IndexReader implements Cloneable {
   }
   
   private void initialize(IndexReader[] subReaders, boolean closeSubReaders) throws IOException {
-    this.subReaders = (IndexReader[]) subReaders.clone();
+    this.subReaders =  subReaders.clone();
     starts = new int[subReaders.length + 1];    // build starts array
     decrefOnClose = new boolean[subReaders.length];
     Bits[] subs = new Bits[subReaders.length];

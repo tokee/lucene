@@ -127,7 +127,7 @@ final class SegmentMerger {
    * @return The ith reader to be merged
    */
   final IndexReader segmentReader(int i) {
-    return (IndexReader) readers.get(i);
+    return readers.get(i);
   }
 
   /**
@@ -267,7 +267,7 @@ final class SegmentMerger {
     // FieldInfos, then we can do a bulk copy of the
     // stored fields:
     for (int i = 0; i < numReaders; i++) {
-      IndexReader reader = (IndexReader) readers.get(i);
+      IndexReader reader = readers.get(i);
       if (reader instanceof SegmentReader) {
         SegmentReader segmentReader = (SegmentReader) reader;
         boolean same = true;
@@ -606,7 +606,7 @@ final class SegmentMerger {
     int base = 0;
     final int readerCount = readers.size();
     for (int i = 0; i < readerCount; i++) {
-      IndexReader reader = (IndexReader) readers.get(i);
+      IndexReader reader = readers.get(i);
       SegmentMergeInfo smi = new SegmentMergeInfo(base, reader);
       int[] docMap  = smi.getDocMap();
       if (docMap != null) {

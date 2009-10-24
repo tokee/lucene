@@ -31,6 +31,8 @@ import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.util.UnicodeUtil;
 
+// TODO: Fix the unchecked collections, I do not understand the whole code here -- Uwe
+@SuppressWarnings("unchecked")
 final class FreqProxTermsWriter extends TermsHashConsumer {
 
   public TermsHashConsumerPerThread addThread(TermsHashPerThread perThread) {

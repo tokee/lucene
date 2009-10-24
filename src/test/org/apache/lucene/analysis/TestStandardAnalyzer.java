@@ -5,6 +5,7 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.util.Version;
 
 import java.io.StringReader;
 
@@ -26,16 +27,16 @@ import java.io.StringReader;
 
 public class TestStandardAnalyzer extends BaseTokenStreamTestCase {
 
-  private Analyzer a = new StandardAnalyzer();
+  private Analyzer a = new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT);
 
   public void testMaxTermLength() throws Exception {
-    StandardAnalyzer sa = new StandardAnalyzer();
+    StandardAnalyzer sa = new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT);
     sa.setMaxTokenLength(5);
     assertAnalyzesTo(sa, "ab cd toolong xy z", new String[]{"ab", "cd", "xy", "z"});
   }
 
   public void testMaxTermLength2() throws Exception {
-    StandardAnalyzer sa = new StandardAnalyzer();
+    StandardAnalyzer sa = new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT);
     assertAnalyzesTo(sa, "ab cd toolong xy z", new String[]{"ab", "cd", "toolong", "xy", "z"});
     sa.setMaxTokenLength(5);
     
@@ -99,24 +100,31 @@ public class TestStandardAnalyzer extends BaseTokenStreamTestCase {
 
   public void testLucene1140() throws Exception {
     try {
-      StandardAnalyzer analyzer = new StandardAnalyzer(true);
+      StandardAnalyzer analyzer = new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT);
       assertAnalyzesTo(analyzer, "www.nutch.org.", new String[]{ "www.nutch.org" }, new String[] { "<HOST>" });
     } catch (NullPointerException e) {
-      assertTrue("Should not throw an NPE and it did", false);
+      fail("Should not throw an NPE and it did");
     }
 
   }
 
   public void testDomainNames() throws Exception {
-    // Don't reuse a because we alter its state (setReplaceInvalidAcronym)
-    StandardAnalyzer a2 = new StandardAnalyzer();
+    // Current lucene should not show the bug
+    StandardAnalyzer a2 = new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT);
+
     // domain names
     assertAnalyzesTo(a2, "www.nutch.org", new String[]{"www.nutch.org"});
     //Notice the trailing .  See https://issues.apache.org/jira/browse/LUCENE-1068.
     // the following should be recognized as HOST:
     assertAnalyzesTo(a2, "www.nutch.org.", new String[]{ "www.nutch.org" }, new String[] { "<HOST>" });
-    a2.setReplaceInvalidAcronym(false);
+
+    // 2.3 should show the bug
+    a2 = new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_23);
     assertAnalyzesTo(a2, "www.nutch.org.", new String[]{ "wwwnutchorg" }, new String[] { "<ACRONYM>" });
+
+    // 2.4 should not show the bug
+    a2 = new StandardAnalyzer(Version.LUCENE_24);
+    assertAnalyzesTo(a2, "www.nutch.org.", new String[]{ "www.nutch.org" }, new String[] { "<HOST>" });
   }
 
   public void testEMailAddresses() throws Exception {
@@ -220,11 +228,4 @@ public class TestStandardAnalyzer extends BaseTokenStreamTestCase {
                     "<ALPHANUM>", "<NUM>", "<HOST>", "<NUM>", "<ALPHANUM>",
                     "<ALPHANUM>", "<HOST>"});
   }
-
-  /** @deprecated this should be removed in the 3.0. */
-   public void testDeprecatedAcronyms() throws Exception {
- 	// test backward compatibility for applications that require the old behavior.
- 	// this should be removed once replaceDepAcronym is removed.
- 	  assertAnalyzesTo(a, "lucene.apache.org.", new String[]{ "lucene.apache.org" }, new String[] { "<HOST>" });
-   }
 }

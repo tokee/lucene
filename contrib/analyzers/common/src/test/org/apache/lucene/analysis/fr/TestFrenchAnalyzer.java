@@ -22,6 +22,7 @@ import java.io.StringReader;
 import org.apache.lucene.analysis.BaseTokenStreamTestCase;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.util.Version;
 
 /**
  * Test case for FrenchAnalyzer.
@@ -32,26 +33,8 @@ import org.apache.lucene.analysis.TokenStream;
 public class TestFrenchAnalyzer extends BaseTokenStreamTestCase {
 
 	public void testAnalyzer() throws Exception {
-		FrenchAnalyzer fa = new FrenchAnalyzer();
+		FrenchAnalyzer fa = new FrenchAnalyzer(Version.LUCENE_CURRENT);
 	
-		// test null reader
-		boolean iaeFlag = false;
-		try {
-			fa.tokenStream("dummy", null);
-		} catch (IllegalArgumentException iae) {
-			iaeFlag = true;
-		}
-		assertEquals(iaeFlag, true);
-
-		// test null fieldname
-		iaeFlag = false;
-		try {
-			fa.tokenStream(null, new StringReader("dummy"));
-		} catch (IllegalArgumentException iae) {
-			iaeFlag = true;
-		}
-		assertEquals(iaeFlag, true);
-
 		assertAnalyzesTo(fa, "", new String[] {
 		});
 
@@ -134,7 +117,7 @@ public class TestFrenchAnalyzer extends BaseTokenStreamTestCase {
 	}
 	
 	public void testReusableTokenStream() throws Exception {
-	  FrenchAnalyzer fa = new FrenchAnalyzer();
+	  FrenchAnalyzer fa = new FrenchAnalyzer(Version.LUCENE_CURRENT);
 	  // stopwords
       assertAnalyzesToReuse(
           fa,
@@ -159,7 +142,7 @@ public class TestFrenchAnalyzer extends BaseTokenStreamTestCase {
 	 * when using reusable token streams.
 	 */
 	public void testExclusionTableReuse() throws Exception {
-	  FrenchAnalyzer fa = new FrenchAnalyzer();
+	  FrenchAnalyzer fa = new FrenchAnalyzer(Version.LUCENE_CURRENT);
 	  assertAnalyzesToReuse(fa, "habitable", new String[] { "habit" });
 	  fa.setStemExclusionTable(new String[] { "habitable" });
 	  assertAnalyzesToReuse(fa, "habitable", new String[] { "habitable" });

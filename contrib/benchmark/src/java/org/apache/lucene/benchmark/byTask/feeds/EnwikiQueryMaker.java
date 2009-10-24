@@ -32,6 +32,8 @@ import org.apache.lucene.search.spans.SpanFirstQuery;
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
+import org.apache.lucene.benchmark.byTask.tasks.NewAnalyzerTask;
+import org.apache.lucene.util.Version;
 
 /**
  * A QueryMaker that uses common and uncommon actual Wikipedia queries for
@@ -91,7 +93,7 @@ public class EnwikiQueryMaker extends AbstractQueryMaker implements
    * @return array of Lucene queries
    */
   private static Query[] createQueries(List qs, Analyzer a) {
-    QueryParser qp = new QueryParser(DocMaker.BODY_FIELD, a);
+    QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, DocMaker.BODY_FIELD, a);
     List queries = new ArrayList();
     for (int i = 0; i < qs.size(); i++) {
       try {
@@ -122,8 +124,7 @@ public class EnwikiQueryMaker extends AbstractQueryMaker implements
 
   protected Query[] prepareQueries() throws Exception {
     // analyzer (default is standard analyzer)
-    Analyzer anlzr = (Analyzer) Class.forName(
-        config.get("analyzer", StandardAnalyzer.class.getName())).newInstance();
+    Analyzer anlzr = NewAnalyzerTask.createAnalyzer(config.get("analyzer", StandardAnalyzer.class.getName()));
 
     List queryList = new ArrayList(20);
     queryList.addAll(Arrays.asList(STANDARD_QUERIES));

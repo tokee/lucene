@@ -29,10 +29,12 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 
 import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.util.Version;
 
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Collections;
 
 /**
  * This class tests the MultiPhraseQuery class.
@@ -171,7 +173,7 @@ public class TestMultiPhraseQuery extends LuceneTestCase
     
   public void testPhrasePrefixWithBooleanQuery() throws IOException {
     MockRAMDirectory indexStore = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(indexStore, new StandardAnalyzer(new HashSet(0)), true, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter writer = new IndexWriter(indexStore, new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT, Collections.emptySet()), true, IndexWriter.MaxFieldLength.LIMITED);
     add("This is a test", "object", writer);
     add("a note", "note", writer);
     writer.close();
@@ -196,7 +198,7 @@ public class TestMultiPhraseQuery extends LuceneTestCase
 
   public void testNoDocs() throws Exception {
     MockRAMDirectory indexStore = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(indexStore, new StandardAnalyzer(new HashSet(0)), true, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter writer = new IndexWriter(indexStore, new StandardAnalyzer(Version.LUCENE_CURRENT, new HashSet(0)), true, IndexWriter.MaxFieldLength.LIMITED);
     add("a note", "note", writer);
     writer.close();
 

@@ -21,6 +21,7 @@ import java.io.Reader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -31,6 +32,7 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
+import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexWriter;
@@ -40,7 +42,6 @@ import org.apache.lucene.index.TermPositions;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.store.MockRAMDirectory;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.analysis.BaseTokenStreamTestCase;
 import org.apache.lucene.analysis.LowerCaseTokenizer;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.index.Payload;
@@ -49,6 +50,8 @@ import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.search.spans.Spans;
+import org.apache.lucene.util.Version;
+import org.apache.lucene.util.LuceneTestCase;
 
 /**
  * Term position unit test.
@@ -56,7 +59,7 @@ import org.apache.lucene.search.spans.Spans;
  *
  * @version $Revision$
  */
-public class TestPositionIncrement extends BaseTokenStreamTestCase {
+public class TestPositionIncrement extends LuceneTestCase {
 
   final static boolean VERBOSE = false;
 
@@ -188,7 +191,7 @@ public class TestPositionIncrement extends BaseTokenStreamTestCase {
     assertEquals(0, hits.length);
 
     // should not find "1 2" because there is a gap of 1 in the index
-    QueryParser qp = new QueryParser("field",
+    QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, "field",
                                      new StopWhitespaceAnalyzer(false));
     q = (PhraseQuery) qp.parse("\"1 2\"");
     hits = searcher.search(q, null, 1000).scoreDocs;
@@ -212,7 +215,7 @@ public class TestPositionIncrement extends BaseTokenStreamTestCase {
     assertEquals(0, hits.length);
       
     // when both qp qnd stopFilter propagate increments, we should find the doc.
-    qp = new QueryParser("field",
+    qp = new QueryParser(Version.LUCENE_CURRENT, "field",
                          new StopWhitespaceAnalyzer(true));
     qp.setEnablePositionIncrements(true);
     q = (PhraseQuery) qp.parse("\"1 stop 2\"");
@@ -228,7 +231,7 @@ public class TestPositionIncrement extends BaseTokenStreamTestCase {
     }
     public TokenStream tokenStream(String fieldName, Reader reader) {
       TokenStream ts = a.tokenStream(fieldName,reader);
-      return new StopFilter(enablePositionIncrements, ts, new String[]{"stop"});
+      return new StopFilter(enablePositionIncrements, ts, new CharArraySet(Collections.singleton("stop"), true));
     }
   }
   

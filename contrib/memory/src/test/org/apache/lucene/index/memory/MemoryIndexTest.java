@@ -52,6 +52,7 @@ import org.apache.lucene.search.Searcher;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.index.TermDocs;
+import org.apache.lucene.util.Version;
 
 /**
 Verifies that Lucene MemoryIndex and RAMDirectory have the same behaviour,
@@ -276,8 +277,8 @@ public class MemoryIndexTest extends BaseTokenStreamTestCase {
     
     Analyzer[] analyzers = new Analyzer[] { 
         new SimpleAnalyzer(),
-        new StopAnalyzer(),
-        new StandardAnalyzer(),
+        new StopAnalyzer(Version.LUCENE_CURRENT),
+        new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT),
         PatternAnalyzer.DEFAULT_ANALYZER,
 //        new WhitespaceAnalyzer(),
 //        new PatternAnalyzer(PatternAnalyzer.NON_WORD_PATTERN, false, null),
@@ -479,7 +480,7 @@ public class MemoryIndexTest extends BaseTokenStreamTestCase {
   }
   
   private Query parseQuery(String expression) throws ParseException {
-    QueryParser parser = new QueryParser(FIELD_NAME, analyzer);
+    QueryParser parser = new QueryParser(Version.LUCENE_CURRENT, FIELD_NAME, analyzer);
 //    parser.setPhraseSlop(0);
     return parser.parse(expression);
   }

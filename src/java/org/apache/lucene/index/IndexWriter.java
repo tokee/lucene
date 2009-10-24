@@ -591,7 +591,7 @@ public class IndexWriter implements Closeable {
         readBufferSize = BufferedIndexInput.BUFFER_SIZE;
       }
 
-      SegmentReader sr = (SegmentReader) readerMap.get(info);
+      SegmentReader sr = readerMap.get(info);
       if (sr == null) {
         // TODO: we may want to avoid doing this while
         // synchronized
@@ -621,7 +621,7 @@ public class IndexWriter implements Closeable {
 
     // Returns a ref
     public synchronized SegmentReader getIfExists(SegmentInfo info) throws IOException {
-      SegmentReader sr = (SegmentReader) readerMap.get(info);
+      SegmentReader sr = readerMap.get(info);
       if (sr != null) {
         sr.incRef();
       }
@@ -2375,7 +2375,7 @@ public class IndexWriter implements Closeable {
       if (spec != null) {
         final int numMerges = spec.merges.size();
         for(int i=0;i<numMerges;i++)
-          registerMerge((MergePolicy.OneMerge) spec.merges.get(i));
+          registerMerge(spec.merges.get(i));
       }
     }
 
@@ -2396,7 +2396,7 @@ public class IndexWriter implements Closeable {
           // if any of them have hit an exception.
           running = false;
           for(int i=0;i<numMerges;i++) {
-            final MergePolicy.OneMerge merge = (MergePolicy.OneMerge) spec.merges.get(i);
+            final MergePolicy.OneMerge merge = spec.merges.get(i);
             if (pendingMerges.contains(merge) || runningMerges.contains(merge))
               running = true;
             Throwable t = merge.getException();
@@ -2491,7 +2491,7 @@ public class IndexWriter implements Closeable {
       if (spec != null) {
         final int numMerges = spec.merges.size();
         for(int i=0;i<numMerges;i++) {
-          final MergePolicy.OneMerge merge = ((MergePolicy.OneMerge) spec.merges.get(i));
+          final MergePolicy.OneMerge merge = ( spec.merges.get(i));
           merge.optimize = true;
           merge.maxNumSegmentsOptimize = maxNumSegmentsOptimize;
         }
@@ -2503,7 +2503,7 @@ public class IndexWriter implements Closeable {
     if (spec != null) {
       final int numMerges = spec.merges.size();
       for(int i=0;i<numMerges;i++)
-        registerMerge((MergePolicy.OneMerge) spec.merges.get(i));
+        registerMerge(spec.merges.get(i));
     }
   }
 
@@ -2515,7 +2515,7 @@ public class IndexWriter implements Closeable {
       return null;
     else {
       // Advance the merge from pending to running
-      MergePolicy.OneMerge merge = (MergePolicy.OneMerge) pendingMerges.removeFirst();
+      MergePolicy.OneMerge merge = pendingMerges.removeFirst();
       runningMerges.add(merge);
       return merge;
     }
@@ -2529,7 +2529,7 @@ public class IndexWriter implements Closeable {
     else {
       Iterator<MergePolicy.OneMerge> it = pendingMerges.iterator();
       while(it.hasNext()) {
-        MergePolicy.OneMerge merge = (MergePolicy.OneMerge) it.next();
+        MergePolicy.OneMerge merge = it.next();
         if (merge.isExternal) {
           // Advance the merge from pending to running
           it.remove();

@@ -25,6 +25,12 @@ API Changes
    text exactly the same as LowerCaseFilter. Please use LowerCaseFilter
    instead, which has the same functionality.  (Robert Muir)
    
+ * LUCENE-2002: Add required Version matchVersion argument when
+   constructing ComplexPhraseQueryParser and default (as of 2.9)
+   enablePositionIncrements to true to match StandardAnalyzer's
+   default.  Also added required matchVersion to most of the analyzers
+   (Uwe Schindler, Mike McCandless)
+
 Bug fixes
 
  * LUCENE-1781: Fixed various issues with the lat/lng bounding box
@@ -37,6 +43,15 @@ Bug fixes
 
  * LUCENE-1953: FastVectorHighlighter: small fragCharSize can cause
    StringIndexOutOfBoundsException. (Koji Sekiguchi)
+
+ * LUCENE-2001: Wordnet Syns2Index incorrectly parses synonyms that
+   contain a single quote. (Parag H. Dave via Robert Muir)
+
+ * LUCENE-1359: French analyzer did not support null field names.
+   (Andrew Lynch via Robert Muir)
+   
+ * LUCENE-2003: Highlighter doesn't respect position increments other than 1 with 
+   PhraseQuerys. (Uwe Schindler, Mark Miller)
 
 New features
 

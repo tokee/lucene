@@ -42,6 +42,7 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.util.Version;
 
 /**
  * A test class for ShingleAnalyzerWrapper as regards queries and scoring.
@@ -85,7 +86,7 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
   protected ScoreDoc[] queryParsingTest(Analyzer analyzer, String qs) throws Exception {
     searcher = setUpSearcher(analyzer);
 
-    QueryParser qp = new QueryParser("content", analyzer);
+    QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, "content", analyzer);
 
     Query q = qp.parse(qs);
 
@@ -216,6 +217,10 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
    * subclass that acts just like whitespace analyzer for testing
    */
   private class ShingleWrapperSubclassAnalyzer extends ShingleAnalyzerWrapper {
+    public ShingleWrapperSubclassAnalyzer() {
+      super(org.apache.lucene.util.Version.LUCENE_CURRENT);
+    }
+  
     public TokenStream tokenStream(String fieldName, Reader reader) {
       return new WhitespaceTokenizer(reader);
     }  

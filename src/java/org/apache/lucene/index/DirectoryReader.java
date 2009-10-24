@@ -248,7 +248,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     
     for (int i = infos.size() - 1; i>=0; i--) {
       // find SegmentReader for this segment
-      Integer oldReaderIndex = (Integer) segmentReaders.get(infos.info(i).name);
+      Integer oldReaderIndex = segmentReaders.get(infos.info(i).name);
       if (oldReaderIndex == null) {
         // this is a new segment, no old SegmentReader can be reused
         newReaders[i] = null;
@@ -314,12 +314,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
           continue;
         }
 
-        byte[] oldBytes = (byte[]) entry.getValue();
+        byte[] oldBytes = entry.getValue();
 
         byte[] bytes = new byte[maxDoc()];
 
         for (int i = 0; i < subReaders.length; i++) {
-          Integer oldReaderIndex = ((Integer) segmentReaders.get(subReaders[i].getSegmentName()));
+          Integer oldReaderIndex = segmentReaders.get(subReaders[i].getSegmentName());
 
           // this SegmentReader was not re-opened, we can copy all of its norms 
           if (oldReaderIndex != null &&
@@ -496,14 +496,14 @@ class DirectoryReader extends IndexReader implements Cloneable {
         assert isCurrent();
 
         if (openReadOnly) {
-          return (IndexReader) clone(openReadOnly);
+          return clone(openReadOnly);
         } else {
           return this;
         }
       } else if (isCurrent()) {
         if (openReadOnly != readOnly) {
           // Just fallback to clone
-          return (IndexReader) clone(openReadOnly);
+          return clone(openReadOnly);
         } else {
           return this;
         }
@@ -514,7 +514,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       if (segmentInfos != null && commit.getSegmentsFileName().equals(segmentInfos.getCurrentSegmentFileName())) {
         if (readOnly != openReadOnly) {
           // Just fallback to clone
-          return (IndexReader) clone(openReadOnly);
+          return clone(openReadOnly);
         } else {
           return this;
         }
@@ -665,7 +665,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   public synchronized byte[] norms(String field) throws IOException {
     ensureOpen();
-    byte[] bytes = (byte[])normsCache.get(field);
+    byte[] bytes = normsCache.get(field);
     if (bytes != null)
       return bytes;          // cache hit
     if (!hasNorms(field))
@@ -681,7 +681,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   public synchronized void norms(String field, byte[] result, int offset)
     throws IOException {
     ensureOpen();
-    byte[] bytes = (byte[])normsCache.get(field);
+    byte[] bytes = normsCache.get(field);
     if (bytes==null && !hasNorms(field)) {
       Arrays.fill(result, offset, result.length, DefaultSimilarity.encodeNorm(1.0f));
     } else if (bytes != null) {                           // cache hit
@@ -1578,7 +1578,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       int numMatchingSegments = 0;
       matchingSegments[0] = null;
 
-      LegacySegmentMergeInfo top = (LegacySegmentMergeInfo)queue.top();
+      LegacySegmentMergeInfo top = queue.top();
 
       if (top == null) {
         term = null;
@@ -1592,7 +1592,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
         matchingSegments[numMatchingSegments++] = top;
         queue.pop();
         docFreq += top.termEnum.docFreq();    // increment freq
-        top = (LegacySegmentMergeInfo)queue.top();
+        top = queue.top();
       }
 
       matchingSegments[numMatchingSegments] = null;
@@ -1771,7 +1771,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   
     protected TermDocs termDocs(IndexReader reader) throws IOException {
-      return (TermDocs)reader.termPositions();
+      return reader.termPositions();
     }
   
     public int nextPosition() throws IOException {

@@ -77,13 +77,28 @@ API Changes
 
 * LUCENE-1989: Generify CharArraySet. (Uwe Schindler)
 
-* LUCENE-1987: Rremove deprecations from analysis package and Token.
-  Un-deprecate some ctors of Token, as they are still useful.
+* LUCENE-1987: Un-deprecate some ctors of Token, as they will not
+  be removed in 3.0 and are still useful. Also add some missing
+  o.a.l.util.Version constants for enabling invalid acronym
+  settings in StandardAnalyzer to be compatible with the coming
+  Lucene 3.0. Remove the rest of deprecated analysis methods/classes.
   (Uwe Schindler)
 
 * LUCENE-1945: All public classes that have a close() method now
   also implement java.io.Closeable (IndexReader, IndexWriter, Directory,...).
   (Uwe Schindler)
+
+* LUCENE-1998: Change all Parameter instances to Java 5 enums. This
+  is no backwards-break, only a change of the super class. Parameter
+  was deprecated and will be removed in a later version.
+  (DM Smith, Uwe Schindler)
+  
+* LUCENE-1973: Remove deprecated Similarity methods. (Uwe Schindler)
+
+* LUCENE-2002: Add required Version matchVersion argument when
+  constructing QueryParser or MultiFieldQueryParser and, default (as
+  of 2.9) enablePositionIncrements to true to match
+  StandardAnalyzer's 2.9 default (Uwe Schindler, Mike McCandless)
 
 Bug fixes
 
@@ -107,12 +122,21 @@ Bug fixes
   cannot exceed 2048 MB, and throw IllegalArgumentException if it
   does.  (Aaron McKee, Yonik Seeley, Mike McCandless)
 
+* LUCENE-2004: Fix Constants.LUCENE_MAIN_VERSION to not be inlined
+  by client code.  (Uwe Schindler)
+
 New features
 
 * LUCENE-1933: Provide a convenience AttributeFactory that creates a
   Token instance for all basic attributes.  (Uwe Schindler)
 
 Optimizations
+
+* LUCENE-1183: Optimize Levenshtein Distance computation in
+  FuzzyQuery.  (Cédrik Lime via Mike McCandless)
+
+* LUCENE-2006: Optimization of FieldDocSortedHitQueue to always
+  use Comparable<?> interface.  (Uwe Schindler, Mark Miller)
 
 Documentation
 
@@ -220,6 +244,11 @@ Changes in backwards compatibility policy
     abstract rather than an interface) back compat break if you have overridden 
     Query.creatWeight, so we have taken the opportunity to make this change.
     (Tim Smith, Shai Erera via Mark Miller)
+
+ * LUCENE-1708 - IndexReader.document() no longer checks if the document is
+    deleted. You can call IndexReader.isDeleted(n) prior to calling document(n).
+    (Shai Erera via Mike McCandless)
+    
  
 Changes in runtime behavior
 
@@ -270,9 +299,6 @@ Changes in runtime behavior
     rely on this behavior by the 3.0 release of Lucene. (Jonathan
     Mamou, Mark Miller via Mike McCandless)
 
- * LUCENE-1708 - IndexReader.document() no longer checks if the document is 
-    deleted. You can call IndexReader.isDeleted(n) prior to calling document(n).
-    (Shai Erera via Mike McCandless)
 
  * LUCENE-1715: Finalizers have been removed from the 4 core classes
     that still had them, since they will cause GC to take longer, thus
