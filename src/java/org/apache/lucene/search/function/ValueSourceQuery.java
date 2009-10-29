@@ -54,11 +54,13 @@ public class ValueSourceQuery extends Query {
   }
 
   /*(non-Javadoc) @see org.apache.lucene.search.Query#rewrite(org.apache.lucene.index.IndexReader) */
+  @Override
   public Query rewrite(IndexReader reader) throws IOException {
     return this;
   }
 
   /*(non-Javadoc) @see org.apache.lucene.search.Query#extractTerms(Set) */
+  @Override
   public void extractTerms(Set<Term> terms) {
     // no terms involved here
   }
@@ -73,34 +75,49 @@ public class ValueSourceQuery extends Query {
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#getQuery() */
+    @Override
     public Query getQuery() {
       return ValueSourceQuery.this;
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#getValue() */
+    @Override
     public float getValue() {
       return queryWeight;
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#sumOfSquaredWeights() */
+    @Override
     public float sumOfSquaredWeights() throws IOException {
       queryWeight = getBoost();
       return queryWeight * queryWeight;
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#normalize(float) */
+    @Override
     public void normalize(float norm) {
       this.queryNorm = norm;
       queryWeight *= this.queryNorm;
     }
 
+    @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder, boolean topScorer) throws IOException {
       return new ValueSourceScorer(similarity, reader, this);
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#explain(org.apache.lucene.index.IndexReader, int) */
+    @Override
     public Explanation explain(IndexReader reader, int doc) throws IOException {
-      return new ValueSourceScorer(similarity, reader, this).explain(doc);
+      DocValues vals = valSrc.getValues(reader);
+      float sc = queryWeight * vals.floatVal(doc);
+
+      Explanation result = new ComplexExplanation(
+        true, sc, ValueSourceQuery.this.toString() + ", product of:");
+
+      result.addDetail(vals.explain(doc));
+      result.addDetail(new Explanation(getBoost(), "boost"));
+      result.addDetail(new Explanation(queryNorm,"queryNorm"));
+      return result;
     }
   }
 
@@ -129,6 +146,7 @@ public class ValueSourceQuery extends Query {
       maxDoc = reader.maxDoc();
     }
 
+    @Override
     public int nextDoc() throws IOException {
       doc++;
       while (delDocs != null && doc < maxDoc && delDocs.get(doc)) {
@@ -140,43 +158,36 @@ public class ValueSourceQuery extends Query {
       return doc;
     }
 
+    @Override
     public int docID() {
       return doc;
     }
 
+    @Override
     public int advance(int target) throws IOException {
       doc = target - 1;
       return nextDoc();
     }
     
     /*(non-Javadoc) @see org.apache.lucene.search.Scorer#score() */
+    @Override
     public float score() throws IOException {
       return qWeight * vals.floatVal(doc);
     }
-
-    /*(non-Javadoc) @see org.apache.lucene.search.Scorer#explain(int) */
-    public Explanation explain(int doc) throws IOException {
-      float sc = qWeight * vals.floatVal(doc);
-
-      Explanation result = new ComplexExplanation(
-        true, sc, ValueSourceQuery.this.toString() + ", product of:");
-
-      result.addDetail(vals.explain(doc));
-      result.addDetail(new Explanation(getBoost(), "boost"));
-      result.addDetail(new Explanation(weight.queryNorm,"queryNorm"));
-      return result;
-    }
   }
 
+  @Override
   public Weight createWeight(Searcher searcher) {
     return new ValueSourceQuery.ValueSourceWeight(searcher);
   }
 
+  @Override
   public String toString(String field) {
     return valSrc.toString() + ToStringUtils.boost(getBoost());
   }
 
   /** Returns true if <code>o</code> is equal to this. */
+  @Override
   public boolean equals(Object o) {
     if (getClass() != o.getClass()) {
       return false;
@@ -187,6 +198,7 @@ public class ValueSourceQuery extends Query {
   }
 
   /** Returns a hash code value for this object. */
+  @Override
   public int hashCode() {
     return (getClass().hashCode() + valSrc.hashCode()) ^ Float.floatToIntBits(getBoost());
   }

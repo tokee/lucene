@@ -27,7 +27,6 @@ final class TermScorer extends Scorer {
   
   private static final float[] SIM_NORM_DECODER = Similarity.getNormDecoder();
   
-  private Weight weight;
   private DocsEnum docsEnum;
   private byte[] norms;
   private float weightValue;
@@ -56,7 +55,6 @@ final class TermScorer extends Scorer {
    */
   TermScorer(Weight weight, DocsEnum td, Similarity similarity, byte[] norms) {
     super(similarity);
-    this.weight = weight;
     this.docsEnum = td;
     this.norms = norms;
     this.weightValue = weight.getValue();
@@ -65,11 +63,13 @@ final class TermScorer extends Scorer {
       scoreCache[i] = getSimilarity().tf(i) * weightValue;
   }
 
+  @Override
   public void score(Collector c) throws IOException {
     score(c, Integer.MAX_VALUE, nextDoc());
   }
 
   // firstDocID is ignored since nextDoc() sets 'doc'
+  @Override
   protected boolean score(Collector c, int end, int firstDocID) throws IOException {
     //System.out.println("top score " + firstDocID + " max=" + pointerMax);
     c.setScorer(this);
@@ -90,6 +90,7 @@ final class TermScorer extends Scorer {
     return true;
   }
 
+  @Override
   public int docID() { return doc; }
 
   /**
@@ -99,6 +100,7 @@ final class TermScorer extends Scorer {
    * 
    * @return the document matching the query or NO_MORE_DOCS if there are no more documents.
    */
+  @Override
   public int nextDoc() throws IOException {
     //System.out.println("ts.nextDoc pointer=" + pointer + " max=" + pointerMax + " this=" + this + " docsEnum=" + docsEnum);
     pointer++;
@@ -117,6 +119,7 @@ final class TermScorer extends Scorer {
     return doc;
   }
   
+  @Override
   public float score() {
     assert doc != NO_MORE_DOCS;
     int f = freqs[pointer];
@@ -137,6 +140,7 @@ final class TermScorer extends Scorer {
    *          The target document number.
    * @return the matching document or NO_MORE_DOCS if none exist.
    */
+  @Override
   public int advance(int target) throws IOException {
     // first scan in cache
     for (pointer++; pointer < pointerMax; pointer++) {
@@ -158,32 +162,9 @@ final class TermScorer extends Scorer {
     }
     return doc;
   }
-  
-  /** Returns an explanation of the score for a document.
-   * @param doc The document number for the explanation.
-   */
-  public Explanation explain(int doc) throws IOException {
-    TermQuery query = (TermQuery) weight.getQuery();
-    Explanation tfExplanation = new Explanation();
-    int tf = 0;
-    while (pointer < pointerMax) {
-      if (docs[pointer] == doc)
-        tf = freqs[pointer];
-      pointer++;
-    }
-    if (tf == 0) {
-      int newDoc = docsEnum.advance(doc);
-      if (newDoc == doc) {
-        tf = docsEnum.freq();
-      }
-    }
-    tfExplanation.setValue(getSimilarity().tf(tf));
-    tfExplanation.setDescription("tf(termFreq("+query.getTerm()+")="+tf+")");
-    
-    return tfExplanation;
-  }
 
   /** Returns a string representation of this <code>TermScorer</code>. */
   // nocommit
+  //@Override
   //public String toString() { return "scorer(" + weight + ")"; }
 }

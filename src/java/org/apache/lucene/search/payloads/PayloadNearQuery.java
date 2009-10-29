@@ -204,6 +204,7 @@ public class PayloadNearQuery extends SpanNearQuery {
     }
 
     //
+    @Override
     protected boolean setFreqCurrentDoc() throws IOException {
       if (!more) {
         return false;
@@ -222,7 +223,7 @@ public class PayloadNearQuery extends SpanNearQuery {
           * function.docScore(doc, fieldName, payloadsSeen, payloadScore);
     }
 
-    public Explanation explain(int doc) throws IOException {
+    protected Explanation explain(int doc) throws IOException {
       Explanation result = new Explanation();
       Explanation nonPayloadExpl = super.explain(doc);
       result.addDetail(nonPayloadExpl);

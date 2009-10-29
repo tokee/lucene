@@ -111,10 +111,15 @@ class FieldCacheImpl implements FieldCache {
 //         }
 
     }
+    @Override
     public Object getReaderKey() { return readerKey; }
+    @Override
     public String getFieldName() { return fieldName; }
+    @Override
     public Class<?> getCacheType() { return cacheType; }
+    @Override
     public Object getCustom() { return custom; }
+    @Override
     public Object getValue() { return value; }
   }
 
@@ -216,6 +221,7 @@ class FieldCacheImpl implements FieldCache {
     }
 
     /** Two of these are equal iff they reference the same field and type. */
+    @Override
     public boolean equals (Object o) {
       if (o instanceof Entry) {
         Entry other = (Entry) o;
@@ -231,6 +237,7 @@ class FieldCacheImpl implements FieldCache {
     }
 
     /** Composes a hashcode based on the field and type. */
+    @Override
     public int hashCode() {
       return field.hashCode() ^ (custom==null ? 0 : custom.hashCode());
     }
@@ -251,6 +258,7 @@ class FieldCacheImpl implements FieldCache {
     ByteCache(FieldCache wrapper) {
       super(wrapper);
     }
+    @Override
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
       Entry entry = entryKey;
@@ -303,6 +311,7 @@ class FieldCacheImpl implements FieldCache {
       super(wrapper);
     }
 
+    @Override
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
       Entry entry =  entryKey;
@@ -355,6 +364,7 @@ class FieldCacheImpl implements FieldCache {
       super(wrapper);
     }
 
+    @Override
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
       Entry entry = entryKey;
@@ -425,6 +435,7 @@ class FieldCacheImpl implements FieldCache {
       super(wrapper);
     }
 
+    @Override
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
       Entry entry = entryKey;
@@ -492,6 +503,7 @@ class FieldCacheImpl implements FieldCache {
       super(wrapper);
     }
 
+    @Override
     protected Object createValue(IndexReader reader, Entry entry)
         throws IOException {
       String field = entry.field;
@@ -558,6 +570,7 @@ class FieldCacheImpl implements FieldCache {
       super(wrapper);
     }
 
+    @Override
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
       Entry entry = entryKey;
@@ -616,6 +629,7 @@ class FieldCacheImpl implements FieldCache {
       super(wrapper);
     }
 
+    @Override
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
       String field = StringHelper.intern(entryKey.field);
@@ -656,6 +670,7 @@ class FieldCacheImpl implements FieldCache {
       super(wrapper);
     }
 
+    @Override
     protected Object createValue(IndexReader reader, Entry entryKey)
         throws IOException {
       String field = StringHelper.intern(entryKey.field);

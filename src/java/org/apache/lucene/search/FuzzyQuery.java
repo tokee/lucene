@@ -110,10 +110,12 @@ public class FuzzyQuery extends MultiTermQuery {
   }
 
   // @deprecated see #getTermsEnum
+  @Override
   protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
     return new FuzzyTermEnum(reader, getTerm(), minimumSimilarity, prefixLength);
   }
   
+  @Override
   protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
     return new FuzzyTermsEnum(reader, getTerm(), minimumSimilarity, prefixLength);
   }
@@ -125,6 +127,7 @@ public class FuzzyQuery extends MultiTermQuery {
     return term;
   }
 
+  @Override
   public void setRewriteMethod(RewriteMethod method) {
     throw new UnsupportedOperationException("FuzzyQuery cannot change rewrite method");
   }
@@ -178,6 +181,7 @@ public class FuzzyQuery extends MultiTermQuery {
     return query;
   }
     
+  @Override
   public String toString(String field) {
     StringBuilder buffer = new StringBuilder();
     if (!term.field().equals(field)) {

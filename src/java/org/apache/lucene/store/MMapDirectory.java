@@ -91,9 +91,6 @@ public class MMapDirectory extends FSDirectory {
     super(path, null);
   }
 
-  static final Class[] NO_PARAM_TYPES = new Class[0];
-  static final Object[] NO_PARAMS = new Object[0];
-  
   private boolean useUnmapHack = false;
   private int maxBBuf = Constants.JRE_IS_64BIT ? Integer.MAX_VALUE : (256*1024*1024);
   
@@ -106,7 +103,7 @@ public class MMapDirectory extends FSDirectory {
     try {
       Class.forName("sun.misc.Cleaner");
       Class.forName("java.nio.DirectByteBuffer")
-        .getMethod("cleaner", NO_PARAM_TYPES);
+        .getMethod("cleaner");
       v = true;
     } catch (Exception e) {
       v = false;
@@ -151,12 +148,12 @@ public class MMapDirectory extends FSDirectory {
         AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
           public Object run() throws Exception {
             final Method getCleanerMethod = buffer.getClass()
-              .getMethod("cleaner", NO_PARAM_TYPES);
+              .getMethod("cleaner");
             getCleanerMethod.setAccessible(true);
-            final Object cleaner = getCleanerMethod.invoke(buffer, NO_PARAMS);
+            final Object cleaner = getCleanerMethod.invoke(buffer);
             if (cleaner != null) {
-              cleaner.getClass().getMethod("clean", NO_PARAM_TYPES)
-                .invoke(cleaner, NO_PARAMS);
+              cleaner.getClass().getMethod("clean")
+                .invoke(cleaner);
             }
             return null;
           }
@@ -205,6 +202,7 @@ public class MMapDirectory extends FSDirectory {
         this.buffer = raf.getChannel().map(MapMode.READ_ONLY, 0, length);
     }
 
+    @Override
     public byte readByte() throws IOException {
       try {
         return buffer.get();
@@ -213,6 +211,7 @@ public class MMapDirectory extends FSDirectory {
       }
     }
 
+    @Override
     public void readBytes(byte[] b, int offset, int len) throws IOException {
       try {
         buffer.get(b, offset, len);
@@ -221,18 +220,22 @@ public class MMapDirectory extends FSDirectory {
       }
     }
 
+    @Override
     public long getFilePointer() {
       return buffer.position();
     }
 
+    @Override
     public void seek(long pos) throws IOException {
       buffer.position((int)pos);
     }
 
+    @Override
     public long length() {
       return length;
     }
 
+    @Override
     public Object clone() {
       MMapIndexInput clone = (MMapIndexInput)super.clone();
       clone.isClone = true;
@@ -240,6 +243,7 @@ public class MMapDirectory extends FSDirectory {
       return clone;
     }
 
+    @Override
     public void close() throws IOException {
       if (isClone || buffer == null) return;
       // unmap the buffer (if enabled) and at least unset it for GC
@@ -302,6 +306,7 @@ public class MMapDirectory extends FSDirectory {
       seek(0L);
     }
   
+    @Override
     public byte readByte() throws IOException {
       // Performance might be improved by reading ahead into an array of
       // e.g. 128 bytes and readByte() from there.
@@ -317,6 +322,7 @@ public class MMapDirectory extends FSDirectory {
       return curBuf.get();
     }
   
+    @Override
     public void readBytes(byte[] b, int offset, int len) throws IOException {
       while (len > curAvail) {
         curBuf.get(b, offset, curAvail);
@@ -333,10 +339,12 @@ public class MMapDirectory extends FSDirectory {
       curAvail -= len;
     }
   
+    @Override
     public long getFilePointer() {
       return ((long) curBufIndex * maxBufSize) + curBuf.position();
     }
   
+    @Override
     public void seek(long pos) throws IOException {
       curBufIndex = (int) (pos / maxBufSize);
       curBuf = buffers[curBufIndex];
@@ -345,10 +353,12 @@ public class MMapDirectory extends FSDirectory {
       curAvail = bufSizes[curBufIndex] - bufOffset;
     }
   
+    @Override
     public long length() {
       return length;
     }
   
+    @Override
     public Object clone() {
       MultiMMapIndexInput clone = (MultiMMapIndexInput)super.clone();
       clone.isClone = true;
@@ -369,6 +379,7 @@ public class MMapDirectory extends FSDirectory {
       return clone;
     }
   
+    @Override
     public void close() throws IOException {
       if (isClone || buffers == null) return;
       try {
@@ -387,6 +398,7 @@ public class MMapDirectory extends FSDirectory {
   }
   
   /** Creates an IndexInput for the file with the given name. */
+  @Override
   public IndexInput openInput(String name, int bufferSize) throws IOException {
     ensureOpen();
     File f =  new File(getFile(), name);
@@ -401,6 +413,7 @@ public class MMapDirectory extends FSDirectory {
   }
 
   /** Creates an IndexOutput for the file with the given name. */
+  @Override
   public IndexOutput createOutput(String name) throws IOException {
     initOutput(name);
     return new SimpleFSDirectory.SimpleFSIndexOutput(new File(directory, name));

@@ -183,6 +183,7 @@ final class DocumentsWriter {
   
   static final IndexingChain DefaultIndexingChain = new IndexingChain() {
 
+    @Override
     DocConsumer getChain(DocumentsWriter documentsWriter) {
       /*
       This is the current indexing chain:
@@ -1123,10 +1124,13 @@ final class DocumentsWriter {
   }
 
   private static class SkipDocWriter extends DocWriter {
+    @Override
     void finish() {
     }
+    @Override
     void abort() {
     }
+    @Override
     long sizeInBytes() {
       return 0;
     }
@@ -1184,6 +1188,7 @@ final class DocumentsWriter {
     ArrayList<byte[]> freeByteBlocks = new ArrayList<byte[]>();
     
     /* Allocate another byte[] from the shared pool */
+    @Override
     byte[] getByteBlock(boolean trackAllocations) {
       synchronized(DocumentsWriter.this) {
         final int size = freeByteBlocks.size();
@@ -1207,6 +1212,7 @@ final class DocumentsWriter {
     }
 
     /* Return byte[]'s to the pool */
+    @Override
     void recycleByteBlocks(byte[][] blocks, int start, int end) {
       synchronized(DocumentsWriter.this) {
         for(int i=start;i<end;i++)

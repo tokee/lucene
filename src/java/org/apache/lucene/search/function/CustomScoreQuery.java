@@ -19,6 +19,7 @@ package org.apache.lucene.search.function;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.Arrays;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
@@ -90,6 +91,7 @@ public class CustomScoreQuery extends Query {
   }
 
   /*(non-Javadoc) @see org.apache.lucene.search.Query#rewrite(org.apache.lucene.index.IndexReader) */
+  @Override
   public Query rewrite(IndexReader reader) throws IOException {
     subQuery = subQuery.rewrite(reader);
     for(int i = 0; i < valSrcQueries.length; i++) {
@@ -99,6 +101,7 @@ public class CustomScoreQuery extends Query {
   }
 
   /*(non-Javadoc) @see org.apache.lucene.search.Query#extractTerms(java.util.Set) */
+  @Override
   public void extractTerms(Set<Term> terms) {
     subQuery.extractTerms(terms);
     for(int i = 0; i < valSrcQueries.length; i++) {
@@ -107,6 +110,7 @@ public class CustomScoreQuery extends Query {
   }
 
   /*(non-Javadoc) @see org.apache.lucene.search.Query#clone() */
+  @Override
   public Object clone() {
     CustomScoreQuery clone = (CustomScoreQuery)super.clone();
     clone.subQuery = (Query) subQuery.clone();
@@ -118,6 +122,7 @@ public class CustomScoreQuery extends Query {
   }
 
   /* (non-Javadoc) @see org.apache.lucene.search.Query#toString(java.lang.String) */
+  @Override
   public String toString(String field) {
     StringBuilder sb = new StringBuilder(name()).append("(");
     sb.append(subQuery.toString(field));
@@ -130,6 +135,7 @@ public class CustomScoreQuery extends Query {
   }
 
   /** Returns true if <code>o</code> is equal to this. */
+  @Override
   public boolean equals(Object o) {
     if (getClass() != o.getClass()) {
       return false;
@@ -140,21 +146,14 @@ public class CustomScoreQuery extends Query {
         this.valSrcQueries.length != other.valSrcQueries.length) {
       return false;
     }
-    for (int i=0; i<valSrcQueries.length; i++) { //TODO simplify with Arrays.deepEquals() once moving to Java 1.5
-      if (!valSrcQueries[i].equals(other.valSrcQueries[i])) {
-        return false;
-      }
-    }
-    return true;
+    return Arrays.equals(valSrcQueries, other.valSrcQueries);
   }
 
   /** Returns a hash code value for this object. */
+  @Override
   public int hashCode() {
-    int valSrcHash = 0;
-    for (int i=0; i<valSrcQueries.length; i++) { //TODO simplify with Arrays.deepHashcode() once moving to Java 1.5
-      valSrcHash += valSrcQueries[i].hashCode();
-    }
-    return (getClass().hashCode() + subQuery.hashCode() + valSrcHash) ^ Float.floatToIntBits(getBoost());
+    return (getClass().hashCode() + subQuery.hashCode() + Arrays.hashCode(valSrcQueries))
+      ^ Float.floatToIntBits(getBoost());
   }  
   
   /**
@@ -289,16 +288,19 @@ public class CustomScoreQuery extends Query {
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#getQuery() */
+    @Override
     public Query getQuery() {
       return CustomScoreQuery.this;
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#getValue() */
+    @Override
     public float getValue() {
       return getBoost();
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#sumOfSquaredWeights() */
+    @Override
     public float sumOfSquaredWeights() throws IOException {
       float sum = subQueryWeight.sumOfSquaredWeights();
       for(int i = 0; i < valSrcWeights.length; i++) {
@@ -313,6 +315,7 @@ public class CustomScoreQuery extends Query {
     }
 
     /*(non-Javadoc) @see org.apache.lucene.search.Weight#normalize(float) */
+    @Override
     public void normalize(float norm) {
       norm *= getBoost(); // incorporate boost
       subQueryWeight.normalize(norm);
@@ -325,6 +328,7 @@ public class CustomScoreQuery extends Query {
       }
     }
 
+    @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder, boolean topScorer) throws IOException {
       // Pass true for "scoresDocsInOrder", because we
       // require in-order scoring, even if caller does not,
@@ -342,24 +346,21 @@ public class CustomScoreQuery extends Query {
       return new CustomScorer(similarity, reader, this, subQueryScorer, valSrcScorers);
     }
 
+    @Override
     public Explanation explain(IndexReader reader, int doc) throws IOException {
       Explanation explain = doExplain(reader, doc);
       return explain == null ? new Explanation(0.0f, "no matching docs") : doExplain(reader, doc);
     }
     
     private Explanation doExplain(IndexReader reader, int doc) throws IOException {
-      Scorer[] valSrcScorers = new Scorer[valSrcWeights.length];
-      for(int i = 0; i < valSrcScorers.length; i++) {
-         valSrcScorers[i] = valSrcWeights[i].scorer(reader, true, false);
-      }
       Explanation subQueryExpl = subQueryWeight.explain(reader, doc);
       if (!subQueryExpl.isMatch()) {
         return subQueryExpl;
       }
       // match
-      Explanation[] valSrcExpls = new Explanation[valSrcScorers.length];
-      for(int i = 0; i < valSrcScorers.length; i++) {
-        valSrcExpls[i] = valSrcScorers[i].explain(doc);
+      Explanation[] valSrcExpls = new Explanation[valSrcWeights.length];
+      for(int i = 0; i < valSrcWeights.length; i++) {
+        valSrcExpls[i] = valSrcWeights[i].explain(reader, doc);
       }
       Explanation customExp = customExplain(doc,subQueryExpl,valSrcExpls);
       float sc = getValue() * customExp.getValue();
@@ -370,6 +371,7 @@ public class CustomScoreQuery extends Query {
       return res;
     }
 
+    @Override
     public boolean scoresDocsOutOfOrder() {
       return false;
     }
@@ -402,6 +404,7 @@ public class CustomScoreQuery extends Query {
       this.vScores = new float[valSrcScorers.length];
     }
 
+    @Override
     public int nextDoc() throws IOException {
       int doc = subQueryScorer.nextDoc();
       if (doc != NO_MORE_DOCS) {
@@ -412,11 +415,13 @@ public class CustomScoreQuery extends Query {
       return doc;
     }
 
+    @Override
     public int docID() {
       return subQueryScorer.docID();
     }
     
     /*(non-Javadoc) @see org.apache.lucene.search.Scorer#score() */
+    @Override
     public float score() throws IOException {
       for (int i = 0; i < valSrcScorers.length; i++) {
         vScores[i] = valSrcScorers[i].score();
@@ -424,6 +429,7 @@ public class CustomScoreQuery extends Query {
       return qWeight * customScore(subQueryScorer.docID(), subQueryScorer.score(), vScores);
     }
 
+    @Override
     public int advance(int target) throws IOException {
       int doc = subQueryScorer.advance(target);
       if (doc != NO_MORE_DOCS) {
@@ -433,29 +439,9 @@ public class CustomScoreQuery extends Query {
       }
       return doc;
     }
-    
-    // TODO: remove in 3.0
-    /*(non-Javadoc) @see org.apache.lucene.search.Scorer#explain(int) */
-    public Explanation explain(int doc) throws IOException {
-      Explanation subQueryExpl = weight.subQueryWeight.explain(reader,doc);
-      if (!subQueryExpl.isMatch()) {
-        return subQueryExpl;
-      }
-      // match
-      Explanation[] valSrcExpls = new Explanation[valSrcScorers.length];
-      for(int i = 0; i < valSrcScorers.length; i++) {
-        valSrcExpls[i] = valSrcScorers[i].explain(doc);
-      }
-      Explanation customExp = customExplain(doc,subQueryExpl,valSrcExpls);
-      float sc = qWeight * customExp.getValue();
-      Explanation res = new ComplexExplanation(
-        true, sc, CustomScoreQuery.this.toString() + ", product of:");
-      res.addDetail(customExp);
-      res.addDetail(new Explanation(qWeight, "queryBoost")); // actually using the q boost as q weight (== weight value)
-      return res;
-    }
   }
 
+  @Override
   public Weight createWeight(Searcher searcher) throws IOException {
     return new CustomWeight(searcher);
   }

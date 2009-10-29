@@ -40,6 +40,13 @@ public class PrefixQuery extends MultiTermQuery {
   /** Returns the prefix of this query. */
   public Term getPrefix() { return prefix; }
   
+  // deprecated
+  @Override
+  protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
+    return new PrefixTermEnum(reader, prefix);
+  }
+  
+  @Override  
   protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
     return new PrefixTermsEnum(reader, prefix);
   }

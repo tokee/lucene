@@ -116,17 +116,20 @@ public class IndexSearcher extends Searcher {
    * If the IndexReader was supplied implicitly by specifying a directory, then
    * the IndexReader gets closed.
    */
+  @Override
   public void close() throws IOException {
     if(closeReader)
       reader.close();
   }
 
   // inherit javadoc
+  @Override
   public int docFreq(Term term) throws IOException {
     return reader.docFreq(term);
   }
 
   // inherit javadoc
+  @Override
   public Document doc(int i) throws CorruptIndexException, IOException {
     return reader.document(i);
   }
@@ -137,11 +140,13 @@ public class IndexSearcher extends Searcher {
   }
   
   // inherit javadoc
+  @Override
   public int maxDoc() throws IOException {
     return reader.maxDoc();
   }
 
   // inherit javadoc
+  @Override
   public TopDocs search(Weight weight, Filter filter, final int nDocs) throws IOException {
 
     if (nDocs <= 0) {
@@ -153,6 +158,7 @@ public class IndexSearcher extends Searcher {
     return collector.topDocs();
   }
 
+  @Override
   public TopFieldDocs search(Weight weight, Filter filter,
       final int nDocs, Sort sort) throws IOException {
     return search(weight, filter, nDocs, sort, true);
@@ -185,6 +191,7 @@ public class IndexSearcher extends Searcher {
     return (TopFieldDocs) collector.topDocs();
   }
 
+  @Override
   public void search(Weight weight, Filter filter, Collector collector)
       throws IOException {
     
@@ -250,6 +257,7 @@ public class IndexSearcher extends Searcher {
     }
   }
 
+  @Override
   public Query rewrite(Query original) throws IOException {
     Query query = original;
     for (Query rewrittenQuery = query.rewrite(reader); rewrittenQuery != query;
@@ -259,6 +267,7 @@ public class IndexSearcher extends Searcher {
     return query;
   }
 
+  @Override
   public Explanation explain(Weight weight, int doc) throws IOException {
     int n = ReaderUtil.subIndex(doc, docStarts);
     int deBasedDoc = doc - docStarts[n];
@@ -269,7 +278,18 @@ public class IndexSearcher extends Searcher {
   private boolean fieldSortDoTrackScores;
   private boolean fieldSortDoMaxScore;
 
-  /** @deprecated */
+  /** By default, no scores are computed when sorting by
+   *  field (using {@link #search(Query,Filter,int,Sort)}).
+   *  You can change that, per IndexSearcher instance, by
+   *  calling this method.  Note that this will incur a CPU
+   *  cost.
+   * 
+   *  @param doTrackScores If true, then scores are
+   *  returned for every matching document in {@link
+   *  TopFieldDocs}.
+   *
+   *  @param doMaxScore If true, then the max score for all
+   *  matching docs is computed. */
   public void setDefaultFieldSortScoring(boolean doTrackScores, boolean doMaxScore) {
     fieldSortDoTrackScores = doTrackScores;
     fieldSortDoMaxScore = doMaxScore;

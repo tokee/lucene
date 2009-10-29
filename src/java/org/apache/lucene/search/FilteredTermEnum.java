@@ -63,6 +63,7 @@ public abstract class FilteredTermEnum extends TermEnum {
      * Returns the docFreq of the current Term in the enumeration.
      * Returns -1 if no Term matches or all terms have been enumerated.
      */
+    @Override
     public int docFreq() {
         if (currentTerm == null) return -1;
         assert actualEnum != null;
@@ -70,6 +71,7 @@ public abstract class FilteredTermEnum extends TermEnum {
     }
     
     /** Increments the enumeration to the next element.  True if one exists. */
+    @Override
     public boolean next() throws IOException {
         if (actualEnum == null) return false; // the actual enumerator is not initialized!
         currentTerm = null;
@@ -90,11 +92,13 @@ public abstract class FilteredTermEnum extends TermEnum {
     
     /** Returns the current Term in the enumeration.
      * Returns null if no Term matches or all terms have been enumerated. */
+    @Override
     public Term term() {
         return currentTerm;
     }
     
     /** Closes the enumeration to further activity, freeing resources.  */
+    @Override
     public void close() throws IOException {
         if (actualEnum != null) actualEnum.close();
         currentTerm = null;

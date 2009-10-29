@@ -47,6 +47,7 @@ public class MultipleTermPositions implements TermPositions {
       return top();
     }
 
+    @Override
     public final boolean lessThan(TermPositions a, TermPositions b) {
       return a.doc() < b.doc();
     }

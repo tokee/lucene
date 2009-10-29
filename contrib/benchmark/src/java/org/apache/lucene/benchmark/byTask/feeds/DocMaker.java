@@ -20,10 +20,8 @@ package org.apache.lucene.benchmark.byTask.feeds;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Map.Entry;
 import java.util.Random;
 
 import org.apache.lucene.benchmark.byTask.utils.Config;
@@ -79,7 +77,7 @@ public class DocMaker {
 
   static class DocState {
     
-    private final Map fields;
+    private final Map<String,Field> fields;
     private final boolean reuseFields;
     final Document doc;
     DocData docData = new DocData();
@@ -89,7 +87,7 @@ public class DocMaker {
       this.reuseFields = reuseFields;
       
       if (reuseFields) {
-        fields =  new HashMap();
+        fields =  new HashMap<String,Field>();
         
         // Initialize the map with the default fields.
         fields.put(BODY_FIELD, new Field(BODY_FIELD, "", store, bodyIndex, termVector));
@@ -115,7 +113,7 @@ public class DocMaker {
         return new Field(name, "", store, index, termVector);
       }
       
-      Field f = (Field) fields.get(name);
+      Field f = fields.get(name);
       if (f == null) {
         f = new Field(name, "", store, index, termVector);
         fields.put(name, f);
@@ -128,8 +126,8 @@ public class DocMaker {
   private boolean storeBytes = false;
 
   // leftovers are thread local, because it is unsafe to share residues between threads
-  private ThreadLocal leftovr = new ThreadLocal();
-  private ThreadLocal docState = new ThreadLocal();
+  private ThreadLocal<LeftOver> leftovr = new ThreadLocal<LeftOver>();
+  private ThreadLocal<DocState> docState = new ThreadLocal<DocState>();
 
   public static final String BODY_FIELD = "body";
   public static final String TITLE_FIELD = "doctitle";
@@ -147,7 +145,6 @@ public class DocMaker {
   
   protected ContentSource source;
   protected boolean reuseFields;
-  protected DocState localDocState;
   protected boolean indexProperties;
   
   private int lastPrintedNumUniqueTexts = 0;
@@ -161,7 +158,7 @@ public class DocMaker {
   // reset the docdata properties so they are not added more than once.
   private Document createDocument(DocData docData, int size, int cnt) throws UnsupportedEncodingException {
 
-    final DocState ds = reuseFields ? getDocState() : localDocState;
+    final DocState ds = getDocState();
     final Document doc = reuseFields ? ds.doc : new Document();
     doc.getFields().clear();
     
@@ -224,8 +221,7 @@ public class DocMaker {
     if (indexProperties) {
       Properties props = docData.getProps();
       if (props != null) {
-        for (Iterator iterator = props.entrySet().iterator(); iterator.hasNext();) {
-          Entry entry = (Entry) iterator.next();
+        for (final Map.Entry<Object,Object> entry : props.entrySet()) {
           Field f = ds.getField((String) entry.getKey(), storeVal, indexVal, termVecVal);
           f.setValue((String) entry.getValue());
           doc.add(f);
@@ -243,9 +239,9 @@ public class DocMaker {
   }
 
   protected DocState getDocState() {
-    DocState ds = (DocState) docState.get();
+    DocState ds = docState.get();
     if (ds == null) {
-      ds = new DocState(true, storeVal, indexVal, bodyIndexVal, termVecVal);
+      ds = new DocState(reuseFields, storeVal, indexVal, bodyIndexVal, termVecVal);
       docState.set(ds);
     }
     return ds;
@@ -289,7 +285,7 @@ public class DocMaker {
    */
   public Document makeDocument() throws Exception {
     resetLeftovers();
-    DocData docData = source.getNextDocData(reuseFields ? getDocState().docData : localDocState.docData);
+    DocData docData = source.getNextDocData(getDocState().docData);
     Document doc = createDocument(docData, 0, -1);
     return doc;
   }
@@ -299,12 +295,12 @@ public class DocMaker {
    * given size input by <code>size</code>.
    */
   public Document makeDocument(int size) throws Exception {
-    LeftOver lvr = (LeftOver) leftovr.get();
+    LeftOver lvr = leftovr.get();
     if (lvr == null || lvr.docdata == null || lvr.docdata.getBody() == null
         || lvr.docdata.getBody().length() == 0) {
       resetLeftovers();
     }
-    DocData docData = reuseFields ? getDocState().docData : localDocState.docData;
+    DocData docData = getDocState().docData;
     DocData dd = (lvr == null ? source.getNextDocData(docData) : lvr.docdata);
     int cnt = (lvr == null ? 0 : lvr.cnt);
     while (dd.getBody() == null || dd.getBody().length() < size) {
@@ -371,7 +367,7 @@ public class DocMaker {
     this.config = config;
     try {
       String sourceClass = config.get("content.source", "org.apache.lucene.benchmark.byTask.feeds.SingleDocSource");
-      source = (ContentSource) Class.forName(sourceClass).newInstance();
+      source = Class.forName(sourceClass).asSubclass(ContentSource.class).newInstance();
       source.setConfig(config);
     } catch (Exception e) {
       // Should not get here. Throw runtime exception.
@@ -407,14 +403,11 @@ public class DocMaker {
     storeBytes = config.get("doc.store.body.bytes", false);
     
     reuseFields = config.get("doc.reuse.fields", true);
-    if (!reuseFields) {
-      localDocState = new DocState(false, storeVal, indexVal, bodyIndexVal, termVecVal);
-    } else {
-      // In a multi-rounds run, it is important to reset DocState since settings
-      // of fields may change between rounds, and this is the only way to reset
-      // the cache of all threads.
-      docState = new ThreadLocal();
-    }
+
+    // In a multi-rounds run, it is important to reset DocState since settings
+    // of fields may change between rounds, and this is the only way to reset
+    // the cache of all threads.
+    docState = new ThreadLocal<DocState>();
     
     indexProperties = config.get("doc.index.props", false);
 

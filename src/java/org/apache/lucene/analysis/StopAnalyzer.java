@@ -68,9 +68,7 @@ public final class StopAnalyzer extends Analyzer {
 
   /** Builds an analyzer with the stop words from the given set.
    * @param matchVersion See <a href="#version">above</a>
-   * @param stopWords Set of stop words
-   * @param enablePositionIncrements See {@link
-   * StopFilter#setEnablePositionIncrements} */
+   * @param stopWords Set of stop words */
   public StopAnalyzer(Version matchVersion, Set<?> stopWords) {
     this.stopWords = stopWords;
     enablePositionIncrements = StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion);
@@ -95,6 +93,7 @@ public final class StopAnalyzer extends Analyzer {
   }
 
   /** Filters LowerCaseTokenizer with StopFilter. */
+  @Override
   public TokenStream tokenStream(String fieldName, Reader reader) {
     return new StopFilter(enablePositionIncrements, new LowerCaseTokenizer(reader), stopWords);
   }
@@ -104,6 +103,7 @@ public final class StopAnalyzer extends Analyzer {
     Tokenizer source;
     TokenStream result;
   };
+  @Override
   public TokenStream reusableTokenStream(String fieldName, Reader reader) throws IOException {
     SavedStreams streams = (SavedStreams) getPreviousTokenStream();
     if (streams == null) {

@@ -116,6 +116,7 @@ public class MultiPhraseQuery extends Query {
   }
 
   // inherit javadoc
+  @Override
   public void extractTerms(Set terms) {
     for (final Term[] arr : termArrays) {
       for (final Term term: arr) {
@@ -145,20 +146,26 @@ public class MultiPhraseQuery extends Query {
       }
     }
 
+    @Override
     public Query getQuery() { return MultiPhraseQuery.this; }
+
+    @Override
     public float getValue() { return value; }
 
+    @Override
     public float sumOfSquaredWeights() {
       queryWeight = idf * getBoost();             // compute query weight
       return queryWeight * queryWeight;           // square it
     }
 
+    @Override
     public void normalize(float queryNorm) {
       this.queryNorm = queryNorm;
       queryWeight *= queryNorm;                   // normalize query weight
       value = queryWeight * idf;                  // idf for document 
     }
 
+    @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder, boolean topScorer) throws IOException {
       if (termArrays.size() == 0)                  // optimize zero-term case
         return null;
@@ -191,6 +198,7 @@ public class MultiPhraseQuery extends Query {
                                       slop, reader.norms(field));
     }
 
+    @Override
     public Explanation explain(IndexReader reader, int doc)
       throws IOException {
       ComplexExplanation result = new ComplexExplanation();
@@ -222,12 +230,16 @@ public class MultiPhraseQuery extends Query {
       fieldExpl.setDescription("fieldWeight("+getQuery()+" in "+doc+
                                "), product of:");
 
-      Scorer scorer = scorer(reader, true, false);
+      PhraseScorer scorer = (PhraseScorer) scorer(reader, true, false);
       if (scorer == null) {
         return new Explanation(0.0f, "no matching docs");
       }
-      Explanation tfExpl = scorer.explain(doc);
-      fieldExpl.addDetail(tfExpl);
+      Explanation tfExplanation = new Explanation();
+      int d = scorer.advance(doc);
+      float phraseFreq = (d == doc) ? scorer.currentFreq() : 0.0f;
+      tfExplanation.setValue(similarity.tf(phraseFreq));
+      tfExplanation.setDescription("tf(phraseFreq=" + phraseFreq + ")");
+      fieldExpl.addDetail(tfExplanation);
       fieldExpl.addDetail(idfExpl);
 
       Explanation fieldNormExpl = new Explanation();
@@ -238,8 +250,8 @@ public class MultiPhraseQuery extends Query {
       fieldNormExpl.setDescription("fieldNorm(field="+field+", doc="+doc+")");
       fieldExpl.addDetail(fieldNormExpl);
 
-      fieldExpl.setMatch(Boolean.valueOf(tfExpl.isMatch()));
-      fieldExpl.setValue(tfExpl.getValue() *
+      fieldExpl.setMatch(Boolean.valueOf(tfExplanation.isMatch()));
+      fieldExpl.setValue(tfExplanation.getValue() *
                          idfExpl.getValue() *
                          fieldNormExpl.getValue());
 
@@ -256,6 +268,7 @@ public class MultiPhraseQuery extends Query {
     }
   }
 
+  @Override
   public Query rewrite(IndexReader reader) {
     if (termArrays.size() == 1) {                 // optimize one-term case
       Term[] terms = termArrays.get(0);
@@ -270,11 +283,13 @@ public class MultiPhraseQuery extends Query {
     }
   }
 
+  @Override
   public Weight createWeight(Searcher searcher) throws IOException {
     return new MultiPhraseWeight(searcher);
   }
 
   /** Prints a user-readable version of this query. */
+  @Override
   public final String toString(String f) {
     StringBuilder buffer = new StringBuilder();
     if (!field.equals(f)) {
@@ -314,6 +329,7 @@ public class MultiPhraseQuery extends Query {
 
 
   /** Returns true if <code>o</code> is equal to this. */
+  @Override
   public boolean equals(Object o) {
     if (!(o instanceof MultiPhraseQuery)) return false;
     MultiPhraseQuery other = (MultiPhraseQuery)o;
@@ -324,6 +340,7 @@ public class MultiPhraseQuery extends Query {
   }
 
   /** Returns a hash code value for this object.*/
+  @Override
   public int hashCode() {
     return Float.floatToIntBits(getBoost())
       ^ slop
@@ -337,23 +354,9 @@ public class MultiPhraseQuery extends Query {
     int hashCode = 1;
     for (final Term[] termArray: termArrays) {
       hashCode = 31 * hashCode
-          + (termArray == null ? 0 : arraysHashCode(termArray));
+          + (termArray == null ? 0 : Arrays.hashCode(termArray));
     }
     return hashCode;
-  }
-
-  private int arraysHashCode(Term[] termArray) {
-      if (termArray == null)
-          return 0;
-
-      int result = 1;
-
-      for (int i = 0; i < termArray.length; i++) {
-        Term term = termArray[i];
-        result = 31 * result + (term == null ? 0 : term.hashCode());
-      }
-
-      return result;
   }
 
   // Breakout calculation of the termArrays equals

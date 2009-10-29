@@ -32,7 +32,7 @@ import java.util.Iterator;
  * is in the set without the necessity of converting it
  * to a String first.
  * <P>
- * <em>Please note:</em> This class implements {@link Set} but
+ * <em>Please note:</em> This class implements {@link java.util.Set Set} but
  * does not behave like it should in all cases. The generic type is
  * {@code Set<Object>}, because you can add any object to it,
  * that has a string representation. The add methods will use
@@ -223,14 +223,17 @@ public class CharArraySet extends AbstractSet<Object> {
   }
 
 
+  @Override
   public int size() {
     return count;
   }
 
+  @Override
   public boolean isEmpty() {
     return count==0;
   }
 
+  @Override
   public boolean contains(Object o) {
     if (o instanceof char[]) {
       final char[] text = (char[])o;
@@ -239,6 +242,7 @@ public class CharArraySet extends AbstractSet<Object> {
     return contains(o.toString());
   }
 
+  @Override
   public boolean add(Object o) {
     if (o instanceof char[]) {
       return add((char[])o);
@@ -309,6 +313,7 @@ public class CharArraySet extends AbstractSet<Object> {
   }
 
   /** returns an iterator of new allocated Strings, this method violates the Set interface */
+  @Override
   @SuppressWarnings("unchecked")
   public Iterator<Object> iterator() {
     return (Iterator) stringIterator();
@@ -328,22 +333,27 @@ public class CharArraySet extends AbstractSet<Object> {
       super(entries, ignoreCase, count);
     }
 
+    @Override
     public boolean add(Object o){
       throw new UnsupportedOperationException();
     }
     
+    @Override
     public boolean addAll(Collection<? extends Object> coll) {
       throw new UnsupportedOperationException();
     }
     
+    @Override
     public boolean add(char[] text) {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public boolean add(CharSequence text) {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public boolean add(String text) {
       throw new UnsupportedOperationException();
     }

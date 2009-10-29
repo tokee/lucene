@@ -469,8 +469,7 @@ public class IndexWriter implements Closeable {
         // not pooling readers, we release it:
         readerMap.remove(sr.getSegmentInfo());
 
-        // TODO: java 5
-        // assert !sr.hasChanges || Thread.holdsLock(IndexWriter.this);
+        assert !sr.hasChanges || Thread.holdsLock(IndexWriter.this);
 
         // Drop our ref -- this will commit any pending
         // changes to the dir
@@ -4797,6 +4796,7 @@ public class IndexWriter implements Closeable {
       return limit;
     }
     
+    @Override
     public String toString()
     {
       return name + ":" + limit;

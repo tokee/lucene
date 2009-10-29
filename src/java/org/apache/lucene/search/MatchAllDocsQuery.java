@@ -60,14 +60,12 @@ public class MatchAllDocsQuery extends Query {
       this.norms = norms;
     }
 
-    public Explanation explain(int doc) {
-      return null; // not called... see MatchAllDocsWeight.explain()
-    }
-
+    @Override
     public int docID() {
       return doc;
     }
 
+    @Override
     public int nextDoc() throws IOException {
       doc++;
       while(delDocs != null && doc < maxDoc && delDocs.get(doc)) {
@@ -79,10 +77,12 @@ public class MatchAllDocsQuery extends Query {
       return doc;
     }
     
+    @Override
     public float score() {
       return norms == null ? score : score * Similarity.decodeNorm(norms[docID()]);
     }
 
+    @Override
     public int advance(int target) throws IOException {
       doc = target-1;
       return nextDoc();
@@ -98,33 +98,40 @@ public class MatchAllDocsQuery extends Query {
       this.similarity = searcher.getSimilarity();
     }
 
+    @Override
     public String toString() {
       return "weight(" + MatchAllDocsQuery.this + ")";
     }
 
+    @Override
     public Query getQuery() {
       return MatchAllDocsQuery.this;
     }
 
+    @Override
     public float getValue() {
       return queryWeight;
     }
 
+    @Override
     public float sumOfSquaredWeights() {
       queryWeight = getBoost();
       return queryWeight * queryWeight;
     }
 
+    @Override
     public void normalize(float queryNorm) {
       this.queryNorm = queryNorm;
       queryWeight *= this.queryNorm;
     }
 
+    @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder, boolean topScorer) throws IOException {
       return new MatchAllScorer(reader, similarity, this,
           normsField != null ? reader.norms(normsField) : null);
     }
 
+    @Override
     public Explanation explain(IndexReader reader, int doc) {
       // explain query weight
       Explanation queryExpl = new ComplexExplanation
@@ -138,13 +145,16 @@ public class MatchAllDocsQuery extends Query {
     }
   }
 
+  @Override
   public Weight createWeight(Searcher searcher) {
     return new MatchAllDocsWeight(searcher);
   }
 
+  @Override
   public void extractTerms(Set<Term> terms) {
   }
 
+  @Override
   public String toString(String field) {
     StringBuilder buffer = new StringBuilder();
     buffer.append("*:*");
@@ -152,6 +162,7 @@ public class MatchAllDocsQuery extends Query {
     return buffer.toString();
   }
 
+  @Override
   public boolean equals(Object o) {
     if (!(o instanceof MatchAllDocsQuery))
       return false;
@@ -159,6 +170,7 @@ public class MatchAllDocsQuery extends Query {
     return this.getBoost() == other.getBoost();
   }
 
+  @Override
   public int hashCode() {
     return Float.floatToIntBits(getBoost()) ^ 0x1AA71190;
   }

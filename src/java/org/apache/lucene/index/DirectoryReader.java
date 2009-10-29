@@ -1565,6 +1565,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       }
     }
   
+    @Override
     public boolean next() throws IOException {
       for (int i=0; i<matchingSegments.length; i++) {
         LegacySegmentMergeInfo smi = matchingSegments[i];
@@ -1599,14 +1600,17 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return true;
     }
   
+    @Override
     public Term term() {
       return term;
     }
   
+    @Override
     public int docFreq() {
       return docFreq;
     }
   
+    @Override
     public void close() throws IOException {
       queue.close();
     }

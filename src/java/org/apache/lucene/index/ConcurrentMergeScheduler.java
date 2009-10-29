@@ -112,6 +112,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
     }
   }
 
+  @Override
   public void close() {
     closed = true;
   }
@@ -146,11 +147,11 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
     return count;
   }
 
+  @Override
   public void merge(IndexWriter writer)
     throws CorruptIndexException, IOException {
 
-    // TODO: enable this once we are on JRE 1.5
-    // assert !Thread.holdsLock(writer);
+    assert !Thread.holdsLock(writer);
 
     this.writer = writer;
 
@@ -275,6 +276,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
       }
     }
 
+    @Override
     public void run() {
       
       // First time through the while loop we do the merge
@@ -324,6 +326,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
       }
     }
 
+    @Override
     public String toString() {
       MergePolicy.OneMerge merge = getRunningMerge();
       if (merge == null)

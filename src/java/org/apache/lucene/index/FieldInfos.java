@@ -99,6 +99,7 @@ public final class FieldInfos {
   /**
    * Returns a deep clone of this FieldInfos instance.
    */
+  @Override
   synchronized public Object clone() {
     FieldInfos fis = new FieldInfos();
     final int numField = byNumber.size();

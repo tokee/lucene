@@ -127,6 +127,7 @@ public final class FuzzyTermEnum extends FilteredTermEnum {
    * The termCompare method in FuzzyTermEnum uses Levenshtein distance to 
    * calculate the distance between the given term and the comparing term. 
    */
+  @Override
   protected final boolean termCompare(Term term) {
     if (field == term.field() && term.text().startsWith(prefix)) {
         final String target = term.text().substring(prefix.length());
@@ -138,11 +139,13 @@ public final class FuzzyTermEnum extends FilteredTermEnum {
   }
   
   /** {@inheritDoc} */
+  @Override
   public final float difference() {
     return (similarity - minimumSimilarity) * scale_factor;
   }
   
   /** {@inheritDoc} */
+  @Override
   public final boolean endEnum() {
     return endEnum;
   }
@@ -273,6 +276,7 @@ public final class FuzzyTermEnum extends FilteredTermEnum {
   }
 
   /** {@inheritDoc} */
+  @Override
   public void close() throws IOException {
     p = d = null;
     searchTerm = null;

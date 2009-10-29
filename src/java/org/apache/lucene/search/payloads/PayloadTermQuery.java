@@ -60,6 +60,7 @@ public class PayloadTermQuery extends SpanTermQuery {
     this.includeSpanScore = includeSpanScore;
   }
 
+  @Override
   public Weight createWeight(Searcher searcher) throws IOException {
     return new PayloadTermWeight(this, searcher);
   }
@@ -71,6 +72,7 @@ public class PayloadTermQuery extends SpanTermQuery {
       super(query, searcher);
     }
 
+    @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder,
         boolean topScorer) throws IOException {
       return new PayloadTermSpanScorer((TermSpans) query.getSpans(reader),
@@ -90,6 +92,7 @@ public class PayloadTermQuery extends SpanTermQuery {
         termSpans = spans;
       }
 
+      @Override
       protected boolean setFreqCurrentDoc() throws IOException {
         if (!more) {
           return false;
@@ -131,6 +134,7 @@ public class PayloadTermQuery extends SpanTermQuery {
        * @return {@link #getSpanScore()} * {@link #getPayloadScore()}
        * @throws IOException
        */
+      @Override
       public float score() throws IOException {
 
         return includeSpanScore ? getSpanScore() * getPayloadScore()
@@ -161,7 +165,8 @@ public class PayloadTermQuery extends SpanTermQuery {
         return function.docScore(doc, term.field(), payloadsSeen, payloadScore);
       }
 
-      public Explanation explain(final int doc) throws IOException {
+      @Override
+      protected Explanation explain(final int doc) throws IOException {
         ComplexExplanation result = new ComplexExplanation();
         Explanation nonPayloadExpl = super.explain(doc);
         result.addDetail(nonPayloadExpl);
@@ -185,6 +190,7 @@ public class PayloadTermQuery extends SpanTermQuery {
     }
   }
 
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();
@@ -193,6 +199,7 @@ public class PayloadTermQuery extends SpanTermQuery {
     return result;
   }
 
+  @Override
   public boolean equals(Object obj) {
     if (this == obj)
       return true;

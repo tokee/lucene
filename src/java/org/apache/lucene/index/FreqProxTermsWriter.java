@@ -35,10 +35,12 @@ import org.apache.lucene.util.UnicodeUtil;
 @SuppressWarnings("unchecked")
 final class FreqProxTermsWriter extends TermsHashConsumer {
 
+  @Override
   public TermsHashConsumerPerThread addThread(TermsHashPerThread perThread) {
     return new FreqProxTermsWriterPerThread(perThread);
   }
 
+  @Override
   void createPostings(RawPostingList[] postings, int start, int count) {
     final int end = start + count;
     for(int i=start;i<end;i++)
@@ -61,7 +63,9 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
     }
   }
 
+  @Override
   void closeDocStore(SegmentWriteState state) {}
+  @Override
   void abort() {}
 
   private int flushedDocCount;
@@ -71,6 +75,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
   // under the same FieldInfo together, up into TermsHash*.
   // Other writers would presumably share alot of this...
 
+  @Override
   public void flush(Map<TermsHashConsumerPerThread,Collection<TermsHashConsumerPerField>> threadsAndFields, final SegmentWriteState state) throws IOException {
 
     // Gather all FieldData's that have postings, across all
@@ -306,6 +311,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
     int lastPosition;                               // Last position where this term occurred
   }
 
+  @Override
   int bytesPerPosting() {
     return RawPostingList.BYTES_SIZE + 4 * DocumentsWriter.INT_NUM_BYTE;
   }

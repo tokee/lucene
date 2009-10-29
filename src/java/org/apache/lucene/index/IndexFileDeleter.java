@@ -610,30 +610,37 @@ final class IndexFileDeleter {
       assert !segmentInfos.hasExternalSegments(directory);
     }
 
+    @Override
     public boolean isOptimized() {
       return isOptimized;
     }
 
+    @Override
     public String getSegmentsFileName() {
       return segmentsFileName;
     }
 
+    @Override
     public Collection<String> getFileNames() throws IOException {
       return files;
     }
 
+    @Override
     public Directory getDirectory() {
       return directory;
     }
 
+    @Override
     public long getVersion() {
       return version;
     }
 
+    @Override
     public long getGeneration() {
       return generation;
     }
 
+    @Override
     public Map<String,String> getUserData() {
       return userData;
     }
@@ -642,6 +649,7 @@ final class IndexFileDeleter {
      * Called only be the deletion policy, to remove this
      * commit point from the index.
      */
+    @Override
     public void delete() {
       if (!deleted) {
         deleted = true;
@@ -649,6 +657,7 @@ final class IndexFileDeleter {
       }
     }
 
+    @Override
     public boolean isDeleted() {
       return deleted;
     }

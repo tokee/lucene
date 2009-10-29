@@ -177,6 +177,7 @@ public class ParallelReader extends IndexReader {
     return fields;
   }
   
+  @Override
   public synchronized Object clone() {
     try {
       return doReopen(true);
@@ -204,6 +205,7 @@ public class ParallelReader extends IndexReader {
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error 
    */
+  @Override
   public synchronized IndexReader reopen() throws CorruptIndexException, IOException {
     return doReopen(false);
   }
@@ -273,22 +275,26 @@ public class ParallelReader extends IndexReader {
   }
 
 
+  @Override
   public int numDocs() {
     // Don't call ensureOpen() here (it could affect performance)
     return numDocs;
   }
 
+  @Override
   public int maxDoc() {
     // Don't call ensureOpen() here (it could affect performance)
     return maxDoc;
   }
 
+  @Override
   public boolean hasDeletions() {
     // Don't call ensureOpen() here (it could affect performance)
     return hasDeletions;
   }
 
   // check first reader
+  @Override
   public boolean isDeleted(int n) {
     // Don't call ensureOpen() here (it could affect performance)
     if (readers.size() > 0)
@@ -297,6 +303,7 @@ public class ParallelReader extends IndexReader {
   }
 
   // delete in all readers
+  @Override
   protected void doDelete(int n) throws CorruptIndexException, IOException {
     for (final IndexReader reader : readers) {
       reader.deleteDocument(n);
@@ -305,6 +312,7 @@ public class ParallelReader extends IndexReader {
   }
 
   // undeleteAll in all readers
+  @Override
   protected void doUndeleteAll() throws CorruptIndexException, IOException {
     for (final IndexReader reader : readers) {
       reader.undeleteAll();
@@ -313,6 +321,7 @@ public class ParallelReader extends IndexReader {
   }
 
   // append fields from storedFieldReaders
+  @Override
   public Document document(int n, FieldSelector fieldSelector) throws CorruptIndexException, IOException {
     ensureOpen();
     Document result = new Document();
@@ -338,6 +347,7 @@ public class ParallelReader extends IndexReader {
   }
 
   // get all vectors
+  @Override
   public TermFreqVector[] getTermFreqVectors(int n) throws IOException {
     ensureOpen();
     ArrayList<TermFreqVector> results = new ArrayList<TermFreqVector>();
@@ -352,6 +362,7 @@ public class ParallelReader extends IndexReader {
     return results.toArray(new TermFreqVector[results.size()]);
   }
 
+  @Override
   public TermFreqVector getTermFreqVector(int n, String field)
     throws IOException {
     ensureOpen();
@@ -360,6 +371,7 @@ public class ParallelReader extends IndexReader {
   }
 
 
+  @Override
   public void getTermFreqVector(int docNumber, String field, TermVectorMapper mapper) throws IOException {
     ensureOpen();
     IndexReader reader = fieldToReader.get(field);
@@ -368,6 +380,7 @@ public class ParallelReader extends IndexReader {
     }
   }
 
+  @Override
   public void getTermFreqVector(int docNumber, TermVectorMapper mapper) throws IOException {
     ensureOpen();
 
@@ -380,18 +393,21 @@ public class ParallelReader extends IndexReader {
 
   }
 
+  @Override
   public boolean hasNorms(String field) throws IOException {
     ensureOpen();
     IndexReader reader = fieldToReader.get(field);
     return reader==null ? false : reader.hasNorms(field);
   }
 
+  @Override
   public byte[] norms(String field) throws IOException {
     ensureOpen();
     IndexReader reader = fieldToReader.get(field);
     return reader==null ? null : reader.norms(field);
   }
 
+  @Override
   public void norms(String field, byte[] result, int offset)
     throws IOException {
     ensureOpen();
@@ -400,6 +416,7 @@ public class ParallelReader extends IndexReader {
       reader.norms(field, result, offset);
   }
 
+  @Override
   protected void doSetNorm(int n, String field, byte value)
     throws CorruptIndexException, IOException {
     IndexReader reader = fieldToReader.get(field);
@@ -407,43 +424,51 @@ public class ParallelReader extends IndexReader {
       reader.doSetNorm(n, field, value);
   }
 
+  @Override
   public TermEnum terms() throws IOException {
     ensureOpen();
     return new ParallelTermEnum();
   }
 
+  @Override
   public TermEnum terms(Term term) throws IOException {
     ensureOpen();
     return new ParallelTermEnum(term);
   }
 
+  @Override
   public int docFreq(Term term) throws IOException {
     ensureOpen();
     IndexReader reader = fieldToReader.get(term.field());
     return reader==null ? 0 : reader.docFreq(term);
   }
 
+  @Override
   public int docFreq(String field, TermRef term) throws IOException {
     ensureOpen();
     IndexReader reader = ((IndexReader)fieldToReader.get(field));
     return reader == null? 0 : reader.docFreq(field, term);
   }
 
+  @Override
   public TermDocs termDocs(Term term) throws IOException {
     ensureOpen();
     return new ParallelTermDocs(term);
   }
 
+  @Override
   public TermDocs termDocs() throws IOException {
     ensureOpen();
     return new ParallelTermDocs();
   }
 
+  @Override
   public TermPositions termPositions(Term term) throws IOException {
     ensureOpen();
     return new ParallelTermPositions(term);
   }
 
+  @Override
   public TermPositions termPositions() throws IOException {
     ensureOpen();
     return new ParallelTermPositions();
@@ -452,6 +477,7 @@ public class ParallelReader extends IndexReader {
   /**
    * Checks recursively if all subreaders are up to date. 
    */
+  @Override
   public boolean isCurrent() throws CorruptIndexException, IOException {
     for (final IndexReader reader : readers) {
       if (!reader.isCurrent()) {
@@ -466,6 +492,7 @@ public class ParallelReader extends IndexReader {
   /**
    * Checks recursively if all subindexes are optimized 
    */
+  @Override
   public boolean isOptimized() {
     for (final IndexReader reader : readers) {
       if (!reader.isOptimized()) {
@@ -481,6 +508,7 @@ public class ParallelReader extends IndexReader {
   /** Not implemented.
    * @throws UnsupportedOperationException
    */
+  @Override
   public long getVersion() {
     throw new UnsupportedOperationException("ParallelReader does not support this method.");
   }
@@ -490,11 +518,13 @@ public class ParallelReader extends IndexReader {
     return readers.toArray(new IndexReader[readers.size()]);
   }
 
+  @Override
   protected void doCommit(Map<String,String> commitUserData) throws IOException {
     for (final IndexReader reader : readers)
       reader.commit(commitUserData);
   }
 
+  @Override
   protected synchronized void doClose() throws IOException {
     for (int i = 0; i < readers.size(); i++) {
       if (decrefOnClose.get(i).booleanValue()) {
@@ -505,6 +535,7 @@ public class ParallelReader extends IndexReader {
     }
   }
 
+  @Override
   public Collection<String> getFieldNames (IndexReader.FieldOption fieldNames) {
     ensureOpen();
     Set<String> fieldSet = new HashSet<String>();
@@ -538,6 +569,7 @@ public class ParallelReader extends IndexReader {
         termEnum = reader.terms(term);
     }
 
+    @Override
     public boolean next() throws IOException {
       if (termEnum==null)
         return false;
@@ -566,6 +598,7 @@ public class ParallelReader extends IndexReader {
       return false;                               // no more fields
     }
 
+    @Override
     public Term term() {
       if (termEnum==null)
         return null;
@@ -573,6 +606,7 @@ public class ParallelReader extends IndexReader {
       return termEnum.term();
     }
 
+    @Override
     public int docFreq() {
       if (termEnum==null)
         return 0;
@@ -580,6 +614,7 @@ public class ParallelReader extends IndexReader {
       return termEnum.docFreq();
     }
 
+    @Override
     public void close() throws IOException {
       if (termEnum!=null)
         termEnum.close();
@@ -645,6 +680,7 @@ public class ParallelReader extends IndexReader {
     public ParallelTermPositions() {}
     public ParallelTermPositions(Term term) throws IOException { seek(term); }
 
+    @Override
     public void seek(Term term) throws IOException {
       IndexReader reader = fieldToReader.get(term.field());
       termDocs = reader!=null ? reader.termPositions(term) : null;

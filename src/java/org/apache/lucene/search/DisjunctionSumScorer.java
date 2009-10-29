@@ -109,7 +109,6 @@ class DisjunctionSumScorer extends Scorer {
 
   /** Scores and collects all matching documents.
    * @param collector The collector to which all matching documents are passed through.
-   * <br>When this method is used the {@link #explain(int)} method should not be used.
    */
   public void score(Collector collector) throws IOException {
     collector.setScorer(this);
@@ -207,8 +206,6 @@ class DisjunctionSumScorer extends Scorer {
   /**
    * Advances to the first match beyond the current whose document number is
    * greater than or equal to a given target. <br>
-   * When this method is used the {@link #explain(int)} method should not be
-   * used. <br>
    * The implementation uses the skipTo() method on the subscorers.
    * 
    * @param target
@@ -216,6 +213,7 @@ class DisjunctionSumScorer extends Scorer {
    * @return the document whose number is greater than or equal to the given
    *         target, or -1 if none exist.
    */
+  @Override
   public int advance(int target) throws IOException {
     if (scorerDocQueue.size() < minimumNrMatchers) {
       return currentDoc = NO_MORE_DOCS;
@@ -232,32 +230,5 @@ class DisjunctionSumScorer extends Scorer {
         }
       }
     } while (true);
-  }
-  
-  /** @return An explanation for the score of a given document. */
-  public Explanation explain(int doc) throws IOException {
-    Explanation res = new Explanation();
-    Iterator ssi = subScorers.iterator();
-    float sumScore = 0.0f;
-    int nrMatches = 0;
-    while (ssi.hasNext()) {
-      Explanation es = ((Scorer) ssi.next()).explain(doc);
-      if (es.getValue() > 0.0f) { // indicates match
-        sumScore += es.getValue();
-        nrMatches++;
-      }
-      res.addDetail(es);
-    }
-    if (nrMatchers >= minimumNrMatchers) {
-      res.setValue(sumScore);
-      res.setDescription("sum over at least " + minimumNrMatchers
-                         + " of " + subScorers.size() + ":");
-    } else {
-      res.setValue(0.0f);
-      res.setDescription(nrMatches + " match(es) but at least "
-                         + minimumNrMatchers + " of "
-                         + subScorers.size() + " needed");
-    }
-    return res;
   }
 }

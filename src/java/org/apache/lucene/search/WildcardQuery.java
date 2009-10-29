@@ -56,6 +56,7 @@ public class WildcardQuery extends MultiTermQuery {
   }
   
   // @deprecated see getTermsEnum
+  @Override
   protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
     if (termContainsWildcard)
       return new WildcardTermEnum(reader, getTerm());

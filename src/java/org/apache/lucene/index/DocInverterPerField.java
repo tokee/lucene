@@ -51,11 +51,13 @@ final class DocInverterPerField extends DocFieldConsumerPerField {
     this.endConsumer = perThread.endConsumer.addField(this, fieldInfo);
   }
 
+  @Override
   void abort() {
     consumer.abort();
     endConsumer.abort();
   }
 
+  @Override
   public void processFields(final Fieldable[] fields,
                             final int count) throws IOException {
 
@@ -82,8 +84,8 @@ final class DocInverterPerField extends DocFieldConsumerPerField {
         if (!field.isTokenized()) {		  // un-tokenized field
           String stringValue = field.stringValue();
           final int valueLength = stringValue.length();
-          perThread.singleTokenTokenStream.reinit(stringValue, 0, valueLength);
-          fieldState.attributeSource = perThread.singleTokenTokenStream;
+          perThread.singleToken.reinit(stringValue, 0, valueLength);
+          fieldState.attributeSource = perThread.singleToken;
           consumer.start(field);
 
           boolean success = false;

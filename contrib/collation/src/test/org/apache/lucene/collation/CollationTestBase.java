@@ -87,7 +87,7 @@ public class CollationTestBase extends TestCase {
 
     AnalyzingQueryParser aqp = new AnalyzingQueryParser(Version.LUCENE_CURRENT, "content", analyzer);
     aqp.setLowercaseExpandedTerms(false);
-    aqp.setUseOldRangeQuery(false);
+
     // Unicode order would include U+0633 in [ U+062F - U+0698 ], but Farsi
     // orders the U+0698 character before the U+0633 character, so the single
     // index Term below should NOT be returned by a TermRangeQuery
@@ -99,14 +99,6 @@ public class CollationTestBase extends TestCase {
 
     ScoreDoc[] result
       = is.search(q, null, 1000).scoreDocs;
-    assertEquals("The index Term should not be included.", 0, result.length);
-
-    result = is.search(aqp.parse("[ \u0633 TO \u0638 ]"), null, 1000).scoreDocs;
-    assertEquals("The index Term should be included.", 1, result.length);
-
-    // Test Old TermRangeQuery
-    aqp.setUseOldRangeQuery(true);
-    result = is.search(aqp.parse("[ \u062F TO \u0698 ]"), null, 1000).scoreDocs;
     assertEquals("The index Term should not be included.", 0, result.length);
 
     result = is.search(aqp.parse("[ \u0633 TO \u0638 ]"), null, 1000).scoreDocs;

@@ -314,6 +314,7 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
 
     new FindSegmentsFile(directory) {
 
+      @Override
       protected Object doBody(String segmentFileName) throws CorruptIndexException, IOException {
         read(directory, segmentFileName, codecs);
         return null;
@@ -378,6 +379,7 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
    * SegmentInfo.
    */
   
+  @Override
   public Object clone() {
     SegmentInfos sis = (SegmentInfos) super.clone();
     for(int i=0;i<sis.size();i++) {
@@ -411,6 +413,7 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
     throws CorruptIndexException, IOException {
 
     return ((Long) new FindSegmentsFile(directory) {
+        @Override
         protected Object doBody(String segmentFileName) throws CorruptIndexException, IOException {
 
           IndexInput input = directory.openInput(segmentFileName);

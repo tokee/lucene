@@ -37,11 +37,9 @@ public abstract class Searcher implements Searchable {
    * <code>filter</code> if non-null, and sorting the hits by the criteria in
    * <code>sort</code>.
    * 
-   * <b>NOTE:</b> currently, this method tracks document scores and sets them in
-   * the returned {@link FieldDoc}, however in 3.0 it will move to not track
-   * document scores. If document scores tracking is still needed, you can use
-   * {@link #search(Weight, Filter, Collector)} and pass in a
-   * {@link TopFieldCollector} instance.
+   * <p>NOTE: this does not compute scores by default; use
+   * {@link IndexSearcher#setDefaultFieldSortScoring} to
+   * enable scoring.
    *
    * @throws BooleanQuery.TooManyClauses
    */
