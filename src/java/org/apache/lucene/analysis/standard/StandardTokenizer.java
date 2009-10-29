@@ -27,6 +27,7 @@ import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.util.AttributeSource;
+import org.apache.lucene.util.Version;
 
 /** A grammar-based tokenizer constructed with JFlex
  *
@@ -47,7 +48,7 @@ import org.apache.lucene.util.AttributeSource;
 
 public class StandardTokenizer extends Tokenizer {
   /** A private instance of the JFlex-constructed scanner */
-  private final StandardTokenizerImpl scanner;
+  private StandardTokenizerImpl scanner;
 
   public static final int ALPHANUM          = 0;
   public static final int APOSTROPHE        = 1;
@@ -112,6 +113,10 @@ public class StandardTokenizer extends Tokenizer {
     this(input, false);
   }
 
+  public StandardTokenizer(Version matchVersion, Reader input) {
+    // stub
+  }
+
   /**
    * Creates a new instance of the {@link org.apache.lucene.analysis.standard.StandardTokenizer}.  Attaches
    * the <code>input</code> to the newly created JFlex scanner.
@@ -136,6 +141,10 @@ public class StandardTokenizer extends Tokenizer {
     init(input, replaceInvalidAcronym);
   }
 
+  public StandardTokenizer(Version matchVersion, AttributeSource source, Reader input) {
+    // stub
+  }
+
   /**
    * Creates a new StandardTokenizer with a given {@link org.apache.lucene.util.AttributeSource.AttributeFactory} 
    */
@@ -143,6 +152,10 @@ public class StandardTokenizer extends Tokenizer {
     super(factory);
     this.scanner = new StandardTokenizerImpl(input);
     init(input, replaceInvalidAcronym);
+  }
+
+  public StandardTokenizer(Version matchVersion, AttributeFactory factory, Reader input) {
+    // stub
   }
 
   private void init(Reader input, boolean replaceInvalidAcronym) {

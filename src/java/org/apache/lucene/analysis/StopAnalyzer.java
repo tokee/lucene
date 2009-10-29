@@ -23,13 +23,15 @@ import java.io.Reader;
 import java.util.Arrays;
 import java.util.Set;
 
+import org.apache.lucene.util.Version;
+
 /** Filters {@link LetterTokenizer} with {@link LowerCaseFilter} and {@link StopFilter}. */
 
 public final class StopAnalyzer extends Analyzer {
-  private final Set/*<String>*/ stopWords;
+  private Set/*<String>*/ stopWords;
   // @deprecated
-  private final boolean useDefaultStopPositionIncrement;
-  private final boolean enablePositionIncrements;
+  private boolean useDefaultStopPositionIncrement;
+  private boolean enablePositionIncrements;
 
   /** An array containing some common English words that are not usually useful
     for searching. 
@@ -68,6 +70,10 @@ public final class StopAnalyzer extends Analyzer {
     enablePositionIncrements = false;
   }
 
+  public StopAnalyzer(Version matchVersion) {
+    // stub
+  }
+
   /** Builds an analyzer which removes words in
    *  ENGLISH_STOP_WORDS.
    * @param enablePositionIncrements See {@link
@@ -86,6 +92,10 @@ public final class StopAnalyzer extends Analyzer {
     enablePositionIncrements = false;
   }
 
+  public StopAnalyzer(Version matchVersion, Set stopWords) {
+    // stub
+  }
+
   /** Builds an analyzer with the stop words from the given set.
    * @param stopWords Set of stop words
    * @param enablePositionIncrements See {@link
@@ -102,6 +112,10 @@ public final class StopAnalyzer extends Analyzer {
     this.stopWords = StopFilter.makeStopSet(stopWords);
     useDefaultStopPositionIncrement = true;
     enablePositionIncrements = false;
+  }
+
+  public StopAnalyzer(Version matchVersion, String[] stopWords) {
+    // stub
   }
   
   /** Builds an analyzer which removes words in the provided array.
@@ -124,6 +138,11 @@ public final class StopAnalyzer extends Analyzer {
     enablePositionIncrements = false;
   }
 
+  public StopAnalyzer(Version matchVersion, File stopWords) {
+    // stub
+  }
+  
+
   /** Builds an analyzer with the stop words from the given file.
    * @see WordlistLoader#getWordSet(File)
    * @param stopwordsFile File to load stop words from
@@ -143,6 +162,10 @@ public final class StopAnalyzer extends Analyzer {
     stopWords = WordlistLoader.getWordSet(stopwords);
     useDefaultStopPositionIncrement = true;
     enablePositionIncrements = false;
+  }
+
+  public StopAnalyzer(Version matchVersion, Reader stopwords) throws IOException {
+    // stub
   }
 
   /** Builds an analyzer with the stop words from the given reader.

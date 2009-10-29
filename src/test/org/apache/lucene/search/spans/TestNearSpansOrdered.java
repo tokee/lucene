@@ -30,13 +30,14 @@ import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.util.Version;
 
 public class TestNearSpansOrdered extends LuceneTestCase {
   protected IndexSearcher searcher;
 
   public static final String FIELD = "field";
   public static final QueryParser qp =
-    new QueryParser(FIELD, new WhitespaceAnalyzer());
+    new QueryParser(Version.LUCENE_CURRENT, FIELD, new WhitespaceAnalyzer());
 
   public void tearDown() throws Exception {
     super.tearDown();
@@ -168,9 +169,7 @@ public class TestNearSpansOrdered extends LuceneTestCase {
    */
   public void testSpanNearScorerExplain() throws Exception {
     SpanNearQuery q = makeQuery();
-    Weight w = q.weight(searcher);
-    Scorer s = w.scorer(searcher.getIndexReader(), true, false);
-    Explanation e = s.explain(1);
+    Explanation e = q.weight(searcher).explain(searcher.getIndexReader(), 1);
     assertTrue("Scorer explanation value for doc#1 isn't positive: "
                + e.toString(),
                0.0f < e.getValue());

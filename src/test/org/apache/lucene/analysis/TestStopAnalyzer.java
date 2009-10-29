@@ -19,6 +19,7 @@ package org.apache.lucene.analysis;
 
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
+import org.apache.lucene.util.Version;
 
 import java.io.StringReader;
 import java.io.IOException;
@@ -28,7 +29,7 @@ import java.util.HashSet;
 
 public class TestStopAnalyzer extends BaseTokenStreamTestCase {
   
-  private StopAnalyzer stop = new StopAnalyzer(false);
+  private StopAnalyzer stop = new StopAnalyzer(Version.LUCENE_CURRENT);
   private Set inValidTokens = new HashSet();
   
   public TestStopAnalyzer(String s) {
@@ -61,7 +62,7 @@ public class TestStopAnalyzer extends BaseTokenStreamTestCase {
     stopWordsSet.add("good");
     stopWordsSet.add("test");
     stopWordsSet.add("analyzer");
-    StopAnalyzer newStop = new StopAnalyzer((String[])stopWordsSet.toArray(new String[3]));
+    StopAnalyzer newStop = new StopAnalyzer(Version.LUCENE_24, stopWordsSet);
     StringReader reader = new StringReader("This is a good test of the english stop analyzer");
     TokenStream stream = newStop.tokenStream("test", reader);
     assertNotNull(stream);
@@ -71,34 +72,28 @@ public class TestStopAnalyzer extends BaseTokenStreamTestCase {
     while (stream.incrementToken()) {
       String text = termAtt.term();
       assertFalse(stopWordsSet.contains(text));
-      assertEquals(1,posIncrAtt.getPositionIncrement()); // by default stop tokenizer does not apply increments.
+      assertEquals(1,posIncrAtt.getPositionIncrement()); // in 2.4 stop tokenizer does not apply increments.
     }
   }
 
   public void testStopListPositions() throws IOException {
-    boolean defaultEnable = StopFilter.getEnablePositionIncrementsDefault();
-    StopFilter.setEnablePositionIncrementsDefault(true);
-    try {
-      Set stopWordsSet = new HashSet();
-      stopWordsSet.add("good");
-      stopWordsSet.add("test");
-      stopWordsSet.add("analyzer");
-      StopAnalyzer newStop = new StopAnalyzer((String[])stopWordsSet.toArray(new String[3]));
-      StringReader reader = new StringReader("This is a good test of the english stop analyzer with positions");
-      int expectedIncr[] =                  { 1,   1, 1,          3, 1,  1,      1,            2,   1};
-      TokenStream stream = newStop.tokenStream("test", reader);
-      assertNotNull(stream);
-      int i = 0;
-      TermAttribute termAtt = (TermAttribute) stream.getAttribute(TermAttribute.class);
-      PositionIncrementAttribute posIncrAtt = (PositionIncrementAttribute) stream.addAttribute(PositionIncrementAttribute.class);
+    Set stopWordsSet = new HashSet();
+    stopWordsSet.add("good");
+    stopWordsSet.add("test");
+    stopWordsSet.add("analyzer");
+    StopAnalyzer newStop = new StopAnalyzer(Version.LUCENE_CURRENT, stopWordsSet);
+    StringReader reader = new StringReader("This is a good test of the english stop analyzer with positions");
+    int expectedIncr[] =                  { 1,   1, 1,          3, 1,  1,      1,            2,   1};
+    TokenStream stream = newStop.tokenStream("test", reader);
+    assertNotNull(stream);
+    int i = 0;
+    TermAttribute termAtt = (TermAttribute) stream.getAttribute(TermAttribute.class);
+    PositionIncrementAttribute posIncrAtt = (PositionIncrementAttribute) stream.addAttribute(PositionIncrementAttribute.class);
 
-      while (stream.incrementToken()) {
-        String text = termAtt.term();
-        assertFalse(stopWordsSet.contains(text));
-        assertEquals(expectedIncr[i++],posIncrAtt.getPositionIncrement());
-      }
-    } finally {
-      StopFilter.setEnablePositionIncrementsDefault(defaultEnable);
+    while (stream.incrementToken()) {
+      String text = termAtt.term();
+      assertFalse(stopWordsSet.contains(text));
+      assertEquals(expectedIncr[i++],posIncrAtt.getPositionIncrement());
     }
   }
 

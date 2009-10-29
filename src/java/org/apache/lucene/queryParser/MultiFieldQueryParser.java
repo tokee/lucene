@@ -27,6 +27,7 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.Version;
 
 /**
  * A QueryParser which constructs queries to search multiple fields.
@@ -69,6 +70,11 @@ public class MultiFieldQueryParser extends QueryParser
     this(fields,analyzer);
     this.boosts = boosts;
   }
+
+  public MultiFieldQueryParser(Version matchVersion, String[] fields, Analyzer analyzer, Map boosts) {
+    // stub
+    super(matchVersion, null, analyzer);
+  }
   
   /**
    * Creates a MultiFieldQueryParser.
@@ -93,6 +99,11 @@ public class MultiFieldQueryParser extends QueryParser
   public MultiFieldQueryParser(String[] fields, Analyzer analyzer) {
     super(null, analyzer);
     this.fields = fields;
+  }
+
+  public MultiFieldQueryParser(Version matchVersion, String[] fields, Analyzer analyzer) {
+    // stub
+    super(matchVersion, null, analyzer);
   }
   
   protected Query getFieldQuery(String field, String queryText, int slop) throws ParseException {
@@ -203,7 +214,7 @@ public class MultiFieldQueryParser extends QueryParser
    * @throws IllegalArgumentException if the length of the queries array differs
    *  from the length of the fields array
    */
-  public static Query parse(String[] queries, String[] fields,
+  public static Query parse(Version matchVersion, String[] queries, String[] fields,
       Analyzer analyzer) throws ParseException
   {
     if (queries.length != fields.length)
@@ -251,7 +262,7 @@ public class MultiFieldQueryParser extends QueryParser
    * @throws IllegalArgumentException if the length of the fields array differs
    *  from the length of the flags array
    */
-  public static Query parse(String query, String[] fields,
+  public static Query parse(Version matchVersion, String query, String[] fields,
       BooleanClause.Occur[] flags, Analyzer analyzer) throws ParseException {
     if (fields.length != flags.length)
       throw new IllegalArgumentException("fields.length != flags.length");
@@ -298,7 +309,7 @@ public class MultiFieldQueryParser extends QueryParser
    * @throws IllegalArgumentException if the length of the queries, fields,
    *  and flags array differ
    */
-  public static Query parse(String[] queries, String[] fields, BooleanClause.Occur[] flags,
+  public static Query parse(Version matchVersion, String[] queries, String[] fields, BooleanClause.Occur[] flags,
       Analyzer analyzer) throws ParseException
   {
     if (!(queries.length == fields.length && queries.length == flags.length))
