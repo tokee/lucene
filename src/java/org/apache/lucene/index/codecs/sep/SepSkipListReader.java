@@ -146,6 +146,7 @@ class SepSkipListReader extends MultiLevelSkipListReader {
     return lastPayloadLength;
   }
   
+  @Override
   protected void seekChild(int level) throws IOException {
     super.seekChild(level);
     //freqPointer[level] = lastFreqPointer;
@@ -155,6 +156,7 @@ class SepSkipListReader extends MultiLevelSkipListReader {
     payloadLength[level] = lastPayloadLength;
   }
   
+  @Override
   protected void setLastSkipData(int level) {
     super.setLastSkipData(level);
 
@@ -195,6 +197,7 @@ class SepSkipListReader extends MultiLevelSkipListReader {
     return lastDocIndex;
   }
 
+  @Override
   protected int readSkipData(int level, IndexInput skipStream) throws IOException {
     int delta;
     if (currentFieldStoresPayloads) {

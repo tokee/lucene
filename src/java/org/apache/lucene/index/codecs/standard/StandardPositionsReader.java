@@ -41,6 +41,7 @@ public class StandardPositionsReader extends StandardPositionsProducer {
     proxIn = dir.openInput(IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.PROX_EXTENSION), readBufferSize);
   }
 
+  @Override
   public void start(IndexInput termsIn) throws IOException {
     this.termsIn = termsIn;
 
@@ -53,10 +54,12 @@ public class StandardPositionsReader extends StandardPositionsProducer {
     }
   }
 
+  @Override
   public Reader reader(FieldInfo fieldInfo, IndexInput termsIn) {
     return new TermsDictReader(termsIn, fieldInfo);
   }
 
+  @Override
   public void close() throws IOException {
     if (proxIn != null) {
       proxIn.close();
@@ -74,6 +77,7 @@ public class StandardPositionsReader extends StandardPositionsProducer {
       this.fieldInfo = fieldInfo;
     }
 
+    @Override
     public void readTerm(int docFreq, boolean isIndexTerm) throws IOException {
       // mxx
       if (Codec.DEBUG) {
@@ -100,6 +104,7 @@ public class StandardPositionsReader extends StandardPositionsProducer {
 
     SegmentPositionsEnum positions;
 
+    @Override
     public PositionsEnum positions() throws IOException {
 
       if (positions == null)
@@ -181,6 +186,7 @@ public class StandardPositionsReader extends StandardPositionsProducer {
         position = 0;
       }
 
+      @Override
       public int next() throws IOException {
 
         if (Codec.DEBUG)
@@ -219,10 +225,12 @@ public class StandardPositionsReader extends StandardPositionsProducer {
         return position;
       }
 
+      @Override
       public int getPayloadLength() {
         return payloadLength;
       }
 
+      @Override
       public byte[] getPayload(byte[] data, int offset) throws IOException {
 
         if (!payloadPending)
@@ -245,6 +253,7 @@ public class StandardPositionsReader extends StandardPositionsProducer {
         return retArray;
       }
       
+      @Override
       public boolean hasPayload() {
         return payloadPending && payloadLength > 0;
       }

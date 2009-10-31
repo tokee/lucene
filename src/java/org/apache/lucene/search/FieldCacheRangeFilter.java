@@ -519,10 +519,12 @@ public abstract class FieldCacheRangeFilter<T> extends Filter {
     /**
      * this DocIdSet is cacheable, if it can ignore deletions
      */
+    @Override
     public boolean isCacheable() {
       return canIgnoreDeletedDocs || !reader.hasDeletions();
     }
 
+    @Override
     public DocIdSetIterator iterator() throws IOException {
       // Synchronization needed because deleted docs BitVector
       // can change after call to hasDeletions until TermDocs creation.

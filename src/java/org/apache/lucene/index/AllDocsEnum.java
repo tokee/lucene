@@ -32,14 +32,17 @@ class AllDocsEnum extends DocsEnum {
     this.reader = reader;
   }
 
+  @Override
   public int freq() {
     return 1;
   }
 
+  @Override
   public int next() throws IOException {
     return advance(doc+1);
   }
 
+  @Override
   public int read(int[] docs, int[] freqs) throws IOException {
     final int length = docs.length;
     int i = 0;
@@ -54,6 +57,7 @@ class AllDocsEnum extends DocsEnum {
     return i;
   }
 
+  @Override
   public int advance(int target) throws IOException {
     doc = target;
     while (doc < maxDoc) {
@@ -66,6 +70,7 @@ class AllDocsEnum extends DocsEnum {
     return doc;
   }
 
+  @Override
   public PositionsEnum positions() {
     throw new UnsupportedOperationException();
   }

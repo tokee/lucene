@@ -83,6 +83,7 @@ public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
   }
 
   // nocommit -- made public
+  @Override
   public void resetSkip() {
     super.resetSkip();
     Arrays.fill(lastSkipDoc, 0);
@@ -98,6 +99,7 @@ public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
     }
   }
   
+  @Override
   protected void writeSkipData(int level, IndexOutput skipBuffer) throws IOException {
     // To efficiently store payloads in the posting lists we do not store the length of
     // every payload. Instead we omit the length for a payload if the previous payload had

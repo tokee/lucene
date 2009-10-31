@@ -50,6 +50,7 @@ class PulsingDocsReader extends StandardDocsProducer {
     this.wrappedDocsReader = wrappedDocsReader;
   }
 
+  @Override
   public void start(IndexInput termsIn) throws IOException {
     this.termsIn = termsIn;
     Codec.checkHeader(termsIn, PulsingDocsWriter.CODEC, PulsingDocsWriter.VERSION_START);
@@ -57,6 +58,7 @@ class PulsingDocsReader extends StandardDocsProducer {
     wrappedDocsReader.start(termsIn);
   }
 
+  @Override
   public Reader reader(FieldInfo fieldInfo, IndexInput termsIn) throws IOException {
     return new PulsingReader(fieldInfo, termsIn, wrappedDocsReader.reader(fieldInfo, termsIn));
   }
@@ -87,6 +89,7 @@ class PulsingDocsReader extends StandardDocsProducer {
       }
     }
 
+    @Override
     public void readTerm(int docFreq, boolean isIndexTerm) throws IOException {
 
       if (Codec.DEBUG) {
@@ -177,6 +180,7 @@ class PulsingDocsReader extends StandardDocsProducer {
 
     final PulsingDocsEnum docsEnum = new PulsingDocsEnum();
 
+    @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
       if (docFreq <= maxPulsingDocFreq) {
         docsEnum.reset(skipDocs);
@@ -198,6 +202,7 @@ class PulsingDocsReader extends StandardDocsProducer {
         nextRead = 0;
       }
 
+      @Override
       public int next() {
         while(true) {
           if (nextRead >= docFreq) {
@@ -211,6 +216,7 @@ class PulsingDocsReader extends StandardDocsProducer {
         }
       }
 
+      @Override
       public int read(int[] retDocs, int[] retFreqs) {
         int i=0;
         // nocommit -- ob1?
@@ -233,6 +239,7 @@ class PulsingDocsReader extends StandardDocsProducer {
         return nextRead-1;
       }
 
+      @Override
       public int freq() {
         return doc.numPositions;
       }
@@ -251,6 +258,7 @@ class PulsingDocsReader extends StandardDocsProducer {
           payloadRetrieved = false;
         }
 
+        @Override
         public int next() {
           assert nextRead < doc.numPositions;
           pos = doc.positions[nextRead++];
@@ -258,15 +266,18 @@ class PulsingDocsReader extends StandardDocsProducer {
           return pos.pos;
         }
 
+        @Override
         public int getPayloadLength() {
           return pos.payloadLength;
         }
 
+        @Override
         public boolean hasPayload() {
           // nocommit -- maybe don't do the payloadRetrieved check?
           return !payloadRetrieved && pos.payloadLength > 0;
         }
 
+        @Override
         public byte[] getPayload(byte[] data, int offset) {
           // nocommit -- inefficient
           if (!payloadRetrieved) {
@@ -281,11 +292,13 @@ class PulsingDocsReader extends StandardDocsProducer {
       
       final PulsingPositionsEnum positions = new PulsingPositionsEnum();
 
+      @Override
       public PositionsEnum positions() throws IOException {
         positions.reset();
         return positions;
       }
 
+      @Override
       public int advance(int target) throws IOException {
         int doc;
         while((doc=next()) != NO_MORE_DOCS) {
@@ -324,6 +337,7 @@ class PulsingDocsReader extends StandardDocsProducer {
     }
   }
 
+  @Override
   public void close() throws IOException {
     wrappedDocsReader.close();
   }

@@ -66,10 +66,12 @@ public class PayloadNearQuery extends SpanNearQuery {
     this.function = function;
   }
 
+  @Override
   public Weight createWeight(Searcher searcher) throws IOException {
     return new PayloadNearSpanWeight(this, searcher);
   }
 
+  @Override
   public Object clone() {
     int sz = clauses.size();
     SpanQuery[] newClauses = new SpanQuery[sz];
@@ -83,6 +85,7 @@ public class PayloadNearQuery extends SpanNearQuery {
     return boostingNearQuery;
   }
 
+  @Override
   public String toString(String field) {
     StringBuilder buffer = new StringBuilder();
     buffer.append("payloadNear([");
@@ -104,6 +107,7 @@ public class PayloadNearQuery extends SpanNearQuery {
   }
 
   // @Override
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();
@@ -113,6 +117,7 @@ public class PayloadNearQuery extends SpanNearQuery {
   }
 
   // @Override
+  @Override
   public boolean equals(Object obj) {
     if (this == obj)
       return true;
@@ -145,6 +150,7 @@ public class PayloadNearQuery extends SpanNearQuery {
           similarity, reader.norms(query.getField()));
     }
 
+    @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder,
         boolean topScorer) throws IOException {
       return new PayloadNearSpanScorer(query.getSpans(reader), this,
@@ -217,12 +223,14 @@ public class PayloadNearQuery extends SpanNearQuery {
       return super.setFreqCurrentDoc();
     }
 
+    @Override
     public float score() throws IOException {
 
       return super.score()
           * function.docScore(doc, fieldName, payloadsSeen, payloadScore);
     }
 
+    @Override
     protected Explanation explain(int doc) throws IOException {
       Explanation result = new Explanation();
       Explanation nonPayloadExpl = super.explain(doc);

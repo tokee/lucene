@@ -36,6 +36,7 @@ public class StandardCodec extends Codec {
     name = "Standard";
   }
 
+  @Override
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
     StandardDocsConsumer docs = new StandardDocsWriter(state);
 
@@ -66,6 +67,7 @@ public class StandardCodec extends Codec {
     }
   }
 
+  @Override
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
     StandardDocsReader docs = new StandardDocsReader(dir, si, readBufferSize);
     StandardTermsIndexReader indexReader;
@@ -116,12 +118,14 @@ public class StandardCodec extends Codec {
   /** Extension of terms index file */
   static final String TERMS_INDEX_EXTENSION = "tii";
 
+  @Override
   public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
     StandardDocsReader.files(segmentInfo, files);
     StandardTermsDictReader.files(segmentInfo, files);
     SimpleStandardTermsIndexReader.files(segmentInfo, files);
   }
 
+  @Override
   public void getExtensions(Collection extensions) {
     getStandardExtensions(extensions);
   }

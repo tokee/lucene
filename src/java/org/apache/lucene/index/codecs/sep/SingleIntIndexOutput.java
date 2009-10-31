@@ -40,18 +40,22 @@ public class SingleIntIndexOutput extends IntIndexOutput {
   }
 
   /** Write an int to the primary file */
+  @Override
   public void write(int v) throws IOException {
     out.writeVInt(v);
   }
 
+  @Override
   public Index index() {
     return new Index();
   }
 
+  @Override
   public void close() throws IOException {
     out.close();
   }
 
+  @Override
   public String descFilePointer() {
     return Long.toString(out.getFilePointer());
   }
@@ -59,15 +63,18 @@ public class SingleIntIndexOutput extends IntIndexOutput {
   private class Index extends IntIndexOutput.Index {
     long fp;
     long lastFP;
+    @Override
     public void mark() {
       fp = out.getFilePointer();
       if (Codec.DEBUG) {
         System.out.println("siio.idx.mark id=" + desc + " fp=" + fp);
       }
     }
+    @Override
     public void set(IntIndexOutput.Index other) {
       lastFP = fp = ((Index) other).fp;
     }
+    @Override
     public void write(IndexOutput indexOut, boolean absolute)
       throws IOException {
       if (Codec.DEBUG) {
@@ -80,6 +87,7 @@ public class SingleIntIndexOutput extends IntIndexOutput {
       }
       lastFP = fp;
     }
+    @Override
     public String toString() {
       return Long.toString(fp);
     }

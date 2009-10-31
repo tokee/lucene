@@ -59,6 +59,7 @@ final class StandardPositionsWriter extends StandardPositionsConsumer {
       out = null;
   }
 
+  @Override
   public void start(IndexOutput termsOut) throws IOException {
     this.termsOut = termsOut;
     Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
@@ -67,6 +68,7 @@ final class StandardPositionsWriter extends StandardPositionsConsumer {
   long proxStart;
   long lastProxStart;
 
+  @Override
   public void startTerm() {
     proxStart = out.getFilePointer();
     lastPayloadLength = -1;
@@ -76,6 +78,7 @@ final class StandardPositionsWriter extends StandardPositionsConsumer {
   int lastPosition;
 
   /** Add a new position & payload */
+  @Override
   public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) throws IOException {
     assert !omitTermFreqAndPositions: "omitTermFreqAndPositions is true";
     assert out != null;
@@ -120,10 +123,12 @@ final class StandardPositionsWriter extends StandardPositionsConsumer {
   }
 
   /** Called when we are done adding positions & payloads */
+  @Override
   public void finishDoc() {       
     lastPosition = 0;
   }
 
+  @Override
   public void finishTerm(boolean isIndexTerm) throws IOException {
     assert !omitTermFreqAndPositions;
 
@@ -142,6 +147,7 @@ final class StandardPositionsWriter extends StandardPositionsConsumer {
     lastProxStart = proxStart;
   }
 
+  @Override
   public void close() throws IOException {
     if (out != null) {
       out.close();

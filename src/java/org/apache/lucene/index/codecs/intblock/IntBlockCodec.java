@@ -46,6 +46,7 @@ public class IntBlockCodec extends Codec {
     name = "IntBlock";
   }
 
+  @Override
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
     StandardDocsConsumer docsWriter = new SepDocsWriter(state, new SimpleIntBlockFactory(1024));
 
@@ -84,6 +85,7 @@ public class IntBlockCodec extends Codec {
   final static String PAYLOAD_EXTENSION = "pyl";
   */
 
+  @Override
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
     StandardDocsProducer docsReader = new SepDocsReader(dir, si, readBufferSize, new SimpleIntBlockFactory(1024));
 
@@ -120,12 +122,14 @@ public class IntBlockCodec extends Codec {
     }
   }
 
+  @Override
   public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
     SepDocsReader.files(segmentInfo, files);
     StandardTermsDictReader.files(segmentInfo, files);
     SimpleStandardTermsIndexReader.files(segmentInfo, files);
   }
 
+  @Override
   public void getExtensions(Collection extensions) {
     SepCodec.getSepExtensions(extensions);
   }

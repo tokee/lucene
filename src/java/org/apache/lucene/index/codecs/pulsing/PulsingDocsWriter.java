@@ -69,6 +69,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
       positions[0] = new Position();
     }
     
+    @Override
     public Object clone() {
       Document doc = new Document();
       doc.docID = docID;
@@ -101,6 +102,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
     int pos;
     int payloadLength;
     
+    @Override
     public Object clone() {
       Position position = new Position();
       position.pos = pos;
@@ -133,6 +135,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
     this.wrappedDocsWriter = wrappedDocsWriter;
   }
 
+  @Override
   public void start(IndexOutput termsOut) throws IOException {
     this.termsOut = termsOut;
     Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
@@ -140,6 +143,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
     wrappedDocsWriter.start(termsOut);
   }
 
+  @Override
   public void startTerm() {
     assert pendingDocCount == 0;
     pulsed = false;
@@ -150,6 +154,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
 
   // Currently, this instance is re-used across fields, so
   // our parent calls setField whenever the field changes
+  @Override
   public void setField(FieldInfo fieldInfo) {
     this.fieldInfo = fieldInfo;
     omitTF = fieldInfo.omitTermFreqAndPositions;
@@ -159,8 +164,11 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
 
   /** Simply buffers up positions */
   class PositionsWriter extends StandardPositionsConsumer {
+    @Override
     public void start(IndexOutput termsOut) {}
+    @Override
     public void startTerm() {}
+    @Override
     public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) {
       Position pos = currentDoc.positions[currentDoc.numPositions++];
       pos.pos = position;
@@ -173,15 +181,19 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
       } else
         pos.payloadLength = 0;
     }
+    @Override
     public void finishDoc() {
       assert currentDoc.numPositions == currentDoc.termDocFreq;
     }
+    @Override
     public void finishTerm(boolean isIndexTerm) {}
+    @Override
     public void close() {}
   }
 
   final PositionsWriter posWriter = new PositionsWriter();
 
+  @Override
   public PositionsConsumer addDoc(int docID, int termDocFreq) throws IOException {
 
     assert docID >= 0: "got docID=" + docID;
@@ -251,6 +263,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
   int nonPulsedCount;
 
   /** Called when we are done adding docs to this term */
+  @Override
   public void finishTerm(int docCount, boolean isIndexTerm) throws IOException {
 
     if (Codec.DEBUG)
@@ -312,6 +325,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
     pendingDocCount = 0;
   }
 
+  @Override
   public void close() throws IOException {
     wrappedDocsWriter.close();
   }

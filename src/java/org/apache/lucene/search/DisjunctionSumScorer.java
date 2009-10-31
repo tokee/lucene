@@ -110,6 +110,7 @@ class DisjunctionSumScorer extends Scorer {
   /** Scores and collects all matching documents.
    * @param collector The collector to which all matching documents are passed through.
    */
+  @Override
   public void score(Collector collector) throws IOException {
     collector.setScorer(this);
     while (nextDoc() != NO_MORE_DOCS) {
@@ -124,6 +125,7 @@ class DisjunctionSumScorer extends Scorer {
    * @param max Do not score documents past this.
    * @return true if more matching documents may remain.
    */
+  @Override
   protected boolean score(Collector collector, int max, int firstDocID) throws IOException {
     // firstDocID is ignored since nextDoc() sets 'currentDoc'
     collector.setScorer(this);
@@ -136,6 +138,7 @@ class DisjunctionSumScorer extends Scorer {
     return true;
   }
 
+  @Override
   public int nextDoc() throws IOException {
     if (scorerDocQueue.size() < minimumNrMatchers || !advanceAfterCurrent()) {
       currentDoc = NO_MORE_DOCS;
@@ -190,8 +193,10 @@ class DisjunctionSumScorer extends Scorer {
   /** Returns the score of the current document matching the query.
    * Initially invalid, until {@link #next()} is called the first time.
    */
+  @Override
   public float score() throws IOException { return currentScore; }
    
+  @Override
   public int docID() {
     return currentDoc;
   }

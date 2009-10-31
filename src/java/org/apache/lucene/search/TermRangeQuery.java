@@ -130,6 +130,7 @@ public class TermRangeQuery extends MultiTermQuery {
   /** Returns the collator used to determine range inclusion, if any. */
   public Collator getCollator() { return collator; }
   
+  @Override
   protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
     return new TermRangeTermEnum(reader, field, lowerTerm,
         upperTerm, includeLower, includeUpper, collator);
@@ -139,6 +140,7 @@ public class TermRangeQuery extends MultiTermQuery {
     return field;
   }
 
+  @Override
   protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
     return new TermRangeTermsEnum(reader, field,
                                   lowerTerm, upperTerm,
@@ -147,6 +149,7 @@ public class TermRangeQuery extends MultiTermQuery {
   }
 
   /** Prints a user-readable version of this query. */
+  @Override
   public String toString(String field) {
       StringBuilder buffer = new StringBuilder();
       if (!getField().equals(field)) {
@@ -163,6 +166,7 @@ public class TermRangeQuery extends MultiTermQuery {
   }
 
   //@Override
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();
@@ -176,6 +180,7 @@ public class TermRangeQuery extends MultiTermQuery {
   }
 
   //@Override
+  @Override
   public boolean equals(Object obj) {
     if (this == obj)
       return true;

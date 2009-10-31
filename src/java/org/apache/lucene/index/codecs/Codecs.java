@@ -82,6 +82,7 @@ class DefaultCodecs extends Codecs {
     register(new SepCodec());
   }
 
+  @Override
   public Codec getWriter(SegmentWriteState state) {
     return lookup("Standard");
     //return lookup("Pulsing");

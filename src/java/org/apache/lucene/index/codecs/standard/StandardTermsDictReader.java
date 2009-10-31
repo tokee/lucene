@@ -113,10 +113,12 @@ public class StandardTermsDictReader extends FieldsProducer {
     this.indexReader = indexReader;
   }
 
+  @Override
   public void loadTermsIndex() throws IOException {
     indexReader.loadTermsIndex();
   }
 
+  @Override
   public void close() throws IOException {
     try {
       try {
@@ -148,6 +150,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     return new TermFieldsEnum();
   }
 
+  @Override
   public Terms terms(String field) throws IOException {
     if (Codec.DEBUG) {
       System.out.println("stdr.terms field=" + field + " found=" + fields.get(field));
@@ -164,6 +167,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       it = fields.values().iterator();
     }
 
+    @Override
     public String next() {
       if (Codec.DEBUG) {
         System.out.println("stdr.tfe.next seg=" + segment);
@@ -181,6 +185,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       }
     }
     
+    @Override
     public TermsEnum terms() throws IOException {
       return current.iterator();
     }
@@ -201,6 +206,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       this.indexReader = fieldIndexReader;
     }
 
+    @Override
     public int docFreq(TermRef text) throws IOException {
       ThreadResources resources = getThreadResources();
       if (resources.termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
@@ -224,10 +230,12 @@ public class StandardTermsDictReader extends FieldsProducer {
       return resources;
     }
     
+    @Override
     public TermsEnum iterator() throws IOException {
       return new SegmentTermsEnum();
     }
 
+    @Override
     public long getUniqueTermCount() {
       return numTerms;
     }
@@ -259,6 +267,7 @@ public class StandardTermsDictReader extends FieldsProducer {
        *  text; returns SeekStatus.FOUND if the exact term
        *  is found, SeekStatus.NOT_FOUND if a different term
        *  was found, SeekStatus.END if we hit EOF */
+      @Override
       public SeekStatus seek(TermRef term) throws IOException {
         ReuseLRUCache<TermRef, CacheEntry> cache = null;
         CacheEntry entry = null;
@@ -378,6 +387,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         return SeekStatus.END;
       }
 
+      @Override
       public SeekStatus seek(long pos) throws IOException {
         if (pos >= numTerms) {
           return SeekStatus.END;
@@ -405,14 +415,17 @@ public class StandardTermsDictReader extends FieldsProducer {
         return SeekStatus.FOUND;
       }
 
+      @Override
       public TermRef term() {
         return bytesReader.term;
       }
 
+      @Override
       public long ord() {
         return termUpto;
       }
 
+      @Override
       public TermRef next() throws IOException {
         if (termUpto >= numTerms) {
           return null;
@@ -445,10 +458,12 @@ public class StandardTermsDictReader extends FieldsProducer {
         return bytesReader.term;
       }
 
+      @Override
       public int docFreq() {
         return docFreq;
       }
 
+      @Override
       public DocsEnum docs(Bits skipDocs) throws IOException {
         // nocommit
         if (Codec.DEBUG) {
@@ -519,6 +534,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       this.cacheSize = cacheSize;
     }
 
+    @Override
     protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
       boolean remove = size() > ReuseLRUCache.this.cacheSize;
       if (remove) {

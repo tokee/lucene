@@ -85,6 +85,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       codecs2 = codecs;
     }
     return (IndexReader) new SegmentInfos.FindSegmentsFile(directory) {
+      @Override
       protected Object doBody(String segmentFileName) throws CorruptIndexException, IOException {
         SegmentInfos infos = new SegmentInfos();
         infos.read(directory, segmentFileName, codecs2);
@@ -409,10 +410,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  @Override
   public Bits getDeletedDocs() {
     return deletedDocs;
   }
 
+  @Override
   public final synchronized Object clone() {
     try {
       return clone(readOnly); // Preserve current readOnly
@@ -421,6 +424,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  @Override
   public final synchronized IndexReader clone(boolean openReadOnly) throws CorruptIndexException, IOException {
     DirectoryReader newReader = doReopen((SegmentInfos) segmentInfos.clone(), true, openReadOnly);
 
@@ -443,15 +447,18 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return newReader;
   }
 
+  @Override
   public final synchronized IndexReader reopen() throws CorruptIndexException, IOException {
     // Preserve current readOnly
     return doReopen(readOnly, null);
   }
 
+  @Override
   public final synchronized IndexReader reopen(boolean openReadOnly) throws CorruptIndexException, IOException {
     return doReopen(openReadOnly, null);
   }
 
+  @Override
   public final synchronized IndexReader reopen(final IndexCommit commit) throws CorruptIndexException, IOException {
     return doReopen(true, commit);
   }
@@ -522,6 +529,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     return (IndexReader) new SegmentInfos.FindSegmentsFile(directory) {
+      @Override
       protected Object doBody(String segmentFileName) throws CorruptIndexException, IOException {
         SegmentInfos infos = new SegmentInfos();
         infos.read(directory, segmentFileName, codecs);
@@ -541,17 +549,20 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   /** Version number when this IndexReader was opened. */
+  @Override
   public long getVersion() {
     ensureOpen();
     return segmentInfos.getVersion();
   }
 
+  @Override
   public TermFreqVector[] getTermFreqVectors(int n) throws IOException {
     ensureOpen();
     int i = readerIndex(n);        // find segment num
     return subReaders[i].getTermFreqVectors(n - starts[i]); // dispatch to segment
   }
 
+  @Override
   public TermFreqVector getTermFreqVector(int n, String field)
       throws IOException {
     ensureOpen();
@@ -560,12 +571,14 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
 
+  @Override
   public void getTermFreqVector(int docNumber, String field, TermVectorMapper mapper) throws IOException {
     ensureOpen();
     int i = readerIndex(docNumber);        // find segment num
     subReaders[i].getTermFreqVector(docNumber - starts[i], field, mapper);
   }
 
+  @Override
   public void getTermFreqVector(int docNumber, TermVectorMapper mapper) throws IOException {
     ensureOpen();
     int i = readerIndex(docNumber);        // find segment num
@@ -576,11 +589,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
    * Checks is the index is optimized (if it has a single segment and no deletions)
    * @return <code>true</code> if the index is optimized; <code>false</code> otherwise
    */
+  @Override
   public boolean isOptimized() {
     ensureOpen();
     return segmentInfos.size() == 1 && !hasDeletions();
   }
   
+  @Override
   public synchronized int numDocs() {
     // Don't call ensureOpen() here (it could affect performance)
     if (numDocs == -1) {        // check cache
@@ -592,29 +607,34 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return numDocs;
   }
 
+  @Override
   public int maxDoc() {
     // Don't call ensureOpen() here (it could affect performance)
     return maxDoc;
   }
 
   // inherit javadoc
+  @Override
   public Document document(int n, FieldSelector fieldSelector) throws CorruptIndexException, IOException {
     ensureOpen();
     int i = readerIndex(n);                          // find segment num
     return subReaders[i].document(n - starts[i], fieldSelector);    // dispatch to segment reader
   }
 
+  @Override
   public boolean isDeleted(int n) {
     // Don't call ensureOpen() here (it could affect performance)
     final int i = readerIndex(n);                           // find segment num
     return subReaders[i].isDeleted(n - starts[i]);    // dispatch to segment reader
   }
 
+  @Override
   public boolean hasDeletions() {
     // Don't call ensureOpen() here (it could affect performance)
     return hasDeletions;
   }
 
+  @Override
   protected void doDelete(int n) throws CorruptIndexException, IOException {
     numDocs = -1;                             // invalidate cache
     int i = readerIndex(n);                   // find segment num
@@ -622,6 +642,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     hasDeletions = true;
   }
 
+  @Override
   protected void doUndeleteAll() throws CorruptIndexException, IOException {
     for (int i = 0; i < subReaders.length; i++)
       subReaders[i].undeleteAll();
@@ -655,6 +676,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return hi;
   }
 
+  @Override
   public boolean hasNorms(String field) throws IOException {
     ensureOpen();
     for (int i = 0; i < subReaders.length; i++) {
@@ -663,6 +685,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return false;
   }
 
+  @Override
   public synchronized byte[] norms(String field) throws IOException {
     ensureOpen();
     byte[] bytes = normsCache.get(field);
@@ -678,6 +701,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return bytes;
   }
 
+  @Override
   public synchronized void norms(String field, byte[] result, int offset)
     throws IOException {
     ensureOpen();
@@ -693,6 +717,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  @Override
   protected void doSetNorm(int n, String field, byte value)
     throws CorruptIndexException, IOException {
     synchronized (normsCache) {
@@ -702,16 +727,19 @@ class DirectoryReader extends IndexReader implements Cloneable {
     subReaders[i].setNorm(n-starts[i], field, value); // dispatch
   }
 
+  @Override
   public TermEnum terms() throws IOException {
     ensureOpen();
     return new MultiTermEnum(this, subReaders, starts, null);
   }
 
+  @Override
   public TermEnum terms(Term term) throws IOException {
     ensureOpen();
     return new MultiTermEnum(this, subReaders, starts, term);
   }
 
+  @Override
   public int docFreq(Term t) throws IOException {
     ensureOpen();
     int total = 0;          // sum freqs in segments
@@ -720,6 +748,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return total;
   }
 
+  @Override
   public int docFreq(String field, TermRef term) throws IOException {
     ensureOpen();
     int total = 0;          // sum freqs in segments
@@ -729,15 +758,18 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return total;
   }
 
+  @Override
   public TermDocs termDocs() throws IOException {
     ensureOpen();
     return new MultiTermDocs(this, subReaders, starts);
   }
   
+  @Override
   public Fields fields() throws IOException {
     return fields;
   }
 
+  @Override
   public TermPositions termPositions() throws IOException {
     ensureOpen();
     return new MultiTermPositions(this, subReaders, starts);
@@ -754,6 +786,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
    *                               obtained)
    * @throws IOException           if there is a low-level IO error
    */
+  @Override
   protected void acquireWriteLock() throws StaleReaderException, CorruptIndexException, LockObtainFailedException, IOException {
 
     if (readOnly) {
@@ -794,6 +827,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
    *
    * @throws IOException if there is a low-level IO error
    */
+  @Override
   protected void doCommit(Map<String,String> commitUserData) throws IOException {
     if (hasChanges) {
       segmentInfos.setUserData(commitUserData);
@@ -878,6 +912,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  @Override
   public Map<String,String> getCommitUserData() {
     ensureOpen();
     return segmentInfos.getUserData();
@@ -893,11 +928,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException           if there is a low-level IO error
    */
+  @Override
   public boolean isCurrent() throws CorruptIndexException, IOException {
     ensureOpen();
     return SegmentInfos.readCurrentVersion(directory, codecs) == segmentInfos.getVersion();
   }
 
+  @Override
   protected synchronized void doClose() throws IOException {
     IOException ioe = null;
     normsCache = null;
@@ -913,6 +950,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     if (ioe != null) throw ioe;
   }
 
+  @Override
   public Collection<String> getFieldNames (IndexReader.FieldOption fieldNames) {
     ensureOpen();
     return getFieldNames(fieldNames, this.subReaders);
@@ -928,11 +966,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return fieldSet;
   } 
   
+  @Override
   public IndexReader[] getSequentialSubReaders() {
     return subReaders;
   }
 
   /** Returns the directory this index resides in. */
+  @Override
   public Directory directory() {
     // Don't ensureOpen here -- in certain cases, when a
     // cloned/reopened reader needs to commit, it may call
@@ -949,6 +989,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
    * <p/>
    * <p><b>WARNING</b>: this API is new and experimental and may suddenly change.</p>
    */
+  @Override
   public IndexCommit getIndexCommit() throws IOException {
     return new ReaderCommit(segmentInfos, directory);
   }
@@ -1021,34 +1062,42 @@ class DirectoryReader extends IndexReader implements Cloneable {
       isOptimized = infos.size() == 1 && !infos.info(0).hasDeletions();
     }
 
+    @Override
     public boolean isOptimized() {
       return isOptimized;
     }
 
+    @Override
     public String getSegmentsFileName() {
       return segmentsFileName;
     }
 
+    @Override
     public Collection<String> getFileNames() {
       return files;
     }
 
+    @Override
     public Directory getDirectory() {
       return dir;
     }
 
+    @Override
     public long getVersion() {
       return version;
     }
 
+    @Override
     public long getGeneration() {
       return generation;
     }
 
+    @Override
     public boolean isDeleted() {
       return false;
     }
 
+    @Override
     public Map<String,String> getUserData() {
       return userData;
     }
@@ -1117,6 +1166,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       initialize(size);
     }
 
+    @Override
     protected final boolean lessThan(Object a, Object b) {
       FieldsEnumWithBase fieldsA = (FieldsEnumWithBase) a;
       FieldsEnumWithBase fieldsB = (FieldsEnumWithBase) b;
@@ -1129,6 +1179,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       initialize(size);
     }
 
+    @Override
     protected final boolean lessThan(Object a, Object b) {
       TermsEnumWithBase termsA = (TermsEnumWithBase) a;
       TermsEnumWithBase termsB = (TermsEnumWithBase) b;
@@ -1151,6 +1202,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       this.starts = starts;
     }
 
+    @Override
     public FieldsEnum iterator() throws IOException {
       FieldsEnumWithBase[] subs = new FieldsEnumWithBase[readers.length];
       for(int i=0;i<subs.length;i++) {
@@ -1159,6 +1211,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return new MultiFieldsEnum(subs);
     }
 
+    @Override
     public Terms terms(String field) throws IOException {
       MultiTerms result = terms.get(field);
       if (result == null) {
@@ -1189,6 +1242,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       this.subs = subs;
     }
 
+    @Override
     public TermsEnum iterator() throws IOException {
       return new MultiTermsEnum(subs.length).reset(subs);
     }
@@ -1221,6 +1275,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return currentField;
     }
 
+    @Override
     public String next() throws IOException {
 
       // restore queue
@@ -1251,6 +1306,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return currentField;
     }
 
+    @Override
     public TermsEnum terms() throws IOException {
       return terms.reset(top, numTop);
     }
@@ -1273,6 +1329,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       docs = new MultiDocsEnum(size);
     }
 
+    @Override
     public TermRef term() {
       return current;
     }
@@ -1319,6 +1376,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return this;
     }
 
+    @Override
     public SeekStatus seek(TermRef term) throws IOException {
       queue.clear();
       numTop = 0;
@@ -1345,10 +1403,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
       }
     }
 
+    @Override
     public SeekStatus seek(long ord) throws IOException {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public long ord() throws IOException {
       throw new UnsupportedOperationException();
     }
@@ -1377,6 +1437,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       numTop = 0;
     }
 
+    @Override
     public TermRef next() throws IOException {
       // restore queue
       pushTop();
@@ -1391,6 +1452,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return current;
     }
 
+    @Override
     public int docFreq() {
       int sum = 0;
       for(int i=0;i<numTop;i++) {
@@ -1399,6 +1461,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return sum;
     }
 
+    @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
       return docs.reset(top, numTop, skipDocs);
     }
@@ -1456,10 +1519,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return this;
     }
 
+    @Override
     public int freq() {
       return currentDocs.freq();
     }
 
+    @Override
     public int read(final int docs[], final int freqs[]) throws IOException {
       while (true) {
         while (currentDocs == null) {
@@ -1483,6 +1548,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       }
     }
 
+    @Override
     public int advance(int target) throws IOException {
       while(true) {
         if (currentDocs != null) {
@@ -1502,6 +1568,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       }
     }
 
+    @Override
     public int next() throws IOException {
       while(true) {
         if (currentDocs == null) {
@@ -1523,6 +1590,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       }
     }
 
+    @Override
     public PositionsEnum positions() throws IOException {
       return currentDocs.positions();
     }
@@ -1774,6 +1842,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       super(topReader,r,s);
     }
   
+    @Override
     protected TermDocs termDocs(IndexReader reader) throws IOException {
       return reader.termPositions();
     }

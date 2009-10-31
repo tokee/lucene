@@ -77,10 +77,12 @@ public class WildcardTermsEnum extends FilteredTermsEnum {
     }
   }
 
+  @Override
   public String field() {
     return searchTerm.field();
   }
 
+  @Override
   protected final boolean accept(TermRef term) {
     if (term.startsWith(preTermRef)) {
       // TODO: would be better, but trickier, to not have to
@@ -92,10 +94,12 @@ public class WildcardTermsEnum extends FilteredTermsEnum {
     return false;
   }
 
+  @Override
   public float difference() {
     return 1.0f;
   }
 
+  @Override
   public final boolean empty() {
     return empty;
   }

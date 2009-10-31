@@ -25,6 +25,7 @@ final class SegmentFieldMergeQueue extends PriorityQueue<SegmentMergeInfo> {
     initialize(size);
   }
 
+  @Override
   protected final boolean lessThan(SegmentMergeInfo a, SegmentMergeInfo b) {
     SegmentMergeInfo stiA = a;
     SegmentMergeInfo stiB = b;

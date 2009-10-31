@@ -111,18 +111,22 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
     }
   }
 
+  @Override
   public float difference() {
     return 1.0f;
   }
 
+  @Override
   public boolean empty() {
     return empty;
   }
 
+  @Override
   public String field() {
     return field;
   }
 
+  @Override
   protected boolean accept(TermRef term) {
     if (collator == null) {
       // Use Unicode code point ordering

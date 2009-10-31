@@ -44,10 +44,12 @@ public abstract class FixedIntBlockIndexOutput extends IntIndexOutput {
 
   protected abstract void flushBlock(int[] buffer, IndexOutput out) throws IOException;
 
+  @Override
   public Index index() throws IOException {
     return new Index();
   }
 
+  @Override
   public String descFilePointer() {
     return out.getFilePointer() + ":" + upto;
   }
@@ -58,17 +60,20 @@ public abstract class FixedIntBlockIndexOutput extends IntIndexOutput {
     long lastFP;
     int lastUpto;
 
+    @Override
     public void mark() throws IOException {
       fp = out.getFilePointer();
       upto = FixedIntBlockIndexOutput.this.upto;
     }
 
+    @Override
     public void set(IntIndexOutput.Index other) throws IOException {
       Index idx = (Index) other;
       lastFP = fp = idx.fp;
       lastUpto = upto = idx.upto;
     }
 
+    @Override
     public void write(IndexOutput indexOut, boolean absolute) throws IOException {
       if (absolute) {
         indexOut.writeVLong(fp);
@@ -88,6 +93,7 @@ public abstract class FixedIntBlockIndexOutput extends IntIndexOutput {
     }
   }
 
+  @Override
   public void write(int v) throws IOException {
     pending[upto++] = v;
     if (upto == blockSize) {
@@ -96,6 +102,7 @@ public abstract class FixedIntBlockIndexOutput extends IntIndexOutput {
     }
   }
 
+  @Override
   public void close() throws IOException {
     // NOTE: entries in the block after current upto are
     // invalid

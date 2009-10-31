@@ -111,6 +111,7 @@ public final class SepPositionsWriter extends PositionsConsumer {
   int lastPosition;
 
   /** Add a new position & payload */
+  @Override
   public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) throws IOException {
     assert !omitTF: "omitTF is true";
     assert posOut != null;
@@ -159,6 +160,7 @@ public final class SepPositionsWriter extends PositionsConsumer {
   }
 
   /** Called when we are done adding positions & payloads */
+  @Override
   public void finishDoc() {       
     lastPosition = 0;
   }

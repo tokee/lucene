@@ -51,6 +51,7 @@ public class WildcardQuery extends MultiTermQuery {
   }
   
   // nocommit: needs singletermenum stuff
+  @Override
   protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
     return new WildcardTermsEnum(reader, getTerm());
   }

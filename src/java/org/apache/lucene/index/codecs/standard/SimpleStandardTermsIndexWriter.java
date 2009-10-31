@@ -67,6 +67,7 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
   final private DeltaBytesWriter termWriter;
   private FieldInfo currentField;
 
+  @Override
   public FieldWriter addField(FieldInfo field) {
     currentField = field;
     SimpleFieldWriter writer = new SimpleFieldWriter(field);
@@ -87,6 +88,7 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
       termWriter.reset();
     }
 
+    @Override
     public boolean checkIndexTerm(byte[] term, int termLength, int docFreq) throws IOException {
       // First term is first indexed term:
       if (0 == (numTerms++ % termIndexInterval)) {
@@ -107,6 +109,7 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
     }
   }
 
+  @Override
   public void close() throws IOException {
     final long dirStart = out.getFilePointer();
     if (Codec.DEBUG) {

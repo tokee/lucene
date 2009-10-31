@@ -136,6 +136,7 @@ public class ParallelReader extends IndexReader {
       keys = fieldToReader.keySet().iterator();
     }
 
+    @Override
     public String next() throws IOException {
       if (keys.hasNext()) {
         currentField = (String) keys.next();
@@ -147,6 +148,7 @@ public class ParallelReader extends IndexReader {
       return currentField;
     }
 
+    @Override
     public TermsEnum terms() throws IOException {
       assert currentReader != null;
       return currentReader.fields().terms(currentField).iterator();
@@ -161,18 +163,22 @@ public class ParallelReader extends IndexReader {
       fields.put(field, r.fields().terms(field));
     }
 
+    @Override
     public FieldsEnum iterator() throws IOException {
       return new ParallelFieldsEnum();
     }
+    @Override
     public Terms terms(String field) throws IOException {
       return fields.get(field);
     }
   }
 
+  @Override
   public Bits getDeletedDocs() throws IOException {
     return ((IndexReader) readers.get(0)).getDeletedDocs();
   }
 
+  @Override
   public Fields fields() {
     return fields;
   }

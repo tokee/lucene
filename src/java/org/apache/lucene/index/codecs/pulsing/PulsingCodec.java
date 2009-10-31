@@ -54,6 +54,7 @@ public class PulsingCodec extends Codec {
     name = "Pulsing";
   }
 
+  @Override
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
     // We wrap StandardDocsWriter, but any DocsConsumer
     // will work:
@@ -93,6 +94,7 @@ public class PulsingCodec extends Codec {
     }
   }
 
+  @Override
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
 
     // We wrap StandardDocsReader, but any DocsProducer
@@ -136,12 +138,14 @@ public class PulsingCodec extends Codec {
     }
   }
 
+  @Override
   public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
     StandardDocsReader.files(segmentInfo, files);
     StandardTermsDictReader.files(segmentInfo, files);
     SimpleStandardTermsIndexReader.files(segmentInfo, files);
   }
 
+  @Override
   public void getExtensions(Collection extensions) {
     StandardCodec.getStandardExtensions(extensions);
   }

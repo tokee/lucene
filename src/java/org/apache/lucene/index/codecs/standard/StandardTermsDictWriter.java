@@ -91,6 +91,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     consumer.start(out);                          // have consumer write its format/header
   }
 
+  @Override
   public TermsConsumer addField(FieldInfo field) {
     if (Codec.DEBUG) {
       System.out.println("stdw.addField: field=" + field.name);
@@ -103,6 +104,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     return terms;
   }
   
+  @Override
   public void close() throws IOException {
 
     if (Codec.DEBUG)
@@ -166,6 +168,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
       }
     }
     
+    @Override
     public DocsConsumer startTerm(char[] text, int start) throws IOException {
       consumer.startTerm();
       if (Codec.DEBUG) {
@@ -180,6 +183,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
       return consumer;
     }
 
+    @Override
     public void finishTerm(char[] text, int start, int numDocs) throws IOException {
 
       // mxx
@@ -215,6 +219,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     }
 
     // Finishes all terms in this field
+    @Override
     public void finish() {
     }
   }

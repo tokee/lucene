@@ -30,10 +30,12 @@ class LegacyFields extends Fields {
     this.r = r;
   }
 
+  @Override
   public FieldsEnum iterator() throws IOException {
     return new LegacyFieldsEnum(r);
   }
 
+  @Override
   public Terms terms(String field) throws IOException {
     // nocommit
     return new LegacyTerms(r, field);

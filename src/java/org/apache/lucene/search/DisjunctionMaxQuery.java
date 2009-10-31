@@ -140,6 +140,7 @@ public class DisjunctionMaxQuery extends Query implements Iterable<Query> {
     }
 
     /* Create the scorer used to score our associated DisjunctionMaxQuery */
+    @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder,
         boolean topScorer) throws IOException {
       Scorer[] scorers = new Scorer[weights.size()];
@@ -186,6 +187,7 @@ public class DisjunctionMaxQuery extends Query implements Iterable<Query> {
   /** Optimize our representation and our subqueries representations
    * @param reader the IndexReader we query
    * @return an optimized copy of us (which may not be a copy if there is nothing to optimize) */
+  @Override
   public Query rewrite(IndexReader reader) throws IOException {
     int numDisjunctions = disjuncts.size();
     if (numDisjunctions == 1) {
@@ -231,6 +233,7 @@ public class DisjunctionMaxQuery extends Query implements Iterable<Query> {
    * @param field the field to which we are applied
    * @return a string that shows what we do, of the form "(disjunct1 | disjunct2 | ... | disjunctn)^boost"
    */
+  @Override
   public String toString(String field) {
     StringBuilder buffer = new StringBuilder();
     buffer.append("(");

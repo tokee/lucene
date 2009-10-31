@@ -96,10 +96,12 @@ public class PreFlexFields extends FieldsProducer {
     }
   }
 
+  @Override
   public FieldsEnum iterator() {
     return new Fields();
   }
 
+  @Override
   public Terms terms(String field) {
     FieldInfo fi = fieldInfos.fieldInfo(field);
     if (fi != null) {
@@ -109,10 +111,12 @@ public class PreFlexFields extends FieldsProducer {
     }
   }
 
+  @Override
   public void loadTermsIndex() throws IOException {
     // nocommit -- todo
   }
 
+  @Override
   public void close() throws IOException {
     tis.close();
   }
@@ -126,6 +130,7 @@ public class PreFlexFields extends FieldsProducer {
       it = fields.values().iterator();
     }
 
+    @Override
     public String next() {
       if (it.hasNext()) {
         current = (FieldInfo) it.next();
@@ -135,6 +140,7 @@ public class PreFlexFields extends FieldsProducer {
       }
     }
     
+    @Override
     public TermsEnum terms() throws IOException {
       final PreTermsEnum terms;
       if (lastTermsEnum != null) {
@@ -153,6 +159,7 @@ public class PreFlexFields extends FieldsProducer {
     PreTerms(FieldInfo fieldInfo) {
       this.fieldInfo = fieldInfo;
     }
+    @Override
     public TermsEnum iterator() {
       //System.out.println("pff.init create no context");
       return new PreTermsEnum(fieldInfo);
@@ -180,14 +187,17 @@ public class PreFlexFields extends FieldsProducer {
       }
     }
 
+    @Override
     public SeekStatus seek(long ord) throws IOException {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public long ord() throws IOException {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public SeekStatus seek(TermRef term) throws IOException {
       if (Codec.DEBUG) {
         System.out.println("pff.seek term=" + term);
@@ -217,6 +227,7 @@ public class PreFlexFields extends FieldsProducer {
       }
     }
 
+    @Override
     public TermRef next() throws IOException {
       if (skipNext) {
         // nocommit -- is there a cleaner way?
@@ -251,14 +262,17 @@ public class PreFlexFields extends FieldsProducer {
       }
     }
 
+    @Override
     public TermRef term() {
       return current;
     }
 
+    @Override
     public int docFreq() {
       return terms.docFreq();
     }
 
+    @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
       return new PreDocsEnum(skipDocs, terms);
     }
@@ -286,6 +300,7 @@ public class PreFlexFields extends FieldsProducer {
       pos.seek(te);
     }
 
+    @Override
     public int next() throws IOException {
       if (Codec.DEBUG) {
         System.out.println("pff.docs.next");
@@ -297,6 +312,7 @@ public class PreFlexFields extends FieldsProducer {
       }
     }
 
+    @Override
     public int advance(int target) throws IOException {
       if (current.skipTo(target)) {
         return current.doc();
@@ -305,10 +321,12 @@ public class PreFlexFields extends FieldsProducer {
       }
     }
 
+    @Override
     public int freq() {
       return current.freq();
     }
 
+    @Override
     public int read(int[] docIDs, int[] freqs) throws IOException {
       if (current != docs) {
         docs.skipTo(current.doc());
@@ -317,6 +335,7 @@ public class PreFlexFields extends FieldsProducer {
       return current.read(docIDs, freqs);
     }
 
+    @Override
     public PositionsEnum positions() throws IOException {
       if (current != pos) {
         pos.skipTo(docs.doc());
@@ -332,18 +351,22 @@ public class PreFlexFields extends FieldsProducer {
       this.pos = pos;
     }
 
+    @Override
     public int next() throws IOException {
       return pos.nextPosition();
     }
 
+    @Override
     public int getPayloadLength() {
       return pos.getPayloadLength();
     }
 
+    @Override
     public boolean hasPayload() {
       return pos.isPayloadAvailable();
     }
 
+    @Override
     public byte[] getPayload(byte[] data, int offset) throws IOException {
       return pos.getPayload(data, offset);
     }

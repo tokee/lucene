@@ -72,6 +72,7 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
     posWriter = new StandardPositionsWriter(state, this);
   }
 
+  @Override
   public void start(IndexOutput termsOut) throws IOException {
     this.termsOut = termsOut;
     Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
@@ -80,6 +81,7 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
     posWriter.start(termsOut);
   }
 
+  @Override
   public void startTerm() {
     freqStart = out.getFilePointer();
     if (!omitTermFreqAndPositions) {
@@ -93,6 +95,7 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
 
   // Currently, this instance is re-used across fields, so
   // our parent calls setField whenever the field changes
+  @Override
   public void setField(FieldInfo fieldInfo) {
     this.fieldInfo = fieldInfo;
     omitTermFreqAndPositions = fieldInfo.omitTermFreqAndPositions;
@@ -107,6 +110,7 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
 
   /** Adds a new doc in this term.  If this returns null
    *  then we just skip consuming positions/payloads. */
+  @Override
   public PositionsConsumer addDoc(int docID, int termDocFreq) throws IOException {
 
     final int delta = docID - lastDocID;
@@ -155,6 +159,7 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
   }
 
   /** Called when we are done adding docs to this term */
+  @Override
   public void finishTerm(int docCount, boolean isIndexTerm) throws IOException {
     // nocommit -- wasteful we are counting this in two places?
     assert docCount == df;
@@ -193,6 +198,7 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
     count = 0;
   }
 
+  @Override
   public void close() throws IOException {
     if (Codec.DEBUG) {
       System.out.println("docs writer close pointer=" + out.getFilePointer());

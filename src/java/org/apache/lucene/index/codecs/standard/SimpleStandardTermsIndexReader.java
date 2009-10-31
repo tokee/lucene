@@ -210,10 +210,12 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       }
     }
 
+    @Override
     public boolean isIndexTerm(int position, int docFreq) {
       return position % totalIndexInterval == 0;
     }
 
+    @Override
     public final void getIndexOffset(TermRef term, TermsIndexResult result) throws IOException {
       // You must call loadTermsIndex if you had specified -1 for indexDivisor
       if (coreIndex == null) {
@@ -222,6 +224,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       coreIndex.getIndexOffset(term, result);
     }
 
+    @Override
     public final void getIndexOffset(long ord, TermsIndexResult result) throws IOException {
       // You must call loadTermsIndex if you had specified -1 for indexDivisor
       if (coreIndex == null) {
@@ -448,6 +451,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     }
   }
 
+  @Override
   public void loadTermsIndex() throws IOException {
 
     if (!indexLoaded) {
@@ -466,6 +470,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     }
   }
 
+  @Override
   public FieldReader getField(FieldInfo fieldInfo) {
     return fields.get(fieldInfo);
   }
@@ -478,10 +483,12 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     extensions.add(StandardCodec.TERMS_INDEX_EXTENSION);
   }
 
+  @Override
   public void getExtensions(Collection extensions) {
     getIndexExtensions(extensions);
   }
 
+  @Override
   public void close() throws IOException {
     if (in != null) {
       in.close();

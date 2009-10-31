@@ -874,18 +874,23 @@ public abstract class IndexReader implements Cloneable,Closeable {
   }
 
   private static class NullDocsEnum extends DocsEnum {
+    @Override
     public int advance(int target) {
       return NO_MORE_DOCS;
     }
+    @Override
     public int next() {
       return NO_MORE_DOCS;
     }
+    @Override
     public int freq() {
       return 1;
     }
+    @Override
     public int read(int[] docs, int[] freqs) {
       return 0;
     }
+    @Override
     public PositionsEnum positions() {
       return null;
     }

@@ -55,6 +55,7 @@ public class SimpleIntBlockIndexInput extends FixedIntBlockIndexInput {
     }
   }
 
+  @Override
   protected BlockReader getBlockReader(IndexInput in, int[] buffer) {
     return new BlockReader(in, buffer);
   }

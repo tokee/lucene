@@ -34,10 +34,12 @@ public class SingleIntIndexInput extends IntIndexInput {
     Codec.checkHeader(in, SingleIntIndexOutput.CODEC, SingleIntIndexOutput.VERSION_START);
   }
 
+  @Override
   public Reader reader() throws IOException {
     return new Reader((IndexInput) in.clone());
   }
 
+  @Override
   public void close() throws IOException {
     in.close();
   }
@@ -54,11 +56,13 @@ public class SingleIntIndexInput extends IntIndexInput {
     }
 
     /** Reads next single int */
+    @Override
     public int next() throws IOException {
       return in.readVInt();
     }
 
     /** Reads next chunk of ints */
+    @Override
     public BulkReadResult read(int[] buffer, int count) throws IOException {
       result.buffer = buffer;
       for(int i=0;i<count;i++) {
@@ -68,6 +72,7 @@ public class SingleIntIndexInput extends IntIndexInput {
       return result;
     }
 
+    @Override
     public String descFilePointer() {
       return Long.toString(in.getFilePointer());
     }
@@ -82,6 +87,7 @@ public class SingleIntIndexInput extends IntIndexInput {
     private long fp;
     boolean first = true;
 
+    @Override
     public void read(IndexInput indexIn, boolean absolute)
       throws IOException {
       long cur = fp;
@@ -97,15 +103,18 @@ public class SingleIntIndexInput extends IntIndexInput {
       }
     }
 
+    @Override
     public void set(IntIndexInput.Index other) {
       fp = ((Index) other).fp;
       first = false;
     }
 
+    @Override
     public void seek(IntIndexInput.Reader other) throws IOException {
       ((Reader) other).in.seek(fp);
     }
 
+    @Override
     public String toString() {
       return Long.toString(fp);
     }
@@ -130,6 +139,7 @@ public class SingleIntIndexInput extends IntIndexInput {
     
   }
 
+  @Override
   public Index index() {
     return new Index();
   }

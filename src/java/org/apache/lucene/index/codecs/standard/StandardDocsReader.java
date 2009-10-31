@@ -285,6 +285,7 @@ public class StandardDocsReader extends StandardDocsProducer {
         //new Throwable().printStackTrace(System.out);
       }
 
+      @Override
       public int next() throws IOException {
         if (Codec.DEBUG) {
           System.out.println("sdr.next [" + desc + "] count=" + count + " vs df=" + docFreq + " freq pointer=" + freqIn.getFilePointer() + " (in=" + freqIn + "; this=" + this + ") + has skip docs=" + (skipDocs != null));
@@ -335,6 +336,7 @@ public class StandardDocsReader extends StandardDocsProducer {
         return doc;
       }
 
+      @Override
       public int read(int[] docs, int[] freqs) throws IOException {
         if (Codec.DEBUG) {
           System.out.println("sdr.read: count=" + count + " df=" + docFreq);
@@ -378,6 +380,7 @@ public class StandardDocsReader extends StandardDocsProducer {
         return doc;
       }
 
+      @Override
       public int freq() {
         return freq;
       }
@@ -387,6 +390,7 @@ public class StandardDocsReader extends StandardDocsProducer {
       int proxSkipFreq;
       PositionsEnum fakePositions;
 
+      @Override
       public PositionsEnum positions() throws IOException {
         if (Codec.DEBUG) {
           System.out.println("str.positions: create");
@@ -420,6 +424,7 @@ public class StandardDocsReader extends StandardDocsProducer {
         return positions;
       }
 
+      @Override
       public int advance(int target) throws IOException {
 
         // TODO: jump right to next() if target is < X away

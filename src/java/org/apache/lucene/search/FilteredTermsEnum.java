@@ -76,6 +76,7 @@ public abstract class FilteredTermsEnum extends TermsEnum {
     }
   }
 
+  @Override
   public TermRef term() throws IOException {
     assert actualEnum != null;
     return actualEnum.term();
@@ -85,12 +86,14 @@ public abstract class FilteredTermsEnum extends TermsEnum {
    * Returns the docFreq of the current Term in the enumeration.
    * Returns -1 if no Term matches or all terms have been enumerated.
    */
+  @Override
   public int docFreq() {
     assert actualEnum != null;
     return actualEnum.docFreq();
   }
     
   /** Increments the enumeration to the next element.  True if one exists. */
+  @Override
   public TermRef next() throws IOException {
     assert actualEnum != null;
     while (true) {
@@ -106,10 +109,12 @@ public abstract class FilteredTermsEnum extends TermsEnum {
     }
   }
 
+  @Override
   public SeekStatus seek(TermRef term) throws IOException {
     return finishSeek(actualEnum.seek(term));
   }
 
+  @Override
   public SeekStatus seek(long ord) throws IOException {
     return finishSeek(actualEnum.seek(ord));
   }
@@ -132,10 +137,12 @@ public abstract class FilteredTermsEnum extends TermsEnum {
     }
   }
 
+  @Override
   public long ord() throws IOException {
     return actualEnum.ord();
   }
 
+  @Override
   public DocsEnum docs(Bits bits) throws IOException {
     return actualEnum.docs(bits);
   }

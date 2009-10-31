@@ -150,6 +150,7 @@ class SepSkipListWriter extends MultiLevelSkipListWriter {
     }
   }
   
+  @Override
   protected void writeSkipData(int level, IndexOutput skipBuffer) throws IOException {
     // To efficiently store payloads in the posting lists we do not store the length of
     // every payload. Instead we omit the length for a payload if the previous payload had

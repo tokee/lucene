@@ -565,6 +565,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     core.openDocStores(si);
   }
 
+  @Override
   public synchronized Bits getDeletedDocs() {
     return deletedDocs;
   }
@@ -884,6 +885,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
   }
   
+  @Override
   public Fields fields() throws IOException {
     return core.fields;
   }
@@ -946,6 +948,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
 
   
+  @Override
   public int docFreq(Term t) throws IOException {
     ensureOpen();
     Terms terms = core.fields.terms(t.field);
@@ -956,6 +959,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
   }
 
+  @Override
   public int docFreq(String field, TermRef term) throws IOException {
     ensureOpen();
 
@@ -1398,6 +1402,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
       }
     }
 
+    @Override
     public boolean next() throws IOException {
 
       if (Codec.DEBUG) {
@@ -1431,6 +1436,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
       }
     }
 
+    @Override
     public Term term() {
       if (terms != null && !done) {
         if (currentTerm != null) {
@@ -1440,10 +1446,12 @@ public class SegmentReader extends IndexReader implements Cloneable {
       return null;
     }
 
+    @Override
     public int docFreq() {
       return terms == null ? 0 : terms.docFreq();
     }
 
+    @Override
     public void close() {}
   }
 
@@ -1550,27 +1558,32 @@ public class SegmentReader extends IndexReader implements Cloneable {
       super();
     }
 
+    @Override
     public void seek(TermEnum termEnum) throws IOException {
       super.seek(termEnum);
       if (docs != null)
         positions = docs.positions();
     }
 
+    @Override
     public boolean skipTo(int target) throws IOException {
       boolean result = super.skipTo(target);
       positions = null;
       return result;
     }
 
+    @Override
     public int read(int[] docs, int[] freqs) throws IOException {
       throw new UnsupportedOperationException("TermPositions does not support processing multiple documents in one call. Use TermDocs instead.");
     }
 
+    @Override
     public void seek(Term term) throws IOException {
       super.seek(term);
       positions = null;
     }
 
+    @Override
     public boolean next() throws IOException {
       boolean result = super.next();
       positions = null;

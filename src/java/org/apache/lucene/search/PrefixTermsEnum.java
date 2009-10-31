@@ -50,14 +50,17 @@ public class PrefixTermsEnum extends FilteredTermsEnum {
     }
   }
 
+  @Override
   public String field() {
     return prefix.field();
   }
 
+  @Override
   public float difference() {
     return 1.0f;
   }
 
+  @Override
   public boolean empty() {
     return empty;
   }
@@ -66,6 +69,7 @@ public class PrefixTermsEnum extends FilteredTermsEnum {
     return prefix;
   }
 
+  @Override
   protected boolean accept(TermRef term) {
     return term.startsWith(prefixRef);
   }

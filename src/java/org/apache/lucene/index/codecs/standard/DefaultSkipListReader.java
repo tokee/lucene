@@ -82,6 +82,7 @@ public class DefaultSkipListReader extends MultiLevelSkipListReader {
     return lastPayloadLength;
   }
   
+  @Override
   protected void seekChild(int level) throws IOException {
     super.seekChild(level);
     freqPointer[level] = lastFreqPointer;
@@ -89,6 +90,7 @@ public class DefaultSkipListReader extends MultiLevelSkipListReader {
     payloadLength[level] = lastPayloadLength;
   }
   
+  @Override
   protected void setLastSkipData(int level) {
     super.setLastSkipData(level);
     lastFreqPointer = freqPointer[level];
@@ -97,6 +99,7 @@ public class DefaultSkipListReader extends MultiLevelSkipListReader {
   }
 
 
+  @Override
   protected int readSkipData(int level, IndexInput skipStream) throws IOException {
     int delta;
     if (currentFieldStoresPayloads) {

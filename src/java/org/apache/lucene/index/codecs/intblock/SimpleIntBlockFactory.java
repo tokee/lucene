@@ -29,9 +29,11 @@ public class SimpleIntBlockFactory extends IntStreamFactory {
   public SimpleIntBlockFactory(int blockSize) {
     this.blockSize = blockSize;
   }
+  @Override
   public IntIndexInput openInput(Directory dir, String fileName, int readBufferSize) throws IOException {
     return new SimpleIntBlockIndexInput(dir, fileName, readBufferSize);
   }
+  @Override
   public IntIndexOutput createOutput(Directory dir, String fileName) throws IOException {
     return new SimpleIntBlockIndexOutput(dir, fileName, blockSize);
   }

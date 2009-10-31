@@ -21,9 +21,11 @@ import org.apache.lucene.store.Directory;
 import java.io.IOException;
 
 public class SingleIntFactory extends IntStreamFactory {
+  @Override
   public IntIndexInput openInput(Directory dir, String fileName, int readBufferSize) throws IOException {
     return new SingleIntIndexInput(dir, fileName, readBufferSize);
   }
+  @Override
   public IntIndexOutput createOutput(Directory dir, String fileName) throws IOException {
     return new SingleIntIndexOutput(dir, fileName);
   }

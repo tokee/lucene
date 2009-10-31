@@ -85,6 +85,7 @@ public class TermRef {
     }
   }
 
+  @Override
   public Object clone() {
     TermRef other = new TermRef();
     other.bytes = new byte[length];
@@ -131,6 +132,7 @@ public class TermRef {
     return this.termEquals((TermRef) other);
   }
 
+  @Override
   public String toString() {
     try {
       return new String(bytes, offset, length, "UTF-8");

@@ -33,6 +33,7 @@ class LegacyTerms extends Terms {
     this.field = field;
   }
 
+  @Override
   public TermsEnum iterator() throws IOException {
     return new LegacyFieldsEnum.LegacyTermsEnum(r, field);
   }

@@ -102,6 +102,7 @@ public class MultiReader extends IndexReader implements Cloneable {
     fields = new MultiFields(subReaders, starts);
   }
 
+  @Override
   public Fields fields() throws IOException {
     return fields;
   }
@@ -148,6 +149,7 @@ public class MultiReader extends IndexReader implements Cloneable {
     }
   }
   
+  @Override
   public Bits getDeletedDocs() {
     return deletedDocs;
   }
@@ -413,6 +415,7 @@ public class MultiReader extends IndexReader implements Cloneable {
     doCommit(null);
   }
   
+  @Override
   protected void doCommit(Map<String,String> commitUserData) throws IOException {
     for (int i = 0; i < subReaders.length; i++)
       subReaders[i].commit(commitUserData);

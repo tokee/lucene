@@ -99,6 +99,7 @@ public final class SepDocsWriter extends StandardDocsConsumer {
     posWriter = new SepPositionsWriter(state, this, factory);
   }
 
+  @Override
   public void start(IndexOutput termsOut) throws IOException {
     this.termsOut = termsOut;
     Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
@@ -108,6 +109,7 @@ public final class SepDocsWriter extends StandardDocsConsumer {
     posWriter.start(termsOut);
   }
 
+  @Override
   public void startTerm() throws IOException {
     docIndex.mark();
     if (!omitTF) {
@@ -122,6 +124,7 @@ public final class SepDocsWriter extends StandardDocsConsumer {
 
   // Currently, this instance is re-used across fields, so
   // our parent calls setField whenever the field changes
+  @Override
   public void setField(FieldInfo fieldInfo) {
     this.fieldInfo = fieldInfo;
     omitTF = fieldInfo.omitTermFreqAndPositions;
@@ -137,6 +140,7 @@ public final class SepDocsWriter extends StandardDocsConsumer {
 
   /** Adds a new doc in this term.  If this returns null
    *  then we just skip consuming positions/payloads. */
+  @Override
   public PositionsConsumer addDoc(int docID, int termDocFreq) throws IOException {
 
     final int delta = docID - lastDocID;
@@ -186,6 +190,7 @@ public final class SepDocsWriter extends StandardDocsConsumer {
   }
 
   /** Called when we are done adding docs to this term */
+  @Override
   public void finishTerm(int docCount, boolean isIndexTerm) throws IOException {
 
     long skipPos = skipOut.getFilePointer();
@@ -228,6 +233,7 @@ public final class SepDocsWriter extends StandardDocsConsumer {
     count = 0;
   }
 
+  @Override
   public void close() throws IOException {
     if (Codec.DEBUG)
       System.out.println("dw.close skipFP=" + skipOut.getFilePointer());

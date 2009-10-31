@@ -41,6 +41,7 @@ public class SimpleIntBlockIndexOutput extends FixedIntBlockIndexOutput {
     init(out, blockSize);
   }
 
+  @Override
   protected void flushBlock(int[] buffer, IndexOutput out) throws IOException {
     // silly impl
     for(int i=0;i<buffer.length;i++) {

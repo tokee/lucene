@@ -46,6 +46,7 @@ class LegacyFieldsEnum extends FieldsEnum {
   }
   */
 
+  @Override
   public String next() throws IOException {
 
     if (field != null) {
@@ -62,6 +63,7 @@ class LegacyFieldsEnum extends FieldsEnum {
     }
   }
 
+  @Override
   public TermsEnum terms() throws IOException {
     return new LegacyTermsEnum(r, field);
   }
@@ -83,6 +85,7 @@ class LegacyFieldsEnum extends FieldsEnum {
       this.terms = r.terms(new Term(field, ""));
     }
 
+    @Override
     public SeekStatus seek(TermRef text) throws IOException {
 
       // nocommit: too slow?
@@ -105,14 +108,17 @@ class LegacyFieldsEnum extends FieldsEnum {
       }
     }
 
+    @Override
     public SeekStatus seek(long ord) throws IOException {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public long ord() throws IOException {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public TermRef next() throws IOException {
       if (terms.next()) {
         // nocommit -- reuse TermRef instance
@@ -124,6 +130,7 @@ class LegacyFieldsEnum extends FieldsEnum {
       }
     }
 
+    @Override
     public TermRef term() {
       return current;
     }
@@ -134,10 +141,12 @@ class LegacyFieldsEnum extends FieldsEnum {
     }
     */
 
+    @Override
     public int docFreq() {
       return terms.docFreq();
     }
 
+    @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
       return new LegacyDocsEnum(r, field, terms.term(), skipDocs);
     }
@@ -168,6 +177,7 @@ class LegacyFieldsEnum extends FieldsEnum {
     // nocommit -- must enforce skipDocs... but old API will
     // always secretly skip deleted docs, and we can't work
     // around that for external readers?
+    @Override
     public int next() throws IOException {
       if (td.next()) {
         return td.doc();
@@ -176,6 +186,7 @@ class LegacyFieldsEnum extends FieldsEnum {
       }
     }
 
+    @Override
     public int advance(int target) throws IOException {
       if (td.skipTo(target)) {
         return td.doc();
@@ -184,10 +195,12 @@ class LegacyFieldsEnum extends FieldsEnum {
       }
     }
 
+    @Override
     public int freq() {
       return td.freq();
     }
 
+    @Override
     public int read(int[] docs, int[] freqs) throws IOException {
       return td.read(docs, freqs);
     }
@@ -198,6 +211,7 @@ class LegacyFieldsEnum extends FieldsEnum {
 
     LegacyPositionsEnum lpe;
 
+    @Override
     public PositionsEnum positions() throws IOException {
       if (tp == null) {
         tp = r.termPositions(term);
@@ -218,18 +232,22 @@ class LegacyFieldsEnum extends FieldsEnum {
       this.tp = tp;
     }
 
+    @Override
     public int next() throws IOException {
       return tp.nextPosition();
     }
 
+    @Override
     public int getPayloadLength() {
       return tp.getPayloadLength();
     }
 
+    @Override
     public byte[] getPayload(byte[] data, int offset) throws IOException {
       return tp.getPayload(data, offset);
     }
 
+    @Override
     public boolean hasPayload() {
       return tp.isPayloadAvailable();
     }

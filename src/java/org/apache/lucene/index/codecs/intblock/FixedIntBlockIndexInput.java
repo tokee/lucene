@@ -41,6 +41,7 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     blockSize = in.readVInt();
   }
 
+  @Override
   public Reader reader() throws IOException {
     int[] buffer = new int[blockSize];
     IndexInput clone = (IndexInput) in.clone();
@@ -48,10 +49,12 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     return new Reader(clone, buffer, getBlockReader(clone, buffer));
   }
 
+  @Override
   public void close() throws IOException {
     in.close();
   }
 
+  @Override
   public Index index() {
     return new Index();
   }
@@ -104,6 +107,7 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
       }
     }
 
+    @Override
     public int next() throws IOException {
       maybeSeek();
       if (upto == blockSize) {
@@ -115,6 +119,7 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
       return pending[upto++];
     }
 
+    @Override
     public BulkReadResult read(int[] buffer, int count) throws IOException {
       maybeSeek();
       if (upto == blockSize) {
@@ -133,6 +138,7 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
       return result;
     }
 
+    @Override
     public String descFilePointer() {
       return in.getFilePointer() + ":" + upto;
     }
@@ -142,6 +148,7 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     private long fp;
     private int upto;
 
+    @Override
     public void read(IndexInput indexIn, boolean absolute) throws IOException {
       if (absolute) {
         fp = indexIn.readVLong();
@@ -160,10 +167,12 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
       assert upto < blockSize;
     }
 
+    @Override
     public void seek(IntIndexInput.Reader other) throws IOException {
       ((Reader) other).seek(fp, upto);
     }
 
+    @Override
     public void set(IntIndexInput.Index other) {
       Index idx = (Index) other;
       fp = idx.fp;

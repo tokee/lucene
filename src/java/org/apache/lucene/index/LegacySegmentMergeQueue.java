@@ -25,6 +25,7 @@ final class LegacySegmentMergeQueue extends PriorityQueue<LegacySegmentMergeInfo
     initialize(size);
   }
 
+  @Override
   protected final boolean lessThan(LegacySegmentMergeInfo a, LegacySegmentMergeInfo b) {
     int comparison = a.term.compareTo(b.term);
     if (comparison == 0)

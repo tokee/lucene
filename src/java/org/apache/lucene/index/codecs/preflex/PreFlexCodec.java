@@ -49,18 +49,22 @@ public class PreFlexCodec extends Codec {
     name = "PreFlex";
   }
   
+  @Override
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
     throw new IllegalArgumentException("this codec can only be used for reading");
   }
 
+  @Override
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo info, int readBufferSize, int indexDivisor) throws IOException {
     return new PreFlexFields(dir, fieldInfos, info, readBufferSize, indexDivisor);
   }
 
+  @Override
   public void files(Directory dir, SegmentInfo info, Collection files) throws IOException {
     PreFlexFields.files(dir, info, files);
   }
 
+  @Override
   public void getExtensions(Collection extensions) {
     extensions.add(FREQ_EXTENSION);
     extensions.add(PROX_EXTENSION);

@@ -205,6 +205,7 @@ public class SepDocsReader extends StandardDocsProducer {
       }
     }
 
+    @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
 
       if (docs == null) {
@@ -329,6 +330,7 @@ public class SepDocsReader extends StandardDocsProducer {
         return doc;
       }
 
+      @Override
       public int read(int[] docs, int[] freqs) throws IOException {
         // nocommit -- switch to bulk read api in IntIndexInput
         int i = 0;
@@ -356,6 +358,7 @@ public class SepDocsReader extends StandardDocsProducer {
         return i;
       }
 
+      @Override
       public int freq() {
         return freq;
       }
@@ -373,6 +376,7 @@ public class SepDocsReader extends StandardDocsProducer {
 
       PositionsEnum fakePositions;
 
+      @Override
       public PositionsEnum positions() throws IOException {
         
         if (Codec.DEBUG) {

@@ -307,6 +307,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     return new NumericRangeTermEnum(reader);
   }
 
+  @Override
   protected FilteredTermsEnum getTermsEnum(final IndexReader reader) throws IOException {
     return new NumericRangeTermsEnum(reader);
   }
@@ -592,6 +593,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
           
           NumericUtils.splitLongRange(new NumericUtils.LongRangeBuilder() {
             //@Override
+            @Override
             public final void addRange(String minPrefixCoded, String maxPrefixCoded) {
               rangeBounds.add(minPrefixCoded);
               rangeBounds.add(maxPrefixCoded);
@@ -627,6 +629,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
           
           NumericUtils.splitIntRange(new NumericUtils.IntRangeBuilder() {
             //@Override
+            @Override
             public final void addRange(String minPrefixCoded, String maxPrefixCoded) {
               rangeBounds.add(minPrefixCoded);
               rangeBounds.add(maxPrefixCoded);
@@ -655,6 +658,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
       return empty;
     }
 
+    @Override
     public String field() {
       return field;
     }

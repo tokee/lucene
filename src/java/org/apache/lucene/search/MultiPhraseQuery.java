@@ -410,6 +410,7 @@ class UnionDocsEnum extends DocsEnum {
       return (DocsEnumWrapper) top();
     }
 
+    @Override
     public final boolean lessThan(Object a, Object b) {
       return ((DocsEnumWrapper) a).doc < ((DocsEnumWrapper) b).doc;
     }
@@ -478,10 +479,12 @@ class UnionDocsEnum extends DocsEnum {
     unionPositionsEnum = new UnionPositionsEnum();
   }
 
+  @Override
   public PositionsEnum positions() {
     return unionPositionsEnum;
   }
 
+  @Override
   public final int next() throws IOException {
     if (_queue.size() == 0) {
       return NO_MORE_DOCS;
@@ -521,23 +524,28 @@ class UnionDocsEnum extends DocsEnum {
 
   private class UnionPositionsEnum extends PositionsEnum {
 
+    @Override
     public int next() {
       return _posList.next();
     }
 
+    @Override
     public int getPayloadLength() {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public byte[] getPayload(byte[] data, int offset) {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public boolean hasPayload() {
       throw new UnsupportedOperationException();
     }
   }
 
+  @Override
   public final int advance(int target) throws IOException {
     while (_queue.peek() != null && target > _queue.peek().doc) {
       DocsEnumWrapper docs = (DocsEnumWrapper) _queue.pop();
@@ -549,6 +557,7 @@ class UnionDocsEnum extends DocsEnum {
     return next();
   }
 
+  @Override
   public final int freq() {
     return _freq;
   }
@@ -557,6 +566,7 @@ class UnionDocsEnum extends DocsEnum {
    * Not implemented.
    * @throws UnsupportedOperationException
    */
+  @Override
   public int read(int[] arg0, int[] arg1) throws IOException {
     throw new UnsupportedOperationException();
   }

@@ -126,6 +126,7 @@ final class TermBuffer implements Cloneable {
     return term;
   }
 
+  @Override
   protected Object clone() {
     TermBuffer clone = null;
     try {
