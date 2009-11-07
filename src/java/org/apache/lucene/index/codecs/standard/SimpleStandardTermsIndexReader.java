@@ -72,6 +72,8 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
     IndexInput in = dir.openInput(IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_INDEX_EXTENSION));
 
+    boolean success = false;
+
     try {
       Codec.checkHeader(in, SimpleStandardTermsIndexWriter.CODEC_NAME, SimpleStandardTermsIndexWriter.VERSION_START);
 
@@ -112,12 +114,15 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
           fields.put(fieldInfo, new FieldIndexReader(in, fieldInfo, numIndexTerms, indexStart));
         }
       }
+      success = true;
     } finally {
       if (indexDivisor != -1) {
         in.close();
-        trimByteBlock();
-        indexLoaded = true;
         this.in = null;
+        if (success) {
+          trimByteBlock();
+          indexLoaded = true;
+        }
       } else {
         this.in = in;
         // nocommit -- we shoudl close if index gets read on demand?
@@ -134,9 +139,13 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       if (blockOffset == 0) {
         // nocommit -- should not happen?  fields w/ no terms
         // are not written by STDW.  hmmm it does
-        // happen... must explain why
+        // happen... must explain why -- oh, could be only
+        // on exception; I added only calling this on
+        // success above
         // assert false;
-        blocks[blockUpto] = null;
+        // nocommit -- hit AIOOBE here (blocks is length 0):
+        //blocks[blockUpto] = null;
+        System.out.println("Simple terms index consumed no bytes! blockCount=" + blocks.length);
       } else {
         byte[] last = new byte[blockOffset];
         System.arraycopy(blocks[blockUpto], 0, last, 0, blockOffset);
@@ -319,17 +328,18 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
             if (blockOffset + thisTermLength > BYTE_BLOCK_SIZE) {
               // New block
               final byte[] newBlock = new byte[BYTE_BLOCK_SIZE];
-              if (blocks.length == blockUpto-1) {
-                final int newSize = ArrayUtil.getNextSize(blockUpto+1);
+              if (blocks.length == blockUpto+1) {
+                final int newSize = ArrayUtil.getNextSize(blockUpto+2);
                 final byte[][] newBlocks = new byte[newSize][];
                 System.arraycopy(blocks, 0, newBlocks, 0, blocks.length);
                 blocks = newBlocks;
               }
-              blocks[blockUpto] = newBlock;
               blockUpto++;
+              blocks[blockUpto] = newBlock;
               blockOffset = 0;
             }
 
+            //System.out.println("blockUpto=" + blockUpto + " blocks.length=" + blocks.length);
             final byte[] block = blocks[blockUpto];
 
             // Copy old prefix

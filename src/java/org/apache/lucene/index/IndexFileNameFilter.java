@@ -24,6 +24,9 @@ import java.util.HashSet;
 /**
  * Filename filter that accept filenames and extensions only created by Lucene.
  */
+
+// nocommit -- make ctor that takes Codecs and expands base
+// filter to include any of their extensions?
 public class IndexFileNameFilter implements FilenameFilter {
 
   private static IndexFileNameFilter singleton = new IndexFileNameFilter();
