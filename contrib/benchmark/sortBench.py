@@ -430,7 +430,7 @@ def main():
 
 def report(name):
 
-  print '||Query||Tot hits||Top N||QPS old||QPS new||Pct change||'
+  print '||Query||Deletes %||Tot hits||QPS old||QPS new||Pct change||'
 
   results = cPickle.load(open('%s.pk' % name))
   for qpsOld, qpsNew, params in results:
@@ -442,7 +442,7 @@ def report(name):
 
     params = list(params)
 
-    query = params[2]
+    query = params[0]
     if query == '*:*':
       query = '<all>'
     params[2] = query
@@ -513,7 +513,7 @@ def run(mode, name):
       maxDocs = INDEX_NUM_DOCS
       numDocs = int(INDEX_NUM_DOCS * (1.0-deletePct/100.))
 
-      prefix = r.getLogPrefix(query=query)
+      prefix = r.getLogPrefix(query=query, deletePct=deletePct)
       indexPath = '%s/%s' % (INDEX_DIR_BASE, indexes['baseline'])
 
       # baseline (trunk)
@@ -540,7 +540,7 @@ def run(mode, name):
 
       if mode == 'run':
         r.compare(baseline, flex,
-                  query, baseline[0], numHits)
+                  query, deletePct, baseline[0])
         r.save(name)
 
 def cleanScores(l):
