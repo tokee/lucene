@@ -220,7 +220,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       threadResources.close();
     }
     
-    private ThreadResources getThreadResources() throws IOException {
+    protected ThreadResources getThreadResources() throws IOException {
       ThreadResources resources = (ThreadResources) threadResources.get();
       if (resources == null) {
         // Cache does not have to be thread-safe, it is only used by one thread at the same time

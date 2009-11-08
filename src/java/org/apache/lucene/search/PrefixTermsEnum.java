@@ -70,7 +70,11 @@ public class PrefixTermsEnum extends FilteredTermsEnum {
   }
 
   @Override
-  protected boolean accept(TermRef term) {
-    return term.startsWith(prefixRef);
+  protected AcceptStatus accept(TermRef term) {
+    if (term.startsWith(prefixRef)) {
+      return AcceptStatus.YES;
+    } else {
+      return AcceptStatus.END;
+    }
   }
 }

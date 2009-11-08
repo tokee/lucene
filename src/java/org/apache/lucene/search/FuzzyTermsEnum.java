@@ -147,14 +147,14 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
    * calculate the distance between the given term and the comparing term. 
    */
   @Override
-  protected final boolean accept(TermRef term) {
+  protected final AcceptStatus accept(TermRef term) {
     if (term.startsWith(prefixTermRef)) {
       // TODO: costly that we create intermediate String:
       final String target = term.toString().substring(prefix.length());
       this.similarity = similarity(target);
-      return (similarity > minimumSimilarity);
+      return (similarity > minimumSimilarity) ? AcceptStatus.YES : AcceptStatus.NO;
     } else {
-      return false;
+      return AcceptStatus.END;
     }
   }
   

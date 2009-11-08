@@ -200,7 +200,8 @@ public class FuzzyLikeThisQuery extends Query
                   int df = reader.docFreq(startTerm);
                   int numVariants=0;
                   int totalVariantDocFreqs=0;
-                  do {
+                  if (!fe.empty()) {
+                    do {
                       TermRef possibleMatch = fe.term();
                       if (possibleMatch!=null) {
                         numVariants++;
@@ -212,8 +213,8 @@ public class FuzzyLikeThisQuery extends Query
                           minScore = ((ScoreTerm)variantsQ.top()).score; // maintain minScore
                         }
                       }
-                    }
-                  while(fe.next() != null);
+                    } while(fe.next() != null);
+                  }
 
                   if(numVariants>0)
                     {

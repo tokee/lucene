@@ -83,15 +83,20 @@ public class WildcardTermsEnum extends FilteredTermsEnum {
   }
 
   @Override
-  protected final boolean accept(TermRef term) {
+  protected final AcceptStatus accept(TermRef term) {
     if (term.startsWith(preTermRef)) {
       // TODO: would be better, but trickier, to not have to
       // build intermediate String (ie check wildcard matching
       // directly on UTF8)
       final String searchText = term.toString();
-      return wildcardEquals(text, 0, searchText, preLen);
+      if (wildcardEquals(text, 0, searchText, preLen)) {
+        return AcceptStatus.YES;
+      } else {
+        return AcceptStatus.NO;
+      }
+    } else {
+      return AcceptStatus.END;
     }
-    return false;
   }
 
   @Override

@@ -671,11 +671,15 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
      * and forwards to the next sub-range.
      */
     @Override
-    protected boolean accept(TermRef term) {
-      return (term.compareTerm(currentUpperBound) <= 0);
+    protected AcceptStatus accept(TermRef term) {
+      if (term.compareTerm(currentUpperBound) <= 0) {
+        return AcceptStatus.YES;
+      } else {
+        return AcceptStatus.NO;
+      }
     }
 
-    /** Increments the enumeration to the next element.  True if one exists. */
+    /** Increments the enumeration to the next element.  Non-null if one exists. */
     @Override
     public TermRef next() throws IOException {
       //System.out.println("nrq.next");
@@ -683,7 +687,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
       // next term, if no such term exists, fall-through
       if (actualEnum != null) {
         TermRef term = actualEnum.next();
-        if (term != null && accept(term)) {
+        if (term != null && accept(term) == AcceptStatus.YES) {
           //System.out.println("  return term=" + term.toBytesString());
           return term;
         }

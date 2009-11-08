@@ -36,7 +36,6 @@ import org.apache.lucene.util.StringHelper;
 public class TermRangeTermsEnum extends FilteredTermsEnum {
 
   private Collator collator;
-  private boolean end;
   private String field;
   private String upperTermText;
   private String lowerTermText;
@@ -88,7 +87,7 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
       this.includeLower = true;
     }
     lowerTermRef = new TermRef(this.lowerTermText);
-    
+
     if (this.upperTermText == null) {
       this.includeUpper = true;
       upperTermRef = null;
@@ -127,7 +126,7 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
   }
 
   @Override
-  protected boolean accept(TermRef term) {
+  protected AcceptStatus accept(TermRef term) {
     if (collator == null) {
       // Use Unicode code point ordering
       if (upperTermRef != null) {
@@ -138,10 +137,10 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
          */
         if ((cmp < 0) ||
             (!includeUpper && cmp==0)) {
-          return false;
+          return AcceptStatus.END;
         }
       }
-      return true;
+      return AcceptStatus.YES;
     } else {
       if ((includeLower
            ? collator.compare(term.toString(), lowerTermText) >= 0
@@ -150,10 +149,9 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
               || (includeUpper
                   ? collator.compare(term.toString(), upperTermText) <= 0
                   : collator.compare(term.toString(), upperTermText) < 0))) {
-        return true;
+        return AcceptStatus.YES;
       }
-      end = true;
+      return AcceptStatus.NO;
     }
-    return false;
   }
 }

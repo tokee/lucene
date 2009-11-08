@@ -828,8 +828,13 @@ public class MemoryIndex implements Serializable {
 
       public MemoryTermsEnum(Info info) {
         this.info = info;
-        info.sortTerms();
-        this.sortedTerms = info.sortedTerms;
+        // nocommit -- understand why this null check became necessary?
+        if (info != null) {
+          info.sortTerms();
+          this.sortedTerms = info.sortedTerms;
+        } else {
+          sortedTerms = new Map.Entry[0];
+        }
       }
 
       public TermRef next() {

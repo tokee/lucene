@@ -1384,16 +1384,17 @@ class DirectoryReader extends IndexReader implements Cloneable {
         final SeekStatus status = subs[i].terms.seek(term);
         if (status == SeekStatus.FOUND) {
           top[numTop++] = subs[i];
-          current = subs[i].current = term;
+          subs[i].current = term;
         } else if (status == SeekStatus.NOT_FOUND) {
           queue.add(subs[i]);
-          current = subs[i].current = subs[i].terms.term();
+          subs[i].current = subs[i].terms.term();
         } else {
           // enum exhausted
         }
       }
 
       if (numTop > 0) {
+        current = term;
         return SeekStatus.FOUND;
       } else if (queue.size() > 0) {
         pullTop();

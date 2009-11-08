@@ -67,11 +67,11 @@ public class RegexTermsEnum extends FilteredTermsEnum {
     return field;
   }
 
-  protected final boolean accept(TermRef term) {
+  protected final AcceptStatus accept(TermRef term) {
     if (term.startsWith(prefixRef)) {
-      return regexImpl.match(term.toString());
+      return regexImpl.match(term.toString()) ? AcceptStatus.YES : AcceptStatus.NO;
     } else {
-      return false;
+      return AcceptStatus.END;
     }
   }
 

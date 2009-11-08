@@ -263,6 +263,10 @@ public class StandardDocsReader extends StandardDocsProducer {
           System.out.println("[" + desc + "] dr.init freqIn seek " + freqOffset + " this=" + this + " (in=" + freqIn + "; this=" + this + ") docFreq=" + TermsDictReader.this.docFreq);
         }
         this.skipDocs = skipDocs;
+        // nocommit this seek frequently isn't needed, when
+        // we enum terms and all docs for each term (MTQ,
+        // or, merging).  is this seek costing us anything?
+        // we should avoid it so...
         freqIn.seek(freqOffset);
         this.docFreq = TermsDictReader.this.docFreq;
         count = 0;

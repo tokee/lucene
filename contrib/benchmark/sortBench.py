@@ -495,12 +495,12 @@ def run(mode, name):
 
   queries = (
     'body:[tec TO tet]',
+    'real*',
     '1',
     '2',
     '+1 +2',
     '+1 -2',
     '1 2 3 -4',
-    'real*',
     '"world economy"')
 
   for query in queries:
@@ -526,6 +526,7 @@ def run(mode, name):
       baseline = r.runOne(TRUNK_DIR, s, 'baseline_%s' % prefix, maxDocs, numDocs, query, verify=doVerify)
 
       # flex
+      indexPath = '%s/%s' % (INDEX_DIR_BASE, indexes['flex'])
       s = r.getAlg(indexPath,
                    'Search',
                    numHits,
@@ -538,7 +539,7 @@ def run(mode, name):
 
       verify(baseline, flex)
 
-      if mode == 'run':
+      if mode == 'run' and not DEBUG:
         r.compare(baseline, flex,
                   query, deletePct, baseline[0])
         r.save(name)

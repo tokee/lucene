@@ -34,12 +34,14 @@ import org.apache.lucene.util.Bits;
  * greater than all that precede it.</p>
 */
 public abstract class FilteredTermsEnum extends TermsEnum {
+
+  protected static enum AcceptStatus {YES, NO, END};
     
   /** the delegate enum - to set this member use {@link #setEnum} */
   protected TermsEnum actualEnum;
     
   /** Return true if term is acceptd */
-  protected abstract boolean accept(TermRef term);
+  protected abstract AcceptStatus accept(TermRef term);
     
   /** Equality measure on the term */
   public abstract float difference();
@@ -65,8 +67,11 @@ public abstract class FilteredTermsEnum extends TermsEnum {
       if (status == SeekStatus.END) {
         return null;
       } else {
-        if (!accept(actualEnum.term())) {
+        AcceptStatus s = accept(actualEnum.term());
+        if (s == AcceptStatus.NO) {
           return next();
+        } else if (s == AcceptStatus.END) {
+          return null;
         } else {
           return actualEnum.term();
         }
@@ -92,15 +97,20 @@ public abstract class FilteredTermsEnum extends TermsEnum {
     return actualEnum.docFreq();
   }
     
-  /** Increments the enumeration to the next element.  True if one exists. */
+  /** Increments the enumeration to the next element.
+   * Non-null if one exists, or null if it's the end. */
   @Override
   public TermRef next() throws IOException {
     assert actualEnum != null;
     while (true) {
       TermRef term = actualEnum.next();
       if (term != null) {
-        if (accept(term)) {
+        AcceptStatus s = accept(term);
+        if (s == AcceptStatus.YES) {
           return term;
+        } else if (s == AcceptStatus.END) {
+          // end
+          return null;
         }
       } else {
         // end
@@ -122,13 +132,16 @@ public abstract class FilteredTermsEnum extends TermsEnum {
   private SeekStatus finishSeek(SeekStatus status) throws IOException {
     if (status != SeekStatus.END) {
       TermRef term = actualEnum.term();
-      if (!accept(term)) {
+      final AcceptStatus s = accept(term);
+      if (s == AcceptStatus.NO) {
         term = next();
         if (term == null) {
           return SeekStatus.END;
         } else {
           return SeekStatus.NOT_FOUND;
         }
+      } else if (s == AcceptStatus.END) {
+        return SeekStatus.END;
       } else {
         return status;
       }
