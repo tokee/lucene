@@ -445,7 +445,7 @@ def report(name):
     query = params[0]
     if query == '*:*':
       query = '<all>'
-    params[2] = query
+    params[0] = query
     
     pct = '{color:%s}%.1f%%{color}' % (c, pct)
     print '|%s|%.2f|%.2f|%s|' % \
