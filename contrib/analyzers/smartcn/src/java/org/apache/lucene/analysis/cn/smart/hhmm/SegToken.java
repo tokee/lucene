@@ -36,12 +36,12 @@ public class SegToken {
   public char[] charArray;
 
   /**
-   * start offset into {@link #charArray}
+   * start offset into original sentence
    */
   public int startOffset;
 
   /**
-   * end offset into {@link #charArray}
+   * end offset into original sentence
    */
   public int endOffset;
 
@@ -64,8 +64,8 @@ public class SegToken {
    * Create a new SegToken from a character array.
    * 
    * @param idArray character array containing text
-   * @param start start offset into idArray
-   * @param end end offset of idArray
+   * @param start start offset of SegToken in original sentence
+   * @param end end offset of SegToken in original sentence
    * @param wordType {@link WordType} of the text
    * @param weight word frequency
    */
@@ -80,6 +80,7 @@ public class SegToken {
   /**
    * @see java.lang.Object#hashCode()
    */
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
@@ -97,6 +98,7 @@ public class SegToken {
   /**
    * @see java.lang.Object#equals(java.lang.Object)
    */
+  @Override
   public boolean equals(Object obj) {
     if (this == obj)
       return true;

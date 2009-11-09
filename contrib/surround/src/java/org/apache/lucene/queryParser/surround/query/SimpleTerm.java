@@ -47,6 +47,7 @@ public abstract class SimpleTerm
   
   protected void suffixToString(StringBuilder r) {;} /* override for prefix query */
   
+  @Override
   public String toString() {
     StringBuilder r = new StringBuilder();
     if (isQuoted()) {
@@ -73,12 +74,15 @@ public abstract class SimpleTerm
   public String distanceSubQueryNotAllowed() {return null;}
 
   
+  @Override
   public Query makeLuceneQueryFieldNoBoost(final String fieldName, final BasicQueryFactory qf) {
     return new Query() {
+      @Override
       public String toString(String fn) {
         return getClass().toString() + " " + fieldName + " (" + fn + "?)";
       }
       
+      @Override
       public Query rewrite(IndexReader reader) throws IOException {
         final List luceneSubQueries = new ArrayList();
         visitMatchingTerms( reader, fieldName,

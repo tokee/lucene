@@ -41,6 +41,7 @@ public class TestAtomicUpdate extends LuceneTestCase {
       super(dir, a, create, mfl);
     }
 
+    @Override
     boolean testPoint(String name) {
       //      if (name.equals("startCommit")) {
       if (RANDOM.nextInt(4) == 2)
@@ -61,6 +62,7 @@ public class TestAtomicUpdate extends LuceneTestCase {
       this.allThreads = threads;
     }
 
+    @Override
     public void run() {
       final long stopTime = System.currentTimeMillis() + 1000*RUN_TIME_SEC;
 
@@ -95,6 +97,7 @@ public class TestAtomicUpdate extends LuceneTestCase {
       this.writer = writer;
     }
 
+    @Override
     public void doWork() throws Exception {
       // Update all 100 docs...
       for(int i=0; i<100; i++) {
@@ -114,6 +117,7 @@ public class TestAtomicUpdate extends LuceneTestCase {
       this.directory = directory;
     }
 
+    @Override
     public void doWork() throws Throwable {
       IndexReader r = IndexReader.open(directory, true);
       assertEquals(100, r.numDocs());

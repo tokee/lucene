@@ -172,6 +172,7 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
     return stopWords.size();
   }
 
+  @Override
   public TokenStream tokenStream(String fieldName, Reader reader) {
     TokenStream result;
     try {
@@ -198,6 +199,7 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
     TokenStream withStopFilter;
   };
   
+  @Override
   public TokenStream reusableTokenStream(String fieldName, Reader reader)
       throws IOException {
     if (overridesTokenStreamMethod) {

@@ -42,6 +42,7 @@ import java.util.ArrayList;
 public class TestNorms extends LuceneTestCase {
 
   private class SimilarityOne extends DefaultSimilarity {
+    @Override
     public float lengthNorm(String fieldName, int numTerms) {
       return 1;
     }
@@ -61,6 +62,7 @@ public class TestNorms extends LuceneTestCase {
     super(s);
   }
 
+  @Override
   protected void setUp() throws Exception {
     super.setUp();
     similarityOne = new SimilarityOne();

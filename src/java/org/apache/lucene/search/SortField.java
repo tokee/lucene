@@ -106,8 +106,6 @@ implements Serializable {
   // Used for CUSTOM sort
   private FieldComparatorSource comparatorSource;
 
-  private boolean useLegacy = false; // remove in Lucene 3.0
-
   /** Creates a sort by terms in the given field with the type of term
    * values explicitly given.
    * @param field  Name of field to sort by.  Can be <code>null</code> if
@@ -354,6 +352,12 @@ implements Serializable {
     return hash;
   }
 
+  // field must be interned after reading from stream
+  private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    if (field != null)
+      field = StringHelper.intern(field);
+  }
 
   /** Returns the {@link FieldComparator} to use for
    * sorting.

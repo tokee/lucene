@@ -40,9 +40,9 @@ public final class WordTokenFilter extends TokenFilter {
 
   private WordSegmenter wordSegmenter;
 
-  private Iterator tokenIter;
+  private Iterator<SegToken> tokenIter;
 
-  private List tokenBuffer;
+  private List<SegToken> tokenBuffer;
   
   private TermAttribute termAtt;
   private OffsetAttribute offsetAtt;
@@ -61,6 +61,7 @@ public final class WordTokenFilter extends TokenFilter {
     typeAtt = addAttribute(TypeAttribute.class);
   }
   
+  @Override
   public boolean incrementToken() throws IOException {   
     if (tokenIter == null || !tokenIter.hasNext()) {
       // there are no remaining tokens from the current sentence... are there more sentences?
@@ -78,15 +79,17 @@ public final class WordTokenFilter extends TokenFilter {
         return false; // no more sentences, end of stream!
       }
     } 
-    
+    // WordTokenFilter must clear attributes, as it is creating new tokens.
+    clearAttributes();
     // There are remaining tokens from the current sentence, return the next one. 
-    SegToken nextWord = (SegToken) tokenIter.next();
+    SegToken nextWord = tokenIter.next();
     termAtt.setTermBuffer(nextWord.charArray, 0, nextWord.charArray.length);
     offsetAtt.setOffset(nextWord.startOffset, nextWord.endOffset);
     typeAtt.setType("word");
     return true;
   }
 
+  @Override
   public void reset() throws IOException {
     super.reset();
     tokenIter = null;

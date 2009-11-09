@@ -65,6 +65,7 @@ public class TestPositionIncrement extends LuceneTestCase {
 
   public void testSetPosition() throws Exception {
     Analyzer analyzer = new Analyzer() {
+      @Override
       public TokenStream tokenStream(String fieldName, Reader reader) {
         return new TokenStream() {
           private final String[] TOKENS = {"1", "2", "3", "4", "5"};
@@ -75,6 +76,7 @@ public class TestPositionIncrement extends LuceneTestCase {
           TermAttribute termAtt = addAttribute(TermAttribute.class);
           OffsetAttribute offsetAtt = addAttribute(OffsetAttribute.class);
           
+          @Override
           public boolean incrementToken() {
             if (i == TOKENS.length)
               return false;
@@ -229,6 +231,7 @@ public class TestPositionIncrement extends LuceneTestCase {
     public StopWhitespaceAnalyzer(boolean enablePositionIncrements) {
       this.enablePositionIncrements = enablePositionIncrements;
     }
+    @Override
     public TokenStream tokenStream(String fieldName, Reader reader) {
       TokenStream ts = a.tokenStream(fieldName,reader);
       return new StopFilter(enablePositionIncrements, ts, new CharArraySet(Collections.singleton("stop"), true));
@@ -326,6 +329,7 @@ public class TestPositionIncrement extends LuceneTestCase {
 
 class TestPayloadAnalyzer extends Analyzer {
 
+  @Override
   public TokenStream tokenStream(String fieldName, Reader reader) {
     TokenStream result = new LowerCaseTokenizer(reader);
     return new PayloadFilter(result, fieldName);
@@ -353,6 +357,7 @@ class PayloadFilter extends TokenFilter {
     termAttr = input.addAttribute(TermAttribute.class);
   }
 
+  @Override
   public boolean incrementToken() throws IOException {
     if (input.incrementToken()) {
       payloadAttr.setPayload(new Payload(("pos: " + pos).getBytes()));

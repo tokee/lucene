@@ -29,6 +29,7 @@ import java.util.Map.Entry;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Scorer;
@@ -38,8 +39,6 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.Constants;
-
-import org.apache.lucene.index.codecs.Codec;
 
 /**
  * This class accepts multiple added documents and directly
@@ -537,6 +536,13 @@ final class DocumentsWriter {
       if (!threadStates[i].isIdle)
         return false;
     return true;
+  }
+
+  synchronized boolean anyChanges() {
+    return numDocsInRAM != 0 ||
+      deletesInRAM.numTerms != 0 ||
+      deletesInRAM.docIDs.size() != 0 ||
+      deletesInRAM.queries.size() != 0;
   }
 
   synchronized private void initFlushState(boolean onlyDocStore) {

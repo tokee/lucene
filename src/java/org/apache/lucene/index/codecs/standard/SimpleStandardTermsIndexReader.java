@@ -485,7 +485,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     return fields.get(fieldInfo);
   }
 
-  public static void files(SegmentInfo info, Collection files) {
+  public static void files(Directory dir, SegmentInfo info, Collection files) {
     files.add(IndexFileNames.segmentFileName(info.name, StandardCodec.TERMS_INDEX_EXTENSION));
   }
 

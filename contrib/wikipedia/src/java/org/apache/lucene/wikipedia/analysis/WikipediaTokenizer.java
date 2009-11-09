@@ -93,8 +93,6 @@ public final class WikipediaTokenizer extends Tokenizer {
     EXTERNAL_LINK_URL
   };
 
-  /** @deprecated Please use {@link #TOKEN_TYPES} instead */
-  public static final String [] tokenImage = TOKEN_TYPES;
   /**
    * Only output tokens
    */
@@ -193,6 +191,7 @@ public final class WikipediaTokenizer extends Tokenizer {
   *
   * @see org.apache.lucene.analysis.TokenStream#next()
   */
+  @Override
   public final boolean incrementToken() throws IOException {
     if (tokens != null && tokens.hasNext()){
       AttributeSource.State state = (AttributeSource.State) tokens.next();
@@ -309,11 +308,13 @@ public final class WikipediaTokenizer extends Tokenizer {
   *
   * @see org.apache.lucene.analysis.TokenStream#reset()
   */
+  @Override
   public void reset() throws IOException {
     super.reset();
     scanner.yyreset(input);
   }
 
+  @Override
   public void reset(Reader reader) throws IOException {
     super.reset(reader);
     reset();

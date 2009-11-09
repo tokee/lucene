@@ -60,7 +60,7 @@ import org.apache.lucene.util.Version;
  */
 public class SmartChineseAnalyzer extends Analyzer {
 
-  private final Set stopWords;
+  private final Set<?> stopWords;
   
   private static final String DEFAULT_STOPWORD_FILE = "stopwords.txt";
   
@@ -144,6 +144,7 @@ public class SmartChineseAnalyzer extends Analyzer {
     this.matchVersion = matchVersion;
   }
 
+  @Override
   public TokenStream tokenStream(String fieldName, Reader reader) {
     TokenStream result = new SentenceTokenizer(reader);
     result = new WordTokenFilter(result);
@@ -163,6 +164,7 @@ public class SmartChineseAnalyzer extends Analyzer {
     TokenStream filteredTokenStream;
   }
   
+  @Override
   public TokenStream reusableTokenStream(String fieldName, Reader reader)
       throws IOException {
     SavedStreams streams = (SavedStreams) getPreviousTokenStream();

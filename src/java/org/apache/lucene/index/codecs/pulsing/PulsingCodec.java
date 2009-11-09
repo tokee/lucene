@@ -139,10 +139,10 @@ public class PulsingCodec extends Codec {
   }
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
-    StandardDocsReader.files(segmentInfo, files);
-    StandardTermsDictReader.files(segmentInfo, files);
-    SimpleStandardTermsIndexReader.files(segmentInfo, files);
+  public void files(Directory dir, SegmentInfo segmentInfo, Collection files) throws IOException {
+    StandardDocsReader.files(dir, segmentInfo, files);
+    StandardTermsDictReader.files(dir, segmentInfo, files);
+    SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override

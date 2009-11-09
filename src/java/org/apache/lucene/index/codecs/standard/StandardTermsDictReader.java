@@ -137,7 +137,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     }
   }
 
-  public static void files(SegmentInfo segmentInfo, Collection files) {
+  public static void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
     files.add(IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.TERMS_EXTENSION));
   }
 

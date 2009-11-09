@@ -125,8 +125,8 @@ public class IntBlockCodec extends Codec {
   @Override
   public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
     SepDocsReader.files(segmentInfo, files);
-    StandardTermsDictReader.files(segmentInfo, files);
-    SimpleStandardTermsIndexReader.files(segmentInfo, files);
+    StandardTermsDictReader.files(dir, segmentInfo, files);
+    SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override

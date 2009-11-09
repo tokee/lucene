@@ -167,12 +167,10 @@ public final class SegmentInfo {
     codec = src.codec;
   }
 
-  // must be Map<String, String>
   void setDiagnostics(Map<String, String> diagnostics) {
     this.diagnostics = diagnostics;
   }
 
-  // returns Map<String, String>
   public Map<String, String> getDiagnostics() {
     return diagnostics;
   }
@@ -647,6 +645,7 @@ public final class SegmentInfo {
         // flex postings
         addIfExists(files, name + "." + exts[i]);
       }
+      // nocommit -- only does ifExists on prx for standard codec
       codec.files(dir, this, files);
     }
 
@@ -723,7 +722,7 @@ public final class SegmentInfo {
     }
     return files;
   }
-
+  
   /* Called whenever any change is made that affects which
    * files this segment has. */
   private void clearFiles() {
@@ -760,13 +759,13 @@ public final class SegmentInfo {
    *  has the same dir and same name. */
   @Override
   public boolean equals(Object obj) {
-    SegmentInfo other;
-    try {
-      other = (SegmentInfo) obj;
-    } catch (ClassCastException cce) {
+    if (this == obj) return true;
+    if (obj instanceof SegmentInfo) {
+      final SegmentInfo other = (SegmentInfo) obj;
+      return other.dir == dir && other.name.equals(name);
+    } else {
       return false;
     }
-    return other.dir == dir && other.name.equals(name);
   }
 
   @Override

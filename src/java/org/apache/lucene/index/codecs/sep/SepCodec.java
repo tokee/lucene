@@ -24,13 +24,12 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.DocsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexWriter;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexReader;
@@ -122,8 +121,8 @@ public class SepCodec extends Codec {
   @Override
   public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
     SepDocsReader.files(segmentInfo, files);
-    StandardTermsDictReader.files(segmentInfo, files);
-    SimpleStandardTermsIndexReader.files(segmentInfo, files);
+    StandardTermsDictReader.files(dir, segmentInfo, files);
+    SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override

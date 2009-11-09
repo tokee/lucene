@@ -131,6 +131,7 @@ public class QualityQueriesFinder {
     TermsDfQueue (int maxSize) {
       initialize(maxSize);
     }
+    @Override
     protected boolean lessThan(TermDf tf1, TermDf tf2) {
       return tf1.df < tf2.df;
     }

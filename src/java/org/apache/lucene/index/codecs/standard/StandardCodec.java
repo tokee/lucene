@@ -24,7 +24,6 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.DocsConsumer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.store.Directory;
@@ -119,10 +118,10 @@ public class StandardCodec extends Codec {
   static final String TERMS_INDEX_EXTENSION = "tii";
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
-    StandardDocsReader.files(segmentInfo, files);
-    StandardTermsDictReader.files(segmentInfo, files);
-    SimpleStandardTermsIndexReader.files(segmentInfo, files);
+  public void files(Directory dir, SegmentInfo segmentInfo, Collection files) throws IOException {
+    StandardDocsReader.files(dir, segmentInfo, files);
+    StandardTermsDictReader.files(dir, segmentInfo, files);
+    SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override

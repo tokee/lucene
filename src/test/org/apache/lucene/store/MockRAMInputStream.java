@@ -37,6 +37,7 @@ public class MockRAMInputStream extends RAMInputStream {
     this.dir = dir;
   }
 
+  @Override
   public void close() {
     super.close();
     // Pending resolution on LUCENE-686 we may want to
@@ -50,6 +51,7 @@ public class MockRAMInputStream extends RAMInputStream {
     }
   }
 
+  @Override
   public Object clone() {
     MockRAMInputStream clone = (MockRAMInputStream) super.clone();
     clone.isClone = true;

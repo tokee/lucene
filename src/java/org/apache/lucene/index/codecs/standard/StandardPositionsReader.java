@@ -25,7 +25,6 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.standard.StandardPositionsProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 
@@ -48,9 +47,11 @@ public class StandardPositionsReader extends StandardPositionsProducer {
     Codec.checkHeader(termsIn, StandardPositionsWriter.CODEC, StandardPositionsWriter.VERSION_START);
   }
 
-  public static void files(SegmentInfo segmentInfo, Collection files) {
+  public static void files(Directory dir, SegmentInfo segmentInfo, Collection files) throws IOException {
     if (segmentInfo.getHasProx()) {
-      files.add(IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.PROX_EXTENSION));
+      String file = IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.PROX_EXTENSION);
+      if (dir.fileExists(file))
+        files.add(IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.PROX_EXTENSION));
     }
   }
 
