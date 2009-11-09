@@ -135,24 +135,22 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
    * its actual usagee.  This substantially reduces memory
    * usage of SegmentReader searching a tiny segment. */
   private final void trimByteBlock() {
-    if (blockUpto != 0) {
-      if (blockOffset == 0) {
-        // nocommit -- should not happen?  fields w/ no terms
-        // are not written by STDW.  hmmm it does
-        // happen... must explain why -- oh, could be only
-        // on exception; I added only calling this on
-        // success above
-        // assert false;
-        // nocommit -- hit AIOOBE here (blocks is length 0):
-        //blocks[blockUpto] = null;
-        System.out.println("Simple terms index consumed no bytes! blockCount=" + blocks.length);
-      } else {
-        byte[] last = new byte[blockOffset];
-        System.arraycopy(blocks[blockUpto], 0, last, 0, blockOffset);
-        blocks[blockUpto] = last;
+    if (blockOffset == 0) {
+      // nocommit -- should not happen?  fields w/ no terms
+      // are not written by STDW.  hmmm it does
+      // happen... must explain why -- oh, could be only
+      // on exception; I added only calling this on
+      // success above
+      //assert false;
+      // nocommit -- hit AIOOBE here (blocks is length 0):
+      if (blocks != null) {
+        blocks[blockUpto] = null;
       }
+      //System.out.println("Simple terms index consumed no bytes! blockCount=" + blocks.length);
     } else {
-      // nocommit -- we shouldn't get here, but we do -- fix it!
+      byte[] last = new byte[blockOffset];
+      System.arraycopy(blocks[blockUpto], 0, last, 0, blockOffset);
+      blocks[blockUpto] = last;
     }
   }
 
@@ -171,6 +169,8 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
   // nocommit -- is this big enough, given max allowed term
   // size (measured in chars!!) ?
+  // nocommit -- or, we could allocate one block way to big,
+  // to accommodate such ridiculous terms
   private static final int BYTE_BLOCK_SHIFT = 15;
   private static final int BYTE_BLOCK_SIZE = 1 << BYTE_BLOCK_SHIFT;
   private static final int BYTE_BLOCK_MASK = BYTE_BLOCK_SIZE - 1;
@@ -299,9 +299,6 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         blockPointer = new long[this.numIndexTerms];
         termLength = new short[this.numIndexTerms];
         
-        // nocommit: unused?
-        //final DeltaBytesReader bytesReader = new DeltaBytesReader(clone);
-
         final byte[] skipBytes;
         if (indexDivisor != 1) {
           // only need skipBytes (below) if we are not
