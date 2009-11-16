@@ -61,6 +61,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockFactory;
 import org.apache.lucene.store.MockRAMDirectory;
+import org.apache.lucene.store.NoLockFactory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SingleInstanceLockFactory;
 import org.apache.lucene.util.UnicodeUtil;
@@ -520,10 +521,15 @@ public class TestIndexWriter extends LuceneTestCase {
     }                                               
 
     public static void assertNoUnreferencedFiles(Directory dir, String message) throws IOException {
-      String[] startFiles = dir.listAll();
-      SegmentInfos infos = new SegmentInfos();
-      infos.read(dir);
-      new IndexFileDeleter(dir, new KeepOnlyLastCommitDeletionPolicy(), infos, null, null);
+      final LockFactory lf = dir.getLockFactory();
+      String[] startFiles;
+      try {
+        dir.setLockFactory(new NoLockFactory());
+        startFiles = dir.listAll();
+        new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED).close();
+      } finally {
+        dir.setLockFactory(lf);
+      }
       String[] endFiles = dir.listAll();
 
       Arrays.sort(startFiles);
