@@ -40,7 +40,7 @@ import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntr
 
 public class StandardDocsReader extends StandardDocsProducer {
 
-  final IndexInput freqIn;
+  IndexInput freqIn = null;
   IndexInput termsIn;
 
   private final StandardPositionsReader posReader;
@@ -49,8 +49,10 @@ public class StandardDocsReader extends StandardDocsProducer {
   int maxSkipLevels;
 
   public StandardDocsReader(Directory dir, SegmentInfo segmentInfo, int readBufferSize) throws IOException {
-    freqIn = dir.openInput(IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.FREQ_EXTENSION), readBufferSize);
-
+    String file = IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.FREQ_EXTENSION);
+    if(dir.fileExists(file)) {
+      freqIn = dir.openInput(file, readBufferSize);
+    }
     boolean success = false;
     try {
       if (segmentInfo.getHasProx()) {
@@ -64,7 +66,7 @@ public class StandardDocsReader extends StandardDocsProducer {
       }
       success = true;
     } finally {
-      if (!success) {
+      if (!success & freqIn != null) {
         freqIn.close();
       }
     }
@@ -104,7 +106,9 @@ public class StandardDocsReader extends StandardDocsProducer {
   @Override
   public void close() throws IOException {
     try {
-      freqIn.close();
+      if(freqIn != null) {
+        freqIn.close();
+      }
     } finally {
       if (posReader != null) {
         posReader.close();

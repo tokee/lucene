@@ -24,6 +24,7 @@ import org.apache.lucene.store.ChecksumIndexOutput;
 import org.apache.lucene.store.ChecksumIndexInput;
 import org.apache.lucene.store.NoSuchDirectoryException;
 import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.util.ThreadInterruptedException;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -413,36 +414,14 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
   public static long readCurrentVersion(Directory directory, final Codecs codecs)
     throws CorruptIndexException, IOException {
 
-    return ((Long) new FindSegmentsFile(directory) {
-        @Override
-        protected Object doBody(String segmentFileName) throws CorruptIndexException, IOException {
-
-          IndexInput input = directory.openInput(segmentFileName);
-
-          int format = 0;
-          long version = 0;
-          try {
-            format = input.readInt();
-            if(format < 0){
-              if (format < CURRENT_FORMAT)
-                throw new CorruptIndexException("Unknown format version: " + format);
-              version = input.readLong(); // read version
-            }
-          }
-          finally {
-            input.close();
-          }
-     
-          if(format < 0)
-            return Long.valueOf(version);
-
-          // We cannot be sure about the format of the file.
-          // Therefore we have to read the whole file and cannot simply seek to the version entry.
-          SegmentInfos sis = new SegmentInfos();
-          sis.read(directory, segmentFileName, codecs);
-          return Long.valueOf(sis.getVersion());
-        }
-      }.run()).longValue();
+    // Fully read the segments file: this ensures that it's
+    // completely written so that if
+    // IndexWriter.prepareCommit has been called (but not
+    // yet commit), then the reader will still see itself as
+    // current:
+    SegmentInfos sis = new SegmentInfos();
+    sis.read(directory);
+    return sis.version;
   }
 
   /**
@@ -643,10 +622,7 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
             try {
               Thread.sleep(defaultGenFileRetryPauseMsec);
             } catch (InterruptedException ie) {
-              // In 3.0 we will change this to throw
-              // InterruptedException instead
-              Thread.currentThread().interrupt();
-              throw new RuntimeException(ie);
+              throw new ThreadInterruptedException(ie);
             }
           }
 

@@ -141,6 +141,7 @@ final class JustCompileSearch {
       throw new UnsupportedOperationException(UNSUPPORTED_MSG);
     }
 
+    @Override
     public Document doc(int n, FieldSelector fieldSelector)
         throws CorruptIndexException, IOException {
       throw new UnsupportedOperationException(UNSUPPORTED_MSG);
@@ -469,7 +470,7 @@ final class JustCompileSearch {
     public void normalize(float norm) {
       throw new UnsupportedOperationException(UNSUPPORTED_MSG);
     }
-    
+
     @Override
     public float sumOfSquaredWeights() throws IOException {
       throw new UnsupportedOperationException(UNSUPPORTED_MSG);

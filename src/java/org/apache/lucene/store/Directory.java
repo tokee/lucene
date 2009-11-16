@@ -20,6 +20,8 @@ package org.apache.lucene.store;
 import java.io.IOException;
 import java.io.Closeable;
 
+import org.apache.lucene.index.IndexFileNameFilter;
+
 /** A Directory is a flat list of files.  Files may be written once, when they
  * are created.  Once a file is created it may only be opened for read, or
  * deleted.  Random access is permitted both when reading and writing.
@@ -45,9 +47,8 @@ public abstract class Directory implements Closeable {
   protected LockFactory lockFactory;
 
   /** Returns an array of strings, one for each file in the
-   *  directory.  Unlike {@link #list} this method does no
-   *  filtering of the contents in a directory, and it will
-   *  never return null (throws IOException instead).
+   *  directory.
+   * @throws IOException
    */
   public abstract String[] listAll() throws IOException;
 
@@ -157,9 +158,6 @@ public abstract class Directory implements Closeable {
       return this.toString();
   }
 
-  // nocommit -- note runtime change that all files are
-  // copied
-
   /**
    * Copy contents of a directory src to a directory dest.
    * If a file in src already exists in dest then the
@@ -170,8 +168,9 @@ public abstract class Directory implements Closeable {
    * are undefined and you could easily hit a
    * FileNotFoundException.
    *
-   * <p><b>NOTE:</b> this method copies all files, not only
-   * files that look like index files
+   * <p><b>NOTE:</b> this method only copies files that look
+   * like index files (ie, have extensions matching the
+   * known extensions of index files).
    *
    * @param src source directory
    * @param dest destination directory
@@ -181,8 +180,13 @@ public abstract class Directory implements Closeable {
   public static void copy(Directory src, Directory dest, boolean closeDirSrc) throws IOException {
     final String[] files = src.listAll();
 
+    IndexFileNameFilter filter = IndexFileNameFilter.getFilter();
+
     byte[] buf = new byte[BufferedIndexOutput.BUFFER_SIZE];
     for (int i = 0; i < files.length; i++) {
+
+      if (!filter.accept(null, files[i]))
+        continue;
 
       IndexOutput os = null;
       IndexInput is = null;

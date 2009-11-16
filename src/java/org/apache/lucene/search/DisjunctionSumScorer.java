@@ -18,7 +18,6 @@ package org.apache.lucene.search;
  */
 
 import java.util.List;
-import java.util.Iterator;
 import java.io.IOException;
 
 import org.apache.lucene.util.ScorerDocQueue;
@@ -31,7 +30,7 @@ class DisjunctionSumScorer extends Scorer {
   private final int nrScorers;
   
   /** The subscorers. */
-  protected final List subScorers;
+  protected final List<Scorer> subScorers;
   
   /** The minimum number of scorers that should match. */
   private final int minimumNrMatchers;
@@ -68,7 +67,7 @@ class DisjunctionSumScorer extends Scorer {
    * <br>When minimumNrMatchers equals the number of subScorers,
    * it more efficient to use <code>ConjunctionScorer</code>.
    */
-  public DisjunctionSumScorer( List subScorers, int minimumNrMatchers) throws IOException {
+  public DisjunctionSumScorer( List<Scorer> subScorers, int minimumNrMatchers) throws IOException {
     super(null);
     
     nrScorers = subScorers.size();
@@ -89,7 +88,7 @@ class DisjunctionSumScorer extends Scorer {
   /** Construct a <code>DisjunctionScorer</code>, using one as the minimum number
    * of matching subscorers.
    */
-  public DisjunctionSumScorer(List subScorers) throws IOException {
+  public DisjunctionSumScorer(List<Scorer> subScorers) throws IOException {
     this(subScorers, 1);
   }
 
@@ -97,11 +96,9 @@ class DisjunctionSumScorer extends Scorer {
    * initialize <code>scorerDocQueue</code>.
    */
   private void initScorerDocQueue() throws IOException {
-    Iterator si = subScorers.iterator();
     scorerDocQueue = new ScorerDocQueue(nrScorers);
-    while (si.hasNext()) {
-      Scorer se = (Scorer) si.next();
-      if (se.nextDoc() != NO_MORE_DOCS) { // doc() method will be used in scorerDocQueue.
+    for (Scorer se : subScorers) {
+      if (se.nextDoc() != NO_MORE_DOCS) {
         scorerDocQueue.insert(se);
       }
     }

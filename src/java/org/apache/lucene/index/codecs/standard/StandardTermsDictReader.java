@@ -60,9 +60,18 @@ public class StandardTermsDictReader extends FieldsProducer {
 
   public StandardTermsDictReader(StandardTermsIndexReader indexReader, Directory dir, FieldInfos fieldInfos, String segment, StandardDocsProducer docs, int readBufferSize)
     throws IOException {
-
-    in = dir.openInput(IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_EXTENSION), readBufferSize);
+    
     this.segment = segment;
+    this.docs = docs;
+    
+    String file = IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_EXTENSION);
+    //nocommit
+    if(!dir.fileExists(file)) {
+      in = null;
+      return;
+    }
+    in = dir.openInput(file, readBufferSize);
+
 
     boolean success = false;
     try {
@@ -70,7 +79,7 @@ public class StandardTermsDictReader extends FieldsProducer {
 
       final long dirOffset = in.readLong();
 
-      this.docs = docs;
+
       // Have DocsProducer init itself
       docs.start(in);
 
@@ -122,13 +131,19 @@ public class StandardTermsDictReader extends FieldsProducer {
   public void close() throws IOException {
     try {
       try {
-        indexReader.close();
+        if(indexReader != null) {
+          indexReader.close();
+        }
       } finally {
-        in.close();
+        if(in != null) {
+          in.close();
+        }
       }
     } finally {
       try {
-        docs.close();
+        if(docs != null) {
+          docs.close();
+        }
       } finally {
         for(FieldReader field : fields.values()) {
           field.close();

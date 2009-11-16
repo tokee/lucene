@@ -67,7 +67,6 @@ public abstract class FilteredDocIdSet extends DocIdSet {
    * @see DocIdSetIterator
    * @see FilteredDocIdSetIterator
    */
-  // @Override
   @Override
   public DocIdSetIterator iterator() throws IOException {
     return new FilteredDocIdSetIterator(_innerSet.iterator()) {

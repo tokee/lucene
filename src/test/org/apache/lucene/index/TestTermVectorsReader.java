@@ -51,13 +51,13 @@ public class TestTermVectorsReader extends LuceneTestCase {
     super(s);
   }
   
-  private class TestToken implements Comparable {
+  private class TestToken implements Comparable<TestToken> {
     String text;
     int pos;
     int startOffset;
     int endOffset;
-    public int compareTo(Object other) {
-      return pos - ((TestToken) other).pos;
+    public int compareTo(TestToken other) {
+      return pos - other.pos;
     }
   }
 

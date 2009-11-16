@@ -117,7 +117,7 @@ public class MultiPhraseQuery extends Query {
 
   // inherit javadoc
   @Override
-  public void extractTerms(Set terms) {
+  public void extractTerms(Set<Term> terms) {
     for (final Term[] arr : termArrays) {
       for (final Term term: arr) {
         terms.add(term);

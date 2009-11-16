@@ -39,6 +39,7 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.Constants;
+import org.apache.lucene.util.ThreadInterruptedException;
 
 /**
  * This class accepts multiple added documents and directly
@@ -514,10 +515,7 @@ final class DocumentsWriter {
       try {
         wait();
       } catch (InterruptedException ie) {
-        // In 3.0 we will change this to throw
-        // InterruptedException instead
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(ie);
+        throw new ThreadInterruptedException(ie);
       }
     }
 
@@ -862,10 +860,7 @@ final class DocumentsWriter {
       try {
         wait();
       } catch (InterruptedException ie) {
-        // In 3.0 we will change this to throw
-        // InterruptedException instead
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(ie);
+        throw new ThreadInterruptedException(ie);
       }
     }
 
@@ -1121,10 +1116,7 @@ final class DocumentsWriter {
       try {
         wait();
       } catch (InterruptedException ie) {
-        // In 3.0 we will change this to throw
-        // InterruptedException instead
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(ie);
+        throw new ThreadInterruptedException(ie);
       }
     } while (!waitQueue.doResume());
   }
@@ -1209,7 +1201,7 @@ final class DocumentsWriter {
           numBytesAlloc += BYTE_BLOCK_SIZE;
           b = new byte[BYTE_BLOCK_SIZE];
         } else
-          b = (byte[]) freeByteBlocks.remove(size-1);
+          b = freeByteBlocks.remove(size-1);
         if (trackAllocations)
           numBytesUsed += BYTE_BLOCK_SIZE;
         assert numBytesUsed <= numBytesAlloc;
@@ -1249,7 +1241,7 @@ final class DocumentsWriter {
       numBytesAlloc += INT_BLOCK_SIZE*INT_NUM_BYTE;
       b = new int[INT_BLOCK_SIZE];
     } else
-      b = (int[]) freeIntBlocks.remove(size-1);
+      b = freeIntBlocks.remove(size-1);
     if (trackAllocations)
       numBytesUsed += INT_BLOCK_SIZE*INT_NUM_BYTE;
     assert numBytesUsed <= numBytesAlloc;
@@ -1292,7 +1284,7 @@ final class DocumentsWriter {
       numBytesAlloc += CHAR_BLOCK_SIZE * CHAR_NUM_BYTE;
       c = new char[CHAR_BLOCK_SIZE];
     } else
-      c = (char[]) freeCharBlocks.remove(size-1);
+      c = freeCharBlocks.remove(size-1);
     // We always track allocations of char blocks, for now,
     // because nothing that skips allocation tracking
     // (currently only term vectors) uses its own char

@@ -29,6 +29,7 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.util.ThreadInterruptedException;
 
 import java.io.IOException;
 import java.io.Closeable;
@@ -47,13 +48,13 @@ import java.util.Map;
   An <code>IndexWriter</code> creates and maintains an index.
 
   <p>The <code>create</code> argument to the {@link
-  #IndexWriter(Directory, Analyzer, boolean) constructor} determines 
+  #IndexWriter(Directory, Analyzer, boolean, MaxFieldLength) constructor} determines 
   whether a new index is created, or whether an existing index is
   opened.  Note that you can open an index with <code>create=true</code>
   even while readers are using the index.  The old readers will 
   continue to search the "point in time" snapshot they had opened, 
   and won't see the newly created index until they re-open.  There are
-  also {@link #IndexWriter(Directory, Analyzer) constructors}
+  also {@link #IndexWriter(Directory, Analyzer, MaxFieldLength) constructors}
   with no <code>create</code> argument which will create a new index
   if there is not already an index at the provided path and otherwise 
   open the existing index.</p>
@@ -145,6 +146,13 @@ import java.util.Map;
   synchronize on the <code>IndexWriter</code> instance as
   this may cause deadlock; use your own (non-Lucene) objects
   instead. </p>
+  
+  <p><b>NOTE</b>: If you call
+  <code>Thread.interrupt()</code> on a thread that's within
+  IndexWriter, IndexWriter will try to catch this (eg, if
+  it's in a wait() or Thread.sleep()), and will then throw
+  the unchecked exception {@link ThreadInterruptedException}
+  and <b>clear</b> the interrupt status on the thread.</p>
 */
 
 /*
@@ -4532,10 +4540,7 @@ public class IndexWriter implements Closeable {
             try {
               synced.wait();
             } catch (InterruptedException ie) {
-              // In 3.0 we will change this to throw
-              // InterruptedException instead
-              Thread.currentThread().interrupt();
-              throw new RuntimeException(ie);
+              throw new ThreadInterruptedException(ie);
             }
         }
       }
@@ -4553,10 +4558,7 @@ public class IndexWriter implements Closeable {
     try {
       wait(1000);
     } catch (InterruptedException ie) {
-      // In 3.0 we will change this to throw
-      // InterruptedException instead
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(ie);
+      throw new ThreadInterruptedException(ie);
     }
   }
 

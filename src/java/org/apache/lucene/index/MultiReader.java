@@ -52,7 +52,6 @@ public class MultiReader extends IndexReader implements Cloneable {
   * left to the subreaders. </p>
   * <p>Note that all subreaders are closed if this Multireader is closed.</p>
   * @param subReaders set of (sub)readers
- * @throws IOException 
   * @throws IOException
   */
   public MultiReader(IndexReader... subReaders) throws IOException {
@@ -410,11 +409,6 @@ public class MultiReader extends IndexReader implements Cloneable {
     return new MultiTermPositions(this, subReaders, starts);
   }
 
-  /** @deprecated */
-  protected void doCommit() throws IOException {
-    doCommit(null);
-  }
-  
   @Override
   protected void doCommit(Map<String,String> commitUserData) throws IOException {
     for (int i = 0; i < subReaders.length; i++)

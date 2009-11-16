@@ -33,13 +33,13 @@ public class ReopenReaderTask extends PerfTask {
 
   @Override
   public int doLogic() throws IOException {
-    IndexReader ir = getRunData().getIndexReader();
-    IndexReader or = ir;
-    IndexReader nr = ir.reopen();
-    if(nr != or) {
+    IndexReader r = getRunData().getIndexReader();
+    IndexReader nr = r.reopen();
+    if (nr != r) {
       getRunData().setIndexReader(nr);
-      or.close();
+      nr.decRef();
     }
+    r.decRef();
     return 1;
   }
 }

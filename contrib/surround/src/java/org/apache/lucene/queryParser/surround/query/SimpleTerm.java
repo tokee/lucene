@@ -27,7 +27,7 @@ import org.apache.lucene.search.Query;
 
 public abstract class SimpleTerm
   extends SrndQuery
-  implements DistanceSubQuery, Comparable
+  implements DistanceSubQuery, Comparable<SimpleTerm>
 {
   public SimpleTerm(boolean q) {quoted = q;}
   
@@ -39,9 +39,8 @@ public abstract class SimpleTerm
   
   public abstract String toStringUnquoted();
   
-  public int compareTo(Object o) {
+  public int compareTo(SimpleTerm ost) {
     /* for ordering terms and prefixes before using an index, not used */
-    SimpleTerm ost = (SimpleTerm) o;
     return this.toStringUnquoted().compareTo( ost.toStringUnquoted());
   }
   
@@ -84,7 +83,7 @@ public abstract class SimpleTerm
       
       @Override
       public Query rewrite(IndexReader reader) throws IOException {
-        final List luceneSubQueries = new ArrayList();
+        final List<Query> luceneSubQueries = new ArrayList<Query>();
         visitMatchingTerms( reader, fieldName,
             new MatchingTermVisitor() {
               public void visitMatchingTerm(Term term) throws IOException {
@@ -92,7 +91,7 @@ public abstract class SimpleTerm
               }
             });
         return  (luceneSubQueries.size() == 0) ? SrndQuery.theEmptyLcnQuery
-              : (luceneSubQueries.size() == 1) ? (Query) luceneSubQueries.get(0)
+              : (luceneSubQueries.size() == 1) ? luceneSubQueries.get(0)
               : SrndBooleanQuery.makeBooleanQuery(
                   /* luceneSubQueries all have default weight */
                   luceneSubQueries, BooleanClause.Occur.SHOULD); /* OR the subquery terms */ 

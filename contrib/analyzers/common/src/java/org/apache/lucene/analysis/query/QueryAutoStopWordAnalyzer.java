@@ -18,9 +18,7 @@ package org.apache.lucene.analysis.query;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.StopFilter;
@@ -47,7 +45,7 @@ import java.util.*;
  */
 public class QueryAutoStopWordAnalyzer extends Analyzer {
   Analyzer delegate;
-  HashMap stopWordsPerField = new HashMap();
+  HashMap<String,HashSet<String>> stopWordsPerField = new HashMap<String,HashSet<String>>();
   //The default maximum percentage (40%) of index documents which
   //can contain a term, after which the term is considered to be a stop word.
   public static final float defaultMaxDocFreqPercent = 0.4f;
@@ -88,9 +86,9 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
    */
   public int addStopWords(IndexReader reader, int maxDocFreq) throws IOException {
     int numStopWords = 0;
-    Collection fieldNames = reader.getFieldNames(IndexReader.FieldOption.INDEXED);
-    for (Iterator iter = fieldNames.iterator(); iter.hasNext();) {
-      String fieldName = (String) iter.next();
+    Collection<String> fieldNames = reader.getFieldNames(IndexReader.FieldOption.INDEXED);
+    for (Iterator<String> iter = fieldNames.iterator(); iter.hasNext();) {
+      String fieldName = iter.next();
       numStopWords += addStopWords(reader, fieldName, maxDocFreq);
     }
     return numStopWords;
@@ -108,9 +106,9 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
    */
   public int addStopWords(IndexReader reader, float maxPercentDocs) throws IOException {
     int numStopWords = 0;
-    Collection fieldNames = reader.getFieldNames(IndexReader.FieldOption.INDEXED);
-    for (Iterator iter = fieldNames.iterator(); iter.hasNext();) {
-      String fieldName = (String) iter.next();
+    Collection<String> fieldNames = reader.getFieldNames(IndexReader.FieldOption.INDEXED);
+    for (Iterator<String> iter = fieldNames.iterator(); iter.hasNext();) {
+      String fieldName = iter.next();
       numStopWords += addStopWords(reader, fieldName, maxPercentDocs);
     }
     return numStopWords;
@@ -143,29 +141,28 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
    * @throws IOException
    */
   public int addStopWords(IndexReader reader, String fieldName, int maxDocFreq) throws IOException {
-    HashSet stopWords = new HashSet();
+    HashSet<String> stopWords = new HashSet<String>();
     String internedFieldName = StringHelper.intern(fieldName);
-    Terms terms = reader.fields().terms(fieldName);
-    if (terms != null) {
-      TermsEnum termsEnum = terms.iterator();
-      while(true) {
-        TermRef text = termsEnum.next();
-        if (text != null) {
-          if (termsEnum.docFreq() > maxDocFreq) {
-            stopWords.add(text.toString());
-          }
-        } else {
-          break;
-        }
+    TermEnum te = reader.terms(new Term(fieldName));
+    Term term = te.term();
+    while (term != null) {
+      if (term.field() != internedFieldName) {
+        break;
       }
+      if (te.docFreq() > maxDocFreq) {
+        stopWords.add(term.text());
+      }
+      if (!te.next()) {
+        break;
+      }
+      term = te.term();
     }
-
     stopWordsPerField.put(fieldName, stopWords);
     
     /* if the stopwords for a field are changed,
      * then saved streams for that field are erased.
      */
-    Map streamMap = (Map) getPreviousTokenStream();
+    Map<String,SavedStreams> streamMap = (Map<String,SavedStreams>) getPreviousTokenStream();
     if (streamMap != null)
       streamMap.remove(fieldName);
     
@@ -180,7 +177,7 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
     } catch (IOException e) {
       result = delegate.tokenStream(fieldName, reader);
     }
-    HashSet stopWords = (HashSet) stopWordsPerField.get(fieldName);
+    HashSet<String> stopWords = stopWordsPerField.get(fieldName);
     if (stopWords != null) {
       result = new StopFilter(StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
                               result, stopWords);
@@ -210,13 +207,13 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
     }
 
     /* map of SavedStreams for each field */
-    Map streamMap = (Map) getPreviousTokenStream();
+    Map<String,SavedStreams> streamMap = (Map<String,SavedStreams>) getPreviousTokenStream();
     if (streamMap == null) {
-      streamMap = new HashMap();
+      streamMap = new HashMap<String, SavedStreams>();
       setPreviousTokenStream(streamMap);
     }
 
-    SavedStreams streams = (SavedStreams) streamMap.get(fieldName);
+    SavedStreams streams = streamMap.get(fieldName);
     if (streams == null) {
       /* an entry for this field does not exist, create one */
       streams = new SavedStreams();
@@ -224,7 +221,7 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
       streams.wrapped = delegate.reusableTokenStream(fieldName, reader);
 
       /* if there are any stopwords for the field, save the stopfilter */
-      HashSet stopWords = (HashSet) stopWordsPerField.get(fieldName);
+      HashSet<String> stopWords = stopWordsPerField.get(fieldName);
       if (stopWords != null)
         streams.withStopFilter = new StopFilter(StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
                                                 streams.wrapped, stopWords);
@@ -246,7 +243,7 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
          * field, create a new StopFilter around the new stream
          */
         streams.wrapped = result;
-        HashSet stopWords = (HashSet) stopWordsPerField.get(fieldName);
+        HashSet<String> stopWords = stopWordsPerField.get(fieldName);
         if (stopWords != null)
           streams.withStopFilter = new StopFilter(StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
                                                   streams.wrapped, stopWords);
@@ -267,9 +264,9 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
    */
   public String[] getStopWords(String fieldName) {
     String[] result;
-    HashSet stopWords = (HashSet) stopWordsPerField.get(fieldName);
+    HashSet<String> stopWords = stopWordsPerField.get(fieldName);
     if (stopWords != null) {
-      result = (String[]) stopWords.toArray(new String[stopWords.size()]);
+      result = stopWords.toArray(new String[stopWords.size()]);
     } else {
       result = new String[0];
     }
@@ -282,16 +279,16 @@ public class QueryAutoStopWordAnalyzer extends Analyzer {
    * @return the stop words (as terms)
    */
   public Term[] getStopWords() {
-    ArrayList allStopWords = new ArrayList();
-    for (Iterator iter = stopWordsPerField.keySet().iterator(); iter.hasNext();) {
-      String fieldName = (String) iter.next();
-      HashSet stopWords = (HashSet) stopWordsPerField.get(fieldName);
-      for (Iterator iterator = stopWords.iterator(); iterator.hasNext();) {
-        String text = (String) iterator.next();
+    ArrayList<Term> allStopWords = new ArrayList<Term>();
+    for (Iterator<String> iter = stopWordsPerField.keySet().iterator(); iter.hasNext();) {
+      String fieldName = iter.next();
+      HashSet<String> stopWords = stopWordsPerField.get(fieldName);
+      for (Iterator<String> iterator = stopWords.iterator(); iterator.hasNext();) {
+        String text = iterator.next();
         allStopWords.add(new Term(fieldName, text));
       }
     }
-    return (Term[]) allStopWords.toArray(new Term[allStopWords.size()]);
+    return allStopWords.toArray(new Term[allStopWords.size()]);
 	}
 
 }

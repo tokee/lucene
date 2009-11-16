@@ -70,6 +70,7 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.WildcardQuery;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.highlight.SynonymTokenizer.TestHighlightRunner;
+import org.apache.lucene.search.regex.RegexQuery;
 import org.apache.lucene.search.regex.SpanRegexQuery;
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanNotQuery;
@@ -311,6 +312,30 @@ public class HighlighterTest extends BaseTokenStreamTestCase implements Formatte
   public void testSpanRegexQuery() throws Exception {
     query = new SpanOrQuery(new SpanQuery [] {
         new SpanRegexQuery(new Term(FIELD_NAME, "ken.*")) });
+    searcher = new IndexSearcher(ramDir, true);
+    hits = searcher.search(query, 100);
+    int maxNumFragmentsRequired = 2;
+
+    QueryScorer scorer = new QueryScorer(query, FIELD_NAME);
+    Highlighter highlighter = new Highlighter(this, scorer);
+    
+    for (int i = 0; i < hits.totalHits; i++) {
+      String text = searcher.doc(hits.scoreDocs[i].doc).get(FIELD_NAME);
+      TokenStream tokenStream = analyzer.tokenStream(FIELD_NAME, new StringReader(text));
+
+      highlighter.setTextFragmenter(new SimpleFragmenter(40));
+
+      String result = highlighter.getBestFragments(tokenStream, text, maxNumFragmentsRequired,
+          "...");
+      System.out.println("\t" + result);
+    }
+    
+    assertTrue("Failed to find correct number of highlights " + numHighlights + " found",
+        numHighlights == 5);
+  }
+  
+  public void testRegexQuery() throws Exception {
+    query = new RegexQuery(new Term(FIELD_NAME, "ken.*"));
     searcher = new IndexSearcher(ramDir, true);
     hits = searcher.search(query, 100);
     int maxNumFragmentsRequired = 2;
@@ -1096,7 +1121,7 @@ public class HighlighterTest extends BaseTokenStreamTestCase implements Formatte
         Highlighter highlighter = getHighlighter(query, FIELD_NAME, tokenStream,
             HighlighterTest.this);// new Highlighter(this, new
         // QueryTermScorer(query));
-        highlighter.setMaxDocBytesToAnalyze(30);
+        highlighter.setMaxDocCharsToAnalyze(30);
 
         highlighter.getBestFragment(tokenStream, texts[0]);
         assertTrue("Setting MaxDocBytesToAnalyze should have prevented "
@@ -1133,10 +1158,10 @@ public class HighlighterTest extends BaseTokenStreamTestCase implements Formatte
         // new
         // QueryTermScorer(query));
         hg.setTextFragmenter(new NullFragmenter());
-        hg.setMaxDocBytesToAnalyze(100);
+        hg.setMaxDocCharsToAnalyze(100);
         match = hg.getBestFragment(new StandardAnalyzer(TEST_VERSION, stopWords), "data", sb.toString());
         assertTrue("Matched text should be no more than 100 chars in length ", match.length() < hg
-            .getMaxDocBytesToAnalyze());
+            .getMaxDocCharsToAnalyze());
 
         // add another tokenized word to the overrall length - but set way
         // beyond
@@ -1147,7 +1172,7 @@ public class HighlighterTest extends BaseTokenStreamTestCase implements Formatte
         sb.append(goodWord);
         match = hg.getBestFragment(new StandardAnalyzer(TEST_VERSION, stopWords), "data", sb.toString());
         assertTrue("Matched text should be no more than 100 chars in length ", match.length() < hg
-            .getMaxDocBytesToAnalyze());
+            .getMaxDocCharsToAnalyze());
       }
     };
 

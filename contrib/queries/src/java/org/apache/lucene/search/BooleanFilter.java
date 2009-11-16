@@ -24,7 +24,6 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.util.OpenBitSet;
 import org.apache.lucene.util.OpenBitSetDISI;
-import org.apache.lucene.util.SortedVIntList;
 
 /**
  * A container Filter that allows Boolean composition of Filters.
@@ -62,7 +61,7 @@ public class BooleanFilter extends Filter
         if (res == null) {
           res = new OpenBitSetDISI(getDISI(shouldFilters, i, reader), reader.maxDoc());
         } else { 
-          DocIdSet dis = ((Filter)shouldFilters.get(i)).getDocIdSet(reader);
+          DocIdSet dis = shouldFilters.get(i).getDocIdSet(reader);
           if(dis instanceof OpenBitSet) {
             // optimized case for OpenBitSets
             res.or((OpenBitSet) dis);
@@ -112,16 +111,14 @@ public class BooleanFilter extends Filter
     return DocIdSet.EMPTY_DOCIDSET;
   }
 
-  // TODO: in 3.0, instead of removing this deprecated
-  // method, make it a no-op and mark it final
   /** Provide a SortedVIntList when it is definitely smaller
    * than an OpenBitSet.
    * @deprecated Either use CachingWrapperFilter, or
-   * switch to a different DocIdSet implementation yourself. */
-  protected DocIdSet finalResult(OpenBitSetDISI result, int maxDocs) {
-    return (result.cardinality() < (maxDocs / 9))
-      ? (DocIdSet) new SortedVIntList(result)
-      : (DocIdSet) result;
+   * switch to a different DocIdSet implementation yourself.
+   * This method will be removed in Lucene 4.0 
+   */
+  protected final DocIdSet finalResult(OpenBitSetDISI result, int maxDocs) {
+    return result;
   }
 
   /**

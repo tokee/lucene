@@ -43,13 +43,12 @@ import java.util.Iterator;
  * {@link org.apache.lucene.search.spans.TermSpans} occurs.
  * <p/>
  * In order to take advantage of this, you must override
- * {@link org.apache.lucene.search.Similarity#scorePayload(String, byte[],int,int)}
+ * {@link org.apache.lucene.search.Similarity#scorePayload}
  * which returns 1 by default.
  * <p/>
  * Payload scores are aggregated using a pluggable {@link PayloadFunction}.
  * 
- * @see org.apache.lucene.search.Similarity#scorePayload(String, byte[], int,
- *      int)
+ * @see org.apache.lucene.search.Similarity#scorePayload
  */
 public class PayloadNearQuery extends SpanNearQuery {
   protected String fieldName;
@@ -106,7 +105,6 @@ public class PayloadNearQuery extends SpanNearQuery {
     return buffer.toString();
   }
 
-  // @Override
   @Override
   public int hashCode() {
     final int prime = 31;
@@ -116,7 +114,6 @@ public class PayloadNearQuery extends SpanNearQuery {
     return result;
   }
 
-  // @Override
   @Override
   public boolean equals(Object obj) {
     if (this == obj)
@@ -143,11 +140,6 @@ public class PayloadNearQuery extends SpanNearQuery {
     public PayloadNearSpanWeight(SpanQuery query, Searcher searcher)
         throws IOException {
       super(query, searcher);
-    }
-
-    public Scorer scorer(IndexReader reader) throws IOException {
-      return new PayloadNearSpanScorer(query.getSpans(reader), this,
-          similarity, reader.norms(query.getField()));
     }
 
     @Override

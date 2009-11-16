@@ -82,7 +82,7 @@ public final class SimilarityQueries
     public static Query formSimilarQuery( String body,
 										  Analyzer a,
 										  String field,
-										  Set stop)
+										  Set<?> stop)
 										  throws IOException
 	{	
 		TokenStream ts = a.tokenStream( field, new StringReader( body));

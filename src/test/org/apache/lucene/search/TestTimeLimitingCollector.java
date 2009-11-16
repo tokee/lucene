@@ -32,6 +32,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.Version;
+import org.apache.lucene.util.ThreadInterruptedException;
 
 /**
  * Tests the {@link TimeLimitingCollector}.  This test checks (1) search
@@ -84,7 +85,8 @@ public class TestTimeLimitingCollector extends LuceneTestCase {
     searcher = new IndexSearcher(directory, true);
 
     String qtxt = "one";
-    for (int i = 0; i < docText.length; i++) {
+    // start from 1, so that the 0th doc never matches
+    for (int i = 1; i < docText.length; i++) {
       qtxt += ' ' + docText[i]; // large query so that search will be longer
     }
     QueryParser queryParser = new QueryParser(Version.LUCENE_CURRENT, FIELD_NAME, new WhitespaceAnalyzer());
@@ -327,8 +329,7 @@ public class TestTimeLimitingCollector extends LuceneTestCase {
         try {
           Thread.sleep(slowdown);
         } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(ie);
+          throw new ThreadInterruptedException(ie);
         }
       }
       assert docId >= 0: " base=" + docBase + " doc=" + doc;

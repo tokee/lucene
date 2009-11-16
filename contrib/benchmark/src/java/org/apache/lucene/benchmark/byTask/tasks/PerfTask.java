@@ -59,7 +59,9 @@ public abstract class PerfTask implements Cloneable {
   private int maxDepthLogStart = 0;
   private boolean disableCounting = false;
   protected String params = null;
-  
+
+  private boolean runInBackground;
+
   protected static final String NEW_LINE = System.getProperty("line.separator");
 
   /** Should not be used externally */
@@ -70,25 +72,20 @@ public abstract class PerfTask implements Cloneable {
     }
   }
 
-  /**
-   * @deprecated will be removed in 3.0. checks if there are any obsolete
-   *             settings, like doc.add.log.step and doc.delete.log.step and
-   *             alerts the user.
-   */
-  private void checkObsoleteSettings(Config config) {
-    if (config.get("doc.add.log.step", null) != null) {
-      throw new RuntimeException("doc.add.log.step is not supported anymore. " +
-      		"Use log.step.AddDoc and refer to CHANGES to read on the recent " +
-      		"API changes done to Benchmark's DocMaker and Task-based logging.");
-    }
-    
-    if (config.get("doc.delete.log.step", null) != null) {
-      throw new RuntimeException("doc.delete.log.step is not supported anymore. " +
-          "Use log.step.DeleteDoc and refer to CHANGES to read on the recent " +
-          "API changes done to Benchmark's DocMaker and Task-based logging.");
-    }
+  public void setRunInBackground() {
+    runInBackground = true;
   }
-  
+
+  public boolean getRunInBackground() {
+    return runInBackground;
+  }
+
+  protected volatile boolean stopNow;
+
+  public void stopNow() {
+    stopNow = true;
+  }
+
   public PerfTask(PerfRunData runData) {
     this();
     this.runData = runData;
@@ -114,7 +111,6 @@ public abstract class PerfTask implements Cloneable {
     if (logStep <= 0) {
       logStep = Integer.MAX_VALUE;
     }
-    checkObsoleteSettings(config);
   }
   
   @Override
@@ -132,9 +128,7 @@ public abstract class PerfTask implements Cloneable {
    * @return number of work items done by this task.
    */
   public final int runAndMaybeStats(boolean reportStats) throws Exception {
-    if (reportStats && depth <= maxDepthLogStart && !shouldNeverLogAtStart()) {
-      System.out.println("------------> starting task: " + getName());
-    }
+    stopNow = false;
     if (!reportStats || shouldNotRecordStats()) {
       setup();
       int count = doLogic();
@@ -142,9 +136,12 @@ public abstract class PerfTask implements Cloneable {
       tearDown();
       return count;
     }
+    if (reportStats && depth <= maxDepthLogStart && !shouldNeverLogAtStart()) {
+      System.out.println("------------> starting task: " + getName());
+    }
     setup();
     Points pnts = runData.getPoints();
-    TaskStats ts = pnts.markTaskStart(this,runData.getConfig().getRoundNumber());
+    TaskStats ts = pnts.markTaskStart(this, runData.getConfig().getRoundNumber());
     int count = doLogic();
     count = disableCounting ? 0 : count;
     pnts.markTaskEnd(ts, count);
@@ -217,6 +214,9 @@ public abstract class PerfTask implements Cloneable {
       sb.append('-');
     }
     sb.append(getName());
+    if (getRunInBackground()) {
+      sb.append(" &");
+    }
     return sb.toString();
   }
 

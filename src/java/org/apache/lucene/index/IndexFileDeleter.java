@@ -583,7 +583,7 @@ final class IndexFileDeleter {
    * equals.
    */
 
-  final private static class CommitPoint extends IndexCommit implements Comparable {
+  final private static class CommitPoint extends IndexCommit implements Comparable<CommitPoint> {
 
     long gen;
     Collection<String> files;
@@ -662,8 +662,7 @@ final class IndexFileDeleter {
       return deleted;
     }
 
-    public int compareTo(Object obj) {
-      CommitPoint commit = (CommitPoint) obj;
+    public int compareTo(CommitPoint commit) {
       if (gen < commit.gen) {
         return -1;
       } else if (gen > commit.gen) {

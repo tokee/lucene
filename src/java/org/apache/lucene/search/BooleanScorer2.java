@@ -261,7 +261,7 @@ class BooleanScorer2 extends Scorer {
           ? requiredCountingSumScorer // no prohibited
           : new ReqExclScorer(requiredCountingSumScorer,
                               ((prohibitedScorers.size() == 1)
-                                ? (Scorer) prohibitedScorers.get(0)
+                                ? prohibitedScorers.get(0)
                                 : new DisjunctionSumScorer(prohibitedScorers)));
   }
 
@@ -301,7 +301,6 @@ class BooleanScorer2 extends Scorer {
   public float score() throws IOException {
     coordinator.nrMatchers = 0;
     float sum = countingSumScorer.score();
-    assert coordinator.nrMatchers >= 0;
     return sum * coordinator.coordFactors[coordinator.nrMatchers];
   }
 

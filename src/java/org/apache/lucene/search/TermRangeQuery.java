@@ -165,7 +165,6 @@ public class TermRangeQuery extends MultiTermQuery {
       return buffer.toString();
   }
 
-  //@Override
   @Override
   public int hashCode() {
     final int prime = 31;
@@ -179,7 +178,6 @@ public class TermRangeQuery extends MultiTermQuery {
     return result;
   }
 
-  //@Override
   @Override
   public boolean equals(Object obj) {
     if (this == obj)

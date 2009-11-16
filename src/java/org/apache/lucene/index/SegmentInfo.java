@@ -254,7 +254,7 @@ public final class SegmentInfo {
       delCount = -1;
       hasProx = true;
       codecName = "PreFlex";
-      diagnostics = Collections.EMPTY_MAP;
+      diagnostics = Collections.<String,String>emptyMap();
     }
     codec = codecs.lookup(codecName);
   }
@@ -722,7 +722,7 @@ public final class SegmentInfo {
     }
     return files;
   }
-  
+
   /* Called whenever any change is made that affects which
    * files this segment has. */
   private void clearFiles() {

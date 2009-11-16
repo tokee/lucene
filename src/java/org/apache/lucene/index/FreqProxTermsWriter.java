@@ -31,8 +31,6 @@ import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.util.UnicodeUtil;
 
-// TODO: Fix the unchecked collections, I do not understand the whole code here -- Uwe
-@SuppressWarnings("unchecked")
 final class FreqProxTermsWriter extends TermsHashConsumer {
 
   @Override
@@ -80,18 +78,18 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
     // Gather all FieldData's that have postings, across all
     // ThreadStates
-    List allFields = new ArrayList();
+    List<FreqProxTermsWriterPerField> allFields = new ArrayList<FreqProxTermsWriterPerField>();
     
     flushedDocCount = state.numDocs;
 
-    Iterator it = threadsAndFields.entrySet().iterator();
+    Iterator<Map.Entry<TermsHashConsumerPerThread,Collection<TermsHashConsumerPerField>>> it = threadsAndFields.entrySet().iterator();
     while(it.hasNext()) {
 
-      Map.Entry entry = (Map.Entry) it.next();
+      Map.Entry<TermsHashConsumerPerThread,Collection<TermsHashConsumerPerField>> entry = it.next();
 
-      Collection fields = (Collection) entry.getValue();
+      Collection<TermsHashConsumerPerField> fields = entry.getValue();
 
-      Iterator fieldsIt = fields.iterator();
+      Iterator<TermsHashConsumerPerField> fieldsIt = fields.iterator();
 
       while(fieldsIt.hasNext()) {
         FreqProxTermsWriterPerField perField = (FreqProxTermsWriterPerField) fieldsIt.next();
@@ -122,16 +120,16 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
     int start = 0;
     while(start < numAllFields) {
-      final FieldInfo fieldInfo = ((FreqProxTermsWriterPerField) allFields.get(start)).fieldInfo;
+      final FieldInfo fieldInfo = allFields.get(start).fieldInfo;
       final String fieldName = fieldInfo.name;
 
       int end = start+1;
-      while(end < numAllFields && ((FreqProxTermsWriterPerField) allFields.get(end)).fieldInfo.name.equals(fieldName))
+      while(end < numAllFields && allFields.get(end).fieldInfo.name.equals(fieldName))
         end++;
       
       FreqProxTermsWriterPerField[] fields = new FreqProxTermsWriterPerField[end-start];
       for(int i=start;i<end;i++) {
-        fields[i-start] = (FreqProxTermsWriterPerField) allFields.get(i);
+        fields[i-start] = allFields.get(i);
 
         // Aggregate the storePayload as seen by the same
         // field across multiple threads
@@ -153,9 +151,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       start = end;
     }
 
-    it = threadsAndFields.entrySet().iterator();
-    while(it.hasNext()) {
-      Map.Entry entry = (Map.Entry) it.next();
+    for (Map.Entry<TermsHashConsumerPerThread,Collection<TermsHashConsumerPerField>> entry : threadsAndFields.entrySet()) {
       FreqProxTermsWriterPerThread perThread = (FreqProxTermsWriterPerThread) entry.getKey();
       perThread.termsHashPerThread.reset(true);
     }
@@ -302,6 +298,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
   final UnicodeUtil.UTF8Result termsUTF8 = new UnicodeUtil.UTF8Result();
 
+  //nocommit: needed?
   void files(Collection<String> files) {}
 
   static final class PostingList extends RawPostingList {

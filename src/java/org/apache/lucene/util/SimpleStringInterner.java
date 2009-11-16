@@ -46,7 +46,6 @@ public class SimpleStringInterner extends StringInterner {
     this.maxChainLength = Math.max(2,maxChainLength);
   }
 
-  // @Override
   @Override
   public String intern(String s) {
     int h = s.hashCode();

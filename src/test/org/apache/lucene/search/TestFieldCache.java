@@ -99,7 +99,7 @@ public class TestFieldCache extends LuceneTestCase {
     assertSame("Second request with explicit parser return same array", bytes, cache.getBytes(reader, "theByte", FieldCache.DEFAULT_BYTE_PARSER));
     assertTrue("bytes Size: " + bytes.length + " is not: " + NUM_DOCS, bytes.length == NUM_DOCS);
     for (int i = 0; i < bytes.length; i++) {
-      assertTrue(bytes[i] + " does not equal: " + (Byte.MAX_VALUE - i) + " doc=" + i, bytes[i] == (byte) (Byte.MAX_VALUE - i));
+      assertTrue(bytes[i] + " does not equal: " + (Byte.MAX_VALUE - i), bytes[i] == (byte) (Byte.MAX_VALUE - i));
 
     }
     

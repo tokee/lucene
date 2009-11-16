@@ -27,7 +27,7 @@ import org.apache.lucene.util.StringHelper;
   Note that terms may represent more than words from text fields, but also
   things like dates, email addresses, urls, etc.  */
 
-public final class Term implements Comparable, java.io.Serializable {
+public final class Term implements Comparable<Term>, java.io.Serializable {
   String field;
   String text;
 
@@ -75,7 +75,6 @@ public final class Term implements Comparable, java.io.Serializable {
       return new Term(field,text,false);
   }
 
-  //@Override
   @Override
   public boolean equals(Object obj) {
     if (this == obj)
@@ -98,7 +97,6 @@ public final class Term implements Comparable, java.io.Serializable {
     return true;
   }
 
-  //@Override
   @Override
   public int hashCode() {
     final int prime = 31;
@@ -106,10 +104,6 @@ public final class Term implements Comparable, java.io.Serializable {
     result = prime * result + ((field == null) ? 0 : field.hashCode());
     result = prime * result + ((text == null) ? 0 : text.hashCode());
     return result;
-  }
-
-  public int compareTo(Object other) {
-    return compareTo((Term)other);
   }
 
   /** Compares two terms, returning a negative integer if this

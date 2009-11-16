@@ -38,6 +38,7 @@ import org.apache.lucene.store.MockRAMDirectory;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util._TestUtil;
+import org.apache.lucene.util.ThreadInterruptedException;
 
 public class TestIndexWriterReader extends LuceneTestCase {
   static PrintStream infoStream;
@@ -331,7 +332,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
         try {
           threads[i].join();
         } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
+          throw new ThreadInterruptedException(ie);
         }
     }
   }
@@ -373,7 +374,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
         try {
           threads[i].join();
         } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
+          throw new ThreadInterruptedException(ie);
         }
     }
 

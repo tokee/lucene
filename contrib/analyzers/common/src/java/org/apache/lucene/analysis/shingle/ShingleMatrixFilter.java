@@ -30,6 +30,8 @@ import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.miscellaneous.EmptyTokenStream;
 import org.apache.lucene.analysis.payloads.PayloadHelper;
+import org.apache.lucene.analysis.shingle.ShingleMatrixFilter.Matrix.Column;
+import org.apache.lucene.analysis.shingle.ShingleMatrixFilter.Matrix.Column.Row;
 import org.apache.lucene.analysis.tokenattributes.FlagsAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
@@ -213,7 +215,7 @@ public final class ShingleMatrixFilter extends TokenStream {
    * The filter /will/ delete columns from the input matrix! You will not be able to reset the filter if you used this constructor.
    * todo: don't touch the matrix! use a boolean, set the input stream to null or something, and keep track of where in the matrix we are at.
    *
-   * @param matrix the input based for creating shingles. Does not need to contain any information until {@link org.apache.lucene.analysis.shingle.ShingleMatrixFilter#next(org.apache.lucene.analysis.Token)} is called the first time.
+   * @param matrix the input based for creating shingles. Does not need to contain any information until {@link #incrementToken()} is called the first time.
    * @param minimumShingleSize minimum number of tokens in any shingle.
    * @param maximumShingleSize maximum number of tokens in any shingle.
    * @param spacerCharacter character to use between texts of the token parts in a shingle. null for none.
@@ -339,7 +341,7 @@ public final class ShingleMatrixFilter extends TokenStream {
   private int currentShingleLength;
 
   /**
-   * a set containing shingles that has been the result of a call to next(Token),
+   * a set containing shingles that has been the result of a call to {@link #incrementToken()},
    * used to avoid producing the same shingle more than once.
    */
   private Set<List<Token>> shinglesSeen = new HashSet<List<Token>>();
@@ -567,7 +569,7 @@ public final class ShingleMatrixFilter extends TokenStream {
   }
 
   /**
-   * Final touch of a shingle token before it is passed on to the consumer from method {@link #next(org.apache.lucene.analysis.Token)}.
+   * Final touch of a shingle token before it is passed on to the consumer from method {@link #incrementToken()}.
    *
    * Calculates and sets type, flags, position increment, start/end offsets and weight.
    *
@@ -577,12 +579,12 @@ public final class ShingleMatrixFilter extends TokenStream {
    * @param currentPermutationRows index to Matrix.Column.Row from the position of tokens in parameter currentPermutationTokens
    * @param currentPermuationTokens tokens of the current permutation of rows in the matrix.
    */
-  public void updateToken(Token token, List shingle, int currentPermutationStartOffset, List currentPermutationRows, List currentPermuationTokens) {
+  public void updateToken(Token token, List<Token> shingle, int currentPermutationStartOffset, List<Row> currentPermutationRows, List<Token> currentPermuationTokens) {
     token.setType(ShingleMatrixFilter.class.getName());
     token.setFlags(0);
     token.setPositionIncrement(1);
-    token.setStartOffset(((Token) shingle.get(0)).startOffset());
-    token.setEndOffset(((Token) shingle.get(shingle.size() - 1)).endOffset());
+    token.setStartOffset(shingle.get(0).startOffset());
+    token.setEndOffset(shingle.get(shingle.size() - 1).endOffset());
     settingsCodec.setWeight(token, calculateShingleWeight(token, shingle, currentPermutationStartOffset, currentPermutationRows, currentPermuationTokens));
   }
 
@@ -602,7 +604,7 @@ public final class ShingleMatrixFilter extends TokenStream {
    * @param currentPermuationTokens all tokens in the current row permutation of the matrix. A sub list (parameter offset, parameter shingle.size) equals parameter shingle.
    * @return weight to be set for parameter shingleToken
    */
-  public float calculateShingleWeight(Token shingleToken, List shingle, int currentPermutationStartOffset, List currentPermutationRows, List currentPermuationTokens) {
+  public float calculateShingleWeight(Token shingleToken, List<Token> shingle, int currentPermutationStartOffset, List<Row> currentPermutationRows, List<Token> currentPermuationTokens) {
     double[] weights = new double[shingle.size()];
 
     double total = 0f;
@@ -610,7 +612,7 @@ public final class ShingleMatrixFilter extends TokenStream {
 
 
     for (int i=0; i<weights.length; i++) {
-      weights[i] = settingsCodec.getWeight((Token) shingle.get(i));
+      weights[i] = settingsCodec.getWeight(shingle.get(i));
 
       double tmp = weights[i];
       if (tmp > top) {
@@ -705,7 +707,7 @@ public final class ShingleMatrixFilter extends TokenStream {
 
     private List<Column> columns = new ArrayList<Column>();
 
-    public List getColumns() {
+    public List<Column> getColumns() {
       return columns;
     }
 

@@ -343,7 +343,7 @@ public class TestFuzzyQuery extends LuceneTestCase {
     assertEquals("Giga byte", searcher.doc(hits[0].doc).get("field"));
     r.close();
   }
-  
+
   private void addDoc(String text, IndexWriter writer) throws IOException {
     Document doc = new Document();
     doc.add(new Field("field", text, Field.Store.YES, Field.Index.ANALYZED));

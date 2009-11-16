@@ -129,6 +129,7 @@ public class TestMultiPhraseQuery extends LuceneTestCase
         
         searcher.close();
         indexStore.close();
+
     }
     
     private void add(String s, IndexWriter writer) throws IOException {

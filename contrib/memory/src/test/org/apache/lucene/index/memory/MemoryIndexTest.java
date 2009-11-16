@@ -37,11 +37,13 @@ import org.apache.lucene.analysis.BaseTokenStreamTestCase;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.SimpleAnalyzer;
 import org.apache.lucene.analysis.StopAnalyzer;
+import org.apache.lucene.analysis.StopFilter;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Collector;
@@ -203,7 +205,7 @@ public class MemoryIndexTest extends BaseTokenStreamTestCase {
   
   private Analyzer analyzer;
   private boolean fastMode = false;
-
+  
   private final boolean verbose = false;
   
   private static final String FIELD_NAME = "content";
@@ -335,7 +337,7 @@ public class MemoryIndexTest extends BaseTokenStreamTestCase {
                 if (useMemIndex && useRAMIndex) {
                   if (verbose) System.out.println("diff="+ (score1-score2) + ", query=" + queries[q] + ", s1=" + score1 + ", s2=" + score2);
                   if (score1 != score2 || score1 < 0.0f || score2 < 0.0f || score1 > 1.0f || score2 > 1.0f) {
-                    throw new IllegalStateException("BUG DETECTED:" + (i*(q+1)) + " at query=" + queries[q] + ", file=" + file + ", anal=" + analyzer + " score1=" + score1 + " score2=" + score2);
+                    throw new IllegalStateException("BUG DETECTED:" + (i*(q+1)) + " at query=" + queries[q] + ", file=" + file + ", anal=" + analyzer);
                   }
                 }
               }
@@ -390,9 +392,9 @@ public class MemoryIndexTest extends BaseTokenStreamTestCase {
   
   private MemoryIndex createMemoryIndex(Document doc) {
     MemoryIndex index = new MemoryIndex();
-    Iterator iter = doc.getFields().iterator();
+    Iterator<Fieldable> iter = doc.getFields().iterator();
     while (iter.hasNext()) {
-      Field field = (Field) iter.next();
+      Fieldable field = iter.next();
       index.addField(field.name(), field.stringValue(), analyzer);
     }
     return index;

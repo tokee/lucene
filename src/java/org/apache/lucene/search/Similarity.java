@@ -659,7 +659,7 @@ public abstract class Similarity implements Serializable {
 
 
   /** Computes a score factor based on a term or phrase's frequency in a
-   * document.  This value is multiplied by the {@link #idf(Term, Searcher)}
+   * document.  This value is multiplied by the {@link #idf(int, int)}
    * factor for each term in the query and these products are then summed to
    * form the initial score for a document.
    *
@@ -693,7 +693,7 @@ public abstract class Similarity implements Serializable {
   public abstract float sloppyFreq(int distance);
 
   /** Computes a score factor based on a term or phrase's frequency in a
-   * document.  This value is multiplied by the {@link #idf(Term, Searcher)}
+   * document.  This value is multiplied by the {@link #idf(int, int)}
    * factor for each term in the query and these products are then summed to
    * form the initial score for a document.
    *

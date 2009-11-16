@@ -32,4 +32,11 @@ final class SegmentMergeQueue extends PriorityQueue<SegmentMergeInfo> {
     else
       return comparison < 0;
   }
+
+  //nocommit: still needed?
+//  final void close() throws IOException {
+//    while (top() != null)
+//      pop().close();
+//  }
+
 }

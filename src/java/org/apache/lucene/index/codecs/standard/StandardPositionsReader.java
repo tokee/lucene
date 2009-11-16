@@ -32,13 +32,17 @@ import org.apache.lucene.store.IndexInput;
 // this class interacts w/ a docsreader
 public class StandardPositionsReader extends StandardPositionsProducer {
   
-  final IndexInput proxIn;
+  IndexInput proxIn;
   IndexInput termsIn;
 
   public StandardPositionsReader(Directory dir, SegmentInfo segmentInfo, int readBufferSize) throws IOException {
     assert segmentInfo.getHasProx();
-    proxIn = dir.openInput(IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.PROX_EXTENSION), readBufferSize);
+    String file = IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.PROX_EXTENSION);
+    if(dir.fileExists(file)) {
+      proxIn = dir.openInput(file, readBufferSize);
+    }
   }
+    
 
   @Override
   public void start(IndexInput termsIn) throws IOException {

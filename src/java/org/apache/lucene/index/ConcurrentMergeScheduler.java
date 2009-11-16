@@ -18,6 +18,7 @@ package org.apache.lucene.index;
  */
 
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.ThreadInterruptedException;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,7 +40,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
   protected List<MergeThread> mergeThreads = new ArrayList<MergeThread>();
 
   // Max number of threads allowed to be merging at once
-  private int maxThreadCount = 3;
+  private int maxThreadCount = 1;
 
   protected Directory dir;
 
@@ -80,7 +81,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
     return mergeThreadPriority;
   }
 
-  /** Return the priority that merge threads run at. */
+  /** Set the priority that merge threads run at. */
   public synchronized void setMergeThreadPriority(int pri) {
     if (pri > Thread.MAX_PRIORITY || pri < Thread.MIN_PRIORITY)
       throw new IllegalArgumentException("priority must be in range " + Thread.MIN_PRIORITY + " .. " + Thread.MAX_PRIORITY + " inclusive");
@@ -130,10 +131,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
       try {
         wait();
       } catch (InterruptedException ie) {
-        // In 3.0 we will change this to throw
-        // InterruptedException instead
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(ie);
+        throw new ThreadInterruptedException(ie);
       }
     }
   }
@@ -200,10 +198,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
             try {
               wait();
             } catch (InterruptedException ie) {
-              // In 3.0 we will change this to throw
-              // InterruptedException instead
-              Thread.currentThread().interrupt();
-              throw new RuntimeException(ie);
+              throw new ThreadInterruptedException(ie);
             }
           }
 
@@ -347,9 +342,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
       // cases:
       Thread.sleep(250);
     } catch (InterruptedException ie) {
-      Thread.currentThread().interrupt();
-      // In 3.0 this will throw InterruptedException
-      throw new RuntimeException(ie);
+      throw new ThreadInterruptedException(ie);
     }
     throw new MergePolicy.MergeException(exc, dir);
   }

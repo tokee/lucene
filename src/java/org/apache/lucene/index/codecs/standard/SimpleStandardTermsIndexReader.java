@@ -69,9 +69,18 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
   public SimpleStandardTermsIndexReader(Directory dir, FieldInfos fieldInfos, String segment, int indexDivisor)
     throws IOException {
-
-    IndexInput in = dir.openInput(IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_INDEX_EXTENSION));
-
+    String file = IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_INDEX_EXTENSION);
+    //nocommit
+    if(!dir.fileExists(file)) {
+      indexInterval = 0;
+      totalIndexInterval = 0;
+      this.indexDivisor = indexDivisor;
+      in = null;
+ 
+      return;
+    }
+    IndexInput in = dir.openInput(file);
+    
     boolean success = false;
 
     try {
@@ -125,7 +134,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         }
       } else {
         this.in = in;
-        // nocommit -- we shoudl close if index gets read on demand?
+        // nocommit -- we should close if index gets read on demand?
       }
     }
   }

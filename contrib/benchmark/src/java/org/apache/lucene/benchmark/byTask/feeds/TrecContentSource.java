@@ -33,6 +33,7 @@ import java.util.zip.GZIPInputStream;
 
 import org.apache.lucene.benchmark.byTask.utils.Config;
 import org.apache.lucene.benchmark.byTask.utils.StringBufferReader;
+import org.apache.lucene.util.ThreadInterruptedException;
 
 /**
  * Implements a {@link ContentSource} over the TREC collection.
@@ -48,6 +49,7 @@ import org.apache.lucene.benchmark.byTask.utils.StringBufferReader;
  * <li><b>html.parser</b> - specifies the {@link HTMLParser} class to use for
  * parsing the TREC documents content (<b>default=DemoHTMLParser</b>).
  * <li><b>content.source.encoding</b> - if not specified, ISO-8859-1 is used.
+ * <li><b>content.source.excludeIteration</b> - if true, do not append iteration number to docname
  * </ul>
  */
 public class TrecContentSource extends ContentSource {
@@ -91,6 +93,7 @@ public class TrecContentSource extends ContentSource {
   BufferedReader reader;
   int iteration = 0;
   HTMLParser htmlParser;
+  private boolean excludeDocnameIteration;
   
   private DateFormatInfo getDateFormatInfo() {
     DateFormatInfo dfi = dateFormats.get();
@@ -256,7 +259,8 @@ public class TrecContentSource extends ContentSource {
       read(docBuf, DOCNO, true, false, null);
       name = docBuf.substring(DOCNO.length(), docBuf.indexOf(TERMINATING_DOCNO,
           DOCNO.length()));
-      name = name + "_" + iteration;
+      if (!excludeDocnameIteration)
+        name = name + "_" + iteration;
 
       // 3. skip until doc header
       docBuf.setLength(0);
@@ -299,10 +303,8 @@ public class TrecContentSource extends ContentSource {
     try {
       docData = htmlParser.parse(docData, name, date, r, null);
       addDoc();
-    } catch (InterruptedException e) {
-      IOException ex = new IOException(e.getMessage());
-      ex.initCause(e);
-      throw ex;
+    } catch (InterruptedException ie) {
+      throw new ThreadInterruptedException(ie);
     }
 
     return docData;
@@ -342,6 +344,7 @@ public class TrecContentSource extends ContentSource {
     if (encoding == null) {
       encoding = "ISO-8859-1";
     }
+    excludeDocnameIteration = config.get("content.source.excludeIteration", false);
   }
 
 }

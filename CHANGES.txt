@@ -3,18 +3,41 @@ $Id$
 
 ======================= Trunk (not yet released) =======================
 
+======================= Release 3.0.0 2009-11-25 =======================
+
 Changes in backwards compatibility policy
 
 * LUCENE-1979: Change return type of SnapshotDeletionPolicy#snapshot()
   from IndexCommitPoint to IndexCommit. Code that uses this method
-  needs to be recompiled against Lucene 3.0 in order to work. The previously
-  deprecated IndexCommitPoint is also removed. (Michael Busch)
+  needs to be recompiled against Lucene 3.0 in order to work. The
+  previously deprecated IndexCommitPoint is also removed.
+  (Michael Busch)
 
-* oal.Lock.isLocked is now allowed to throw an IOException
+* o.a.l.Lock.isLocked() is now allowed to throw an IOException.
+  (Mike McCandless)
 
 * LUCENE-2030: CachingWrapperFilter and CachingSpanFilter now hide
   the internal cache implementation for thread safety, before it was
   declared protected.  (Peter Lenahan, Uwe Schindler, Simon Willnauer)
+
+* LUCENE-2053: If you call Thread.interrupt() on a thread inside
+  Lucene, Lucene will do its best to interrupt the thread.  However,
+  instead of throwing InterruptedException (which is a checked
+  exception), you'll get an oal.util.ThreadInterruptedException (an
+  unchecked exception, subclassing RuntimeException).  The interrupt
+  status on the thread is cleared when this exception is thrown.
+  (Mike McCandless)
+
+* LUCENE-2052: Some methods in Lucene core were changed to accept
+  Java 5 varargs. This is not a backwards compatibility problem as
+  long as you not try to override such a method. We left common
+  overridden methods unchanged and added varargs to constructors,
+  static, or final methods (MultiSearcher,...).  (Uwe Schindler)
+
+* LUCENE-1558: IndexReader.open(Directory) now opens a readOnly=true
+  reader, and new IndexSearcher(Directory) does the same.  Note that
+  this is a change in the default from 2.9, when these methods were
+  previously deprecated.  (Mike McCandless)
 
 Changes in runtime behavior
 
@@ -40,70 +63,75 @@ Changes in runtime behavior
   fields when reading. You have to reindex to do that.
   (Michael Busch, Uwe Schindler)
 
+* LUCENE-2060: Changed ConcurrentMergeScheduler's default for
+  maxNumThreads from 3 to 1, because in practice we get the most
+  gains from running a single merge in the background.  More than one
+  concurrent merge causes a lot of thrashing (though it's possible on
+  SSD storage that there would be net gains).  (Jason Rutherglen,
+  Mike McCandless)
+
 API Changes
 
-* LUCENE-1257, LUCENE-1984, LUCENE-1985, ...: Port to Java 1.5 [not yet finished].
-  (Uwe Schindler, Robert Muir, Karl Wettin, Paul Elschot, Kay Kay)
+* LUCENE-1257, LUCENE-1984, LUCENE-1985, LUCENE-2057: Port to Java 1.5.
+  (Uwe Schindler, Robert Muir, Karl Wettin, Paul Elschot, Kay Kay, Shai Erera)
 
-* LUCENE-1944: Remove (all) deprecated methods/constructors taking
-  String/File directory pathes in IndexReader / IndexWriter and others.
-  Also make FSDirectory abstract. (Uwe Schindler)
-
+* Generify Lucene API:
+  <code>
+  - TokenStream/AttributeSource: Now addAttribute()/getAttribute() return an
+    instance of the requested attribute interface and no cast needed anymore.
+  - NumericRangeQuery, NumericRangeFilter, and FieldCacheRangeFilter
+    now have Integer, Long, Float, Double as type param.
+  - Document.getFields() returns List<Fieldable>
+  - Query.extractTerms(Set<Term>)
+  - CharArraySet and stop word sets in core/contrib
+  - PriorityQueue
+  - TopDocCollector
+  - MultiTermQueryWrapperFilter
+  - CloseableThreadLocal
+  - MapOfSets
+  - o.a.l.util.cache package
+  - lot's of internal APIs of IndexWriter
+ </code>
+ (Uwe Schindler, Michael Busch, Kay Kay, Robert Muir, Adriano Crestani)
+  
+* LUCENE-1944, LUCENE-1856, LUCENE-1957, LUCENE-1960, LUCENE-1961,
+  LUCENE-1968, LUCENE-1970, LUCENE-1946, LUCENE-1971, LUCENE-1975,
+  LUCENE-1972, LUCENE-1978, LUCENE-944, LUCENE-1979, LUCENE-1973, LUCENE-2011:
+  Remove deprecated methods/constructors/classes:
+  <code>
+  - All String/File directory paths in IndexReader /
+    IndexSearcher / IndexWriter.
+  - Remove FSDirectory.getDirectory()
+  - Make FSDirectory abstract.
+  - Remove Field.Store.COMPRESS (see above).
+  - Remove Filter.bits(IndexReader) method and make
+    Filter.getDocIdSet(IndexReader) abstract.
+  - Remove old DocIdSetIterator methods and make the new ones abstract.
+  - Remove some methods in PriorityQueue.
+  - Remove old TokenStream API and backwards compatibility layer.
+  - Remove RangeQuery, RangeFilter and ConstantScoreRangeQuery.
+  - Remove SpanQuery.getTerms().
+  - Remove ExtendedFieldCache, custom and auto caches, SortField.AUTO.
+  - Remove old-style custom sort.
+  - Remove Legacy search setting in SortField.
+  - Remove Hits and all references from core and contrib.
+  - Remove HitCollector and its TopDocs support implementations.
+  - Remove term field and accessors in MultiTermQuery
+    (and fix Highlighter).
+  - Remove methods in BooleanQuery.
+  - Remove methods in Similarity.
+  - Remove BoostingTermQuery.
+  - Remove MultiValueSource.
+  - Remove Scorer.explain(int).
+  </code>
+  ...and some other minor ones (Uwe Schindler, Michael Busch, Mark Miller)
+  
 * LUCENE-1925: Make IndexSearcher's subReaders and docStarts members
   protected; add expert ctor to directly specify reader, subReaders
   and docStarts.  (John Wang, Tim Smith via Mike McCandless)
 
-* LUCENE-1855: Convert TokenStream/AttributeSource API to Generics.
-  Now addAttribute()/getAttribute() return an instance of the requested
-  attribute interface and no cast needed anymore.  (Uwe Schindler,
-  Michael Busch, Robert Muir, Adriano Crestani)
-
-* LUCENE-1857: Convert NumericRangeQuery API to Generics. NumericRangeQuery
-  and NumericRangeFilter now have Integer, Long, Float, Double as type param.
-  (Uwe Schindler)
-
-* LUCENE-1856: Remove Hits and all references from core and contrib.
-  (Michael Busch)
-
-* LUCENE-1957: Remove Filter.bits(IndexReader) method and make 
-  Filter.getDocIdSet(IndexReader) abstract. (Michael Busch)
-
-* LUCENE-1960: Remove deprecated Field.Store.COMPRESS. (Michael Busch)
-
-* LUCENE-1961: Remove remaining deprecations from document package.
-  (Michael Busch)
-
-* LUCENE-1968: Remove deprecated methods in PriorityQueue. (Michael Busch)
-
-* LUCENE-1970: Remove deprecated methods in DocIdSetIterator and make
-  new ones abstract. (Michael Busch)
-
-* LUCENE-1946: Remove deprecated old TokenStream API. (Uwe Schindler)
-
 * LUCENE-1753: Make not yet final TokenStreams final to enforce 
   decorator pattern. (Uwe Schindler)
-
-* LUCENE-1971: Remove deprecated RangeQuery, RangeFilter and
-  ConstantScoreRangeQuery. (Uwe Schindler)
-
-* LUCENE-1975: Remove deprecated SpanQuery.getTerms() and generify 
-  Query.extractTerms(Set<Term>) (Michael Busch)
-
-* LUCENE-1972, LUCENE-1978: Remove deprecated ExtendedFieldCache,
-  custom and auto caches, SortField.AUTO, deprecated custom sort,
-  deprecated HitCollector, legacy search setting in SortField.
-  Make new Sort(SortField...) and Sort.setSort(SortField...) varargs-
-  enabled. (Uwe Schindler)
-
-* LUCENE-1977: Remove deprecated Term field and accessors in
-  MultiTermQuery. (Uwe Schindler)
-
-* LUCENE-944: Remove deprecated methods in BooleanQuery. (Michael Busch)
-
-* LUCENE-1979: Remove remaining deprecations from indexer package.
-  (Uwe Schindler, Michael Busch)
-
-* LUCENE-1989: Generify CharArraySet. (Uwe Schindler)
 
 * LUCENE-1945: All public classes that have a close() method now
   also implement java.io.Closeable (IndexReader, IndexWriter, Directory,...).
@@ -113,11 +141,6 @@ API Changes
   is no backwards-break, only a change of the super class. Parameter
   was deprecated and will be removed in a later version.
   (DM Smith, Uwe Schindler)
-  
-* LUCENE-1973: Remove deprecated Similarity methods. (Uwe Schindler)
-
-* LUCENE-2011: Remove deprecated Scorer.explain(int).
-  (Uwe Schindler, Mark Miller)
    
 Bug fixes
 
@@ -135,6 +158,14 @@ New features
 * LUCENE-1933: Provide a convenience AttributeFactory that creates a
   Token instance for all basic attributes.  (Uwe Schindler)
 
+* LUCENE-2041: Parallelize the rest of ParallelMultiSearcher. Lots of
+  code refactoring and Java 5 concurrent support in MultiSearcher.
+  (Joey Surls, Simon Willnauer via Uwe Schindler)
+  
+* LUCENE-2051: Add CharArraySet.copy() as a simple method to copy
+  any Set<?> to a CharArraySet that is optimized, if Set<?> is already
+  an CharArraySet.  (Simon Willnauer)
+
 Optimizations
 
 * LUCENE-1183: Optimize Levenshtein Distance computation in
@@ -147,7 +178,8 @@ Build
 
 * LUCENE-486: Remove test->demo dependencies. (Michael Busch)
 
-Test Cases
+* LUCENE-2024: Raise build requirements to Java 1.5 and ANT 1.7.0
+  (Uwe Schindler, Mike McCandless)
 
 ======================= Release 2.9.1 2009-11-06 =======================
 
@@ -191,6 +223,10 @@ Bug fixes
  * LUCENE-2045: Fix silly FileNotFoundException hit if you enable
    infoStream on IndexWriter and then add an empty document and commit
    (Shai Erera via Mike McCandless)
+
+ * LUCENE-2046: IndexReader should not see the index as changed, after
+   IndexWriter.prepareCommit has been called but before
+   IndexWriter.commit is called. (Peter Keegan via Mike McCandless)
 
 API Changes
 

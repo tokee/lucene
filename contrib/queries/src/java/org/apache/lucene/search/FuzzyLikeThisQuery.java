@@ -51,7 +51,7 @@ public class FuzzyLikeThisQuery extends Query
 {
     static Similarity sim=new DefaultSimilarity();
     Query rewrittenQuery=null;
-    ArrayList fieldVals=new ArrayList();
+    ArrayList<FieldVals> fieldVals=new ArrayList<FieldVals>();
     Analyzer analyzer;
     
     ScoreTermQueue q;
@@ -189,7 +189,7 @@ public class FuzzyLikeThisQuery extends Query
         
         int corpusNumDocs=reader.numDocs();
         Term internSavingTemplateTerm =new Term(f.fieldName); //optimization to avoid constructing new Term() objects
-        HashSet processedTerms=new HashSet();
+        HashSet<String> processedTerms=new HashSet<String>();
         while (ts.incrementToken()) 
         {
                 String term = termAtt.term();
@@ -214,7 +214,7 @@ public class FuzzyLikeThisQuery extends Query
                         if (variantsQ.size() < MAX_VARIANTS_PER_TERM || score > minScore){
                           ScoreTerm st=new ScoreTerm(new Term(startTerm.field(), possibleMatch.toString()),score,startTerm);                    
                           variantsQ.insertWithOverflow(st);
-                          minScore = ((ScoreTerm)variantsQ.top()).score; // maintain minScore
+                          minScore = variantsQ.top().score; // maintain minScore
                         }
                       }
                     } while(fe.next() != null);
@@ -234,7 +234,7 @@ public class FuzzyLikeThisQuery extends Query
                     int size = variantsQ.size();
                     for(int i = 0; i < size; i++)
 	                {
-	                  ScoreTerm st = (ScoreTerm) variantsQ.pop();
+	                  ScoreTerm st = variantsQ.pop();
 	                  st.score=(st.score*st.score)*sim.idf(df,corpusNumDocs);
 	                  q.insertWithOverflow(st);
 	                }                            
@@ -251,9 +251,9 @@ public class FuzzyLikeThisQuery extends Query
             return rewrittenQuery;
         }
         //load up the list of possible terms
-        for (Iterator iter = fieldVals.iterator(); iter.hasNext();)
+        for (Iterator<FieldVals> iter = fieldVals.iterator(); iter.hasNext();)
 		{
-			FieldVals f = (FieldVals) iter.next();
+			FieldVals f = iter.next();
 			addTerms(reader,f);			
 		}
         //clear the list of fields
@@ -265,27 +265,27 @@ public class FuzzyLikeThisQuery extends Query
         //create BooleanQueries to hold the variants for each token/field pair and ensure it
         // has no coord factor
         //Step 1: sort the termqueries by term/field
-        HashMap variantQueries=new HashMap();
+        HashMap<Term,ArrayList<ScoreTerm>> variantQueries=new HashMap<Term,ArrayList<ScoreTerm>>();
         int size = q.size();
         for(int i = 0; i < size; i++)
         {
-          ScoreTerm st = (ScoreTerm) q.pop();
-          ArrayList l=(ArrayList) variantQueries.get(st.fuzziedSourceTerm);
+          ScoreTerm st = q.pop();
+          ArrayList<ScoreTerm> l= variantQueries.get(st.fuzziedSourceTerm);
           if(l==null)
           {
-              l=new ArrayList();
+              l=new ArrayList<ScoreTerm>();
               variantQueries.put(st.fuzziedSourceTerm,l);
           }
           l.add(st);
         }
         //Step 2: Organize the sorted termqueries into zero-coord scoring boolean queries
-        for (Iterator iter = variantQueries.values().iterator(); iter.hasNext();)
+        for (Iterator<ArrayList<ScoreTerm>> iter = variantQueries.values().iterator(); iter.hasNext();)
         {
-            ArrayList variants = (ArrayList) iter.next();
+            ArrayList<ScoreTerm> variants = iter.next();
             if(variants.size()==1)
             {
                 //optimize where only one selected variant
-                ScoreTerm st=(ScoreTerm) variants.get(0);
+                ScoreTerm st= variants.get(0);
                 TermQuery tq = new FuzzyTermQuery(st.term,ignoreTF);
                 tq.setBoost(st.score); // set the boost to a mix of IDF and score
                 bq.add(tq, BooleanClause.Occur.SHOULD); 
@@ -293,10 +293,10 @@ public class FuzzyLikeThisQuery extends Query
             else
             {
                 BooleanQuery termVariants=new BooleanQuery(true); //disable coord and IDF for these term variants
-                for (Iterator iterator2 = variants.iterator(); iterator2
+                for (Iterator<ScoreTerm> iterator2 = variants.iterator(); iterator2
                         .hasNext();)
                 {
-                    ScoreTerm st = (ScoreTerm) iterator2.next();
+                    ScoreTerm st = iterator2.next();
                     TermQuery tq = new FuzzyTermQuery(st.term,ignoreTF);      // found a match
                     tq.setBoost(st.score); // set the boost using the ScoreTerm's score
                     termVariants.add(tq, BooleanClause.Occur.SHOULD);          // add to query                    

@@ -507,7 +507,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
 
   Map<String,Norm> norms = new HashMap<String,Norm>();
-
+  
   /**
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
