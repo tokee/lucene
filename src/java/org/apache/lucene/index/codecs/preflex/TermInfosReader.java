@@ -38,7 +38,7 @@ public final class TermInfosReader {
   private final String segment;
   private final FieldInfos fieldInfos;
 
-  private final CloseableThreadLocal threadResources = new CloseableThreadLocal();
+  private final CloseableThreadLocal<ThreadResources> threadResources = new CloseableThreadLocal<ThreadResources>();
   private final SegmentTermEnum origEnum;
   private final long size;
 
@@ -57,7 +57,7 @@ public final class TermInfosReader {
     SegmentTermEnum termEnum;
     
     // Used for caching the least recently looked-up Terms
-    Cache termInfoCache;
+    Cache<Term,TermInfo> termInfoCache;
   }
   
   TermInfosReader(Directory dir, String seg, FieldInfos fis, int readBufferSize, int indexDivisor)
@@ -148,7 +148,7 @@ public final class TermInfosReader {
       resources = new ThreadResources();
       resources.termEnum = terms();
       // Cache does not have to be thread-safe, it is only used by one thread at the same time
-      resources.termInfoCache = new SimpleLRUCache(DEFAULT_CACHE_SIZE);
+      resources.termInfoCache = new SimpleLRUCache<Term,TermInfo>(DEFAULT_CACHE_SIZE);
       threadResources.set(resources);
     }
     return resources;
@@ -192,7 +192,7 @@ public final class TermInfosReader {
 
     TermInfo ti;
     ThreadResources resources = getThreadResources();
-    Cache cache = null;
+    Cache<Term,TermInfo> cache = null;
     
     if (useCache) {
       cache = resources.termInfoCache;

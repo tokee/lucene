@@ -32,8 +32,8 @@ public abstract class FixedIntBlockIndexOutput extends IntIndexOutput {
   private int blockSize;
   private int[] pending;
   private int upto;
-  private long lastSavedFilePointer;
-  private int lastSavedUpto;
+  private long lastSavedFilePointer; //nocommit: not read
+  private int lastSavedUpto; //nocommit: not read
 
   protected void init(IndexOutput out, int fixedBlockSize) throws IOException {
     blockSize = fixedBlockSize;

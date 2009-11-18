@@ -118,18 +118,18 @@ public class StandardCodec extends Codec {
   static final String TERMS_INDEX_EXTENSION = "tii";
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection files) throws IOException {
+  public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
     StandardDocsReader.files(dir, segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override
-  public void getExtensions(Collection extensions) {
+  public void getExtensions(Collection<String> extensions) {
     getStandardExtensions(extensions);
   }
 
-  public static void getStandardExtensions(Collection extensions) {
+  public static void getStandardExtensions(Collection<String> extensions) {
     extensions.add(FREQ_EXTENSION);
     extensions.add(PROX_EXTENSION);
     StandardTermsDictReader.getExtensions(extensions);

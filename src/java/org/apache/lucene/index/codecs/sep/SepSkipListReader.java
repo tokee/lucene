@@ -43,12 +43,12 @@ class SepSkipListReader extends MultiLevelSkipListReader {
   // nocommit -- make private again
   final IntIndexInput.Index lastPosIndex;
   
-  private long lastFreqPointer;
-  private long lastDocPointer;
-  private long lastPosPointer;
+  private long lastFreqPointer; //nocommit: not read
+  private long lastDocPointer; //nocommit: not read
+  private long lastPosPointer; //nocommit: not read
   private long lastPayloadPointer;
   private int lastPayloadLength;
-  private int lastChildLevel;
+  private int lastChildLevel; //nocommit: not read
                            
   SepSkipListReader(IndexInput skipStream,
                     IntIndexInput freqIn,

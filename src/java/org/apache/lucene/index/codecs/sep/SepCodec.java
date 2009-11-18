@@ -119,18 +119,18 @@ public class SepCodec extends Codec {
   }
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
+  public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) {
     SepDocsReader.files(segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override
-  public void getExtensions(Collection extensions) {
+  public void getExtensions(Collection<String> extensions) {
     getSepExtensions(extensions);
   }
 
-  public static void getSepExtensions(Collection extensions) {
+  public static void getSepExtensions(Collection<String> extensions) {
     extensions.add(DOC_EXTENSION);
     extensions.add(FREQ_EXTENSION);
     extensions.add(SKIP_EXTENSION);

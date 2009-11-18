@@ -67,5 +67,5 @@ public abstract class StandardTermsIndexReader {
 
   public abstract void close() throws IOException;
 
-  public abstract void getExtensions(Collection extensions);
+  public abstract void getExtensions(Collection<String> extensions);
 }

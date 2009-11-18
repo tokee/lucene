@@ -143,7 +143,7 @@ final class IndexFileDeleter {
     // First pass: walk the files and initialize our ref
     // counts:
     long currentGen = segmentInfos.getGeneration();
-    final Collection codecsExtensions = codecs.getAllExtensions();
+    final Collection<String> codecsExtensions = codecs.getAllExtensions();
     final FilenameFilter mainFilter = IndexFileNameFilter.getFilter();
 
     indexFilenameFilter = new FilenameFilter() {

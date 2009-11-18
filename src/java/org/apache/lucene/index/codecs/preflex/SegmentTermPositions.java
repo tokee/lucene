@@ -17,13 +17,13 @@ package org.apache.lucene.index.codecs.preflex;
  * limitations under the License.
  */
 
+import java.io.IOException;
+
+import org.apache.lucene.index.FieldInfos;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermPositions;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
-import org.apache.lucene.index.TermPositions;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.index.FieldInfos;
-
-import java.io.IOException;
 
 public final class SegmentTermPositions
 extends SegmentTermDocs implements TermPositions {

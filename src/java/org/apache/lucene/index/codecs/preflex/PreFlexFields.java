@@ -49,7 +49,7 @@ public class PreFlexFields extends FieldsProducer {
   // nocomit -- needed public by SR
   public final IndexInput proxStream;
   final private FieldInfos fieldInfos;
-  final TreeMap fields = new TreeMap(); /*String -> FieldInfo */
+  final TreeMap<String,FieldInfo> fields = new TreeMap<String,FieldInfo>();
 
   PreFlexFields(Directory dir, FieldInfos fieldInfos, SegmentInfo info, int readBufferSize, int indexDivisor)
     throws IOException {
@@ -78,7 +78,7 @@ public class PreFlexFields extends FieldsProducer {
     }
   }
 
-  static void files(Directory dir, SegmentInfo info, Collection files) throws IOException {
+  static void files(Directory dir, SegmentInfo info, Collection<String> files) throws IOException {
     files.add(IndexFileNames.segmentFileName(info.name, PreFlexCodec.TERMS_EXTENSION));
     files.add(IndexFileNames.segmentFileName(info.name, PreFlexCodec.TERMS_INDEX_EXTENSION));
     files.add(IndexFileNames.segmentFileName(info.name, PreFlexCodec.FREQ_EXTENSION));
@@ -122,7 +122,7 @@ public class PreFlexFields extends FieldsProducer {
   }
 
   private class Fields extends FieldsEnum {
-    Iterator it;
+    Iterator<FieldInfo> it;
     FieldInfo current;
     private PreTermsEnum lastTermsEnum;
 
@@ -133,7 +133,7 @@ public class PreFlexFields extends FieldsProducer {
     @Override
     public String next() {
       if (it.hasNext()) {
-        current = (FieldInfo) it.next();
+        current = it.next();
         return current.name;
       } else {
         return null;

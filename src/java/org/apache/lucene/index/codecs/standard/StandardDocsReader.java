@@ -72,7 +72,7 @@ public class StandardDocsReader extends StandardDocsProducer {
     }
   }
 
-  public static void files(Directory dir, SegmentInfo segmentInfo, Collection files) throws IOException {
+  public static void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
     files.add(IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.FREQ_EXTENSION));
     StandardPositionsReader.files(dir, segmentInfo, files);
   }

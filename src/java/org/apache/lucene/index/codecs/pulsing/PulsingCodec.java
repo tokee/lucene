@@ -24,7 +24,6 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.DocsConsumer;
 import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
@@ -34,7 +33,6 @@ import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexWriter;
 import org.apache.lucene.index.codecs.standard.StandardCodec;
 import org.apache.lucene.index.codecs.standard.StandardDocsReader;
 import org.apache.lucene.index.codecs.standard.StandardDocsWriter;
-import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexReader;
@@ -139,14 +137,14 @@ public class PulsingCodec extends Codec {
   }
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection files) throws IOException {
+  public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
     StandardDocsReader.files(dir, segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override
-  public void getExtensions(Collection extensions) {
+  public void getExtensions(Collection<String> extensions) {
     StandardCodec.getStandardExtensions(extensions);
   }
 }

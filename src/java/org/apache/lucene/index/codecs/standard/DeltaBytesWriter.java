@@ -25,7 +25,7 @@ import java.io.IOException;
 
 final class DeltaBytesWriter {
 
-  private final UnicodeUtil.UTF8Result utf8 = new UnicodeUtil.UTF8Result();
+  private final UnicodeUtil.UTF8Result utf8 = new UnicodeUtil.UTF8Result(); //nocommit: not read
 
   private byte[] lastBytes = new byte[10];
   private int lastLength;

@@ -403,8 +403,8 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         }
       }
 
-      final private TermRef termBuffer = new TermRef();
-      final private TermsIndexResult termsIndexResult = new TermsIndexResult();
+      final private TermRef termBuffer = new TermRef(); //nocommit: not read
+      final private TermsIndexResult termsIndexResult = new TermsIndexResult(); //nocommit: not read
 
       public final void getIndexOffset(TermRef term, TermsIndexResult result) throws IOException {
 
@@ -491,16 +491,16 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     return fields.get(fieldInfo);
   }
 
-  public static void files(Directory dir, SegmentInfo info, Collection files) {
+  public static void files(Directory dir, SegmentInfo info, Collection<String> files) {
     files.add(IndexFileNames.segmentFileName(info.name, StandardCodec.TERMS_INDEX_EXTENSION));
   }
 
-  public static void getIndexExtensions(Collection extensions) {
+  public static void getIndexExtensions(Collection<String> extensions) {
     extensions.add(StandardCodec.TERMS_INDEX_EXTENSION);
   }
 
   @Override
-  public void getExtensions(Collection extensions) {
+  public void getExtensions(Collection<String> extensions) {
     getIndexExtensions(extensions);
   }
 

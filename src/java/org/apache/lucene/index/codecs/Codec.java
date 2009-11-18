@@ -50,10 +50,10 @@ public abstract class Codec {
   public abstract FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException;
 
   /** Gathers files associated with this segment */
-  public abstract void files(Directory dir, SegmentInfo segmentInfo, Collection files) throws IOException;
+  public abstract void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException;
 
   /** Records all file extensions this codec uses */
-  public abstract void getExtensions(Collection extensions);
+  public abstract void getExtensions(Collection<String> extensions);
 
   /** @return Actual version of the file */
   public static int checkHeader(IndexInput in, String codec, int version) throws IOException {

@@ -79,7 +79,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     fieldInfos = state.fieldInfos;
 
     // Count indexed fields up front
-    final int numFields = fieldInfos.size();
+    final int numFields = fieldInfos.size(); //nocommit: not read
     Codec.writeHeader(out, CODEC_NAME, VERSION_CURRENT); 
 
     out.writeLong(0);                             // leave space for end index pointer

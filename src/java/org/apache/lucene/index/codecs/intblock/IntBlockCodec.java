@@ -24,8 +24,6 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.DocsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.index.codecs.sep.SepCodec;
@@ -33,11 +31,12 @@ import org.apache.lucene.index.codecs.sep.SepDocsReader;
 import org.apache.lucene.index.codecs.sep.SepDocsWriter;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexWriter;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexWriter;
-import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.store.Directory;
 
 public class IntBlockCodec extends Codec {
@@ -123,14 +122,14 @@ public class IntBlockCodec extends Codec {
   }
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
+  public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) {
     SepDocsReader.files(segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override
-  public void getExtensions(Collection extensions) {
+  public void getExtensions(Collection<String> extensions) {
     SepCodec.getSepExtensions(extensions);
   }
 }

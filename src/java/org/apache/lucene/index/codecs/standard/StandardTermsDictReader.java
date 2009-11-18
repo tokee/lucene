@@ -152,11 +152,11 @@ public class StandardTermsDictReader extends FieldsProducer {
     }
   }
 
-  public static void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
+  public static void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) {
     files.add(IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.TERMS_EXTENSION));
   }
 
-  public static void getExtensions(Collection extensions) {
+  public static void getExtensions(Collection<String> extensions) {
     extensions.add(StandardCodec.TERMS_EXTENSION);
   }
 
@@ -207,7 +207,7 @@ public class StandardTermsDictReader extends FieldsProducer {
   }
   
   private class FieldReader extends Terms {
-    private final CloseableThreadLocal threadResources = new CloseableThreadLocal();
+    private final CloseableThreadLocal<ThreadResources> threadResources = new CloseableThreadLocal<ThreadResources>();
     final long numTerms;
     final FieldInfo fieldInfo;
     final long termsStartPointer;
@@ -534,6 +534,10 @@ public class StandardTermsDictReader extends FieldsProducer {
   // would be better
   private static class ReuseLRUCache<K,V> extends LinkedHashMap<K, V> {
 
+    /**
+     * 
+     */
+    private static final long serialVersionUID = 1L;
     private final static float LOADFACTOR = 0.75f;
     private int cacheSize;
     V eldest;

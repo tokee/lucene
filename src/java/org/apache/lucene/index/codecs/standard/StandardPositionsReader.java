@@ -51,7 +51,7 @@ public class StandardPositionsReader extends StandardPositionsProducer {
     Codec.checkHeader(termsIn, StandardPositionsWriter.CODEC, StandardPositionsWriter.VERSION_START);
   }
 
-  public static void files(Directory dir, SegmentInfo segmentInfo, Collection files) throws IOException {
+  public static void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
     if (segmentInfo.getHasProx()) {
       String file = IndexFileNames.segmentFileName(segmentInfo.name, StandardCodec.PROX_EXTENSION);
       if (dir.fileExists(file))

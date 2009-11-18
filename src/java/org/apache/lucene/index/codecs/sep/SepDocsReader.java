@@ -82,7 +82,7 @@ public class SepDocsReader extends StandardDocsProducer {
     }
   }
 
-  public static void files(SegmentInfo segmentInfo, Collection files) {
+  public static void files(SegmentInfo segmentInfo, Collection<String> files) {
     files.add(IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.FREQ_EXTENSION));
     files.add(IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.DOC_EXTENSION));
     files.add(IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.SKIP_EXTENSION));

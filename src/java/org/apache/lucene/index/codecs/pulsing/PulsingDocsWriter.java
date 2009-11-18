@@ -19,16 +19,14 @@ package org.apache.lucene.index.codecs.pulsing;
 
 import java.io.IOException;
 
-import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.util.ArrayUtil;
-
-import org.apache.lucene.index.codecs.DocsConsumer;
-import org.apache.lucene.index.codecs.PositionsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardPositionsConsumer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.PositionsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardPositionsConsumer;
+import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.util.ArrayUtil;
 
 // TODO: we now pulse entirely according to docFreq of the
 // term; it might be better to eg pulse by "net bytes used"

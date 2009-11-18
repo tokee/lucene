@@ -36,9 +36,9 @@ import org.apache.lucene.index.codecs.standard.StandardCodec;
 
 public abstract class Codecs {
 
-  private final HashMap codecs = new HashMap();
+  private final HashMap<String, Codec> codecs = new HashMap<String, Codec>();
 
-  private final Collection knownExtensions = new HashSet();
+  private final Collection<String> knownExtensions = new HashSet<String>();
 
   public void register(Codec codec) {
     if (codec.name == null) {
@@ -53,7 +53,7 @@ public abstract class Codecs {
     }
   }
 
-  public Collection getAllExtensions() {
+  public Collection<String> getAllExtensions() {
     return knownExtensions;
   }
 

@@ -59,7 +59,7 @@ public class SepPositionsReader extends StandardPositionsProducer {
     Codec.checkHeader(termsIn, SepPositionsWriter.CODEC, SepPositionsWriter.VERSION_START);
   }
 
-  static void files(SegmentInfo segmentInfo, Collection files) {
+  static void files(SegmentInfo segmentInfo, Collection<String> files) {
     if (segmentInfo.getHasProx()) {
       files.add(IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.POS_EXTENSION));
       files.add(IndexFileNames.segmentFileName(segmentInfo.name, SepCodec.PAYLOAD_EXTENSION));

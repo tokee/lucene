@@ -38,7 +38,7 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
   final private int termIndexInterval;
 
   private final List<SimpleFieldWriter> fields = new ArrayList<SimpleFieldWriter>();
-  private final FieldInfos fieldInfos;
+  private final FieldInfos fieldInfos; // unread
   private IndexOutput termsOut;
 
   // nocommit
