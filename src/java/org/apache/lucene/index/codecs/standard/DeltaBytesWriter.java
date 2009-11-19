@@ -17,15 +17,13 @@ package org.apache.lucene.index.codecs.standard;
  * limitations under the License.
  */
 
-import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.index.TermRef;
 
 import java.io.IOException;
 
 final class DeltaBytesWriter {
-
-  private final UnicodeUtil.UTF8Result utf8 = new UnicodeUtil.UTF8Result(); //nocommit: not read
 
   private byte[] lastBytes = new byte[10];
   private int lastLength;
@@ -39,13 +37,18 @@ final class DeltaBytesWriter {
     lastLength = 0;
   }
 
-  void write(byte[] bytes, int length) throws IOException {
+  void write(TermRef text) throws IOException {
     int start = 0;
+    int upto = text.offset;
+    final int length = text.length;
+    final byte[] bytes = text.bytes;
+
     final int limit = length < lastLength ? length : lastLength;
     while(start < limit) {
-      if (bytes[start] != lastBytes[start])
+      if (bytes[upto] != lastBytes[start])
         break;
       start++;
+      upto++;
     }
 
     final int suffix = length - start;
@@ -54,11 +57,11 @@ final class DeltaBytesWriter {
 
     out.writeVInt(start);                       // prefix
     out.writeVInt(suffix);                      // suffix
-    out.writeBytes(bytes, start, suffix);
-    if (lastBytes.length < bytes.length) {
-      lastBytes = ArrayUtil.grow(lastBytes, bytes.length);
+    out.writeBytes(bytes, upto, suffix);
+    if (lastBytes.length < length) {
+      lastBytes = ArrayUtil.grow(lastBytes, length);
     }
-    System.arraycopy(bytes, start, lastBytes, start, suffix);
+    System.arraycopy(bytes, upto, lastBytes, start, suffix);
     lastLength = length;
   }
 }

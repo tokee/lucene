@@ -364,12 +364,16 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
             termLength[upto] = (short) thisTermLength;
             fileOffset[upto] = pointer;
             blockPointer[upto] = blockUpto * BYTE_BLOCK_SIZE + blockOffset;
+
+            /*
             TermRef tr = new TermRef();
             tr.bytes = blocks[blockUpto];
             tr.offset = blockOffset;
             tr.length = thisTermLength;
+
             //System.out.println("    read index term=" + new String(blocks[blockUpto], blockOffset, thisTermLength, "UTF-8") + " this=" + this + " bytes=" + block + " (vs=" + blocks[blockUpto] + ") offset=" + blockOffset);
             //System.out.println("    read index term=" + tr.toBytesString() + " this=" + this + " bytes=" + block + " (vs=" + blocks[blockUpto] + ") offset=" + blockOffset);
+            */
 
             lastBlock = block;
             lastBlockOffset = blockOffset;
@@ -403,13 +407,10 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         }
       }
 
-      final private TermRef termBuffer = new TermRef(); //nocommit: not read
-      final private TermsIndexResult termsIndexResult = new TermsIndexResult(); //nocommit: not read
-
       public final void getIndexOffset(TermRef term, TermsIndexResult result) throws IOException {
 
         if (Codec.DEBUG) {
-          System.out.println("getIndexOffset field=" + fieldInfo.name + " term=" + term + " indexLen = " + blockPointer.length + " numIndexTerms=" + fileOffset.length + " this=" + this);
+          System.out.println("getIndexOffset field=" + fieldInfo.name + " term=" + term + " indexLen = " + blockPointer.length + " numIndexTerms=" + fileOffset.length + " this=" + this + " numIndexedTerms=" + fileOffset.length);
         }
 
         int lo = 0;					  // binary search
@@ -446,7 +447,6 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         result.term.bytes = blocks[(int) (loc >> BYTE_BLOCK_SHIFT)];
         result.term.offset = (int) (loc & BYTE_BLOCK_MASK);
         result.term.length = termLength[hi];
-        //System.out.println("    hi term=" + result.term);
 
         result.position = hi*totalIndexInterval;
         result.offset = fileOffset[hi];

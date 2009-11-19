@@ -17,8 +17,6 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import org.apache.lucene.util.UnicodeUtil;
-
 final class TermVectorsTermsWriterPerThread extends TermsHashConsumerPerThread {
 
   final TermVectorsTermsWriter termsWriter;
@@ -35,9 +33,6 @@ final class TermVectorsTermsWriterPerThread extends TermsHashConsumerPerThread {
   
   // Used by perField when serializing the term vectors
   final ByteSliceReader vectorSliceReader = new ByteSliceReader();
-
-  final UnicodeUtil.UTF8Result utf8Results[] = {new UnicodeUtil.UTF8Result(),
-                                                new UnicodeUtil.UTF8Result()};
 
   @Override
   public void startDocument() {

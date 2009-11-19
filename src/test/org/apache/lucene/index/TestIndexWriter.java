@@ -542,7 +542,7 @@ public class TestIndexWriter extends LuceneTestCase {
       RAMDirectory dir = new RAMDirectory();
       IndexWriter writer  = new IndexWriter(dir, new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
 
-      char[] chars = new char[DocumentsWriter.CHAR_BLOCK_SIZE-1];
+      char[] chars = new char[DocumentsWriter.MAX_TERM_LENGTH_UTF8-1];
       Arrays.fill(chars, 'x');
       Document doc = new Document();
       final String bigTerm = new String(chars);

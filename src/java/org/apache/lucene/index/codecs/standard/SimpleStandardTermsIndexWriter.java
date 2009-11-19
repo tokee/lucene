@@ -22,6 +22,7 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentWriteState;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.codecs.Codec;
 
 import java.util.List;
@@ -65,11 +66,9 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
   }
   
   final private DeltaBytesWriter termWriter;
-  private FieldInfo currentField;
 
   @Override
   public FieldWriter addField(FieldInfo field) {
-    currentField = field;
     SimpleFieldWriter writer = new SimpleFieldWriter(field);
     fields.add(writer);
     return writer;
@@ -89,16 +88,16 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
     }
 
     @Override
-    public boolean checkIndexTerm(byte[] term, int termLength, int docFreq) throws IOException {
+    public boolean checkIndexTerm(TermRef text, int docFreq) throws IOException {
       // First term is first indexed term:
       if (0 == (numTerms++ % termIndexInterval)) {
         final long termsPointer = termsOut.getFilePointer();
         if (Codec.DEBUG) {
-          System.out.println("sstiw.checkIndexTerm write index field=" + fieldInfo.name + " term=" + new String(term, 0, termLength, "UTF-8") + " termsFP=" + termsPointer + " numIndexTerms=" + numIndexTerms + " outFP=" + out.getFilePointer());
+          System.out.println("sstiw.checkIndexTerm write index field=" + fieldInfo.name + " term=" + text + " termsFP=" + termsPointer + " numIndexTerms=" + numIndexTerms + " outFP=" + out.getFilePointer());
         }
         // mxx
         //System.out.println(Thread.currentThread().getName() + ": ii seg=" + segment + " term=" + fieldInfo.name + ":" + new String(term, 0, termLength, "UTF-8") + " numTerms=" + (numTerms-1) + " termFP=" + termsPointer);
-        termWriter.write(term, termLength);
+        termWriter.write(text);
         out.writeVLong(termsPointer - lastTermsPointer);
         lastTermsPointer = termsPointer;
         numIndexTerms++;

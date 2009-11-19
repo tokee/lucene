@@ -43,12 +43,8 @@ class SepSkipListReader extends MultiLevelSkipListReader {
   // nocommit -- make private again
   final IntIndexInput.Index lastPosIndex;
   
-  private long lastFreqPointer; //nocommit: not read
-  private long lastDocPointer; //nocommit: not read
-  private long lastPosPointer; //nocommit: not read
   private long lastPayloadPointer;
   private int lastPayloadLength;
-  private int lastChildLevel; //nocommit: not read
                            
   SepSkipListReader(IndexInput skipStream,
                     IntIndexInput freqIn,
@@ -114,12 +110,6 @@ class SepSkipListReader extends MultiLevelSkipListReader {
       System.out.println("ssr.init docBase=" + docBaseIndex + " freqBase=" + freqBaseIndex + " posBase=" + posBaseIndex + " payloadBase=" + payloadBasePointer + " df=" + df);
     }
 
-    /*
-    lastFreqPointer = freqBasePointer;
-    lastDocPointer = docBasePointer;
-    lastPosPointer = posBasePointer;
-    */
-
     lastPayloadPointer = payloadBasePointer;
 
     for(int i=0;i<maxNumberOfSkipLevels;i++) {
@@ -149,9 +139,6 @@ class SepSkipListReader extends MultiLevelSkipListReader {
   @Override
   protected void seekChild(int level) throws IOException {
     super.seekChild(level);
-    //freqPointer[level] = lastFreqPointer;
-    //docPointer[level] = lastDocPointer;
-    //posPointer[level] = lastPosPointer;
     payloadPointer[level] = lastPayloadPointer;
     payloadLength[level] = lastPayloadLength;
   }
@@ -171,9 +158,6 @@ class SepSkipListReader extends MultiLevelSkipListReader {
     }
 
     if (level > 0) {
-      //lastFreqPointer = freqPointer[level];
-      //lastDocPointer = docPointer[level];
-      //lastPosPointer = posPointer[level];
       if (freqIndex != null) {
         freqIndex[level-1].set(freqIndex[level]);
       }
@@ -181,7 +165,6 @@ class SepSkipListReader extends MultiLevelSkipListReader {
       if (posIndex != null) {
         posIndex[level-1].set(posIndex[level]);
       }
-      lastChildLevel = level-1;
     }
   }
 

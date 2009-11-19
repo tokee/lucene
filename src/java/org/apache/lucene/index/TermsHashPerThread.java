@@ -17,6 +17,8 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
+import org.apache.lucene.util.UnicodeUtil;
+
 import java.io.IOException;
 
 final class TermsHashPerThread extends InvertedDocConsumerPerThread {
@@ -25,14 +27,17 @@ final class TermsHashPerThread extends InvertedDocConsumerPerThread {
   final TermsHashConsumerPerThread consumer;
   final TermsHashPerThread nextPerThread;
 
-  final CharBlockPool charPool;
   final IntBlockPool intPool;
   final ByteBlockPool bytePool;
+  final ByteBlockPool termBytePool;
   final boolean primary;
   final DocumentsWriter.DocState docState;
 
   final RawPostingList freePostings[] = new RawPostingList[256];
   int freePostingsCount;
+
+  // Used by perField:
+  final UnicodeUtil.UTF8Result utf8 = new UnicodeUtil.UTF8Result();
 
   public TermsHashPerThread(DocInverterPerThread docInverterPerThread, final TermsHash termsHash, final TermsHash nextTermsHash, final TermsHashPerThread primaryPerThread) {
     docState = docInverterPerThread.docState;
@@ -40,17 +45,17 @@ final class TermsHashPerThread extends InvertedDocConsumerPerThread {
     this.termsHash = termsHash;
     this.consumer = termsHash.consumer.addThread(this);
 
-    if (nextTermsHash != null) {
-      // We are primary
-      charPool = new CharBlockPool(termsHash.docWriter);
-      primary = true;
-    } else {
-      charPool = primaryPerThread.charPool;
-      primary = false;
-    }
-
     intPool = new IntBlockPool(termsHash.docWriter, termsHash.trackAllocations);
     bytePool = new ByteBlockPool(termsHash.docWriter.byteBlockAllocator, termsHash.trackAllocations);
+
+    if (nextTermsHash != null) {
+      // We are primary
+      primary = true;
+      termBytePool = bytePool;
+    } else {
+      primary = false;
+      termBytePool = primaryPerThread.bytePool;
+    }
 
     if (nextTermsHash != null)
       nextPerThread = nextTermsHash.addThread(docInverterPerThread, this);
@@ -113,9 +118,6 @@ final class TermsHashPerThread extends InvertedDocConsumerPerThread {
   void reset(boolean recyclePostings) {
     intPool.reset();
     bytePool.reset();
-
-    if (primary)
-      charPool.reset();
 
     if (recyclePostings) {
       termsHash.recyclePostings(freePostings, freePostingsCount);

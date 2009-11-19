@@ -122,18 +122,14 @@ public class TestExternalCodecs extends LuceneTestCase {
         this.field = field;
       }
         
-      public DocsConsumer startTerm(char[] text, int start) {
-        int upto = start;
-        while(text[upto] != 0xffff) {
-          upto++;
-        }
-        final String term = new String(text, start, upto-start);
+      public DocsConsumer startTerm(TermRef text) {
+        final String term = text.toString();
         current = new RAMTerm(term);
         docsConsumer.reset(current);
         return docsConsumer;
       }
 
-      public void finishTerm(char[] text, int start, int numDocs) {
+      public void finishTerm(TermRef text, int numDocs) {
         // nocommit -- are we even called when numDocs == 0?
         if (numDocs > 0) {
           assert numDocs == current.docs.size();

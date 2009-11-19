@@ -29,12 +29,11 @@ final class FreqProxFieldMergeState {
 
   final FreqProxTermsWriterPerField field;
   final int numPostings;
-  final CharBlockPool charPool;
+  private final ByteBlockPool bytePool;
   final RawPostingList[] postings;
 
   private FreqProxTermsWriter.PostingList p;
-  char[] text;
-  int textOffset;
+  final TermRef text = new TermRef();
 
   private int postingUpto = -1;
 
@@ -46,25 +45,33 @@ final class FreqProxFieldMergeState {
 
   public FreqProxFieldMergeState(FreqProxTermsWriterPerField field) {
     this.field = field;
-    this.charPool = field.perThread.termsHashPerThread.charPool;
     this.numPostings = field.termsHashPerField.numPostings;
     this.postings = field.termsHashPerField.sortPostings();
+    this.bytePool = field.perThread.termsHashPerThread.bytePool;
   }
 
   boolean nextTerm() throws IOException {
     postingUpto++;
-    if (postingUpto == numPostings)
+    if (postingUpto == numPostings) {
       return false;
+    }
 
     p = (FreqProxTermsWriter.PostingList) postings[postingUpto];
     docID = 0;
 
-    text = charPool.buffers[p.textStart >> DocumentsWriter.CHAR_BLOCK_SHIFT];
-    textOffset = p.textStart & DocumentsWriter.CHAR_BLOCK_MASK;
+    text.bytes = bytePool.buffers[p.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
+    text.offset = p.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
+    // nocommit -- how to avoid this added cost?
+    int pos = text.offset;
+    while(text.bytes[pos] != TermsHashPerField.END_OF_TERM) {
+      pos++;
+    }
+    text.length = pos - text.offset;
 
     field.termsHashPerField.initReader(freq, p, 0);
-    if (!field.fieldInfo.omitTermFreqAndPositions)
+    if (!field.fieldInfo.omitTermFreqAndPositions) {
       field.termsHashPerField.initReader(prox, p, 1);
+    }
 
     // Should always be true
     boolean result = nextDoc();

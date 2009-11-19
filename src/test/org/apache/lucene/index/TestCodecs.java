@@ -142,16 +142,14 @@ public class TestCodecs extends LuceneTestCase {
   }
 
   class TermData implements Comparable {
-    char[] text;
     String text2;
+    final TermRef text;
     int[] docs;
     PositionData[][] positions;
     FieldData field;
     
     public TermData(String text, int[] docs, PositionData[][] positions) {
-      this.text = new char[text.length()+1];
-      text.getChars(0, text.length(), this.text, 0);
-      this.text[text.length()] = 0xffff;
+      this.text = new TermRef(text);
       this.text2 = text;
       this.docs = docs;
       this.positions = positions;
@@ -164,7 +162,7 @@ public class TestCodecs extends LuceneTestCase {
     public void write(TermsConsumer termsConsumer) throws Throwable {
       if (Codec.DEBUG)
         System.out.println("  term=" + text2);
-      final DocsConsumer docsConsumer = termsConsumer.startTerm(text, 0);
+      final DocsConsumer docsConsumer = termsConsumer.startTerm(text);
       for(int i=0;i<docs.length;i++) {
         final int termDocFreq;
         if (field.omitTF)
@@ -184,7 +182,7 @@ public class TestCodecs extends LuceneTestCase {
         } else
           assert posConsumer==null;
       }
-      termsConsumer.finishTerm(text, 0, docs.length);
+      termsConsumer.finishTerm(text, docs.length);
     }
   }
 

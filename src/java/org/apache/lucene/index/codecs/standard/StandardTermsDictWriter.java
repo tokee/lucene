@@ -31,7 +31,6 @@ import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.DocsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.util.UnicodeUtil;
 
 /**
  * Writes terms dict and interacts with docs/positions
@@ -79,7 +78,6 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     fieldInfos = state.fieldInfos;
 
     // Count indexed fields up front
-    final int numFields = fieldInfos.size(); //nocommit: not read
     Codec.writeHeader(out, CODEC_NAME, VERSION_CURRENT); 
 
     out.writeLong(0);                             // leave space for end index pointer
@@ -142,8 +140,6 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     }
   }
 
-  private final UnicodeUtil.UTF8Result utf8 = new UnicodeUtil.UTF8Result();
-
   long lastIndexPointer;
 
   class TermsWriter extends TermsConsumer {
@@ -169,48 +165,33 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     }
     
     @Override
-    public DocsConsumer startTerm(char[] text, int start) throws IOException {
+    public DocsConsumer startTerm(TermRef text) throws IOException {
       consumer.startTerm();
       if (Codec.DEBUG) {
-        // nocommit
-        int len = 0;
-        while(text[start+len] != 0xffff) {
-          len++;
-        }
-        consumer.desc = fieldInfo.name + ":" + new String(text, start, len);
-        System.out.println("stdw.startTerm term=" + fieldInfo.name + ":" + new String(text, start, len) + " seg=" + segment);
+        consumer.desc = fieldInfo.name + ":" + text;
+        System.out.println("stdw.startTerm term=" + fieldInfo.name + ":" + text + " seg=" + segment);
       }
       return consumer;
     }
 
     @Override
-    public void finishTerm(char[] text, int start, int numDocs) throws IOException {
+    public void finishTerm(TermRef text, int numDocs) throws IOException {
 
       // mxx
       if (Codec.DEBUG) {
         // nocommit
-        int len = 0;
-        while(text[start+len] != 0xffff) {
-          len++;
-        }
-        System.out.println(Thread.currentThread().getName() + ": stdw.finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + new String(text, start, len) + " numDocs=" + numDocs + " numTerms=" + numTerms);
+        System.out.println(Thread.currentThread().getName() + ": stdw.finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + text + " numDocs=" + numDocs + " numTerms=" + numTerms);
       }
 
       if (numDocs > 0) {
-        // TODO: we could do this incrementally
-        UnicodeUtil.UTF16toUTF8(text, start, utf8);
-
-        final boolean isIndexTerm = fieldIndexWriter.checkIndexTerm(utf8.result, utf8.length, numDocs);
+        final boolean isIndexTerm = fieldIndexWriter.checkIndexTerm(text, numDocs);
 
         // mxx
         if (Codec.DEBUG) {
           System.out.println(Thread.currentThread().getName() + ":  filePointer=" + out.getFilePointer() + " isIndexTerm?=" + isIndexTerm);
-          TermRef tr = new TermRef();
-          tr.bytes = utf8.result;
-          tr.length = utf8.length;
-          System.out.println("  term bytes=" + tr.toBytesString());
+          System.out.println("  term bytes=" + text.toBytesString());
         }
-        termWriter.write(utf8.result, utf8.length);
+        termWriter.write(text);
         out.writeVInt(numDocs);
 
         consumer.finishTerm(numDocs, isIndexTerm);

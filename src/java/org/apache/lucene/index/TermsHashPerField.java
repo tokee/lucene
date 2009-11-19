@@ -32,11 +32,13 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   final DocumentsWriter.DocState docState;
   final FieldInvertState fieldState;
   TermAttribute termAtt;
+
+  static final byte END_OF_TERM = (byte) 0xff;
   
   // Copied from our perThread
-  final CharBlockPool charPool;
   final IntBlockPool intPool;
   final ByteBlockPool bytePool;
+  final ByteBlockPool termBytePool;
 
   final int streamCount;
   final int numPostingInt;
@@ -50,17 +52,19 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   private int postingsHashMask = postingsHashSize-1;
   private RawPostingList[] postingsHash = new RawPostingList[postingsHashSize];
   private RawPostingList p;
+  private final UnicodeUtil.UTF8Result utf8;
   
   public TermsHashPerField(DocInverterPerField docInverterPerField, final TermsHashPerThread perThread, final TermsHashPerThread nextPerThread, final FieldInfo fieldInfo) {
     this.perThread = perThread;
     intPool = perThread.intPool;
-    charPool = perThread.charPool;
     bytePool = perThread.bytePool;
+    termBytePool = perThread.termBytePool;
     docState = perThread.docState;
     fieldState = docInverterPerField.fieldState;
     this.consumer = perThread.consumer.addField(this, fieldInfo);
     streamCount = consumer.getStreamCount();
     numPostingInt = 2*streamCount;
+    utf8 = perThread.utf8;
     this.fieldInfo = fieldInfo;
     if (nextPerThread != null)
       nextPerField = (TermsHashPerField) nextPerThread.addField(docInverterPerField, fieldInfo);
@@ -204,46 +208,49 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
    *  returns -1 if p1 < p2; 1 if p1 > p2; else 0. */
   int comparePostings(RawPostingList p1, RawPostingList p2) {
 
-    if (p1 == p2)
+    if (p1 == p2) {
       return 0;
+    }
 
-    final char[] text1 = charPool.buffers[p1.textStart >> DocumentsWriter.CHAR_BLOCK_SHIFT];
-    int pos1 = p1.textStart & DocumentsWriter.CHAR_BLOCK_MASK;
-    final char[] text2 = charPool.buffers[p2.textStart >> DocumentsWriter.CHAR_BLOCK_SHIFT];
-    int pos2 = p2.textStart & DocumentsWriter.CHAR_BLOCK_MASK;
+    final byte[] text1 = termBytePool.buffers[p1.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
+    int pos1 = p1.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
+    final byte[] text2 = termBytePool.buffers[p2.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
+    int pos2 = p2.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
 
     assert text1 != text2 || pos1 != pos2;
 
     while(true) {
-      final char c1 = text1[pos1++];
-      final char c2 = text2[pos2++];
-      if (c1 != c2) {
-        if (0xffff == c2)
+      final byte b1 = text1[pos1++];
+      final byte b2 = text2[pos2++];
+      if (b1 != b2) {
+        if (END_OF_TERM == b2)
           return 1;
-        else if (0xffff == c1)
+        else if (END_OF_TERM == b1)
           return -1;
         else
-          return c1-c2;
+          return (b1&0xff)-(b2&0xff);
       } else
         // This method should never compare equal postings
         // unless p1==p2
-        assert c1 != 0xffff;
+        assert b1 != END_OF_TERM;
     }
   }
 
   /** Test whether the text for current RawPostingList p equals
-   *  current tokenText. */
-  private boolean postingEquals(final char[] tokenText, final int tokenTextLen) {
+   *  current tokenText in utf8. */
+  private boolean postingEquals() {
 
-    final char[] text = perThread.charPool.buffers[p.textStart >> DocumentsWriter.CHAR_BLOCK_SHIFT];
+    final byte[] text = termBytePool.buffers[p.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
     assert text != null;
-    int pos = p.textStart & DocumentsWriter.CHAR_BLOCK_MASK;
+    int pos = p.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
 
-    int tokenPos = 0;
-    for(;tokenPos<tokenTextLen;pos++,tokenPos++)
-      if (tokenText[tokenPos] != text[pos])
+    final byte[] utf8Bytes = utf8.result;
+    for(int tokenPos=0;tokenPos<utf8.length;pos++,tokenPos++) {
+      if (utf8Bytes[tokenPos] != text[pos]) {
         return false;
-    return 0xffff == text[pos];
+      }
+    }
+    return END_OF_TERM == text[pos];
   }
   
   private boolean doCall;
@@ -354,38 +361,13 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     final char[] tokenText = termAtt.termBuffer();;
     final int tokenTextLen = termAtt.termLength();
 
-    // System.out.println("thpf.add: field=" + fieldInfo.name + " text=" + new String(tokenText, 0, tokenTextLen) + " c0=" + ((int) tokenText[0]) );
+    UnicodeUtil.UTF16toUTF8(tokenText, 0, tokenTextLen, utf8);
 
-    // Compute hashcode & replace any invalid UTF16 sequences
-    int downto = tokenTextLen;
+    // nocommit -- modify UnicodeUtil to compute hash for us
+    // so we don't do 2nd pass here
     int code = 0;
-    while (downto > 0) {
-      char ch = tokenText[--downto];
-
-      if (ch >= UnicodeUtil.UNI_SUR_LOW_START && ch <= UnicodeUtil.UNI_SUR_LOW_END) {
-        if (0 == downto) {
-          // Unpaired
-          ch = tokenText[downto] = UnicodeUtil.UNI_REPLACEMENT_CHAR;
-        } else {
-          final char ch2 = tokenText[downto-1];
-          if (ch2 >= UnicodeUtil.UNI_SUR_HIGH_START && ch2 <= UnicodeUtil.UNI_SUR_HIGH_END) {
-            // OK: high followed by low.  This is a valid
-            // surrogate pair.
-            code = ((code*31) + ch)*31+ch2;
-            downto--;
-            continue;
-          } else {
-            // Unpaired
-            ch = tokenText[downto] = UnicodeUtil.UNI_REPLACEMENT_CHAR;
-          }            
-        }
-      } else if (ch >= UnicodeUtil.UNI_SUR_HIGH_START && (ch <= UnicodeUtil.UNI_SUR_HIGH_END ||
-                                                          ch == 0xffff)) {
-        // Unpaired or 0xffff
-        ch = tokenText[downto] = UnicodeUtil.UNI_REPLACEMENT_CHAR;
-      }
-
-      code = (code*31) + ch;
+    for(int i=0;i<utf8.length;i++) {
+      code = 31*code + utf8.result[i];
     }
 
     int hashPos = code & postingsHashMask;
@@ -393,7 +375,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     // Locate RawPostingList in hash
     p = postingsHash[hashPos];
 
-    if (p != null && !postingEquals(tokenText, tokenTextLen)) {
+    if (p != null && !postingEquals()) {
       // Conflict: keep searching different locations in
       // the hash table.
       final int inc = ((code>>8)+code)|1;
@@ -401,59 +383,65 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
         code += inc;
         hashPos = code & postingsHashMask;
         p = postingsHash[hashPos];
-      } while (p != null && !postingEquals(tokenText, tokenTextLen));
+      } while (p != null && !postingEquals());
     }
 
     if (p == null) {
 
       // First time we are seeing this token since we last
       // flushed the hash.
-      final int textLen1 = 1+tokenTextLen;
-      if (textLen1 + charPool.charUpto > DocumentsWriter.CHAR_BLOCK_SIZE) {
-        if (textLen1 > DocumentsWriter.CHAR_BLOCK_SIZE) {
+      final int textLen1 = 1+utf8.length;
+      if (textLen1 + bytePool.byteUpto > DocumentsWriter.BYTE_BLOCK_SIZE) {
+        if (textLen1 > DocumentsWriter.BYTE_BLOCK_SIZE) {
           // Just skip this term, to remain as robust as
           // possible during indexing.  A TokenFilter
           // can be inserted into the analyzer chain if
           // other behavior is wanted (pruning the term
           // to a prefix, throwing an exception, etc).
 
-          if (docState.maxTermPrefix == null)
+          if (docState.maxTermPrefix == null) {
             docState.maxTermPrefix = new String(tokenText, 0, 30);
+          }
 
           consumer.skippingLongTerm();
           return;
         }
-        charPool.nextBuffer();
+        bytePool.nextBuffer();
       }
 
       // Refill?
-      if (0 == perThread.freePostingsCount)
+      if (0 == perThread.freePostingsCount) {
         perThread.morePostings();
+      }
 
       // Pull next free RawPostingList from free list
       p = perThread.freePostings[--perThread.freePostingsCount];
       assert p != null;
 
-      final char[] text = charPool.buffer;
-      final int textUpto = charPool.charUpto;
-      p.textStart = textUpto + charPool.charOffset;
-      charPool.charUpto += textLen1;
-      System.arraycopy(tokenText, 0, text, textUpto, tokenTextLen);
-      text[textUpto+tokenTextLen] = 0xffff;
+      final byte[] text = bytePool.buffer;
+      final int textUpto = bytePool.byteUpto;
+      p.textStart = textUpto + bytePool.byteOffset;
+
+      bytePool.byteUpto += textLen1;
+      System.arraycopy(utf8.result, 0, text, textUpto, utf8.length);
+      text[textUpto+utf8.length] = END_OF_TERM;
           
       assert postingsHash[hashPos] == null;
       postingsHash[hashPos] = p;
       numPostings++;
 
-      if (numPostings == postingsHashHalfSize)
+      if (numPostings == postingsHashHalfSize) {
         rehashPostings(2*postingsHashSize);
+      }
 
       // Init stream slices
-      if (numPostingInt + intPool.intUpto > DocumentsWriter.INT_BLOCK_SIZE)
+      if (numPostingInt + intPool.intUpto > DocumentsWriter.INT_BLOCK_SIZE) {
         intPool.nextBuffer();
+      }
 
-      if (DocumentsWriter.BYTE_BLOCK_SIZE - bytePool.byteUpto < numPostingInt*ByteBlockPool.FIRST_LEVEL_SIZE)
+      if (DocumentsWriter.BYTE_BLOCK_SIZE - bytePool.byteUpto < numPostingInt*ByteBlockPool.FIRST_LEVEL_SIZE) {
         bytePool.nextBuffer();
+      }
 
       intUptos = intPool.buffer;
       intUptoStart = intPool.intUpto;
@@ -532,16 +520,16 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
       if (p0 != null) {
         int code;
         if (perThread.primary) {
-          final int start = p0.textStart & DocumentsWriter.CHAR_BLOCK_MASK;
-          final char[] text = charPool.buffers[p0.textStart >> DocumentsWriter.CHAR_BLOCK_SHIFT];
-          int pos = start;
-          while(text[pos] != 0xffff)
-            pos++;
+          final int start = p0.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
+          final byte[] text = bytePool.buffers[p0.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
           code = 0;
-          while (pos > start)
-            code = (code*31) + text[--pos];
-        } else
+          int pos = start;
+          while(text[pos] != END_OF_TERM) {
+            code = (code*31) + text[pos++];
+          }
+        } else {
           code = p0.textStart;
+        }
 
         int hashPos = code & newMask;
         assert hashPos >= 0;

@@ -224,12 +224,13 @@ public class IndexWriter implements Closeable {
   public final static int DEFAULT_TERM_INDEX_INTERVAL = 128;
 
   /**
-   * Absolute hard maximum length for a term.  If a term
-   * arrives from the analyzer longer than this length, it
-   * is skipped and a message is printed to infoStream, if
-   * set (see {@link #setInfoStream}).
+   * Absolute hard maximum length for a term, in bytes once
+   * encoded as UTF8.  If a term arrives from the analyzer
+   * longer than this length, it is skipped and a message is
+   * printed to infoStream, if set (see {@link
+   * #setInfoStream}).
    */
-  public final static int MAX_TERM_LENGTH = DocumentsWriter.MAX_TERM_LENGTH;
+  public final static int MAX_TERM_LENGTH = DocumentsWriter.MAX_TERM_LENGTH_UTF8;
 
   // The normal read buffer size defaults to 1024, but
   // increasing this during merging seems to yield

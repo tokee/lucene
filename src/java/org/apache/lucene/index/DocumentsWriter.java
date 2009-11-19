@@ -1181,6 +1181,8 @@ final class DocumentsWriter {
   final static int BYTE_BLOCK_MASK = BYTE_BLOCK_SIZE - 1;
   final static int BYTE_BLOCK_NOT_MASK = ~BYTE_BLOCK_MASK;
 
+  final static int MAX_TERM_LENGTH_UTF8 = BYTE_BLOCK_SIZE-1;
+
   private class ByteBlockAllocator extends ByteBlockPool.Allocator {
 
     ArrayList<byte[]> freeByteBlocks = new ArrayList<byte[]>();
@@ -1266,55 +1268,19 @@ final class DocumentsWriter {
 
   ByteBlockAllocator byteBlockAllocator = new ByteBlockAllocator();
 
-  /* Initial chunk size of the shared char[] blocks used to
-     store term text */
-  final static int CHAR_BLOCK_SHIFT = 14;
-  final static int CHAR_BLOCK_SIZE = 1 << CHAR_BLOCK_SHIFT;
-  final static int CHAR_BLOCK_MASK = CHAR_BLOCK_SIZE - 1;
-
-  final static int MAX_TERM_LENGTH = CHAR_BLOCK_SIZE-1;
-
-  private ArrayList<char[]> freeCharBlocks = new ArrayList<char[]>();
-
-  /* Allocate another char[] from the shared pool */
-  synchronized char[] getCharBlock() {
-    final int size = freeCharBlocks.size();
-    final char[] c;
-    if (0 == size) {
-      numBytesAlloc += CHAR_BLOCK_SIZE * CHAR_NUM_BYTE;
-      c = new char[CHAR_BLOCK_SIZE];
-    } else
-      c = freeCharBlocks.remove(size-1);
-    // We always track allocations of char blocks, for now,
-    // because nothing that skips allocation tracking
-    // (currently only term vectors) uses its own char
-    // blocks.
-    numBytesUsed += CHAR_BLOCK_SIZE * CHAR_NUM_BYTE;
-    assert numBytesUsed <= numBytesAlloc;
-    return c;
-  }
-
-  /* Return char[]s to the pool */
-  synchronized void recycleCharBlocks(char[][] blocks, int numBlocks) {
-    for(int i=0;i<numBlocks;i++)
-      freeCharBlocks.add(blocks[i]);
-  }
-
   String toMB(long v) {
     return nf.format(v/1024./1024.);
   }
 
-  /* We have three pools of RAM: Postings, byte blocks
-   * (holds freq/prox posting data) and char blocks (holds
-   * characters in the term).  Different docs require
-   * varying amount of storage from these three classes.
-   * For example, docs with many unique single-occurrence
-   * short terms will use up the Postings RAM and hardly any
-   * of the other two.  Whereas docs with very large terms
-   * will use alot of char blocks RAM and relatively less of
-   * the other two.  This method just frees allocations from
-   * the pools once we are over-budget, which balances the
-   * pools to match the current docs. */
+  /* We have two pools of RAM: Postings and byte blocks
+   * (holds freq/prox posting data).  Different docs require
+   * varying amount of storage from these classes.  For
+   * example, docs with many unique single-occurrence short
+   * terms will use up the Postings RAM and hardly any of
+   * the other two.  Whereas docs with very large terms will
+   * use alot of byte blocks RAM.  This method just frees
+   * allocations from the pools once we are over-budget,
+   * which balances the pools to match the current docs. */
   void balanceRAM() {
 
     // We flush when we've used our target usage
@@ -1330,8 +1296,7 @@ final class DocumentsWriter {
                 " allocMB=" + toMB(numBytesAlloc) +
                 " deletesMB=" + toMB(deletesRAMUsed) +
                 " vs trigger=" + toMB(freeTrigger) +
-                " byteBlockFree=" + toMB(byteBlockAllocator.freeByteBlocks.size()*BYTE_BLOCK_SIZE) +
-                " charBlockFree=" + toMB(freeCharBlocks.size()*CHAR_BLOCK_SIZE*CHAR_NUM_BYTE));
+                " byteBlockFree=" + toMB(byteBlockAllocator.freeByteBlocks.size()*BYTE_BLOCK_SIZE));
 
       final long startBytesAlloc = numBytesAlloc + deletesRAMUsed;
 
@@ -1346,7 +1311,7 @@ final class DocumentsWriter {
       while(numBytesAlloc+deletesRAMUsed > freeLevel) {
       
         synchronized(this) {
-          if (0 == byteBlockAllocator.freeByteBlocks.size() && 0 == freeCharBlocks.size() && 0 == freeIntBlocks.size() && !any) {
+          if (0 == byteBlockAllocator.freeByteBlocks.size() && 0 == freeIntBlocks.size() && !any) {
             // Nothing else to free -- must flush now.
             bufferIsFull = numBytesUsed+deletesRAMUsed > flushTrigger;
             if (infoStream != null) {
@@ -1359,23 +1324,18 @@ final class DocumentsWriter {
             break;
           }
 
-          if ((0 == iter % 4) && byteBlockAllocator.freeByteBlocks.size() > 0) {
+          if ((0 == iter % 3) && byteBlockAllocator.freeByteBlocks.size() > 0) {
             byteBlockAllocator.freeByteBlocks.remove(byteBlockAllocator.freeByteBlocks.size()-1);
             numBytesAlloc -= BYTE_BLOCK_SIZE;
           }
 
-          if ((1 == iter % 4) && freeCharBlocks.size() > 0) {
-            freeCharBlocks.remove(freeCharBlocks.size()-1);
-            numBytesAlloc -= CHAR_BLOCK_SIZE * CHAR_NUM_BYTE;
-          }
-
-          if ((2 == iter % 4) && freeIntBlocks.size() > 0) {
+          if ((1 == iter % 3) && freeIntBlocks.size() > 0) {
             freeIntBlocks.remove(freeIntBlocks.size()-1);
             numBytesAlloc -= INT_BLOCK_SIZE * INT_NUM_BYTE;
           }
         }
 
-        if ((3 == iter % 4) && any)
+        if ((2 == iter % 3) && any)
           // Ask consumer to free any recycled state
           any = consumer.freeRAM();
 

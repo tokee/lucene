@@ -361,7 +361,7 @@ public class CheckIndex {
       else if (format == SegmentInfos.FORMAT_DIAGNOSTICS)
         sFormat = "FORMAT_DIAGNOSTICS [Lucene 2.9]";
       else if (format == SegmentInfos.FORMAT_FLEX_POSTINGS)
-        sFormat = "FORMAT_FLEX_POSTINGS [Lucene 2.9]";
+        sFormat = "FORMAT_FLEX_POSTINGS [Lucene 3.1]";
       else if (format < SegmentInfos.CURRENT_FORMAT) {
         sFormat = "int=" + format + " [newer version of Lucene than this tool]";
         skip = true;
@@ -610,7 +610,6 @@ public class CheckIndex {
           status.termCount++;
 
           int lastDoc = -1;
-          int freq0 = 0;
           while(true) {
             final int doc = docs.next();
             if (doc == DocsEnum.NO_MORE_DOCS) {
@@ -619,7 +618,6 @@ public class CheckIndex {
             final int freq = docs.freq();
             status.totPos += freq;
 
-            freq0++;
             if (doc <= lastDoc) {
               throw new RuntimeException("term " + term + ": doc " + doc + " <= lastDoc " + lastDoc);
             }

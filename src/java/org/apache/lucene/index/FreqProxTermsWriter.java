@@ -45,19 +45,30 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       postings[i] = new PostingList();
   }
 
-  private static int compareText(final char[] text1, int pos1, final char[] text2, int pos2) {
+  private static int compareText(final TermRef text1, final TermRef text2) {
+
+    int pos1 = text1.offset;
+    int pos2 = text2.offset;
+    final byte[] bytes1 = text1.bytes;
+    final byte[] bytes2 = text2.bytes;
     while(true) {
-      final char c1 = text1[pos1++];
-      final char c2 = text2[pos2++];
-      if (c1 != c2) {
-        if (0xffff == c2)
+      final byte b1 = bytes1[pos1++];
+      final byte b2 = bytes2[pos2++];
+      if (b1 != b2) {
+        if (TermsHashPerField.END_OF_TERM == b2) {
+          //text2.length = pos2 - text2.offset;
           return 1;
-        else if (0xffff == c1)
+        } else if (TermsHashPerField.END_OF_TERM == b1) {
+          //text1.length = pos1 - text1.offset;
           return -1;
-        else
-          return c1-c2;
-      } else if (0xffff == c1)
+        } else {
+          return (b1&0xff)-(b2&0xff);
+        }
+      } else if (TermsHashPerField.END_OF_TERM == b1) {
+        //text1.length = pos1 - text1.offset;
+        //text2.length = pos2 - text2.offset;
         return 0;
+      }
     }
   }
 
@@ -169,6 +180,8 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
     int numFields = fields.length;
 
+    final TermRef text = new TermRef();
+
     final FreqProxFieldMergeState[] mergeStates = new FreqProxFieldMergeState[numFields];
 
     for(int i=0;i<numFields;i++) {
@@ -187,6 +200,11 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
     final boolean currentFieldOmitTermFreqAndPositions = fields[0].fieldInfo.omitTermFreqAndPositions;
 
+    // TODO: really TermsHashPerField should take over most
+    // of this loop, including merge sort of terms from
+    // multiple threads and interacting with the
+    // TermsConsumer, only calling out to us (passing us the
+    // DocsConsumer) to handle delivery of docs/positions
     while(numFields > 0) {
 
       // Get the next term to merge
@@ -194,24 +212,20 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       int numToMerge = 1;
 
       for(int i=1;i<numFields;i++) {
-        final char[] text = mergeStates[i].text;
-        final int textOffset = mergeStates[i].textOffset;
-        final int cmp = compareText(text, textOffset, termStates[0].text, termStates[0].textOffset);
-
+        final int cmp = compareText(mergeStates[i].text, termStates[0].text);
         if (cmp < 0) {
           termStates[0] = mergeStates[i];
           numToMerge = 1;
-        } else if (cmp == 0)
+        } else if (cmp == 0) {
           termStates[numToMerge++] = mergeStates[i];
+        }
       }
 
-      final char[] termText = termStates[0].text;
-      final int termTextOffset = termStates[0].textOffset;
+      text.bytes = termStates[0].text.bytes;
+      text.offset = termStates[0].text.offset;
+      text.length = termStates[0].text.length;  
 
-      // nocommit
-      //System.out.println("FLUSH term=" + new String(termText, termTextOffset, 10));
-
-      final DocsConsumer docConsumer = termsConsumer.startTerm(termText, termTextOffset);
+      final DocsConsumer docConsumer = termsConsumer.startTerm(text);
 
       // Now termStates has numToMerge FieldMergeStates
       // which all share the same term.  Now we must
@@ -220,16 +234,17 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       while(numToMerge > 0) {
         
         FreqProxFieldMergeState minState = termStates[0];
-        for(int i=1;i<numToMerge;i++)
-          if (termStates[i].docID < minState.docID)
+        for(int i=1;i<numToMerge;i++) {
+          if (termStates[i].docID < minState.docID) {
             minState = termStates[i];
+          }
+        }
 
         final int termDocFreq = minState.termFreq;
         numDocs++;
 
         assert minState.docID < flushedDocCount: "doc=" + minState.docID + " maxDoc=" + flushedDocCount;
 
-        //System.out.println("  docID=" + minState.docID);
         final PositionsConsumer posConsumer = docConsumer.addDoc(minState.docID, termDocFreq);
 
         final ByteSliceReader prox = minState.prox;
@@ -269,9 +284,13 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
           // Remove from termStates
           int upto = 0;
-          for(int i=0;i<numToMerge;i++)
-            if (termStates[i] != minState)
+          // TODO: inefficient O(N) where N = number of
+          // threads that had seen this term:
+          for(int i=0;i<numToMerge;i++) {
+            if (termStates[i] != minState) {
               termStates[upto++] = termStates[i];
+            }
+          }
           numToMerge--;
           assert upto == numToMerge;
 
@@ -290,7 +309,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
         }
       }
 
-      termsConsumer.finishTerm(termText, termTextOffset, numDocs);
+      termsConsumer.finishTerm(text, numDocs);
     }
 
     termsConsumer.finish();

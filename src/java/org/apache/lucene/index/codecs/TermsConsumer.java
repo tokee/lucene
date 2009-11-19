@@ -19,19 +19,19 @@ package org.apache.lucene.index.codecs;
 
 import java.io.IOException;
 
+import org.apache.lucene.index.TermRef;
+
 /**
  * NOTE: this API is experimental and will likely change
  */
 
 public abstract class TermsConsumer {
 
-  // nocommit -- CharSequence?
-  /** Starts a new term in this field; term ends with U+FFFF
-   *  char */
-  public abstract DocsConsumer startTerm(char[] text, int start) throws IOException;
+  /** Starts a new term in this field. */
+  public abstract DocsConsumer startTerm(TermRef text) throws IOException;
 
   /** Finishes the current term */
-  public abstract void finishTerm(char[] text, int start, int numDocs) throws IOException;
+  public abstract void finishTerm(TermRef text, int numDocs) throws IOException;
 
   /** Called when we are done adding terms to this field */
   public abstract void finish() throws IOException;

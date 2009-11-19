@@ -22,7 +22,6 @@ import java.io.IOException;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.util.UnicodeUtil;
 
 final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
 
@@ -135,46 +134,48 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
       bits |= TermVectorsReader.STORE_OFFSET_WITH_TERMVECTOR;
     tvf.writeByte(bits);
 
-    int encoderUpto = 0;
-    int lastTermBytesCount = 0;
-
+    int lastLen = 0;
+    byte[] lastBytes = null;
+    int lastStart = 0;
+      
     final ByteSliceReader reader = perThread.vectorSliceReader;
-    final char[][] charBuffers = perThread.termsHashPerThread.charPool.buffers;
+    final byte[][] byteBuffers = perThread.termsHashPerThread.termBytePool.buffers;
+
     for(int j=0;j<numPostings;j++) {
       final TermVectorsTermsWriter.PostingList posting = (TermVectorsTermsWriter.PostingList) postings[j];
       final int freq = posting.freq;
           
-      final char[] text2 = charBuffers[posting.textStart >> DocumentsWriter.CHAR_BLOCK_SHIFT];
-      final int start2 = posting.textStart & DocumentsWriter.CHAR_BLOCK_MASK;
+      final byte[] bytes = byteBuffers[posting.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
+      final int start = posting.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
 
-      // We swap between two encoders to save copying
-      // last Term's byte array
-      final UnicodeUtil.UTF8Result utf8Result = perThread.utf8Results[encoderUpto];
+      // nocommit: we can do this as completion of
+      // prefix-finding loop, below:
+      int upto = start;
+      while(bytes[upto] != TermsHashPerField.END_OF_TERM) {
+        upto++;
+      }
+      final int len = upto - start;
 
-      // TODO: we could do this incrementally
-      UnicodeUtil.UTF16toUTF8(text2, start2, utf8Result);
-      final int termBytesCount = utf8Result.length;
-
-      // TODO: UTF16toUTF8 could tell us this prefix
-      // Compute common prefix between last term and
+      // Compute common byte prefix between last term and
       // this term
       int prefix = 0;
       if (j > 0) {
-        final byte[] lastTermBytes = perThread.utf8Results[1-encoderUpto].result;
-        final byte[] termBytes = perThread.utf8Results[encoderUpto].result;
-        while(prefix < lastTermBytesCount && prefix < termBytesCount) {
-          if (lastTermBytes[prefix] != termBytes[prefix])
+        while(prefix < lastLen && prefix < len) {
+          if (lastBytes[lastStart+prefix] != bytes[start+prefix]) {
             break;
+          }
           prefix++;
         }
       }
-      encoderUpto = 1-encoderUpto;
-      lastTermBytesCount = termBytesCount;
 
-      final int suffix = termBytesCount - prefix;
+      lastLen = len;
+      lastBytes = bytes;
+      lastStart = start;
+
+      final int suffix = len - prefix;
       tvf.writeVInt(prefix);
       tvf.writeVInt(suffix);
-      tvf.writeBytes(utf8Result.result, prefix, suffix);
+      tvf.writeBytes(bytes, lastStart+prefix, suffix);
       tvf.writeVInt(freq);
 
       if (doVectorPositions) {
@@ -208,9 +209,7 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
 
   @Override
   void newTerm(RawPostingList p0) {
-
     assert docState.testPoint("TermVectorsTermsWriterPerField.newTerm start");
-
     TermVectorsTermsWriter.PostingList p = (TermVectorsTermsWriter.PostingList) p0;
 
     p.freq = 1;

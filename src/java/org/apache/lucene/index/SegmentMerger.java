@@ -33,7 +33,6 @@ import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.index.codecs.DocsConsumer;
 import org.apache.lucene.index.codecs.PositionsConsumer;
 
@@ -708,8 +707,6 @@ final class SegmentMerger {
     return delCounts;
   }
   
-  private final UnicodeUtil.UTF16Result termBuffer = new UnicodeUtil.UTF16Result();
-
   /** Process postings from multiple segments all positioned on the
    *  same term. Writes out merged entries into freqOutput and
    *  the proxOutput streams.
@@ -723,19 +720,9 @@ final class SegmentMerger {
   private final int appendPostings(final TermsConsumer termsConsumer, SegmentMergeInfo[] smis, int n)
         throws CorruptIndexException, IOException {
 
-    // nocommit -- maybe cutover TermsConsumer API to
-    // TermRef as well?
     final TermRef text = smis[0].term;
-    UnicodeUtil.UTF8toUTF16(text.bytes, text.offset, text.length, termBuffer);
 
-    // Make space for terminator
-    final int length = termBuffer.length;
-    termBuffer.setLength(1+termBuffer.length);
-
-    // nocommit -- make this a static final constant somewhere:
-    termBuffer.result[length] = 0xffff;
-
-    final DocsConsumer docConsumer = termsConsumer.startTerm(termBuffer.result, 0);
+    final DocsConsumer docConsumer = termsConsumer.startTerm(text);
 
     int df = 0;
     for (int i = 0; i < n; i++) {
@@ -793,7 +780,7 @@ final class SegmentMerger {
         }
       }
     }
-    termsConsumer.finishTerm(termBuffer.result, 0, df);
+    termsConsumer.finishTerm(text, df);
 
     return df;
   }
