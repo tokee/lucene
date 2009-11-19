@@ -50,19 +50,11 @@ public class TestTermRangeQuery extends LuceneTestCase {
     Query query = new TermRangeQuery("content", "A", "C", false, false);
     initializeIndex(new String[] {"A", "B", "C", "D"});
     IndexSearcher searcher = new IndexSearcher(dir, true);
-    ScoreDoc[] hits = searcher.search(query, null, 1000).scoreDocs;
-    assertEquals("A,B,C,D, only B in range", 1, hits.length);
-    searcher.close();
 
-    initializeIndex(new String[] {"A", "B", "D"});
-    searcher = new IndexSearcher(dir, true);
-    hits = searcher.search(query, null, 1000).scoreDocs;
-    assertEquals("A,B,D, only B in range", 1, hits.length);
-    searcher.close();
 
     addDoc("C");
     searcher = new IndexSearcher(dir, true);
-    hits = searcher.search(query, null, 1000).scoreDocs;
+    ScoreDoc[] hits = searcher.search(query, null, 1000).scoreDocs;
     assertEquals("C added, still only B in range", 1, hits.length);
     searcher.close();
   }

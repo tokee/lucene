@@ -83,7 +83,9 @@ public abstract class FilteredTermsEnum extends TermsEnum {
 
   @Override
   public TermRef term() throws IOException {
-    assert actualEnum != null;
+    if(actualEnum == null) {
+      return null;
+    }
     return actualEnum.term();
   }
     

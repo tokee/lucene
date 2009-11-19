@@ -97,77 +97,10 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
   public void clearTotalNumberOfTerms() {
     query.clearTotalNumberOfTerms();
   }
-
-  abstract class TermGenerator {
-    // @deprecated
-    public void generate(IndexReader reader, TermEnum enumerator) throws IOException {
-      final int[] docs = new int[32];
-      final int[] freqs = new int[32];
-      TermDocs termDocs = reader.termDocs();
-      try {
-        int termCount = 0;
-        do {
-          Term term = enumerator.term();
-          if (term == null)
-            break;
-          termCount++;
-          termDocs.seek(term);
-          while (true) {
-            final int count = termDocs.read(docs, freqs);
-            if (count != 0) {
-              for(int i=0;i<count;i++) {
-                handleDoc(docs[i]);
-              }
-            } else {
-              break;
-            }
-          }
-        } while (enumerator.next());
-
-        query.incTotalNumberOfTerms(termCount);
-
-      } finally {
-        termDocs.close();
-      }
-    }
-
-    public void generate(IndexReader reader, TermsEnum enumerator) throws IOException {
-      //System.out.println("mtq.filter generate");
-      final int[] docs = new int[32];
-      final int[] freqs = new int[32];
-      int termCount = 0;
-      final Bits delDocs = reader.getDeletedDocs();
-      while(true) {
-        termCount++;
-        //System.out.println("  iter termCount=" + termCount + " term=" + enumerator.term().toBytesString());
-        DocsEnum docsEnum = enumerator.docs(delDocs);
-        while (true) {
-          final int count = docsEnum.read(docs, freqs);
-          if (count != 0) {
-            for(int i=0;i<count;i++) {
-              handleDoc(docs[i]);
-            }
-          } else {
-            break;
-          }
-        }
-        TermRef term = enumerator.next();
-        if (term == null) {
-          break;
-        }
-        //System.out.println("  enum next term=" + term.toBytesString());
-        assert term.termEquals(enumerator.term());
-      }
-      //System.out.println("  done termCount=" + termCount);
-
-      query.incTotalNumberOfTerms(termCount);
-    }
-    abstract public void handleDoc(int doc);
-  }
   
   /**
-   * Returns a DocIdSet with documents that should be
-   * permitted in search results.
+   * Returns a DocIdSet with documents that should be permitted in search
+   * results.
    */
   @Override
   public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
@@ -176,12 +109,35 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
       if (!termsEnum.empty()) {
         // fill into a OpenBitSet
         final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());
-        new TermGenerator() {
-          @Override
-          public void handleDoc(int doc) {
-            bitSet.set(doc);
+        final int[] docs = new int[32];
+        final int[] freqs = new int[32];
+        int termCount = 0;
+        final Bits delDocs = reader.getDeletedDocs();
+        while (true) {
+          termCount++;
+          // System.out.println("  iter termCount=" + termCount + " term=" +
+          // enumerator.term().toBytesString());
+          DocsEnum docsEnum = termsEnum.docs(delDocs);
+          while (true) {
+            final int count = docsEnum.read(docs, freqs);
+            if (count != 0) {
+              for (int i = 0; i < count; i++) {
+                bitSet.set(docs[i]);
+              }
+            } else {
+              break;
+            }
           }
-        }.generate(reader, termsEnum);
+          TermRef term = termsEnum.next();
+          if (term == null) {
+            break;
+          }
+          // System.out.println("  enum next term=" + term.toBytesString());
+          assert term.termEquals(termsEnum.term());
+        }
+        // System.out.println("  done termCount=" + termCount);
+
+        query.incTotalNumberOfTerms(termCount);
         return bitSet;
       } else {
         return DocIdSet.EMPTY_DOCIDSET;
@@ -194,12 +150,34 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
           return DocIdSet.EMPTY_DOCIDSET;
         // else fill into a OpenBitSet
         final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());
-        new TermGenerator() {
-          @Override
-          public void handleDoc(int doc) {
-            bitSet.set(doc);
-          }
-        }.generate(reader, enumerator);
+        final int[] docs = new int[32];
+        final int[] freqs = new int[32];
+        TermDocs termDocs = reader.termDocs();
+        try {
+          int termCount = 0;
+          do {
+            Term term = enumerator.term();
+            if (term == null)
+              break;
+            termCount++;
+            termDocs.seek(term);
+            while (true) {
+              final int count = termDocs.read(docs, freqs);
+              if (count != 0) {
+                for (int i = 0; i < count; i++) {
+                  bitSet.set(docs[i]);
+                }
+              } else {
+                break;
+              }
+            }
+          } while (enumerator.next());
+
+          query.incTotalNumberOfTerms(termCount);
+
+        } finally {
+          termDocs.close();
+        }
         return bitSet;
       } finally {
         enumerator.close();
