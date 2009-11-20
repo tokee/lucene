@@ -927,6 +927,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
   }
   private static final NullDocsEnum nullDocsEnum = new NullDocsEnum();
 
+  // nocommit -- tap into per-thread cache, here?
   // nocommit -- should we return null or NullDocsEnum?
   /** Returns DocsEnum for the specified field & term. */
   public DocsEnum termDocsEnum(Bits skipDocs, String field, TermRef term) throws IOException {

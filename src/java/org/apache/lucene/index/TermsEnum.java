@@ -74,6 +74,7 @@ public abstract class TermsEnum extends AttributeSource {
    *  {@link SeekStatus#END}.*/
   public abstract int docFreq();
 
+  // nocommit -- clarify if this may return null
   /** Get {@link DocsEnum} for the current term.  The
    *  returned {@link DocsEnum} may share state with this
    *  TermsEnum instance, so you should not call this

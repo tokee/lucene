@@ -231,6 +231,24 @@ public class StandardTermsDictReader extends FieldsProducer {
       }
     }
 
+    // nocommit -- figure out how to do this one: we want to
+    // reuse the thread private TermsEnum, but, get a
+    // clone'd docs, somehow.  This way if code is using the
+    // API sequentially, we match performance of current
+    // trunk (though, really, such code ought to get their
+    // own terms enum and use its seek...)
+    /*
+    @Override
+    public DocsEnum docs(Bits skipDocs, TermRef text) throws IOException {
+      ThreadResources resources = getThreadResources();
+      if (resources.termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
+        return resources.termsEnum.docs(skipDocs);
+      } else {
+        return null;
+      }
+    }
+    */
+    
     public void close() {
       threadResources.close();
     }
@@ -317,6 +335,10 @@ public class StandardTermsDictReader extends FieldsProducer {
           // nocommit -- cache this
           return SeekStatus.FOUND;
         }
+
+        // nocommit -- carry over logic from TermInfosReader,
+        // here, that avoids the binary search if the seek
+        // is w/in the current index block
 
         // Find latest index term that's <= our text:
         indexReader.getIndexOffset(term, indexResult);
