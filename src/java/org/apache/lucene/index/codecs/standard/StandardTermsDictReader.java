@@ -367,9 +367,9 @@ public class StandardTermsDictReader extends FieldsProducer {
 
         //int indexCount = 0;
         //int lastIndexCount = 0;
-        int scanCnt = 0;
+        //int scanCnt = 0;
         while(next() != null) {
-          scanCnt++;
+          //scanCnt++;
           final int cmp = bytesReader.term.compareTerm(term);
           if (cmp == 0) {
             // mxx
@@ -518,13 +518,13 @@ public class StandardTermsDictReader extends FieldsProducer {
   // nocommit -- scrutinize API
   public static class CacheEntry {
     int termUpTo;
-    TermRef term;
+    TermRef term; // nocommit -- really needed?
     long filePointer;
-    // nocommit
+
+    // nocommit -- belongs in Pulsing's CacheEntry class:
     public int freq;
     public Document docs[];
     public boolean pendingIndexTerm;
-
   }
 
   private static final int MAX_CACHE_SIZE = 1024;

@@ -989,6 +989,8 @@ final class DocumentsWriter {
         // by re-using the same TermsEnum and seeking only
         // forwards
         if (term.field() != currentField) {
+          // nocommit -- once we sync up branch again, add
+          // assert that this field is always > last one
           currentField = term.field();
           Terms terms = fields.terms(currentField);
           if (terms != null) {

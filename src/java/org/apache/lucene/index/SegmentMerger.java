@@ -28,13 +28,12 @@ import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.index.MergePolicy.MergeAbortedException;
 import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.codecs.MergeState;
 import org.apache.lucene.index.codecs.FieldsConsumer;
-import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.index.codecs.DocsConsumer;
-import org.apache.lucene.index.codecs.PositionsConsumer;
+import org.apache.lucene.util.Bits;
 
 /**
  * The SegmentMerger class combines two or more Segments, represented by an IndexReader ({@link #add},
@@ -575,9 +574,6 @@ final class SegmentMerger {
     }
   }
 
-  private SegmentFieldMergeQueue fieldsQueue;
-  private SegmentMergeQueue termsQueue;
-  
   Codec getCodec() {
     return codec;
   }
@@ -587,204 +583,68 @@ final class SegmentMerger {
     SegmentWriteState state = new SegmentWriteState(null, directory, segment, fieldInfos, null, mergedDocs, 0, termIndexInterval, codecs);
 
     // Let Codecs decide which codec will be used to write
-    // this segment:
+    // the new segment:
     codec = codecs.getWriter(state);
     
+    mergeState = new MergeState();
+    mergeState.readers = readers;
+    mergeState.fieldInfos = fieldInfos;
+    mergeState.readerCount = readers.size();
+    mergeState.mergedDocCount = mergedDocs;
+    
+    // Remap docIDs
+    mergeState.delCounts = new int[mergeState.readerCount];
+    mergeState.docMaps = new int[mergeState.readerCount][];
+    mergeState.docBase = new int[mergeState.readerCount];
+
+    int docBase = 0;
+    for(int i=0;i<mergeState.readerCount;i++) {
+      final IndexReader reader = readers.get(i);
+      mergeState.delCounts[i] = reader.numDeletedDocs();
+      mergeState.docBase[i] = docBase;
+      docBase += reader.numDocs();
+      if (mergeState.delCounts[i] != 0) {
+        int delCount = 0;
+        Bits deletedDocs = reader.getDeletedDocs();
+        final int maxDoc = reader.maxDoc();
+        final int[] docMap = mergeState.docMaps[i] = new int[maxDoc];
+        int newDocID = 0;
+        for(int j=0;j<maxDoc;j++) {
+          if (deletedDocs.get(j)) {
+            docMap[j] = -1;
+            delCount++;  // only for assert
+          } else {
+            docMap[j] = newDocID++;
+          }
+        }
+        assert delCount == mergeState.delCounts[i]: "reader delCount=" + mergeState.delCounts[i] + " vs recomputed delCount=" + delCount;
+      }
+    }
+
+    Fields[] fields = new Fields[mergeState.readerCount];
+    for(int i=0;i<mergeState.readerCount;i++) {
+      fields[i] = readers.get(i).fields();
+    }
+
     final FieldsConsumer consumer = codec.fieldsConsumer(state);
 
     try {
-      fieldsQueue = new SegmentFieldMergeQueue(readers.size());
-      termsQueue = new SegmentMergeQueue(readers.size());
-      mergeTermInfos(consumer);
+      consumer.merge(mergeState, fields);
     } finally {
       consumer.close();
     }
   }
 
-  boolean omitTermFreqAndPositions;
+  private MergeState mergeState;
 
-  private final void mergeTermInfos(final FieldsConsumer consumer) throws CorruptIndexException, IOException {
-    int base = 0;
-    final int readerCount = readers.size();
-    for (int i = 0; i < readerCount; i++) {
-      IndexReader reader = readers.get(i);
-      SegmentMergeInfo smi = new SegmentMergeInfo(base, reader);
-      int[] docMap  = smi.getDocMap();
-      if (docMap != null) {
-        if (docMaps == null) {
-          docMaps = new int[readerCount][];
-          delCounts = new int[readerCount];
-        }
-        docMaps[i] = docMap;
-        delCounts[i] = smi.reader.maxDoc() - smi.reader.numDocs();
-      }
-      
-      base += reader.numDocs();
-
-      assert reader.numDocs() == reader.maxDoc() - smi.delCount;
-
-      if (smi.nextField()) {
-        fieldsQueue.add(smi);				  // initialize queue
-      } else {
-        // segment is done: it has no fields
-      }
-    }
-
-    SegmentMergeInfo[] match = new SegmentMergeInfo[readers.size()];
-
-    while (fieldsQueue.size() > 0) {
-
-      while(true) {
-        SegmentMergeInfo smi = fieldsQueue.pop();
-        if (smi.nextTerm()) {
-          termsQueue.add(smi);
-        } else if (smi.nextField()) {
-          // field had no terms
-          fieldsQueue.add(smi);
-        } else {
-          // done with a segment
-        }
-        SegmentMergeInfo top = fieldsQueue.top();
-        if (top == null || (termsQueue.size() > 0 && ((SegmentMergeInfo) termsQueue.top()).field != top.field)) {
-          break;
-        }
-      }
-        
-      if (termsQueue.size() > 0) {          
-        // merge one field
-
-        final String field  = termsQueue.top().field;
-        if (Codec.DEBUG) {
-          System.out.println("merge field=" + field + " segCount=" + termsQueue.size());
-        }
-        final FieldInfo fieldInfo = fieldInfos.fieldInfo(field);
-        final TermsConsumer termsConsumer = consumer.addField(fieldInfo);
-        omitTermFreqAndPositions = fieldInfo.omitTermFreqAndPositions;
-
-        while(termsQueue.size() > 0) {
-          // pop matching terms
-          int matchSize = 0;
-          while(true) {
-            match[matchSize++] = termsQueue.pop();
-            SegmentMergeInfo top = termsQueue.top();
-            if (top == null || !top.term.termEquals(match[0].term)) {
-              break;
-            }
-          }
-
-          if (Codec.DEBUG) {
-            System.out.println("merge field=" + field + " term=" + match[0].term + " numReaders=" + matchSize);
-          }
-
-          int df = appendPostings(termsConsumer, match, matchSize);
-
-          checkAbort.work(df/3.0);
-
-          // put SegmentMergeInfos back into repsective queues
-          while (matchSize > 0) {
-            SegmentMergeInfo smi = match[--matchSize];
-            if (smi.nextTerm()) {
-              termsQueue.add(smi);
-            } else if (smi.nextField()) {
-              fieldsQueue.add(smi);
-            } else {
-              // done with a segment
-            }
-          }
-        }
-        termsConsumer.finish();
-      }
-    }
-  }
-
-  private byte[] payloadBuffer;
-  private int[][] docMaps;
   int[][] getDocMaps() {
-    return docMaps;
+    return mergeState.docMaps;
   }
-  private int[] delCounts;
+
   int[] getDelCounts() {
-    return delCounts;
+    return mergeState.delCounts;
   }
   
-  /** Process postings from multiple segments all positioned on the
-   *  same term. Writes out merged entries into freqOutput and
-   *  the proxOutput streams.
-   *
-   * @param smis array of segments
-   * @param n number of cells in the array actually occupied
-   * @return number of documents across all segments where this term was found
-   * @throws CorruptIndexException if the index is corrupt
-   * @throws IOException if there is a low-level IO error
-   */
-  private final int appendPostings(final TermsConsumer termsConsumer, SegmentMergeInfo[] smis, int n)
-        throws CorruptIndexException, IOException {
-
-    final TermRef text = smis[0].term;
-
-    final DocsConsumer docConsumer = termsConsumer.startTerm(text);
-
-    int df = 0;
-    for (int i = 0; i < n; i++) {
-      if (Codec.DEBUG) {
-        System.out.println("    merge reader " + (i+1) + " of " + n + ": term=" + text);
-      }
-
-      SegmentMergeInfo smi = smis[i];
-      DocsEnum docs = smi.terms.docs(smi.reader.getDeletedDocs());
-      int base = smi.base;
-      int[] docMap = smi.getDocMap();
-
-      while (true) {
-        int startDoc = docs.next();
-        if (startDoc == DocsEnum.NO_MORE_DOCS) {
-          break;
-        }
-        if (Codec.DEBUG) {
-          System.out.println("      merge read doc=" + startDoc);
-        }
-
-        df++;
-        int doc;
-        if (docMap != null) {
-          // map around deletions
-          doc = docMap[startDoc];
-          assert doc != -1: "postings enum returned deleted docID " + startDoc + " freq=" + docs.freq() + " df=" + df;
-        } else {
-          doc = startDoc;
-        }
-
-        doc += base;                              // convert to merged space
-        assert doc < mergedDocs: "doc=" + doc + " maxDoc=" + mergedDocs;
-
-        final int freq = docs.freq();
-        final PositionsConsumer posConsumer = docConsumer.addDoc(doc, freq);
-        final PositionsEnum positions = docs.positions();
-
-        // nocommit -- omitTF should be "private", and this
-        // code (and FreqProxTermsWriter) should instead
-        // check if posConsumer is null?
-        
-        if (!omitTermFreqAndPositions) {
-          for (int j = 0; j < freq; j++) {
-            final int position = positions.next();
-            final int payloadLength = positions.getPayloadLength();
-            if (payloadLength > 0) {
-              if (payloadBuffer == null || payloadBuffer.length < payloadLength)
-                payloadBuffer = new byte[payloadLength];
-              positions.getPayload(payloadBuffer, 0);
-            }
-            posConsumer.addPosition(position, payloadBuffer, 0, payloadLength);
-          }
-          posConsumer.finishDoc();
-        }
-      }
-    }
-    termsConsumer.finishTerm(text, df);
-
-    return df;
-  }
-
   private void mergeNorms() throws IOException {
     byte[] normBuffer = null;
     IndexOutput output = null;

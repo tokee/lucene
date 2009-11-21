@@ -19,7 +19,7 @@ package org.apache.lucene.index.codecs;
 
 import java.io.IOException;
 
-import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.index.PositionsEnum;
 
 public abstract class PositionsConsumer {
 
@@ -32,4 +32,23 @@ public abstract class PositionsConsumer {
   /** Called when we are done adding positions & payloads
    * for each doc */
   public abstract void finishDoc() throws IOException;
+
+  private byte[] payloadBuffer;
+
+  /** Default merge impl, just copies positions & payloads
+   *  from the input. */
+  public void merge(MergeState mergeState, PositionsEnum positions, int freq) throws IOException {
+    for(int i=0;i<freq;i++) {
+      final int position = positions.next();
+      final int payloadLength = positions.getPayloadLength();
+      if (payloadLength > 0) {
+        if (payloadBuffer == null || payloadBuffer.length < payloadLength) {
+          payloadBuffer = new byte[payloadLength];
+        }
+        positions.getPayload(payloadBuffer, 0);
+      }
+      addPosition(position, payloadBuffer, 0, payloadLength);
+    }
+    finishDoc();
+  }
 }

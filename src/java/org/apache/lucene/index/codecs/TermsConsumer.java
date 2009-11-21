@@ -20,6 +20,9 @@ package org.apache.lucene.index.codecs;
 import java.io.IOException;
 
 import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.util.PriorityQueue;
 
 /**
  * NOTE: this API is experimental and will likely change
@@ -35,4 +38,96 @@ public abstract class TermsConsumer {
 
   /** Called when we are done adding terms to this field */
   public abstract void finish() throws IOException;
+
+  // For default merge impl
+  public static class TermMergeState {
+    TermRef current;
+    TermsEnum termsEnum;
+    int readerIndex;
+  }
+
+  private final static class MergeQueue extends PriorityQueue<TermMergeState> {
+    public MergeQueue(int size) {
+      initialize(size);
+    }
+
+    @Override
+    protected final boolean lessThan(TermMergeState a, TermMergeState b) {
+      final int cmp = a.current.compareTerm(b.current);
+      if (cmp != 0) {
+        return cmp < 0;
+      } else {
+        return a.readerIndex < b.readerIndex;
+      }
+    }
+  }
+
+  private MergeQueue queue;
+  private DocsConsumer.DocsMergeState[] match;
+  private TermMergeState[] pending;
+
+  /** Default merge impl */
+  public void merge(MergeState mergeState, TermMergeState[] termsStates, int count) throws IOException {
+    if (queue == null) {
+      queue = new MergeQueue(mergeState.readerCount);
+      match = new DocsConsumer.DocsMergeState[mergeState.readerCount];
+      for(int i=0;i<mergeState.readerCount;i++) {
+        match[i] = new DocsConsumer.DocsMergeState();
+      }
+      pending = new TermMergeState[mergeState.readerCount];
+    }
+
+    // Init queue
+    for(int i=0;i<count;i++) {
+      TermMergeState state = termsStates[i];
+      state.current = state.termsEnum.next();
+      if (state.current != null) {
+        queue.add(state);
+      } else {
+        // no terms at all in this field
+      }
+    }
+
+    while(queue.size() != 0) {
+
+      int matchCount = 0;
+      int pendingCount = 0;
+
+      while(true) {
+        TermMergeState state = pending[pendingCount++] = queue.pop();
+        DocsEnum docsEnum = state.termsEnum.docs(mergeState.readers.get(state.readerIndex).getDeletedDocs());
+        if (docsEnum != null) {
+          match[matchCount].docsEnum = docsEnum;
+          match[matchCount].docMap = mergeState.docMaps[state.readerIndex];
+          match[matchCount].docBase = mergeState.docBase[state.readerIndex];
+          matchCount++;
+        }
+        TermMergeState top = queue.top();
+        if (top == null || !top.current.termEquals(pending[0].current)) {
+          break;
+        }
+      }
+
+      if (matchCount > 0) {
+        // Merge one term
+        final TermRef term = pending[0].current;
+        final DocsConsumer docsConsumer = startTerm(term);
+        final int numDocs = docsConsumer.merge(mergeState, match, matchCount);
+        finishTerm(term, numDocs);
+      }
+
+      // Put terms back into queue
+      for(int i=0;i<pendingCount;i++) {
+        TermMergeState state = pending[i];
+        
+        state.current = state.termsEnum.next();
+        if (state.current != null) {
+          // More terms to merge
+          queue.add(state);
+        } else {
+          // Done
+        }
+      }
+    }
+  }
 }

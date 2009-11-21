@@ -26,6 +26,7 @@ import org.apache.lucene.index.IndexWriter.MaxFieldLength;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.OpenBitSet;
+import org.apache.lucene.util.Bits;
 
 /**
  * This tool splits input index into multiple equal parts. The method employed
@@ -209,6 +210,11 @@ public class MultiPassIndexSplitter {
     @Override
     public boolean hasDeletions() {
       return !dels.isEmpty();
+    }
+
+    @Override
+    public Bits getDeletedDocs() {
+      return dels;
     }
 
     @Override
