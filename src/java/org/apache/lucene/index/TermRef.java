@@ -36,6 +36,8 @@ public class TermRef {
     copy(text);
   }
 
+  // nocommit: we could do this w/ UnicodeUtil w/o requiring
+  // allocation of new bytes[]?
   public void copy(String text) {
     try {
       bytes = text.getBytes("UTF-8");

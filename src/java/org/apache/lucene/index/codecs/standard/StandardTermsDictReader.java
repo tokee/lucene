@@ -304,6 +304,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       public SeekStatus seek(TermRef term) throws IOException {
         ReuseLRUCache<TermRef, CacheEntry> cache = null;
         CacheEntry entry = null;
+        TermRef entryKey = null;
 
         if (docs.canCaptureState()) {
           final ThreadResources resources = getThreadResources();
@@ -312,7 +313,7 @@ public class StandardTermsDictReader extends FieldsProducer {
           entry = cache.get(term);
           if (entry != null) {
             docFreq = entry.freq;
-            bytesReader.term.copy(entry.term);
+            bytesReader.term.copy(term);
             docs.setState(entry, docFreq);
             termUpto = entry.termUpTo;
             // nocommit -- would be better to do this lazy?
@@ -384,16 +385,17 @@ public class StandardTermsDictReader extends FieldsProducer {
                 entry = cache.eldest;
                 cache.eldest = null;
                 docs.captureState(entry);
-                entry.term.copy(bytesReader.term);
+                entryKey = cache.eldestKey;
+                entryKey.copy(bytesReader.term);
               } else {
                 entry = docs.captureState(null);
-                entry.term = (TermRef) bytesReader.term.clone();
+                entryKey = (TermRef) bytesReader.term.clone();
               }
               entry.freq = docFreq;
               entry.termUpTo = termUpto;
               entry.filePointer = in.getFilePointer();
             
-              cache.put(entry.term, entry);
+              cache.put(entryKey, entry);
             }
             return SeekStatus.FOUND;
           } else if (cmp > 0) {
@@ -517,9 +519,8 @@ public class StandardTermsDictReader extends FieldsProducer {
 
   // nocommit -- scrutinize API
   public static class CacheEntry {
-    int termUpTo;
-    TermRef term; // nocommit -- really needed?
-    long filePointer;
+    int termUpTo;                                 // ord for this term
+    long filePointer;                             // fp into the terms dict primary file (_X.tis)
 
     // nocommit -- belongs in Pulsing's CacheEntry class:
     public int freq;
@@ -563,6 +564,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     private final static float LOADFACTOR = 0.75f;
     private int cacheSize;
     V eldest;
+    K eldestKey;
 
     /**
      * Creates a last-recently-used cache with the specified size.
@@ -580,6 +582,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       boolean remove = size() > ReuseLRUCache.this.cacheSize;
       if (remove) {
         this.eldest = eldest.getValue();
+        this.eldestKey = eldest.getKey();
       }
       return remove;
     }
