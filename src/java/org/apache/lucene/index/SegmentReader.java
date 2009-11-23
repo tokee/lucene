@@ -1386,7 +1386,18 @@ public class SegmentReader extends IndexReader implements Cloneable {
           if (currentField == t.field) {
             // Field matches -- get terms
             terms = fields.terms();
-            TermRef tr = new TermRef(t.text());
+            String text = t.text();
+            TermRef tr;
+            // this is a hack only for backwards compatibility.
+            // previously you could supply a term ending with a lead surrogate,
+            // and it would return the next Term.
+            // if someone does this, tack on the lowest possible trail surrogate.
+            // this emulates the old behavior, and forms "valid UTF-8" unicode.
+            if (text.length() > 0 
+                && Character.isHighSurrogate(text.charAt(text.length() - 1)))
+              tr = new TermRef(t.text() + "\uDC00");
+            else
+              tr = new TermRef(t.text());
             TermsEnum.SeekStatus status = terms.seek(tr);
             if (status == TermsEnum.SeekStatus.END) {
               // leave currentTerm null

@@ -32,12 +32,18 @@ public class TermRef {
   public TermRef() {
   }
 
+  /**
+   * @param text Well-formed unicode text, with no unpaired surrogates or U+FFFF.
+   */
   public TermRef(String text) {
     copy(text);
   }
 
   // nocommit: we could do this w/ UnicodeUtil w/o requiring
   // allocation of new bytes[]?
+  /**
+   * @param text Well-formed unicode text, with no unpaired surrogates or U+FFFF.
+   */
   public void copy(String text) {
     try {
       bytes = text.getBytes("UTF-8");
@@ -97,7 +103,7 @@ public class TermRef {
   }
 
   public boolean startsWith(TermRef other) {
-    // nocommit: is this correct?
+    // nocommit: is this correct? Yes this is correct.
     if (length < other.length) {
       return false;
     }
