@@ -302,6 +302,7 @@ public class StandardTermsDictReader extends FieldsProducer {
        *  was found, SeekStatus.END if we hit EOF */
       @Override
       public SeekStatus seek(TermRef term) throws IOException {
+
         ReuseLRUCache<TermRef, CacheEntry> cache = null;
         CacheEntry entry = null;
         TermRef entryKey = null;
@@ -327,6 +328,13 @@ public class StandardTermsDictReader extends FieldsProducer {
           System.out.println(Thread.currentThread().getName() + ":stdr.seek(text=" + fieldInfo.name + ":" + term + ") seg=" + segment);
         }
 
+        // nocommit -- test if this is really
+        // helping/necessary -- that compareTerm isn't that
+        // cheap, and, how often do callers really seek to
+        // the term they are already on (it's silly to do
+        // so) -- I'd prefer such silly apps take the hit,
+        // not well behaved apps?
+
         if (bytesReader.started && termUpto < numTerms && bytesReader.term.compareTerm(term) == 0) {
           // nocommit -- not right if text is ""?
           // mxx
@@ -340,6 +348,11 @@ public class StandardTermsDictReader extends FieldsProducer {
         // nocommit -- carry over logic from TermInfosReader,
         // here, that avoids the binary search if the seek
         // is w/in the current index block
+
+        // nocommit -- also, not sure it'll help, but, we
+        // can bound this binary search, since we know the
+        // term ord we are now on, and we can compare how
+        // this new term compars to our current term
 
         // Find latest index term that's <= our text:
         indexReader.getIndexOffset(term, indexResult);
@@ -379,6 +392,10 @@ public class StandardTermsDictReader extends FieldsProducer {
               //new Throwable().printStackTrace(System.out);
             }
 
+            // nocommit -- see how often an already
+            // NOT_FOUND is then sent back here?  silly for
+            // apps to do so... but we should see if Lucene
+            // does 
             if (docs.canCaptureState()) {
               // Store in cache
               if (cache.eldest != null) {

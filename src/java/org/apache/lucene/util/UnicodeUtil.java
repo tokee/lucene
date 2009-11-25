@@ -120,7 +120,10 @@ final public class UnicodeUtil {
 
   /** Encode characters from a char[] source, starting at
    *  offset and stopping when the character 0xffff is seen.
-   *  Returns the number of bytes written to bytesOut. */
+   *  Returns the number of bytes written to bytesOut.
+   *
+   * @deprecated Use {@link #UTF16toUTF8(char[], int, int,
+   * UTF8Result)} instead. */
   public static void UTF16toUTF8(final char[] source, final int offset, UTF8Result result) {
 
     int upto = 0;
@@ -208,7 +211,12 @@ final public class UnicodeUtil {
       } else {
         // surrogate pair
         // confirm valid high surrogate
-        if (code < 0xDC00 && i < end && source[i] != 0xffff) {
+        // nocommit -- I removed the 0xffff check, here, but
+        // technically that's a break in back-compat, though
+        // it seems crazy that any external apps would rely
+        // on this?
+        //if (code < 0xDC00 && i < end && source[i] != 0xffff) {
+        if (code < 0xDC00 && i < end) {
           int utf32 = (int) source[i];
           // confirm valid low surrogate and write pair
           if (utf32 >= 0xDC00 && utf32 <= 0xDFFF) { 
