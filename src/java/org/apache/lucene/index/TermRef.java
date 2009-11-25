@@ -23,7 +23,7 @@ import java.io.UnsupportedEncodingException;
 /** Represents the UTF8 bytes[] for a term's text.  This is
  *  used when reading with the flex API, to avoid having to
  *  materialize full char[]. */
-public class TermRef {
+public final class TermRef {
 
   public byte[] bytes;
   public int offset;
@@ -102,19 +102,30 @@ public class TermRef {
     return other;
   }
 
-  public boolean startsWith(TermRef other) {
-    // nocommit: is this correct? Yes this is correct.
-    if (length < other.length) {
+  public boolean startsWith(TermRef other, int pos) {
+    // nocommit: maybe this one shouldn't be public...
+    if (pos < 0 || length - pos < other.length) {
       return false;
     }
-    for(int i=0;i<other.length;i++) {
-      if (bytes[offset+i] != other.bytes[other.offset+i]) {
+    int i = offset + pos;
+    int j = other.offset;
+    final int k = other.offset + other.length;
+    
+    while (j < k)
+      if (bytes[i++] != other.bytes[j++])
         return false;
-      }
-    }
+    
     return true;
   }
+  
+  public boolean startsWith(TermRef other) {
+    return startsWith(other, 0);
+  }
 
+  public boolean endsWith(TermRef other) {
+    return startsWith(other, length - other.length);   
+  }
+  
   @Override
   public int hashCode() {
     final int prime = 31;
