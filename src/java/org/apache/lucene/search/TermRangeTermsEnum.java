@@ -44,6 +44,7 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
   final private TermRef lowerTermRef;
   final private TermRef upperTermRef;
   private final boolean empty;
+  private final TermRef.Comparator termComp;
 
   /**
    * Enumerates all terms greater/equal than <code>lowerTerm</code>
@@ -80,6 +81,7 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
     this.includeLower = includeLower;
     this.includeUpper = includeUpper;
     this.field = StringHelper.intern(field);
+
     // do a little bit of normalization...
     // open ended range queries should always be inclusive.
     if (this.lowerTermText == null) {
@@ -99,7 +101,9 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
     Terms terms = reader.fields().terms(field);
 
     if (terms != null) {
+      termComp = terms.getTermComparator();
       final boolean foundFirstTerm = setEnum(terms.iterator(), new TermRef(startTermText)) != null;
+
       if (foundFirstTerm && collator == null && !this.includeLower && term().termEquals(lowerTermRef)) {
         empty = next() == null;
       } else {
@@ -107,6 +111,7 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
       }
     } else {
       empty = true;
+      termComp = null;
     }
   }
 
@@ -128,9 +133,9 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
   @Override
   protected AcceptStatus accept(TermRef term) {
     if (collator == null) {
-      // Use Unicode code point ordering
+      // Use this field's default sort ordering
       if (upperTermRef != null) {
-        final int cmp = upperTermRef.compareTerm(term);
+        final int cmp = termComp.compare(upperTermRef, term);
         /*
          * if beyond the upper term, or is exclusive and this is equal to
          * the upper term, break out

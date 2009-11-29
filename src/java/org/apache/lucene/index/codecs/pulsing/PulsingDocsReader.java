@@ -39,14 +39,14 @@ import org.apache.lucene.util.Bits;
 // create two separate docs readers, one that also reads
 // prox and one that doesn't?
 
-class PulsingDocsReader extends StandardDocsProducer {
+public class PulsingDocsReader extends StandardDocsProducer {
 
   // Fallback reader for non-pulsed terms:
   final StandardDocsProducer wrappedDocsReader;
   IndexInput termsIn;
   int maxPulsingDocFreq;
 
-  PulsingDocsReader(Directory dir, SegmentInfo segmentInfo, int readBufferSize, StandardDocsProducer wrappedDocsReader) throws IOException {
+  public PulsingDocsReader(Directory dir, SegmentInfo segmentInfo, int readBufferSize, StandardDocsProducer wrappedDocsReader) throws IOException {
     this.wrappedDocsReader = wrappedDocsReader;
   }
 

@@ -94,6 +94,9 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
 
   public void abort() {}
 
+  // nocommit -- should be @ thread level not field
+  private final TermRef flushTerm = new TermRef();
+
   /** Called once per field per document if term vectors
    *  are enabled, to write the vectors to
    *  RAMOutputStream, which is then quickly flushed to
@@ -124,7 +127,9 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
 
     perThread.doc.addField(termsHashPerField.fieldInfo.number);
 
-    final RawPostingList[] postings = termsHashPerField.sortPostings();
+    // nocommit -- should I sort by whatever terms dict is
+    // sorting by?
+    final RawPostingList[] postings = termsHashPerField.sortPostings(TermRef.getUTF8SortedAsUTF16Comparator());
 
     tvf.writeVInt(numPostings);
     byte bits = 0x0;
@@ -139,43 +144,35 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
     int lastStart = 0;
       
     final ByteSliceReader reader = perThread.vectorSliceReader;
-    final byte[][] byteBuffers = perThread.termsHashPerThread.termBytePool.buffers;
+    final ByteBlockPool termBytePool = perThread.termsHashPerThread.termBytePool;
 
     for(int j=0;j<numPostings;j++) {
       final TermVectorsTermsWriter.PostingList posting = (TermVectorsTermsWriter.PostingList) postings[j];
       final int freq = posting.freq;
-          
-      final byte[] bytes = byteBuffers[posting.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
-      final int start = posting.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
 
-      // nocommit: we can do this as completion of
-      // prefix-finding loop, below:
-      int upto = start;
-      while(bytes[upto] != TermsHashPerField.END_OF_TERM) {
-        upto++;
-      }
-      final int len = upto - start;
+      // Get TermRef
+      termBytePool.setTermRef(flushTerm, posting.textStart);
 
       // Compute common byte prefix between last term and
       // this term
       int prefix = 0;
       if (j > 0) {
-        while(prefix < lastLen && prefix < len) {
-          if (lastBytes[lastStart+prefix] != bytes[start+prefix]) {
+        while(prefix < lastLen && prefix < flushTerm.length) {
+          if (lastBytes[lastStart+prefix] != flushTerm.bytes[flushTerm.offset+prefix]) {
             break;
           }
           prefix++;
         }
       }
 
-      lastLen = len;
-      lastBytes = bytes;
-      lastStart = start;
+      lastLen = flushTerm.length;
+      lastBytes = flushTerm.bytes;
+      lastStart = flushTerm.offset;
 
-      final int suffix = len - prefix;
+      final int suffix = flushTerm.length - prefix;
       tvf.writeVInt(prefix);
       tvf.writeVInt(suffix);
-      tvf.writeBytes(bytes, lastStart+prefix, suffix);
+      tvf.writeBytes(flushTerm.bytes, lastStart+prefix, suffix);
       tvf.writeVInt(freq);
 
       if (doVectorPositions) {

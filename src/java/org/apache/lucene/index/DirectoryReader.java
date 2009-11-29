@@ -1175,6 +1175,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   private final static class TermMergeQueue extends PriorityQueue {
+    TermRef.Comparator termComp;
     TermMergeQueue(int size) {
       initialize(size);
     }
@@ -1183,7 +1184,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     protected final boolean lessThan(Object a, Object b) {
       TermsEnumWithBase termsA = (TermsEnumWithBase) a;
       TermsEnumWithBase termsB = (TermsEnumWithBase) b;
-      final int cmp = termsA.current.compareTerm(termsB.current);
+      final int cmp = termComp.compare(termsA.current, termsB.current);
       if (cmp != 0) {
         return cmp < 0;
       } else {
@@ -1237,14 +1238,30 @@ class DirectoryReader extends IndexReader implements Cloneable {
     
   private final static class MultiTerms extends Terms {
     private final TermsWithBase[] subs;
-    
-    public MultiTerms(TermsWithBase[] subs) {
+    private final TermRef.Comparator termComp;
+
+    public MultiTerms(TermsWithBase[] subs) throws IOException {
       this.subs = subs;
+      
+      TermRef.Comparator _termComp = null;
+      for(int i=0;i<subs.length;i++) {
+        if (_termComp == null) {
+          _termComp = subs[i].terms.getTermComparator();
+        } else {
+          assert subs[i].terms.getTermComparator() == null || _termComp.equals(subs[i].terms.getTermComparator());
+        }
+      }
+      termComp = _termComp;
     }
 
     @Override
     public TermsEnum iterator() throws IOException {
       return new MultiTermsEnum(subs.length).reset(subs);
+    }
+
+    @Override
+    public TermRef.Comparator getTermComparator() {
+      return termComp;
     }
   }
 
@@ -1321,6 +1338,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     int numSubs;
     private TermRef current;
     private final MultiDocsEnum docs;
+    private TermRef.Comparator termComp;
 
     MultiTermsEnum(int size) {
       queue = new TermMergeQueue(size);
@@ -1334,13 +1352,25 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return current;
     }
 
+    @Override
+    public TermRef.Comparator getTermComparator() {
+      return termComp;
+    }
+
     MultiTermsEnum reset(TermsWithBase[] terms) throws IOException {
       assert terms.length <= top.length;
       numSubs = 0;
       numTop = 0;
+      termComp = null;
+      queue.clear();
       for(int i=0;i<terms.length;i++) {
         final TermsEnum termsEnum = terms[i].terms.iterator();
         if (termsEnum != null) {
+          if (termComp == null) {
+            queue.termComp = termComp = termsEnum.getTermComparator();
+          } else {
+            assert termsEnum.getTermComparator() == null || termComp.equals(termsEnum.getTermComparator());
+          }
           final TermRef term = termsEnum.next();
           if (term != null) {
             subs[numSubs] = new TermsEnumWithBase(terms[i], termsEnum, term);
@@ -1359,11 +1389,18 @@ class DirectoryReader extends IndexReader implements Cloneable {
       assert numFields <= top.length;
       numSubs = 0;
       numTop = 0;
+      termComp = null;
+      queue.clear();
       for(int i=0;i<numFields;i++) {
         final TermsEnum terms = fields[i].fields.terms();
         if (terms != null) {
           final TermRef term = terms.next();
           if (term != null) {
+            if (termComp == null) {
+              queue.termComp = termComp = terms.getTermComparator();
+            } else {
+              assert termComp.equals(terms.getTermComparator());
+            }
             subs[numSubs] = new TermsEnumWithBase(fields[i], terms, term);
             queue.add(subs[numSubs]);
             numSubs++;
@@ -1386,8 +1423,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
           top[numTop++] = subs[i];
           subs[i].current = term;
         } else if (status == SeekStatus.NOT_FOUND) {
-          queue.add(subs[i]);
           subs[i].current = subs[i].terms.term();
+          assert subs[i].current != null;
+          queue.add(subs[i]);
         } else {
           // enum exhausted
         }

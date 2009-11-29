@@ -40,6 +40,12 @@ class LegacyTerms extends Terms {
 
   public void close() {
   }
+
+  @Override
+  public TermRef.Comparator getTermComparator() {
+    // Pre-flex indexes always sorted in UTF16 order
+    return TermRef.getUTF8SortedAsUTF16Comparator();
+  }
 }
 
   

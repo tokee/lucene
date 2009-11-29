@@ -143,5 +143,23 @@ final class ByteBlockPool {
 
     return newUpto+3;
   }
+
+  // Fill in a TermRef from terms length & bytes encoded in
+  // byte block
+  final TermRef setTermRef(TermRef term, int textStart) {
+    final byte[] bytes = term.bytes = buffers[textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
+    int pos = textStart & DocumentsWriter.BYTE_BLOCK_MASK;
+    if ((bytes[pos] & 0x80) == 0) {
+      // length is 1 byte
+      term.length = bytes[pos];
+      term.offset = pos+1;
+    } else {
+      // length is 2 bytes
+      term.length = (bytes[pos]&0x7f) + ((bytes[pos+1]&0xff)<<7);
+      term.offset = pos+2;
+    }
+    assert term.length >= 0;
+    return term;
+  }
 }
 

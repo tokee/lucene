@@ -23,11 +23,13 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -542,13 +544,12 @@ public class TestIndexWriter extends LuceneTestCase {
       RAMDirectory dir = new RAMDirectory();
       IndexWriter writer  = new IndexWriter(dir, new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
 
-      char[] chars = new char[DocumentsWriter.MAX_TERM_LENGTH_UTF8-1];
+      char[] chars = new char[DocumentsWriter.MAX_TERM_LENGTH_UTF8];
       Arrays.fill(chars, 'x');
       Document doc = new Document();
       final String bigTerm = new String(chars);
 
-      // Max length term is 16383, so this contents produces
-      // a too-long term:
+      // This produces a too-long term:
       String contents = "abc xyz x" + bigTerm + " another term";
       doc.add(new Field("content", contents, Field.Store.NO, Field.Index.ANALYZED));
       writer.addDocument(doc);
@@ -4609,6 +4610,145 @@ public class TestIndexWriter extends LuceneTestCase {
     writer.close();
 
     _TestUtil.checkIndex(dir);
+    dir.close();
+  }
+
+  // both start & end are inclusive
+  private final int getInt(Random r, int start, int end) {
+    return start + r.nextInt(1+end-start);
+  }
+
+  private void checkTermsOrder(IndexReader r, Set<String> allTerms, boolean isTop) throws IOException {
+    TermsEnum terms = r.fields().terms("f").iterator();
+
+    char[] last = new char[2];
+    int lastLength = 0;
+
+    Set<String> seenTerms = new HashSet<String>();
+
+    UnicodeUtil.UTF16Result utf16 = new UnicodeUtil.UTF16Result();
+    while(true) {
+      final TermRef term = terms.next();
+      if (term == null) {
+        break;
+      }
+      UnicodeUtil.UTF8toUTF16(term.bytes, term.offset, term.length, utf16);
+      assertTrue(utf16.length <= 2);
+
+      // Make sure last term comes before current one, in
+      // UTF16 sort order
+      int i = 0;
+      for(i=0;i<lastLength && i<utf16.length;i++) {
+        assertTrue("UTF16 code unit " + termDesc(new String(utf16.result, 0, utf16.length)) + " incorrectly sorted after code unit " + termDesc(new String(last, 0, lastLength)), last[i] <= utf16.result[i]);
+        if (last[i] < utf16.result[i]) {
+          break;
+        }
+      }
+      // Terms should not have been identical
+      assertTrue(lastLength != utf16.length || i < lastLength);
+
+      final String s = new String(utf16.result, 0, utf16.length);
+      assertTrue("term " + termDesc(s) + " was not added to index (count=" + allTerms.size() + ")", allTerms.contains(s));
+      seenTerms.add(s);
+
+      System.arraycopy(utf16.result, 0, last, 0, utf16.length);
+      lastLength = utf16.length;
+    }
+
+    if (isTop) {
+      assertTrue(allTerms.equals(seenTerms));
+    }
+
+    // Test seeking:
+    Iterator<String> it = seenTerms.iterator();
+    while(it.hasNext()) {
+      TermRef tr = new TermRef(it.next());
+      assertEquals("seek failed for term=" + termDesc(tr.toString()), 
+                   TermsEnum.SeekStatus.FOUND,
+                   terms.seek(tr));
+    }
+  }
+
+  private final String asUnicodeChar(char c) {
+    return "U+" + Integer.toHexString(c);
+  }
+
+  private final String termDesc(String s) {
+    final String s0;
+    assertTrue(s.length() <= 2);
+    if (s.length() == 1) {
+      s0 = asUnicodeChar(s.charAt(0));
+    } else {
+      s0 = asUnicodeChar(s.charAt(0)) + "," + asUnicodeChar(s.charAt(1));
+    }
+    return s0;
+  }
+
+  // Make sure terms, including ones with surrogate pairs,
+  // sort in UTF16 sort order by default
+  public void testTermUTF16SortOrder() throws Throwable {
+    Directory dir = new MockRAMDirectory();
+    IndexWriter writer = new IndexWriter(dir, new SimpleAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
+    Document d = new Document();
+    // Single segment
+    Field f = new Field("f", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+    d.add(f);
+    char[] chars = new char[2];
+    Random rnd = newRandom();
+    final Set<String> allTerms = new HashSet<String>();
+
+    for(int i=0;i<200;i++) {
+
+      final String s;
+      if (rnd.nextBoolean()) {
+        // Single char
+        if (rnd.nextBoolean()) {
+          // Above surrogates
+          chars[0] = (char) getInt(rnd, 1+UnicodeUtil.UNI_SUR_LOW_END, 0xffff);
+        } else {
+          // Below surrogates
+          chars[0] = (char) getInt(rnd, 0, UnicodeUtil.UNI_SUR_HIGH_START-1);
+        }
+        s = new String(chars, 0, 1);
+      } else {
+        // Surrogate pair
+        chars[0] = (char) getInt(rnd, UnicodeUtil.UNI_SUR_HIGH_START, UnicodeUtil.UNI_SUR_HIGH_END);
+        assertTrue(((int) chars[0]) >= UnicodeUtil.UNI_SUR_HIGH_START && ((int) chars[0]) <= UnicodeUtil.UNI_SUR_HIGH_END);
+        chars[1] = (char) getInt(rnd, UnicodeUtil.UNI_SUR_LOW_START, UnicodeUtil.UNI_SUR_LOW_END);
+        s = new String(chars, 0, 2);
+      }
+      allTerms.add(s);
+      f.setValue(s);
+
+      //System.out.println("add " + termDesc(s));
+      writer.addDocument(d);
+
+      if ((1+i) % 42 == 0) {
+        writer.commit();
+      }
+    }
+    
+    IndexReader r = writer.getReader();
+
+    // Test each sub-segment
+    final IndexReader[] subs = r.getSequentialSubReaders();
+    assertEquals(5, subs.length);
+    for(int i=0;i<subs.length;i++) {
+      checkTermsOrder(subs[i], allTerms, false);
+    }
+    checkTermsOrder(r, allTerms, true);
+
+    // Test multi segment
+    r.close();
+
+    writer.optimize();
+
+    // Test optimized single segment
+    r = writer.getReader();
+    checkTermsOrder(r, allTerms, true);
+    r.close();
+
+    writer.close();
     dir.close();
   }
 }

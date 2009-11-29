@@ -21,6 +21,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.FieldsEnum;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.util.PriorityQueue;
 
 import java.io.IOException;

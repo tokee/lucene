@@ -88,6 +88,12 @@ public abstract class FilteredTermsEnum extends TermsEnum {
     }
     return actualEnum.term();
   }
+
+  @Override
+  /** Don't call this until after setEnum, else you'll hit NPE */
+  public TermRef.Comparator getTermComparator() throws IOException {
+    return actualEnum.getTermComparator();
+  }
     
   /** 
    * Returns the docFreq of the current Term in the enumeration.

@@ -57,12 +57,16 @@ public class StandardTermsDictReader extends FieldsProducer {
   private final String segment;
   private StandardTermsIndexReader indexReader;
 
+  private final TermRef.Comparator termComp;
 
-  public StandardTermsDictReader(StandardTermsIndexReader indexReader, Directory dir, FieldInfos fieldInfos, String segment, StandardDocsProducer docs, int readBufferSize)
+  public StandardTermsDictReader(StandardTermsIndexReader indexReader, Directory dir, FieldInfos fieldInfos, String segment, StandardDocsProducer docs, int readBufferSize,
+                                 TermRef.Comparator termComp)
     throws IOException {
     
     this.segment = segment;
     this.docs = docs;
+
+    this.termComp = termComp;
     
     String file = IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_EXTENSION);
     //nocommit
@@ -231,6 +235,11 @@ public class StandardTermsDictReader extends FieldsProducer {
       }
     }
 
+    @Override
+    public TermRef.Comparator getTermComparator() {
+      return termComp;
+    }
+
     // nocommit -- figure out how to do this one: we want to
     // reuse the thread private TermsEnum, but, get a
     // clone'd docs, somehow.  This way if code is using the
@@ -296,6 +305,11 @@ public class StandardTermsDictReader extends FieldsProducer {
         docs = StandardTermsDictReader.this.docs.reader(fieldInfo, in);
       }
 
+      @Override
+      public TermRef.Comparator getTermComparator() {
+        return termComp;
+      }
+
       /** Seeks until the first term that's >= the provided
        *  text; returns SeekStatus.FOUND if the exact term
        *  is found, SeekStatus.NOT_FOUND if a different term
@@ -335,7 +349,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         // so) -- I'd prefer such silly apps take the hit,
         // not well behaved apps?
 
-        if (bytesReader.started && termUpto < numTerms && bytesReader.term.compareTerm(term) == 0) {
+        if (bytesReader.started && termUpto < numTerms && bytesReader.term.termEquals(term)) {
           // nocommit -- not right if text is ""?
           // mxx
           if (Codec.DEBUG) {
@@ -384,7 +398,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         //int scanCnt = 0;
         while(next() != null) {
           //scanCnt++;
-          final int cmp = bytesReader.term.compareTerm(term);
+          final int cmp = termComp.compare(bytesReader.term, term);
           if (cmp == 0) {
             // mxx
             if (Codec.DEBUG) {

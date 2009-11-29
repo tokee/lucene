@@ -43,10 +43,10 @@ final class FreqProxFieldMergeState {
   int docID;
   int termFreq;
 
-  public FreqProxFieldMergeState(FreqProxTermsWriterPerField field) {
+  public FreqProxFieldMergeState(FreqProxTermsWriterPerField field, TermRef.Comparator termComp) {
     this.field = field;
     this.numPostings = field.termsHashPerField.numPostings;
-    this.postings = field.termsHashPerField.sortPostings();
+    this.postings = field.termsHashPerField.sortPostings(termComp);
     this.bytePool = field.perThread.termsHashPerThread.bytePool;
   }
 
@@ -59,14 +59,8 @@ final class FreqProxFieldMergeState {
     p = (FreqProxTermsWriter.PostingList) postings[postingUpto];
     docID = 0;
 
-    text.bytes = bytePool.buffers[p.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
-    text.offset = p.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
-    // nocommit -- how to avoid this added cost?
-    int pos = text.offset;
-    while(text.bytes[pos] != TermsHashPerField.END_OF_TERM) {
-      pos++;
-    }
-    text.length = pos - text.offset;
+    // Get TermRef
+    bytePool.setTermRef(text, p.textStart);
 
     field.termsHashPerField.initReader(freq, p, 0);
     if (!field.fieldInfo.omitTermFreqAndPositions) {

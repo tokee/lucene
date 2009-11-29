@@ -45,35 +45,9 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       postings[i] = new PostingList();
   }
 
-  private static int compareText(final TermRef text1, final TermRef text2) {
-
-    int pos1 = text1.offset;
-    int pos2 = text2.offset;
-    final byte[] bytes1 = text1.bytes;
-    final byte[] bytes2 = text2.bytes;
-    while(true) {
-      final byte b1 = bytes1[pos1++];
-      final byte b2 = bytes2[pos2++];
-      if (b1 != b2) {
-        if (TermsHashPerField.END_OF_TERM == b2) {
-          //text2.length = pos2 - text2.offset;
-          return 1;
-        } else if (TermsHashPerField.END_OF_TERM == b1) {
-          //text1.length = pos1 - text1.offset;
-          return -1;
-        } else {
-          return (b1&0xff)-(b2&0xff);
-        }
-      } else if (TermsHashPerField.END_OF_TERM == b1) {
-        //text1.length = pos1 - text1.offset;
-        //text2.length = pos2 - text2.offset;
-        return 0;
-      }
-    }
-  }
-
   @Override
   void closeDocStore(SegmentWriteState state) {}
+
   @Override
   void abort() {}
 
@@ -184,8 +158,11 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
     final FreqProxFieldMergeState[] mergeStates = new FreqProxFieldMergeState[numFields];
 
+    final TermsConsumer termsConsumer = consumer.addField(fields[0].fieldInfo);
+    final TermRef.Comparator termComp = termsConsumer.getTermComparator();
+
     for(int i=0;i<numFields;i++) {
-      FreqProxFieldMergeState fms = mergeStates[i] = new FreqProxFieldMergeState(fields[i]);
+      FreqProxFieldMergeState fms = mergeStates[i] = new FreqProxFieldMergeState(fields[i], termComp);
 
       assert fms.field.fieldInfo == fields[0].fieldInfo;
 
@@ -194,11 +171,10 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       assert result;
     }
 
-    final TermsConsumer termsConsumer = consumer.addField(fields[0].fieldInfo);
-
     FreqProxFieldMergeState[] termStates = new FreqProxFieldMergeState[numFields];
 
     final boolean currentFieldOmitTermFreqAndPositions = fields[0].fieldInfo.omitTermFreqAndPositions;
+    //System.out.println("flush terms field=" + fields[0].fieldInfo.name);
 
     // TODO: really TermsHashPerField should take over most
     // of this loop, including merge sort of terms from
@@ -212,7 +188,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       int numToMerge = 1;
 
       for(int i=1;i<numFields;i++) {
-        final int cmp = compareText(mergeStates[i].text, termStates[0].text);
+        final int cmp = termComp.compare(mergeStates[i].text, termStates[0].text);
         if (cmp < 0) {
           termStates[0] = mergeStates[i];
           numToMerge = 1;
@@ -221,9 +197,14 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
         }
       }
 
+      // Need shallow copy here because termStates[0].text
+      // changes by the time we call finishTerm
       text.bytes = termStates[0].text.bytes;
       text.offset = termStates[0].text.offset;
       text.length = termStates[0].text.length;  
+
+      //System.out.println("  term=" + text.toUnicodeString());
+      //System.out.println("  term=" + text.toString());
 
       final DocsConsumer docConsumer = termsConsumer.startTerm(text);
 

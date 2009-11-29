@@ -39,6 +39,10 @@ public abstract class TermsConsumer {
   /** Called when we are done adding terms to this field */
   public abstract void finish() throws IOException;
 
+  /** Return the TermRef Comparator used to sort terms
+   *  before feeding to this API. */
+  public abstract TermRef.Comparator getTermComparator() throws IOException;
+
   // For default merge impl
   public static class TermMergeState {
     TermRef current;
@@ -47,13 +51,17 @@ public abstract class TermsConsumer {
   }
 
   private final static class MergeQueue extends PriorityQueue<TermMergeState> {
-    public MergeQueue(int size) {
+
+    final TermRef.Comparator termComp;
+
+    public MergeQueue(int size, TermRef.Comparator termComp) {
       initialize(size);
+      this.termComp = termComp;
     }
 
     @Override
     protected final boolean lessThan(TermMergeState a, TermMergeState b) {
-      final int cmp = a.current.compareTerm(b.current);
+      final int cmp = termComp.compare(a.current, b.current);
       if (cmp != 0) {
         return cmp < 0;
       } else {
@@ -68,13 +76,20 @@ public abstract class TermsConsumer {
 
   /** Default merge impl */
   public void merge(MergeState mergeState, TermMergeState[] termsStates, int count) throws IOException {
+
+    final TermRef.Comparator termComp = getTermComparator();
+
+    //System.out.println("merge terms field=" + mergeState.fieldInfo.name + " comp=" + termComp);
+
     if (queue == null) {
-      queue = new MergeQueue(mergeState.readerCount);
+      queue = new MergeQueue(mergeState.readerCount, termComp);
       match = new DocsConsumer.DocsMergeState[mergeState.readerCount];
       for(int i=0;i<mergeState.readerCount;i++) {
         match[i] = new DocsConsumer.DocsMergeState();
       }
       pending = new TermMergeState[mergeState.readerCount];
+    } else if (!queue.termComp.equals(termComp)) {
+      queue = new MergeQueue(mergeState.readerCount, termComp);
     }
 
     // Init queue
@@ -111,6 +126,7 @@ public abstract class TermsConsumer {
       if (matchCount > 0) {
         // Merge one term
         final TermRef term = pending[0].current;
+        //System.out.println("  merge term=" + term);
         final DocsConsumer docsConsumer = startTerm(term);
         final int numDocs = docsConsumer.merge(mergeState, match, matchCount);
         finishTerm(term, numDocs);

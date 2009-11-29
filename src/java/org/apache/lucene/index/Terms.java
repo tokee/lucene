@@ -30,6 +30,13 @@ public abstract class Terms {
   /** Returns an iterator that will step through all terms */
   public abstract TermsEnum iterator() throws IOException;
   
+  /** Return the TermRef Comparator used to sort terms
+   *  provided by the iterator.  NOTE: this may return null
+   *  if there are no terms.  This method may be invoked
+   *  many times; it's best to cache a single instance &
+   *  reuse it. */
+  public abstract TermRef.Comparator getTermComparator() throws IOException;
+
   /** Returns the docFreq of the specified term text. */
   public int docFreq(TermRef text) throws IOException {
     // nocommit -- make thread private cache so we share

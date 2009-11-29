@@ -86,6 +86,12 @@ class LegacyFieldsEnum extends FieldsEnum {
     }
 
     @Override
+    public TermRef.Comparator getTermComparator() {
+      // Pre-flex indexes always sorted in UTF16 order
+      return TermRef.getUTF8SortedAsUTF16Comparator();
+    }
+
+    @Override
     public SeekStatus seek(TermRef text) throws IOException {
 
       // nocommit: too slow?

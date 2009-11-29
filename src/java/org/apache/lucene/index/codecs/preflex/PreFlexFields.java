@@ -159,10 +159,17 @@ public class PreFlexFields extends FieldsProducer {
     PreTerms(FieldInfo fieldInfo) {
       this.fieldInfo = fieldInfo;
     }
+
     @Override
     public TermsEnum iterator() {
       //System.out.println("pff.init create no context");
       return new PreTermsEnum(fieldInfo);
+    }
+
+    @Override
+    public TermRef.Comparator getTermComparator() {
+      // Pre-flex indexes always sorted in UTF16 order
+      return TermRef.getUTF8SortedAsUTF16Comparator();
     }
   }
 
@@ -185,6 +192,12 @@ public class PreFlexFields extends FieldsProducer {
       if (Codec.DEBUG) {
         System.out.println("pff.terms.init field=" + fieldInfo.name);
       }
+    }
+
+    @Override
+    public TermRef.Comparator getTermComparator() {
+      // Pre-flex indexes always sorted in UTF16 order
+      return TermRef.getUTF8SortedAsUTF16Comparator();
     }
 
     @Override

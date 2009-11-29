@@ -23,6 +23,7 @@ import java.util.Collection;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
@@ -78,7 +79,7 @@ public class PulsingCodec extends Codec {
     // Terms dict
     success = false;
     try {
-      FieldsConsumer ret = new StandardTermsDictWriter(indexWriter, state, pulsingWriter);
+      FieldsConsumer ret = new StandardTermsDictWriter(indexWriter, state, pulsingWriter, TermRef.getUTF8SortedAsUTF16Comparator());
       success = true;
       return ret;
     } finally {
@@ -108,7 +109,8 @@ public class PulsingCodec extends Codec {
       indexReader = new SimpleStandardTermsIndexReader(dir,
                                                        fieldInfos,
                                                        si.name,
-                                                       indexDivisor);
+                                                       indexDivisor,
+                                                       TermRef.getUTF8SortedAsUTF16Comparator());
       success = true;
     } finally {
       if (!success) {
@@ -122,7 +124,8 @@ public class PulsingCodec extends Codec {
       FieldsProducer ret = new StandardTermsDictReader(indexReader,
                                                        dir, fieldInfos, si.name,
                                                        docsReader,
-                                                       readBufferSize);
+                                                       readBufferSize,
+                                                       TermRef.getUTF8SortedAsUTF16Comparator());
       success = true;
       return ret;
     } finally {

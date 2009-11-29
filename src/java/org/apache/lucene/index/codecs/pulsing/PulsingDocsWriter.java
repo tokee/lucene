@@ -120,7 +120,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
 
   /** If docFreq <= maxPulsingDocFreq, its postings are
    *  inlined into terms dict */
-  PulsingDocsWriter(SegmentWriteState state, int maxPulsingDocFreq, StandardDocsConsumer wrappedDocsWriter) throws IOException {
+  public PulsingDocsWriter(SegmentWriteState state, int maxPulsingDocFreq, StandardDocsConsumer wrappedDocsWriter) throws IOException {
     super();
 
     pendingDocs = new Document[maxPulsingDocFreq];

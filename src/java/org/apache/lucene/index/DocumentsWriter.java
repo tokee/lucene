@@ -1209,7 +1209,7 @@ final class DocumentsWriter {
   final static int BYTE_BLOCK_MASK = BYTE_BLOCK_SIZE - 1;
   final static int BYTE_BLOCK_NOT_MASK = ~BYTE_BLOCK_MASK;
 
-  final static int MAX_TERM_LENGTH_UTF8 = BYTE_BLOCK_SIZE-1;
+  final static int MAX_TERM_LENGTH_UTF8 = BYTE_BLOCK_SIZE-2;
 
   private class ByteBlockAllocator extends ByteBlockPool.Allocator {
 

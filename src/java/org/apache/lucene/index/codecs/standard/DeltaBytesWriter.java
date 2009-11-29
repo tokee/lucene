@@ -61,6 +61,9 @@ final class DeltaBytesWriter {
     if (lastBytes.length < length) {
       lastBytes = ArrayUtil.grow(lastBytes, length);
     }
+    // TODO: is this copy really necessary?  I don't think
+    // caller actually modifies these bytes, so we can save
+    // by reference?
     System.arraycopy(bytes, upto, lastBytes, start, suffix);
     lastLength = length;
   }

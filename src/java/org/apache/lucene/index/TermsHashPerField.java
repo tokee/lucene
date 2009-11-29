@@ -33,8 +33,6 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   final FieldInvertState fieldState;
   TermAttribute termAtt;
 
-  static final byte END_OF_TERM = (byte) 0xff;
-  
   // Copied from our perThread
   final IntBlockPool intPool;
   final ByteBlockPool bytePool;
@@ -53,7 +51,13 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   private RawPostingList[] postingsHash = new RawPostingList[postingsHashSize];
   private RawPostingList p;
   private final UnicodeUtil.UTF8Result utf8;
-  
+  private TermRef.Comparator termComp;
+
+  // nocommit -- move to thread level
+  // Used when comparing postings via termRefComp
+  private final TermRef tr1 = new TermRef();
+  private final TermRef tr2 = new TermRef();
+
   public TermsHashPerField(DocInverterPerField docInverterPerField, final TermsHashPerThread perThread, final TermsHashPerThread nextPerThread, final FieldInfo fieldInfo) {
     this.perThread = perThread;
     intPool = perThread.intPool;
@@ -62,6 +66,10 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     docState = perThread.docState;
     fieldState = docInverterPerField.fieldState;
     this.consumer = perThread.consumer.addField(this, fieldInfo);
+
+    tr1.length = 3*((int) (Short.MAX_VALUE));
+    tr2.length = 3*((int) (Short.MAX_VALUE));
+
     streamCount = consumer.getStreamCount();
     numPostingInt = 2*streamCount;
     utf8 = perThread.utf8;
@@ -137,7 +145,8 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   }
 
   /** Collapse the hash table & sort in-place. */
-  public RawPostingList[] sortPostings() {
+  public RawPostingList[] sortPostings(TermRef.Comparator termComp) {
+    this.termComp = termComp;
     compactPostings();
     quickSort(postingsHash, 0, numPostings-1);
     return postingsHash;
@@ -209,31 +218,14 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   int comparePostings(RawPostingList p1, RawPostingList p2) {
 
     if (p1 == p2) {
+      // nocommit -- why does this happen again?
       return 0;
     }
 
-    final byte[] text1 = termBytePool.buffers[p1.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
-    int pos1 = p1.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
-    final byte[] text2 = termBytePool.buffers[p2.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
-    int pos2 = p2.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
+    termBytePool.setTermRef(tr1, p1.textStart);
+    termBytePool.setTermRef(tr2, p2.textStart);
 
-    assert text1 != text2 || pos1 != pos2;
-
-    while(true) {
-      final byte b1 = text1[pos1++];
-      final byte b2 = text2[pos2++];
-      if (b1 != b2) {
-        if (END_OF_TERM == b2)
-          return 1;
-        else if (END_OF_TERM == b1)
-          return -1;
-        else
-          return (b1&0xff)-(b2&0xff);
-      } else
-        // This method should never compare equal postings
-        // unless p1==p2
-        assert b1 != END_OF_TERM;
-    }
+    return termComp.compare(tr1, tr2);
   }
 
   /** Test whether the text for current RawPostingList p equals
@@ -243,14 +235,29 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     final byte[] text = termBytePool.buffers[p.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
     assert text != null;
     int pos = p.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
-
-    final byte[] utf8Bytes = utf8.result;
-    for(int tokenPos=0;tokenPos<utf8.length;pos++,tokenPos++) {
-      if (utf8Bytes[tokenPos] != text[pos]) {
-        return false;
-      }
+    
+    final int len;
+    if ((text[pos] & 0x80) == 0) {
+      // length is 1 byte
+      len = text[pos];
+      pos += 1;
+    } else {
+      // length is 2 bytes
+      len = (text[pos]&0x7f) + ((text[pos+1]&0xff)<<7);
+      pos += 2;
     }
-    return END_OF_TERM == text[pos];
+
+    if (len == utf8.length) {
+      final byte[] utf8Bytes = utf8.result;
+      for(int tokenPos=0;tokenPos<utf8.length;pos++,tokenPos++) {
+        if (utf8Bytes[tokenPos] != text[pos]) {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      return false;
+    }
   }
   
   private boolean doCall;
@@ -360,7 +367,9 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     // Get the text of this term.
     final char[] tokenText = termAtt.termBuffer();;
     final int tokenTextLen = termAtt.termLength();
-
+    
+    //System.out.println("\nfield=" + fieldInfo.name + " add text=" + new String(tokenText, 0, tokenTextLen) + " len=" + tokenTextLen);
+    
     UnicodeUtil.UTF16toUTF8(tokenText, 0, tokenTextLen, utf8);
 
     // nocommit -- modify UnicodeUtil to compute hash for us
@@ -388,11 +397,15 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
 
     if (p == null) {
 
+      //System.out.println("  not seen yet");
+
       // First time we are seeing this token since we last
       // flushed the hash.
-      final int textLen1 = 1+utf8.length;
-      if (textLen1 + bytePool.byteUpto > DocumentsWriter.BYTE_BLOCK_SIZE) {
-        if (textLen1 > DocumentsWriter.BYTE_BLOCK_SIZE) {
+      final int textLen2 = 2+utf8.length;
+      if (textLen2 + bytePool.byteUpto > DocumentsWriter.BYTE_BLOCK_SIZE) {
+        // Not enough room in current block
+
+        if (utf8.length > DocumentsWriter.MAX_TERM_LENGTH_UTF8) {
           // Just skip this term, to remain as robust as
           // possible during indexing.  A TokenFilter
           // can be inserted into the analyzer chain if
@@ -422,10 +435,25 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
       final int textUpto = bytePool.byteUpto;
       p.textStart = textUpto + bytePool.byteOffset;
 
-      bytePool.byteUpto += textLen1;
-      System.arraycopy(utf8.result, 0, text, textUpto, utf8.length);
-      text[textUpto+utf8.length] = END_OF_TERM;
-          
+      // We first encode the length, followed by the UTF8
+      // bytes.  Length is encoded as vInt, but will consume
+      // 1 or 2 bytes at most (we reject too-long terms,
+      // above).
+
+      // encode length @ start of bytes
+      if (utf8.length < 128) {
+        // 1 byte to store length
+        text[textUpto] = (byte) utf8.length;
+        bytePool.byteUpto += utf8.length + 1;
+        System.arraycopy(utf8.result, 0, text, textUpto+1, utf8.length);
+      } else {
+        // 2 byte to store length
+        text[textUpto] = (byte) (0x80 | (utf8.length & 0x7f));
+        text[textUpto+1] = (byte) ((utf8.length>>7) & 0xff);
+        bytePool.byteUpto += utf8.length + 2;
+        System.arraycopy(utf8.result, 0, text, textUpto+2, utf8.length);
+      }
+
       assert postingsHash[hashPos] == null;
       postingsHash[hashPos] = p;
       numPostings++;
@@ -458,6 +486,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
       consumer.newTerm(p);
 
     } else {
+      // System.out.println("  already seen");
       intUptos = intPool.buffers[p.intStart >> DocumentsWriter.INT_BLOCK_SHIFT];
       intUptoStart = p.intStart & DocumentsWriter.INT_BLOCK_MASK;
       consumer.addTerm(p);
@@ -514,6 +543,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
 
     final int newMask = newSize-1;
 
+    //System.out.println("  rehash");
     RawPostingList[] newHash = new RawPostingList[newSize];
     for(int i=0;i<postingsHashSize;i++) {
       RawPostingList p0 = postingsHash[i];
@@ -523,8 +553,21 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
           final int start = p0.textStart & DocumentsWriter.BYTE_BLOCK_MASK;
           final byte[] text = bytePool.buffers[p0.textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
           code = 0;
-          int pos = start;
-          while(text[pos] != END_OF_TERM) {
+
+          final int len;
+          int pos;
+          if ((text[start] & 0x80) == 0) {
+            // length is 1 byte
+            len = text[start];
+            pos = start+1;
+          } else {
+            len = (text[start]&0x7f) + ((text[start+1]&0xff)<<7);
+            pos = start+2;
+          }
+          //System.out.println("    term=" + bytePool.setTermRef(new TermRef(), p0.textStart).toBytesString());
+
+          final int endPos = pos+len;
+          while(pos < endPos) {
             code = (code*31) + text[pos++];
           }
         } else {

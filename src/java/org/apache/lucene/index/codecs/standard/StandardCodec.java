@@ -23,6 +23,7 @@ import java.util.Collection;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
@@ -52,7 +53,7 @@ public class StandardCodec extends Codec {
 
     success = false;
     try {
-      FieldsConsumer ret = new StandardTermsDictWriter(indexWriter, state, docs);
+      FieldsConsumer ret = new StandardTermsDictWriter(indexWriter, state, docs, TermRef.getUTF8SortedAsUTF16Comparator());
       success = true;
       return ret;
     } finally {
@@ -78,7 +79,8 @@ public class StandardCodec extends Codec {
       indexReader = new SimpleStandardTermsIndexReader(dir,
                                                        fieldInfos,
                                                        si.name,
-                                                       indexDivisor);
+                                                       indexDivisor,
+                                                       TermRef.getUTF8SortedAsUTF16Comparator());
       success = true;
     } finally {
       if (!success) {
@@ -91,7 +93,8 @@ public class StandardCodec extends Codec {
       FieldsProducer ret = new StandardTermsDictReader(indexReader,
                                                        dir, fieldInfos, si.name,
                                                        docs,
-                                                       readBufferSize);
+                                                       readBufferSize,
+                                                       TermRef.getUTF8SortedAsUTF16Comparator());
       success = true;
       return ret;
     } finally {

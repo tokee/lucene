@@ -39,12 +39,17 @@ public final class TermRef {
     copy(text);
   }
 
+  public TermRef(TermRef other) {
+    copy(other);
+  }
+
   // nocommit: we could do this w/ UnicodeUtil w/o requiring
   // allocation of new bytes[]?
   /**
    * @param text Well-formed unicode text, with no unpaired surrogates or U+FFFF.
    */
   public void copy(String text) {
+    // nocommit -- assert text has no unpaired surrogates??
     try {
       bytes = text.getBytes("UTF-8");
     } catch (UnsupportedEncodingException uee) {
@@ -53,28 +58,6 @@ public final class TermRef {
     }
     offset = 0;
     length = bytes.length;
-  }
-
-  public int compareTerm(TermRef other) {
-    final int minLength;
-    if (length < other.length) {
-      minLength = length;
-    } else {
-      minLength = other.length;
-    }
-    int upto = offset;
-    int otherUpto = other.offset;
-    final byte[] otherBytes = other.bytes;
-    for(int i=0;i<minLength;i++) {
-      // compare bytes as unsigned
-      final int b1 = bytes[upto++]&0xff;
-      final int b2 = otherBytes[otherUpto++]&0xff;
-      final int diff =  b1-b2;
-      if (diff != 0) {
-        return diff;
-      }
-    }
-    return length - other.length;
   }
 
   public boolean termEquals(TermRef other) {
@@ -169,7 +152,26 @@ public final class TermRef {
       if (i > offset) {
         sb.append(' ');
       }
-      sb.append(""+bytes[i]);
+      sb.append(Integer.toHexString(bytes[i]&0xff));
+    }
+    sb.append(']');
+    return sb.toString();
+  }
+
+  private final String asUnicodeChar(char c) {
+    return "U+" + Integer.toHexString(c);
+  }
+
+  // for debugging only -- this is slow
+  public String toUnicodeString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append('[');
+    final String s = toString();
+    for(int i=0;i<s.length();i++) {
+      if (i > 0) {
+        sb.append(' ');
+      }
+      sb.append(asUnicodeChar(s.charAt(i)));
     }
     sb.append(']');
     return sb.toString();
@@ -188,5 +190,58 @@ public final class TermRef {
 
   public void grow(int newLength) {
     bytes = ArrayUtil.grow(bytes, newLength);
+  }
+
+  public abstract static class Comparator {
+    abstract public int compare(TermRef a, TermRef b);
+  }
+
+  private final static Comparator utf8SortedAsUTF16SortOrder = new UTF8SortedAsUTF16Comparator();
+
+  public static Comparator getUTF8SortedAsUTF16Comparator() {
+    return utf8SortedAsUTF16SortOrder;
+  }
+
+  public static class UTF8SortedAsUTF16Comparator extends Comparator {
+    public int compare(TermRef a, TermRef b) {
+
+      final byte[] aBytes = a.bytes;
+      int aUpto = a.offset;
+      final byte[] bBytes = b.bytes;
+      int bUpto = b.offset;
+      
+      final int aStop;
+      if (a.length < b.length) {
+        aStop = aUpto + a.length;
+      } else {
+        aStop = aUpto + b.length;
+      }
+
+      while(aUpto < aStop) {
+        int aByte = aBytes[aUpto++] & 0xff;
+        int bByte = bBytes[bUpto++] & 0xff;
+
+        if (aByte != bByte) {
+
+          // See http://icu-project.org/docs/papers/utf16_code_point_order.html#utf-8-in-utf-16-order
+
+          // We know the terms are not equal, but, we may
+          // have to carefully fixup the bytes at the
+          // difference to match UTF16's sort order:
+          if (aByte >= 0xee && bByte >= 0xee) {
+            if ((aByte & 0xfe) == 0xee) {
+              aByte += 0x10;
+            }
+            if ((bByte&0xfe) == 0xee) {
+              bByte += 0x10;
+            }
+          }
+          return aByte - bByte;
+        }
+      }
+
+      // One is a prefix of the other, or, they are equal:
+      return a.length - b.length;
+    }
   }
 }

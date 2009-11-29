@@ -59,13 +59,15 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   FieldInfo currentField;
   private final StandardTermsIndexWriter indexWriter;
   private final List<TermsConsumer> fields = new ArrayList<TermsConsumer>();
+  private final TermRef.Comparator termComp;
 
   // nocommit
   private String segment;
 
-  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardDocsConsumer consumer) throws IOException {
+  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardDocsConsumer consumer, TermRef.Comparator termComp) throws IOException {
     final String termsFileName = IndexFileNames.segmentFileName(state.segmentName, StandardCodec.TERMS_EXTENSION);
     this.indexWriter = indexWriter;
+    this.termComp = termComp;
     out = state.directory.createOutput(termsFileName);
     indexWriter.setTermsOutput(out);
     state.flushedFiles.add(termsFileName);
@@ -164,6 +166,11 @@ public class StandardTermsDictWriter extends FieldsConsumer {
       }
     }
     
+    @Override
+    public TermRef.Comparator getTermComparator() {
+      return termComp;
+    }
+
     @Override
     public DocsConsumer startTerm(TermRef text) throws IOException {
       consumer.startTerm();

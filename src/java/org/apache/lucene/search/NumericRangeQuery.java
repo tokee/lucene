@@ -567,10 +567,11 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     private final LinkedList<String> rangeBounds = new LinkedList<String>();
     private TermRef currentUpperBound = null;
     private final boolean empty;
+    private final TermRef.Comparator termComp;
 
     NumericRangeTermsEnum(final IndexReader reader) throws IOException {
       this.reader = reader;
-      
+
       switch (valSize) {
         case 64: {
           // lower
@@ -649,6 +650,18 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
           throw new IllegalArgumentException("valSize must be 32 or 64");
       }
       
+      // TODO: NRQ by design relies on a specific sort
+      // order; I think UT8 or UTF16 would work (NRQ encodes
+      // to only ASCII).
+      
+      Terms terms = reader.fields().terms(field);
+      if (terms != null) {
+        // cache locally
+        termComp = terms.getTermComparator();
+      } else {
+        termComp = null;
+      }
+
       // seek to first term
       empty = next() == null;
     }
@@ -678,7 +691,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
      */
     @Override
     protected AcceptStatus accept(TermRef term) {
-      if (term.compareTerm(currentUpperBound) <= 0) {
+      if (termComp.compare(term, currentUpperBound) <= 0) {
         return AcceptStatus.YES;
       } else {
         return AcceptStatus.NO;

@@ -64,19 +64,22 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
   final private IndexInput in;
   private volatile boolean indexLoaded;
+  private final TermRef.Comparator termComp;
 
   final HashMap<FieldInfo,FieldIndexReader> fields = new HashMap<FieldInfo,FieldIndexReader>();
 
-  public SimpleStandardTermsIndexReader(Directory dir, FieldInfos fieldInfos, String segment, int indexDivisor)
+  public SimpleStandardTermsIndexReader(Directory dir, FieldInfos fieldInfos, String segment, int indexDivisor, TermRef.Comparator termComp)
     throws IOException {
+
+    this.termComp = termComp;
+
+    // nocommit -- why was this needed?
     String file = IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_INDEX_EXTENSION);
-    //nocommit
-    if(!dir.fileExists(file)) {
+    if (!dir.fileExists(file)) {
       indexInterval = 0;
       totalIndexInterval = 0;
       this.indexDivisor = indexDivisor;
       in = null;
- 
       return;
     }
     IndexInput in = dir.openInput(file);
@@ -426,7 +429,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
           result.term.length = termLength[mid];
           //System.out.println("    term=" + result.term);
 
-          int delta = term.compareTerm(result.term);
+          int delta = termComp.compare(term, result.term);
           if (delta < 0) {
             hi = mid - 1;
           } else if (delta > 0) {
