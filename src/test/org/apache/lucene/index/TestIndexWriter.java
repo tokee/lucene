@@ -4594,8 +4594,10 @@ public class TestIndexWriter extends LuceneTestCase {
     doc = new Document();
     doc.add(new Field("field", "a", Field.Store.NO, Field.Index.ANALYZED));
     w.addDocument(doc);
+    IndexReader r = w.getReader();
+    assertEquals(1, r.docFreq(new Term("field", "a\uffffb")));
+    r.close();
     w.close();
-
     _TestUtil.checkIndex(d);
     d.close();
   }
