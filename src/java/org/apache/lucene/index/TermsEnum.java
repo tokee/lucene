@@ -44,11 +44,13 @@ public abstract class TermsEnum extends AttributeSource {
 
   /** Seeks to the specified term.  Returns SeekResult to
    *  indicate whether exact term was found, a different
-   *  term was found, or EOF was hit. */
+   *  term was found, or EOF was hit.  The target term may
+   *  be befor or after the current term. */
   public abstract SeekStatus seek(TermRef text) throws IOException;
 
   /** Seeks to the specified term by ordinal (position) as
-   *  previously returned by {@link #ord}.  See {@link
+   *  previously returned by {@link #ord}.  The target ord
+   *  may be befor or after the current ord.  See {@link
    *  #seek(TermRef). */
   public abstract SeekStatus seek(long ord) throws IOException;
   
