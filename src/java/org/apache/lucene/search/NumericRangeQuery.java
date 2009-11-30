@@ -502,15 +502,23 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
       return 1.0f;
     }
     
-    /** this is a dummy, it is not used by this class. */
     @Override
     public boolean empty() {
       return empty;
     }
 
-    /** this is a dummy, it is not used by this class. */
     @Override
     protected TermRef setEnum(TermsEnum actualEnum, TermRef term) throws IOException {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public SeekStatus seek(TermRef term) throws IOException {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public SeekStatus seek(long ord) throws IOException {
       throw new UnsupportedOperationException("not implemented");
     }
     
@@ -518,7 +526,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     public String field() {
       return field;
     }
-
+    
     @Override
     protected AcceptStatus accept(TermRef term) {
       return (termComp.compare(term, currentUpperBound) <= 0) ?
@@ -527,13 +535,14 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
 
     @Override
     public TermRef next() throws IOException {
-      if (actualEnum == null)
+      if (actualEnum == null) {
         return null;
+      }
       
       // try change to next term, if no such term exists, fall-through
       // (we can only do this if the enum was already seeked)
       if (currentUpperBound != null) {
-        TermRef term = actualEnum.next();
+        final TermRef term = actualEnum.next();
         if (term != null && accept(term) == AcceptStatus.YES) {
           return term;
         }
@@ -550,11 +559,13 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
         this.currentUpperBound = new TermRef(rangeBounds.removeFirst());
 
         SeekStatus status = actualEnum.seek(lowerBound);
-        if (status != SeekStatus.END) {
-          final TermRef term = actualEnum.term();
-          if (accept(term) == AcceptStatus.YES) {
-            return term;
-          }
+        if (status == SeekStatus.END) {
+          return null;
+        }
+        
+        final TermRef term = actualEnum.term();
+        if (accept(term) == AcceptStatus.YES) {
+          return term;
         }
       }
       
