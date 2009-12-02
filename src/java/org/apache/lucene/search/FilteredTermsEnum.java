@@ -40,7 +40,7 @@ public abstract class FilteredTermsEnum extends TermsEnum {
   /** the delegate enum - to set this member use {@link #setEnum} */
   protected TermsEnum actualEnum;
     
-  /** Return true if term is acceptd */
+  /** Return true if term is accepted */
   protected abstract AcceptStatus accept(TermRef term);
     
   /** Equality measure on the term */
