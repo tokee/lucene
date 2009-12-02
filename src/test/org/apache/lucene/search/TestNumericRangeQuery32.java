@@ -443,9 +443,8 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
     NumericRangeQuery<Integer> q = NumericRangeQuery.newIntRange("field4", 4,
         lower, upper, true, true);
     FilteredTermsEnum termEnum = q.getTermsEnum(searcher.getIndexReader());
-    //nocommit: double check this merge 'fix'
     int count = 0;
-    if (termEnum.next() != null) {
+    if (!termEnum.empty()) {
       do {
         final TermRef t = termEnum.term();
         if (t != null) {
@@ -457,7 +456,7 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
           break;
       } while (termEnum.next() != null);
     }
-    assertFalse(termEnum.next() != null);
+    assertNotNull(termEnum.next());
     System.out.println("TermEnum on 'field4' for range [" + lower + "," + upper
         + "] contained " + count + " terms.");
 
