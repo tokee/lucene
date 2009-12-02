@@ -40,7 +40,7 @@ import java.io.IOException;
  * @see BooleanQuery#setAllowDocsOutOfOrder
  */
 public abstract class Scorer extends DocIdSetIterator {
-  private Similarity similarity;
+  private final Similarity similarity;
 
   /** Constructs a Scorer.
    * @param similarity The <code>Similarity</code> implementation used by this scorer.

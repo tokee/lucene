@@ -113,10 +113,6 @@ public class FieldNormModifier {
       reader = IndexReader.open(dir, true);
       final Bits delDocs = reader.getDeletedDocs();
 
-      // if we are killing norms, get fake ones
-      if (sim == null) {
-        fakeNorms = SegmentReader.createFakeNorms(reader.maxDoc());
-      } else {
         termCounts = new int[reader.maxDoc()];
         Terms terms = reader.fields().terms(field);
         if (terms != null) {
@@ -133,7 +129,6 @@ public class FieldNormModifier {
             }
           }
         }
-      }
     } finally {
       if (null != reader) reader.close();
     }
@@ -145,7 +140,7 @@ public class FieldNormModifier {
           if (sim == null)
             reader.setNorm(d, fieldName, fakeNorms[0]);
           else
-            reader.setNorm(d, fieldName, Similarity.encodeNorm(sim.lengthNorm(fieldName, termCounts[d])));
+            reader.setNorm(d, fieldName, sim.encodeNormValue(sim.lengthNorm(fieldName, termCounts[d])));
         }
       }
       

@@ -796,7 +796,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * this method call will silently do nothing.
    *
    * @see #norms(String)
-   * @see Similarity#decodeNorm(byte)
+   * @see Similarity#decodeNormValue(byte)
    * @throws StaleReaderException if the index has changed
    *  since this reader was opened
    * @throws CorruptIndexException if the index is corrupt
@@ -821,7 +821,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * document.
    *
    * @see #norms(String)
-   * @see Similarity#decodeNorm(byte)
+   * @see Similarity#decodeNormValue(byte)
    * 
    * @throws StaleReaderException if the index has changed
    *  since this reader was opened
@@ -834,7 +834,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
   public void setNorm(int doc, String field, float value)
           throws StaleReaderException, CorruptIndexException, LockObtainFailedException, IOException {
     ensureOpen();
-    setNorm(doc, field, Similarity.encodeNorm(value));
+    setNorm(doc, field, Similarity.getDefault().encodeNormValue(value));
   }
 
   /** Returns an enumeration of all the terms in the index. The

@@ -59,8 +59,8 @@ public final class RussianAnalyzer extends Analyzer
     
     private static class DefaultSetHolder {
       static final Set<?> DEFAULT_STOP_SET = CharArraySet
-          .unmodifiableSet(new CharArraySet(Arrays.asList(RUSSIAN_STOP_WORDS),
-              false));
+          .unmodifiableSet(new CharArraySet(Version.LUCENE_CURRENT, 
+              Arrays.asList(RUSSIAN_STOP_WORDS), false));
     }
 
     /**
@@ -79,7 +79,7 @@ public final class RussianAnalyzer extends Analyzer
      * @deprecated use {@link #RussianAnalyzer(Version, Set)} instead
      */
     public RussianAnalyzer(Version matchVersion, String... stopwords) {
-      this(matchVersion, StopFilter.makeStopSet(stopwords));
+      this(matchVersion, StopFilter.makeStopSet(matchVersion, stopwords));
     }
     
     /**
@@ -91,7 +91,7 @@ public final class RussianAnalyzer extends Analyzer
      *          a stopword set
      */
     public RussianAnalyzer(Version matchVersion, Set<?> stopwords){
-      stopSet = CharArraySet.unmodifiableSet(CharArraySet.copy(stopwords));
+      stopSet = CharArraySet.unmodifiableSet(CharArraySet.copy(matchVersion, stopwords));
       this.matchVersion = matchVersion;
     }
    
@@ -111,16 +111,15 @@ public final class RussianAnalyzer extends Analyzer
      *
      * @return  A {@link TokenStream} built from a 
      *   {@link RussianLetterTokenizer} filtered with 
-     *   {@link RussianLowerCaseFilter}, {@link StopFilter}, 
+     *   {@link LowerCaseFilter}, {@link StopFilter}, 
      *   and {@link RussianStemFilter}
      */
     @Override
     public TokenStream tokenStream(String fieldName, Reader reader)
     {
         TokenStream result = new RussianLetterTokenizer(reader);
-        result = new LowerCaseFilter(result);
-        result = new StopFilter(StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
-                                result, stopSet);
+        result = new LowerCaseFilter(matchVersion, result);
+        result = new StopFilter(matchVersion, result, stopSet);
         result = new RussianStemFilter(result);
         return result;
     }
@@ -136,7 +135,7 @@ public final class RussianAnalyzer extends Analyzer
      *
      * @return  A {@link TokenStream} built from a 
      *   {@link RussianLetterTokenizer} filtered with 
-     *   {@link RussianLowerCaseFilter}, {@link StopFilter}, 
+     *   {@link LowerCaseFilter}, {@link StopFilter}, 
      *   and {@link RussianStemFilter}
      */
     @Override
@@ -146,9 +145,8 @@ public final class RussianAnalyzer extends Analyzer
     if (streams == null) {
       streams = new SavedStreams();
       streams.source = new RussianLetterTokenizer(reader);
-      streams.result = new LowerCaseFilter(streams.source);
-      streams.result = new StopFilter(StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
-                                      streams.result, stopSet);
+      streams.result = new LowerCaseFilter(matchVersion, streams.source);
+      streams.result = new StopFilter(matchVersion, streams.result, stopSet);
       streams.result = new RussianStemFilter(streams.result);
       setPreviousTokenStream(streams);
     } else {

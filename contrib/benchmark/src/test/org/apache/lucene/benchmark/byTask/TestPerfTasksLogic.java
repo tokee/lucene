@@ -17,7 +17,6 @@
 
 package org.apache.lucene.benchmark.byTask;
 
-import java.io.IOException;
 import java.io.StringReader;
 import java.io.File;
 import java.io.FileReader;
@@ -25,9 +24,6 @@ import java.io.BufferedReader;
 import java.util.List;
 import java.util.Iterator;
 
-import org.apache.lucene.benchmark.byTask.feeds.DocData;
-import org.apache.lucene.benchmark.byTask.feeds.NoMoreDataException;
-import org.apache.lucene.benchmark.byTask.feeds.ReutersContentSource;
 import org.apache.lucene.benchmark.byTask.feeds.ReutersQueryMaker;
 import org.apache.lucene.benchmark.byTask.tasks.CountingSearchTestTask;
 import org.apache.lucene.benchmark.byTask.tasks.CountingHighlighterTestTask;
@@ -43,13 +39,12 @@ import org.apache.lucene.index.TermFreqVector;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.search.FieldCache.StringIndex;
 import org.apache.lucene.search.FieldCache;
-
-import junit.framework.TestCase;
+import org.apache.lucene.util.LuceneTestCase;
 
 /**
  * Test very simply that perf tasks - simple algorithms - are doing what they should.
  */
-public class TestPerfTasksLogic extends TestCase {
+public class TestPerfTasksLogic extends LuceneTestCase {
 
   private static final boolean DEBUG = false;
   static final String NEW_LINE = System.getProperty("line.separator");
@@ -107,13 +102,14 @@ public class TestPerfTasksLogic extends TestCase {
    */
   public void xxxtestTimedSearchTask() throws Exception {
     String algLines[] = {
+        "log.step=100000",
         "ResetSystemErase",
         "CreateIndex",
-        "{ AddDoc } : 1000",
+        "{ AddDoc } : 100",
         "Optimize",
         "CloseIndex",
         "OpenReader",
-        "{ CountingSearchTest } : 1.5s",
+        "{ CountingSearchTest } : .5s",
         "CloseReader",
     };
 
@@ -124,15 +120,39 @@ public class TestPerfTasksLogic extends TestCase {
     assertTrue("elapsed time was " + elapsed + " msec", elapsed <= 1500);
   }
 
+  public void testBGSearchTaskThreads() throws Exception {
+    String algLines[] = {
+        "log.time.step.msec = 100",
+        "log.step=100000",
+        "ResetSystemErase",
+        "CreateIndex",
+        "{ AddDoc } : 1000",
+        "Optimize",
+        "CloseIndex",
+        "OpenReader",
+        "{",
+        "  [ \"XSearch\" { CountingSearchTest > : * ] : 2 &-1",
+        "  Wait(0.5)",
+        "}",
+        "CloseReader",
+        "RepSumByPref X"
+    };
+
+    CountingSearchTestTask.numSearches = 0;
+    execBenchmark(algLines);
+    assertTrue(CountingSearchTestTask.numSearches > 0);
+  }
+
   public void testHighlighting() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "doc.stored=true",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "query.maker=" + ReutersQueryMaker.class.getName(),
         "ResetSystemErase",
         "CreateIndex",
-        "{ AddDoc } : 1000",
+        "{ AddDoc } : 100",
         "Optimize",
         "CloseIndex",
         "OpenReader(true)",
@@ -147,7 +167,7 @@ public class TestPerfTasksLogic extends TestCase {
     Benchmark benchmark = execBenchmark(algLines);
 
     // 4. test specific checks after the benchmark run completed.
-    assertEquals("TestSearchTask was supposed to be called!",147,CountingHighlighterTestTask.numDocsRetrieved);
+    assertEquals("TestSearchTask was supposed to be called!",92,CountingHighlighterTestTask.numDocsRetrieved);
     //pretty hard to figure out a priori how many docs are going to have highlighted fragments returned, but we can never have more than the number of docs
     //we probably should use a different doc/query maker, but...
     assertTrue("TestSearchTask was supposed to be called!", CountingHighlighterTestTask.numDocsRetrieved >= CountingHighlighterTestTask.numHighlightedResults && CountingHighlighterTestTask.numHighlightedResults > 0);
@@ -157,7 +177,7 @@ public class TestPerfTasksLogic extends TestCase {
     IndexWriter iw = new IndexWriter(benchmark.getRunData().getDirectory(),null,false, IndexWriter.MaxFieldLength.LIMITED);
     iw.close();
     IndexReader ir = IndexReader.open(benchmark.getRunData().getDirectory(), true);
-    assertEquals("1000 docs were added to the index, this is what we expect to find!",1000,ir.numDocs());
+    assertEquals("100 docs were added to the index, this is what we expect to find!",100,ir.numDocs());
     ir.close();
   }
 
@@ -166,7 +186,8 @@ public class TestPerfTasksLogic extends TestCase {
     String algLines[] = {
         "doc.stored=true",//doc storage is required in order to have text to highlight
         "doc.term.vector.offsets=true",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "query.maker=" + ReutersQueryMaker.class.getName(),
         "ResetSystemErase",
         "CreateIndex",
@@ -185,7 +206,7 @@ public class TestPerfTasksLogic extends TestCase {
     Benchmark benchmark = execBenchmark(algLines);
 
     // 4. test specific checks after the benchmark run completed.
-    assertEquals("TestSearchTask was supposed to be called!",147,CountingHighlighterTestTask.numDocsRetrieved);
+    assertEquals("TestSearchTask was supposed to be called!",92,CountingHighlighterTestTask.numDocsRetrieved);
     //pretty hard to figure out a priori how many docs are going to have highlighted fragments returned, but we can never have more than the number of docs
     //we probably should use a different doc/query maker, but...
     assertTrue("TestSearchTask was supposed to be called!", CountingHighlighterTestTask.numDocsRetrieved >= CountingHighlighterTestTask.numHighlightedResults && CountingHighlighterTestTask.numHighlightedResults > 0);
@@ -203,7 +224,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "doc.stored=false",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "query.maker=" + ReutersQueryMaker.class.getName(),
         "ResetSystemErase",
         "CreateIndex",
@@ -287,7 +309,7 @@ public class TestPerfTasksLogic extends TestCase {
         "doc.index.props=true",
         "# ----- alg ",
         "CreateIndex",
-        "[ { AddDoc > : 2500 ] : 4",
+        "[ { AddDoc > : 250 ] : 4",
         "CloseIndex",
     };
     
@@ -300,8 +322,8 @@ public class TestPerfTasksLogic extends TestCase {
     IndexReader r = IndexReader.open(benchmark.getRunData().getDirectory(), true);
     StringIndex idx = FieldCache.DEFAULT.getStringIndex(r, "country");
     final int maxDoc = r.maxDoc();
-    assertEquals(10000, maxDoc);
-    for(int i=0;i<10000;i++) {
+    assertEquals(1000, maxDoc);
+    for(int i=0;i<1000;i++) {
       assertNotNull("doc " + i + " has null country", idx.lookup[idx.order[i]]);
     }
     r.close();
@@ -314,7 +336,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "content.source.log.step=3",
         "doc.term.vector=false",
         "content.source.forever=false",
@@ -332,7 +355,7 @@ public class TestPerfTasksLogic extends TestCase {
 
     // 3. test number of docs in the index
     IndexReader ir = IndexReader.open(benchmark.getRunData().getDirectory(), true);
-    int ndocsExpected = 20; // Reuters20ContentSource exhausts after 20 docs.
+    int ndocsExpected = 20; // first 20 reuters docs.
     assertEquals("wrong number of docs in the index!", ndocsExpected, ir.numDocs());
     ir.close();
   }
@@ -344,13 +367,13 @@ public class TestPerfTasksLogic extends TestCase {
     File lineFile = new File(System.getProperty("tempDir"), "test.reuters.lines.txt");
 
     // We will call WriteLineDocs this many times
-    final int NUM_TRY_DOCS = 500;
+    final int NUM_TRY_DOCS = 50;
 
-    // Creates a line file with first 500 docs from reuters
+    // Creates a line file with first 50 docs from SingleDocSource
     String algLines1[] = {
       "# ----- properties ",
-      "content.source=org.apache.lucene.benchmark.byTask.feeds.ReutersContentSource",
-      "content.source.forever=false",
+      "content.source=org.apache.lucene.benchmark.byTask.feeds.SingleDocSource",
+      "content.source.forever=true",
       "line.file.out=" + lineFile.getAbsolutePath().replace('\\', '/'),
       "# ----- alg ",
       "{WriteLineDoc()}:" + NUM_TRY_DOCS,
@@ -359,15 +382,12 @@ public class TestPerfTasksLogic extends TestCase {
     // Run algo
     Benchmark benchmark = execBenchmark(algLines1);
 
-    // Verify we got somewhere between 1-500 lines (some
-    // Reuters docs have no body, which WriteLineDoc task
-    // skips).
     BufferedReader r = new BufferedReader(new FileReader(lineFile));
     int numLines = 0;
     while(r.readLine() != null)
       numLines++;
     r.close();
-    assertTrue("did not see the right number of docs; should be > 0 and <= " + NUM_TRY_DOCS + " but was " + numLines, numLines > 0 && numLines <= NUM_TRY_DOCS);
+    assertEquals("did not see the right number of docs; should be " + NUM_TRY_DOCS + " but was " + numLines, NUM_TRY_DOCS, numLines);
     
     // Index the line docs
     String algLines2[] = {
@@ -405,14 +425,15 @@ public class TestPerfTasksLogic extends TestCase {
   public void xxxtestReadTokens() throws Exception {
 
     // We will call ReadTokens on this many docs
-    final int NUM_DOCS = 100;
+    final int NUM_DOCS = 20;
 
     // Read tokens from first NUM_DOCS docs from Reuters and
     // then build index from the same docs
     String algLines1[] = {
       "# ----- properties ",
       "analyzer=org.apache.lucene.analysis.WhitespaceAnalyzer",
-      "content.source=org.apache.lucene.benchmark.byTask.feeds.ReutersContentSource",
+      "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+      "docs.file=" + getReuters20LinesFile(),
       "# ----- alg ",
       "{ReadTokens}: " + NUM_DOCS,
       "ResetSystemErase",
@@ -464,7 +485,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "content.source.log.step=3",
         "doc.term.vector=false",
         "content.source.forever=false",
@@ -485,7 +507,7 @@ public class TestPerfTasksLogic extends TestCase {
 
     // 3. test number of docs in the index
     IndexReader ir = IndexReader.open(benchmark.getRunData().getDirectory(), true);
-    int ndocsExpected = 2 * 20; // Reuters20ContentSource exhausts after 20 docs.
+    int ndocsExpected = 2 * 20; // first 20 reuters docs.
     assertEquals("wrong number of docs in the index!", ndocsExpected, ir.numDocs());
     ir.close();
   }
@@ -519,27 +541,6 @@ public class TestPerfTasksLogic extends TestCase {
     System.out.println(txt);
   }
 
-  /** use reuters and the exhaust mechanism, but to be faster, add 20 docs only... */
-  public static class Reuters20ContentSource extends ReutersContentSource {
-    private int nDocs = 0;
-
-    @Override
-    public synchronized DocData getNextDocData(DocData docData)
-        throws NoMoreDataException, IOException {
-      if (nDocs >= 20 && !forever) {
-        throw new NoMoreDataException();
-      }
-      nDocs++;
-      return super.getNextDocData(docData);
-    }
-
-    @Override
-    public synchronized void resetInputs() throws IOException {
-      super.resetInputs();
-      nDocs = 0;
-    }
-  }
-  
   /**
    * Test that exhaust in loop works as expected (LUCENE-1115).
    */
@@ -547,7 +548,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "content.source.log.step=3",
         "doc.term.vector=false",
         "content.source.forever=false",
@@ -569,7 +571,7 @@ public class TestPerfTasksLogic extends TestCase {
 
     // 3. test number of docs in the index
     IndexReader ir = IndexReader.open(benchmark.getRunData().getDirectory(), true);
-    int ndocsExpected = 20; // Reuters20ContentSource exhausts after 20 docs.
+    int ndocsExpected = 20;  // first 20 reuters docs.
     assertEquals("wrong number of docs in the index!", ndocsExpected, ir.numDocs());
     ir.close();
   }
@@ -581,7 +583,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "ram.flush.mb=-1",
         "max.buffered=2",
         "content.source.log.step=3",
@@ -605,7 +608,7 @@ public class TestPerfTasksLogic extends TestCase {
 
     // 3. test number of docs in the index
     IndexReader ir = IndexReader.open(benchmark.getRunData().getDirectory(), true);
-    int ndocsExpected = 20; // Reuters20ContentSource exhausts after 20 docs.
+    int ndocsExpected = 20; // first 20 reuters docs.
     assertEquals("wrong number of docs in the index!", ndocsExpected, ir.numDocs());
     ir.close();
   }
@@ -625,7 +628,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "content.source.log.step=3",
         "doc.term.vector=false",
         "content.source.forever=false",
@@ -649,7 +653,7 @@ public class TestPerfTasksLogic extends TestCase {
 
     // 3. test number of docs in the index
     IndexReader ir = IndexReader.open(benchmark.getRunData().getDirectory(), true);
-    int ndocsExpected = 20; // Reuters20ContentSource exhausts after 20 docs.
+    int ndocsExpected = 20; // first 20 reuters docs.
     assertEquals("wrong number of docs in the index!", ndocsExpected, ir.numDocs());
     ir.close();
   }
@@ -668,7 +672,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "content.source.log.step=3",
         "ram.flush.mb=-1",
         "max.buffered=2",
@@ -694,7 +699,7 @@ public class TestPerfTasksLogic extends TestCase {
     
     // 3. test number of docs in the index
     IndexReader ir = IndexReader.open(benchmark.getRunData().getDirectory(), true);
-    int ndocsExpected = 20; // Reuters20ContentSource exhausts after 20 docs.
+    int ndocsExpected = 20; // first 20 reuters docs.
     assertEquals("wrong number of docs in the index!", ndocsExpected, ir.numDocs());
     ir.close();
   }
@@ -706,7 +711,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "content.source.log.step=3",
         "ram.flush.mb=-1",
         "max.buffered=2",
@@ -750,7 +756,8 @@ public class TestPerfTasksLogic extends TestCase {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "content.source.log.step=3",
         "ram.flush.mb=-1",
         "max.buffered=3",
@@ -776,7 +783,7 @@ public class TestPerfTasksLogic extends TestCase {
 
     // 3. test number of docs in the index
     IndexReader ir = IndexReader.open(benchmark.getRunData().getDirectory(), true);
-    int ndocsExpected = 20; // Reuters20ContentSource exhausts after 20 docs.
+    int ndocsExpected = 20; // first 20 reuters docs.
     assertEquals("wrong number of docs in the index!", ndocsExpected, ir.numDocs());
     ir.close();
 
@@ -828,7 +835,8 @@ public class TestPerfTasksLogic extends TestCase {
     String dis = disable ? "-" : "";
     return new String[] {
         "# ----- properties ",
-        "content.source="+Reuters20ContentSource.class.getName(),
+        "content.source=org.apache.lucene.benchmark.byTask.feeds.LineDocSource",
+        "docs.file=" + getReuters20LinesFile(),
         "content.source.log.step=30",
         "doc.term.vector=false",
         "content.source.forever=false",
@@ -846,5 +854,9 @@ public class TestPerfTasksLogic extends TestCase {
         "RepSumByName",
     };
   }
-  
+
+  private static String getReuters20LinesFile() {
+    return System.getProperty("lucene.common.dir").replace('\\','/') +
+      "/contrib/benchmark/src/test/org/apache/lucene/benchmark/reuters.first20.lines.txt";
+  }  
 }

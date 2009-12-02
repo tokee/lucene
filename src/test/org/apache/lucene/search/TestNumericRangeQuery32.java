@@ -24,7 +24,9 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.NumericField;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.IndexWriter.MaxFieldLength;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.NumericUtils;
@@ -228,7 +230,7 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
     final Random rnd=newRandom();
     String field="field"+precisionStep;
     int termCountT=0,termCountC=0;
-    for (int i=0; i<50; i++) {
+    for (int i=0; i<10; i++) {
       int lower=(int)(rnd.nextDouble()*noDocs*distance)+startOffset;
       int upper=(int)(rnd.nextDouble()*noDocs*distance)+startOffset;
       if (lower>upper) {
@@ -271,8 +273,8 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
       assertEquals("Total number of terms should be equal for unlimited precStep", termCountT, termCountC);
     } else {
       System.out.println("Average number of terms during random search on '" + field + "':");
-      System.out.println(" Trie query: " + (((double)termCountT)/(50*4)));
-      System.out.println(" Classical query: " + (((double)termCountC)/(50*4)));
+      System.out.println(" Trie query: " + (((double)termCountT)/(10*4)));
+      System.out.println(" Classical query: " + (((double)termCountC)/(10*4)));
     }
   }
   
@@ -295,8 +297,8 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
   private void testRangeSplit(int precisionStep) throws Exception {
     final Random rnd=newRandom();
     String field="ascfield"+precisionStep;
-    // 50 random tests
-    for (int i=0; i<50; i++) {
+    // 10 random tests
+    for (int i=0; i<10; i++) {
       int lower=(int)(rnd.nextDouble()*noDocs - noDocs/2);
       int upper=(int)(rnd.nextDouble()*noDocs - noDocs/2);
       if (lower>upper) {
@@ -435,6 +437,43 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
     Query q2 = NumericRangeQuery.newLongRange("test14", 4, 10L, 20L, true, true);
     assertFalse(q1.equals(q2));
     assertFalse(q2.equals(q1));
+  }
+  
+  private void testEnum(int lower, int upper) throws Exception {
+    NumericRangeQuery<Integer> q = NumericRangeQuery.newIntRange("field4", 4,
+        lower, upper, true, true);
+    FilteredTermsEnum termEnum = q.getTermsEnum(searcher.getIndexReader());
+    //nocommit: double check this merge 'fix'
+    int count = 0;
+    if (termEnum.next() != null) {
+      do {
+        final TermRef t = termEnum.term();
+        if (t != null) {
+          final int val = NumericUtils.prefixCodedToInt(t.toString());
+          assertTrue("value not in bounds " + val + " >= " + lower + " && "
+              + val + " <= " + upper, val >= lower && val <= upper);
+          count++;
+        } else
+          break;
+      } while (termEnum.next() != null);
+    }
+    assertFalse(termEnum.next() != null);
+    System.out.println("TermEnum on 'field4' for range [" + lower + "," + upper
+        + "] contained " + count + " terms.");
+
+  }
+  
+  public void testEnum() throws Exception {
+    int count=3000;
+    int lower=(distance*3/2)+startOffset, upper=lower + count*distance + (distance/3);
+    // test enum with values
+    testEnum(lower, upper);
+    // test empty enum
+    testEnum(upper, lower);
+    // test empty enum outside of bounds
+    lower = distance*noDocs+startOffset;
+    upper = 2 * lower;
+    testEnum(lower, upper);
   }
   
 }

@@ -126,7 +126,7 @@ public final class PersianAnalyzer extends Analyzer {
    *          a stopword set
    */
   public PersianAnalyzer(Version matchVersion, Set<?> stopwords){
-    stoptable = CharArraySet.unmodifiableSet(CharArraySet.copy(stopwords));
+    stoptable = CharArraySet.unmodifiableSet(CharArraySet.copy(matchVersion, stopwords));
     this.matchVersion = matchVersion;
   }
 
@@ -135,7 +135,7 @@ public final class PersianAnalyzer extends Analyzer {
    * @deprecated use {@link #PersianAnalyzer(Version, Set)} instead
    */
   public PersianAnalyzer(Version matchVersion, String... stopwords) {
-    this(matchVersion, StopFilter.makeStopSet(stopwords));
+    this(matchVersion, StopFilter.makeStopSet(matchVersion, stopwords));
   }
 
   /**
@@ -167,7 +167,7 @@ public final class PersianAnalyzer extends Analyzer {
   @Override
   public TokenStream tokenStream(String fieldName, Reader reader) {
     TokenStream result = new ArabicLetterTokenizer(reader);
-    result = new LowerCaseFilter(result);
+    result = new LowerCaseFilter(matchVersion, result);
     result = new ArabicNormalizationFilter(result);
     /* additional persian-specific normalization */
     result = new PersianNormalizationFilter(result);
@@ -175,8 +175,7 @@ public final class PersianAnalyzer extends Analyzer {
      * the order here is important: the stopword list is normalized with the
      * above!
      */
-    result = new StopFilter(StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
-                            result, stoptable);
+    result = new StopFilter(matchVersion, result, stoptable);
     return result;
   }
   
@@ -201,7 +200,7 @@ public final class PersianAnalyzer extends Analyzer {
     if (streams == null) {
       streams = new SavedStreams();
       streams.source = new ArabicLetterTokenizer(reader);
-      streams.result = new LowerCaseFilter(streams.source);
+      streams.result = new LowerCaseFilter(matchVersion, streams.source);
       streams.result = new ArabicNormalizationFilter(streams.result);
       /* additional persian-specific normalization */
       streams.result = new PersianNormalizationFilter(streams.result);
@@ -209,8 +208,7 @@ public final class PersianAnalyzer extends Analyzer {
        * the order here is important: the stopword list is normalized with the
        * above!
        */
-      streams.result = new StopFilter(StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion),
-                                      streams.result, stoptable);
+      streams.result = new StopFilter(matchVersion, streams.result, stoptable);
       setPreviousTokenStream(streams);
     } else {
       streams.source.reset(reader);

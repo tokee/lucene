@@ -34,10 +34,12 @@ import java.util.Set;
  * <p>You must specify the required {@link Version}
  * compatibility when creating StandardAnalyzer:
  * <ul>
+ *   <li> As of 3.1, StopFilter correctly handles Unicode 4.0
+ *         supplementary characters in stopwords
  *   <li> As of 2.9, StopFilter preserves position
  *        increments
  *   <li> As of 2.4, Tokens incorrectly identified as acronyms
- *        are corrected (see <a href="https://issues.apache.org/jira/browse/LUCENE-1068">LUCENE-1608</a>
+ *        are corrected (see <a href="https://issues.apache.org/jira/browse/LUCENE-1068">LUCENE-1068</a>)
  * </ul>
  */
 public class StandardAnalyzer extends Analyzer {
@@ -47,7 +49,7 @@ public class StandardAnalyzer extends Analyzer {
    * Specifies whether deprecated acronyms should be replaced with HOST type.
    * See {@linkplain https://issues.apache.org/jira/browse/LUCENE-1068}
    */
-  private final boolean replaceInvalidAcronym,enableStopPositionIncrements;
+  private final boolean replaceInvalidAcronym;
 
   /** An unmodifiable set containing some common English words that are usually not
   useful for searching. */
@@ -70,7 +72,6 @@ public class StandardAnalyzer extends Analyzer {
   public StandardAnalyzer(Version matchVersion, Set<?> stopWords) {
     stopSet = stopWords;
     setOverridesTokenStreamMethod(StandardAnalyzer.class);
-    enableStopPositionIncrements = StopFilter.getEnablePositionIncrementsVersionDefault(matchVersion);
     replaceInvalidAcronym = matchVersion.onOrAfter(Version.LUCENE_24);
     this.matchVersion = matchVersion;
   }
@@ -100,8 +101,8 @@ public class StandardAnalyzer extends Analyzer {
     StandardTokenizer tokenStream = new StandardTokenizer(matchVersion, reader);
     tokenStream.setMaxTokenLength(maxTokenLength);
     TokenStream result = new StandardFilter(tokenStream);
-    result = new LowerCaseFilter(result);
-    result = new StopFilter(enableStopPositionIncrements, result, stopSet);
+    result = new LowerCaseFilter(matchVersion, result);
+    result = new StopFilter(matchVersion, result, stopSet);
     return result;
   }
 
@@ -146,9 +147,9 @@ public class StandardAnalyzer extends Analyzer {
       setPreviousTokenStream(streams);
       streams.tokenStream = new StandardTokenizer(matchVersion, reader);
       streams.filteredTokenStream = new StandardFilter(streams.tokenStream);
-      streams.filteredTokenStream = new LowerCaseFilter(streams.filteredTokenStream);
-      streams.filteredTokenStream = new StopFilter(enableStopPositionIncrements,
-                                                   streams.filteredTokenStream, stopSet);
+      streams.filteredTokenStream = new LowerCaseFilter(matchVersion,
+          streams.filteredTokenStream);
+      streams.filteredTokenStream = new StopFilter(matchVersion, streams.filteredTokenStream, stopSet);
     } else {
       streams.tokenStream.reset(reader);
     }

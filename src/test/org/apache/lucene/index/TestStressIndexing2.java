@@ -58,7 +58,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
     Directory dir = new MockRAMDirectory();
     
     // TODO: verify equals using IW.getReader
-    DocsAndWriter dw = indexRandomIWReader(10, 100, 100, dir);
+    DocsAndWriter dw = indexRandomIWReader(10, 10, 100, dir);
     IndexReader r = dw.writer.getReader();
     dw.writer.commit();
     verifyEquals(r, dir, "id");
@@ -74,7 +74,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
     Directory dir2 = new MockRAMDirectory();
     // mergeFactor=2; maxBufferedDocs=2; Map docs = indexRandom(1, 3, 2, dir1);
 
-    Map docs = indexRandom(10, 100, 100, dir1);
+    Map docs = indexRandom(10, 10, 100, dir1);
     indexSerial(docs, dir2);
 
     // verifying verify
@@ -87,7 +87,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
   public void testMultiConfig() throws Throwable {
     // test lots of smaller different params together
     r = newRandom();
-    for (int i=0; i<100; i++) {  // increase iterations for better testing
+    for (int i=0; i<20; i++) {  // increase iterations for better testing
       sameFieldOrder=r.nextBoolean();
       mergeFactor=r.nextInt(3)+2;
       maxBufferedDocs=r.nextInt(3)+2;

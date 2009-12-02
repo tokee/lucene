@@ -234,7 +234,8 @@ public class TestPositionIncrement extends LuceneTestCase {
     @Override
     public TokenStream tokenStream(String fieldName, Reader reader) {
       TokenStream ts = a.tokenStream(fieldName,reader);
-      return new StopFilter(enablePositionIncrements, ts, new CharArraySet(Collections.singleton("stop"), true));
+      return new StopFilter(enablePositionIncrements?Version.LUCENE_CURRENT:Version.LUCENE_24, ts,
+          new CharArraySet(Version.LUCENE_CURRENT, Collections.singleton("stop"), true));
     }
   }
   
@@ -264,7 +265,7 @@ public class TestPositionIncrement extends LuceneTestCase {
     assertFalse(tp.next());
 
     IndexSearcher is = new IndexSearcher(r);
-
+  
     SpanTermQuery stq1 = new SpanTermQuery(new Term("content", "a"));
     SpanTermQuery stq2 = new SpanTermQuery(new Term("content", "k"));
     SpanQuery[] sqs = { stq1, stq2 };
@@ -281,14 +282,14 @@ public class TestPositionIncrement extends LuceneTestCase {
         System.out.println("doc " + pspans.doc() + ": span " + pspans.start()
             + " to " + pspans.end());
       }
-      Collection payloads = pspans.getPayload();
+      Collection<byte[]> payloads = pspans.getPayload();
       sawZero |= pspans.start() == 0;
-      for (Iterator it = payloads.iterator(); it.hasNext();) {
+      for (@SuppressWarnings("unused") byte[] bytes : payloads) {
         count++;
         if (!VERBOSE) {
-          it.next();
+          // do nothing
         } else {
-          System.out.println("  payload: " + new String((byte[]) it.next()));
+          System.out.println("  payload: " + new String((byte[]) bytes));
         }
       }
     }
@@ -312,11 +313,11 @@ public class TestPositionIncrement extends LuceneTestCase {
 
     sawZero = false;
     PayloadSpanUtil psu = new PayloadSpanUtil(is.getIndexReader());
-    Collection pls = psu.getPayloadsForQuery(snq);
+    Collection<byte[]> pls = psu.getPayloadsForQuery(snq);
     count = pls.size();
-    for (Iterator it = pls.iterator(); it.hasNext();) {
-      String s = new String((byte[]) it.next());
-      // System.out.println(s);
+    for (byte[] bytes : pls) {
+      String s = new String(bytes);
+      //System.out.println(s);
       sawZero |= s.equals("pos: 0");
     }
     assertEquals(5, count);

@@ -322,7 +322,10 @@ public class IndexWriter implements Closeable {
    * {#commit} and then using {@link IndexReader#open} to
    * open a new reader.  But the turnaround time of this
    * method should be faster since it avoids the potentially
-   * costly {@link #commit}.<p>
+   * costly {@link #commit}.</p>
+   *
+   * <p>You must close the {@link IndexReader} returned by
+   * this method once you are done using it.</p>
    *
    * <p>It's <i>near</i> real-time because there is no hard
    * guarantee on how quickly you can get a new reader after
@@ -2173,16 +2176,17 @@ public class IndexWriter implements Closeable {
    * default merge policy, but individual merge policies may implement
    * optimize in different ways.
    *
-   * <p>It is recommended that this method be called upon completion of indexing.  In
-   * environments with frequent updates, optimize is best done during low volume times, if at all. 
-   * 
-   * </p>
-   * <p>See http://www.gossamer-threads.com/lists/lucene/java-dev/47895 for more discussion. </p>
+   * <p> Optimize is a fairly costly operation, so you
+   * should only do it if your search performance really
+   * requires it.  Many search applications do fine never
+   * calling optimize. </p>
    *
    * <p>Note that optimize requires 2X the index size free
    * space in your Directory.  For example, if your index
    * size is 10 MB then you need 20 MB free for optimize to
-   * complete.</p>
+   * complete.  Also, it's best to call {@link #commit()}
+   * after the optimize completes to allow IndexWriter to
+   * free up disk space.</p>
    *
    * <p>If some but not all readers re-open while an
    * optimize is underway, this will cause > 2X temporary
@@ -3906,6 +3910,8 @@ public class IndexWriter implements Closeable {
 
     boolean success = false;
 
+    final long t0 = System.currentTimeMillis();
+
     try {
       try {
         try {
@@ -3940,6 +3946,9 @@ public class IndexWriter implements Closeable {
       }
     } catch (OutOfMemoryError oom) {
       handleOOM(oom, "merge");
+    }
+    if (infoStream != null) {
+      message("merge time " + (System.currentTimeMillis()-t0) + " msec");
     }
   }
 

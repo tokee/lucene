@@ -302,11 +302,6 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
   ) {
     return new NumericRangeQuery<Float>(field, NumericUtils.PRECISION_STEP_DEFAULT, 32, min, max, minInclusive, maxInclusive);
   }
-  
-  @Override
-  protected FilteredTermEnum getEnum(final IndexReader reader) throws IOException {
-    throw new UnsupportedOperationException("not implemented");
-  }
 
   @Override
   protected FilteredTermsEnum getTermsEnum(final IndexReader reader) throws IOException {

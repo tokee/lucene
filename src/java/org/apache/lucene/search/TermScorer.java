@@ -24,9 +24,6 @@ import org.apache.lucene.index.DocsEnum;
 /** Expert: A <code>Scorer</code> for documents matching a <code>Term</code>.
  */
 final class TermScorer extends Scorer {
-  
-  private static final float[] SIM_NORM_DECODER = Similarity.getNormDecoder();
-  
   private DocsEnum docsEnum;
   private byte[] norms;
   private float weightValue;
@@ -55,6 +52,7 @@ final class TermScorer extends Scorer {
    */
   TermScorer(Weight weight, DocsEnum td, Similarity similarity, byte[] norms) {
     super(similarity);
+    
     this.docsEnum = td;
     this.norms = norms;
     this.weightValue = weight.getValue();
@@ -128,13 +126,13 @@ final class TermScorer extends Scorer {
       ? scoreCache[f]                             // cache hit
       : getSimilarity().tf(f)*weightValue;        // cache miss
 
-    return norms == null ? raw : raw * SIM_NORM_DECODER[norms[doc] & 0xFF]; // normalize for field
+    return norms == null ? raw : raw * getSimilarity().decodeNormValue(norms[doc]); // normalize for field
   }
 
   /**
    * Advances to the first match beyond the current whose document number is
    * greater than or equal to a given target. <br>
-   * The implementation uses {@link DocsEnum#adnvace(int)}.
+   * The implementation uses {@link DocsEnum#advance(int)}.
    * 
    * @param target
    *          The target document number.
