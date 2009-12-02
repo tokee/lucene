@@ -456,7 +456,7 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
           break;
       } while (termEnum.next() != null);
     }
-    assertNotNull(termEnum.next());
+    assertNull(termEnum.next());
     System.out.println("TermEnum on 'field4' for range [" + lower + "," + upper
         + "] contained " + count + " terms.");
 
