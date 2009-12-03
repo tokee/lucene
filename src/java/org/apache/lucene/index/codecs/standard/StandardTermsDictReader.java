@@ -584,8 +584,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     }
   }
 
-  // TODO: -- wonder if simple double-barrel LRU cache
-  // would be better
+  // nocommit -- must cutover to DBLRU
   private static class ReuseLRUCache<K,V> extends LinkedHashMap<K, V> {
 
     /**
