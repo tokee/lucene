@@ -50,11 +50,12 @@ public class WildcardQuery extends MultiTermQuery {
         && (text.indexOf('*') == text.length() - 1);
   }
   
-  // nocommit: needs singletermenum stuff
   @Override
   protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
-    //nocommit: handle singletermenum
-    return new WildcardTermsEnum(reader, getTerm());
+    if (termContainsWildcard)
+      return new WildcardTermsEnum(reader, getTerm());
+    else
+      return new SingleTermsEnum(reader, getTerm());
   }
   
   // @deprecated see getTermsEnum
