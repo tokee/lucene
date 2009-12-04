@@ -65,7 +65,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test index creation logic
    */
-  public void xxxtestIndexAndSearchTasks() throws Exception {
+  public void testIndexAndSearchTasks() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "ResetSystemErase",
@@ -100,7 +100,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test timed sequence task.
    */
-  public void xxxtestTimedSearchTask() throws Exception {
+  public void testTimedSearchTask() throws Exception {
     String algLines[] = {
         "log.step=100000",
         "ResetSystemErase",
@@ -181,7 +181,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
     ir.close();
   }
 
-  public void xxxtestHighlightingTV() throws Exception {
+  public void testHighlightingTV() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "doc.stored=true",//doc storage is required in order to have text to highlight
@@ -220,7 +220,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
     ir.close();
   }
 
-  public void xxxtestHighlightingNoTvNoStore() throws Exception {
+  public void testHighlightingNoTvNoStore() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "doc.stored=false",
@@ -253,7 +253,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test Exhasting Doc Maker logic
    */
-  public void xxxtestExhaustContentSource() throws Exception {
+  public void testExhaustContentSource() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -332,7 +332,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test Parallel Doc Maker logic (for LUCENE-940)
    */
-  public void xxxtestParallelDocMaker() throws Exception {
+  public void testParallelDocMaker() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -363,7 +363,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test WriteLineDoc and LineDocSource.
    */
-  public void xxxtestLineDocFile() throws Exception {
+  public void testLineDocFile() throws Exception {
     File lineFile = new File(System.getProperty("tempDir"), "test.reuters.lines.txt");
 
     // We will call WriteLineDocs this many times
@@ -422,7 +422,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test ReadTokensTask
    */
-  public void xxxtestReadTokens() throws Exception {
+  public void testReadTokens() throws Exception {
 
     // We will call ReadTokens on this many docs
     final int NUM_DOCS = 20;
@@ -481,7 +481,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test that " {[AddDoc(4000)]: 4} : * " works corrcetly (for LUCENE-941)
    */
-  public void xxxtestParallelExhausted() throws Exception {
+  public void testParallelExhausted() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -544,7 +544,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test that exhaust in loop works as expected (LUCENE-1115).
    */
-  public void xxxtestExhaustedLooped() throws Exception {
+  public void testExhaustedLooped() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -579,7 +579,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test that we can close IndexWriter with argument "false".
    */
-  public void xxxtestCloseIndexFalse() throws Exception {
+  public void testCloseIndexFalse() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -624,7 +624,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test that we can set merge scheduler".
    */
-  public void xxxtestMergeScheduler() throws Exception {
+  public void testMergeScheduler() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -668,7 +668,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test that we can set merge policy".
    */
-  public void xxxtestMergePolicy() throws Exception {
+  public void testMergePolicy() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -707,7 +707,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test that IndexWriter settings stick.
    */
-  public void xxxtestIndexWriterSettings() throws Exception {
+  public void testIndexWriterSettings() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -752,7 +752,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test that we can call optimize(maxNumSegments).
    */
-  public void xxxtestOptimizeMaxNumSegments() throws Exception {
+  public void testOptimizeMaxNumSegments() throws Exception {
     // 1. alg definition (required in every "logic" test)
     String algLines[] = {
         "# ----- properties ",
@@ -799,7 +799,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
   /**
    * Test disabling task count (LUCENE-1136).
    */
-  public void xxxtestDisableCounting() throws Exception {
+  public void testDisableCounting() throws Exception {
     doTestDisableCounting(true);
     doTestDisableCounting(false);
   }

@@ -43,17 +43,17 @@ public class TestICUCollationKeyAnalyzer extends CollationTestBase {
     testFarsiQueryParserCollating(analyzer);
   }
   
-  public void xxxtestFarsiRangeFilterCollating() throws Exception {
+  public void testFarsiRangeFilterCollating() throws Exception {
     testFarsiRangeFilterCollating(analyzer, firstRangeBeginning, firstRangeEnd, 
                                   secondRangeBeginning, secondRangeEnd);
   }
  
-  public void xxxtestFarsiRangeQueryCollating() throws Exception {
+  public void testFarsiRangeQueryCollating() throws Exception {
     testFarsiRangeQueryCollating(analyzer, firstRangeBeginning, firstRangeEnd, 
                                  secondRangeBeginning, secondRangeEnd);
   }
 
-  public void xxxtestFarsiTermRangeQuery() throws Exception {
+  public void testFarsiTermRangeQuery() throws Exception {
     testFarsiTermRangeQuery
       (analyzer, firstRangeBeginning, firstRangeEnd, 
        secondRangeBeginning, secondRangeEnd);
@@ -65,7 +65,7 @@ public class TestICUCollationKeyAnalyzer extends CollationTestBase {
   // Copied (and slightly modified) from 
   // org.apache.lucene.search.TestSort.testInternationalSort()
   //  
-  public void xxxtestCollationKeySort() throws Exception {
+  public void testCollationKeySort() throws Exception {
     Analyzer usAnalyzer = new ICUCollationKeyAnalyzer
       (Collator.getInstance(Locale.US));
     Analyzer franceAnalyzer = new ICUCollationKeyAnalyzer

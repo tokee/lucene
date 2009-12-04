@@ -117,7 +117,7 @@ public class TestLazyProxSkipping extends LuceneTestCase {
         performTest(10);
     }
     
-    public void xxxtestSeek() throws IOException {
+    public void testSeek() throws IOException {
         Directory directory = new RAMDirectory();
         IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
         for (int i = 0; i < 10; i++) {
