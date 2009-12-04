@@ -39,7 +39,7 @@ import java.util.Map;
 
  <p> Concrete subclasses of IndexReader are usually constructed with a call to
  one of the static <code>open()</code> methods, e.g. {@link
- #open(String, boolean)}.
+ #open(Directory, boolean)}.
 
  <p> For efficiency, in this API documents are often referred to via
  <i>document numbers</i>, non-negative integers which each name a unique
@@ -61,14 +61,11 @@ import java.util.Map;
  <p>
 
  <b>NOTE</b>: as of 2.4, it's possible to open a read-only
- IndexReader using one of the static open methods that
- accepts the boolean readOnly parameter.  Such a reader has
- better concurrency as it's not necessary to synchronize on
- the isDeleted method.  Currently the default for readOnly
- is false, meaning if not specified you will get a
- read/write IndexReader.  But in 3.0 this default will
- change to true, meaning you must explicitly specify false
- if you want to make changes with the resulting IndexReader.
+ IndexReader using the static open methods that accept the 
+ boolean readOnly parameter.  Such a reader has better 
+ concurrency as it's not necessary to synchronize on the 
+ isDeleted method.  You must specify false if you want to 
+ make changes with the resulting IndexReader.
  </p>
 
  <a name="thread-safety"></a><p><b>NOTE</b>: {@link
@@ -183,6 +180,16 @@ public abstract class IndexReader implements Cloneable,Closeable {
       throw new AlreadyClosedException("this IndexReader is closed");
     }
   }
+  
+  /** Returns a IndexReader reading the index in the given
+   *  Directory, with readOnly=true.
+   * @param directory the index directory
+   * @throws CorruptIndexException if the index is corrupt
+   * @throws IOException if there is a low-level IO error
+   */
+  public static IndexReader open(final Directory directory) throws CorruptIndexException, IOException {
+    return open(directory, null, null, true, DEFAULT_TERMS_INDEX_DIVISOR, null);
+  }
 
   /** Returns an IndexReader reading the index in the given
    *  Directory.  You should pass readOnly=true, since it
@@ -210,22 +217,6 @@ public abstract class IndexReader implements Cloneable,Closeable {
    */
   public static IndexReader open(final IndexCommit commit, boolean readOnly) throws CorruptIndexException, IOException {
     return open(commit.getDirectory(), null, commit, readOnly, DEFAULT_TERMS_INDEX_DIVISOR, null);
-  }
-
-  /** Expert: returns a read/write IndexReader reading the index in the given
-   *  Directory, with a custom {@link IndexDeletionPolicy}.
-   * @param directory the index directory
-   * @param deletionPolicy a custom deletion policy (only used
-   *  if you use this reader to perform deletes or to set
-   *  norms); see {@link IndexWriter} for details.
-   * @deprecated Use {@link #open(Directory, IndexDeletionPolicy, boolean)} instead.
-   *             This method will be removed in the 3.0 release.
-   * 
-   * @throws CorruptIndexException if the index is corrupt
-   * @throws IOException if there is a low-level IO error
-   */
-  public static IndexReader open(final Directory directory, IndexDeletionPolicy deletionPolicy) throws CorruptIndexException, IOException {
-    return open(directory, deletionPolicy, null, false, DEFAULT_TERMS_INDEX_DIVISOR, null);
   }
 
   /** Expert: returns an IndexReader reading the index in
@@ -272,25 +263,6 @@ public abstract class IndexReader implements Cloneable,Closeable {
    */
   public static IndexReader open(final Directory directory, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor) throws CorruptIndexException, IOException {
     return open(directory, deletionPolicy, null, readOnly, termInfosIndexDivisor, null);
-  }
-
-  /** Expert: returns a read/write IndexReader reading the index in the given
-   * Directory, using a specific commit and with a custom
-   * {@link IndexDeletionPolicy}.
-   * @param commit the specific {@link IndexCommit} to open;
-   * see {@link IndexReader#listCommits} to list all commits
-   * in a directory
-   * @param deletionPolicy a custom deletion policy (only used
-   *  if you use this reader to perform deletes or to set
-   *  norms); see {@link IndexWriter} for details.
-   * @deprecated Use {@link #open(IndexCommit, IndexDeletionPolicy, boolean)} instead.
-   *             This method will be removed in the 3.0 release.
-   * 
-   * @throws CorruptIndexException if the index is corrupt
-   * @throws IOException if there is a low-level IO error
-   */
-  public static IndexReader open(final IndexCommit commit, IndexDeletionPolicy deletionPolicy) throws CorruptIndexException, IOException {
-    return open(commit.getDirectory(), deletionPolicy, commit, false, DEFAULT_TERMS_INDEX_DIVISOR, null);
   }
 
   /** Expert: returns an IndexReader reading the index in
@@ -466,38 +438,6 @@ public abstract class IndexReader implements Cloneable,Closeable {
   }
 
   /**
-   * Returns the time the index in the named directory was last modified.
-   * Do not use this to check whether the reader is still up-to-date, use
-   * {@link #isCurrent()} instead. 
-   * @throws CorruptIndexException if the index is corrupt
-   * @throws IOException if there is a low-level IO error
-   * @deprecated Use {@link #lastModified(Directory)} instead.
-   *             This method will be removed in the 3.0 release.
-   */
-  public static long lastModified(String directory) throws CorruptIndexException, IOException {
-    return lastModified(new File(directory));
-  }
-
-  /**
-   * Returns the time the index in the named directory was last modified. 
-   * Do not use this to check whether the reader is still up-to-date, use
-   * {@link #isCurrent()} instead. 
-   * @throws CorruptIndexException if the index is corrupt
-   * @throws IOException if there is a low-level IO error
-   * @deprecated Use {@link #lastModified(Directory)} instead.
-   *             This method will be removed in the 3.0 release.
-   * 
-   */
-  public static long lastModified(File fileDirectory) throws CorruptIndexException, IOException {
-    Directory dir = FSDirectory.open(fileDirectory); // use new static method here
-    try {
-      return lastModified(dir);
-    } finally {
-      dir.close();
-    }
-  }
-
-  /**
    * Returns the time the index in the named directory was last modified. 
    * Do not use this to check whether the reader is still up-to-date, use
    * {@link #isCurrent()} instead. 
@@ -585,6 +525,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
     throw new UnsupportedOperationException("This reader does not support this method.");
   }
 
+
   /**
    * Check whether any new changes have occurred to the
    * index since this reader was opened.
@@ -609,7 +550,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * changes.</p>
    *
    * @throws CorruptIndexException if the index is corrupt
-   * @throws IOException if there is a low-level IO error
+   * @throws IOException           if there is a low-level IO error
    * @throws UnsupportedOperationException unless overridden in subclass
    */
   public boolean isCurrent() throws CorruptIndexException, IOException {
