@@ -177,13 +177,8 @@ public class StandardDocsReader extends StandardDocsProducer {
     }
     
     @Override
-    public CacheEntry captureState(CacheEntry reusableState) {
-      TermDictsReaderState state;
-      if (reusableState == null) {
-        state = new TermDictsReaderState();
-      } else {
-        state = (TermDictsReaderState) reusableState;
-      }
+    public CacheEntry captureState() {
+      TermDictsReaderState state = new TermDictsReaderState();
       if (posReader != null) {
         state.proxOffset = posReader.proxOffset;
       } else {

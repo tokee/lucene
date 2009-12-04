@@ -310,8 +310,8 @@ public class PulsingDocsReader extends StandardDocsProducer {
     }
 
     @Override
-    public CacheEntry captureState(CacheEntry reusableState) throws IOException {
-      CacheEntry cacheEntry = wrappedReader.captureState(reusableState);
+    public CacheEntry captureState() throws IOException {
+      CacheEntry cacheEntry = wrappedReader.captureState();
       cacheEntry.docs = new Document[docs.length];
       for(int i = 0; i < docs.length; i++) {
         cacheEntry.docs[i] = (Document) docs[i].clone();

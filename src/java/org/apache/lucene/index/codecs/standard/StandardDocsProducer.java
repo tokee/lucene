@@ -42,8 +42,7 @@ public abstract class StandardDocsProducer {
     /** Returns a docs enum for the last term read */
     public abstract DocsEnum docs(Bits deletedDocs) throws IOException;
     
-    // nocommit: fooling around with reusable
-    public abstract CacheEntry captureState(CacheEntry reusableState) throws IOException;
+    public abstract CacheEntry captureState() throws IOException;
     
     public abstract void setState(CacheEntry state, int docFreq) throws IOException;
     

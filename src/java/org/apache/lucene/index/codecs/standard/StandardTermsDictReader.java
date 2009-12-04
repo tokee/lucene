@@ -20,8 +20,6 @@ package org.apache.lucene.index.codecs.standard;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.lucene.index.DocsEnum;
@@ -40,6 +38,8 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.CloseableThreadLocal;
+import org.apache.lucene.util.cache.Cache;
+import org.apache.lucene.util.cache.DoubleBarrelLRUCache;
 
 /** Handles a terms dict, but defers all details of postings
  *  reading to an instance of {@TermsDictDocsReader}. This
@@ -58,7 +58,7 @@ public class StandardTermsDictReader extends FieldsProducer {
   private StandardTermsIndexReader indexReader;
 
   private final TermRef.Comparator termComp;
-
+  
   public StandardTermsDictReader(StandardTermsIndexReader indexReader, Directory dir, FieldInfos fieldInfos, String segment, StandardDocsProducer docs, int readBufferSize,
                                  TermRef.Comparator termComp)
     throws IOException {
@@ -216,6 +216,9 @@ public class StandardTermsDictReader extends FieldsProducer {
     final FieldInfo fieldInfo;
     final long termsStartPointer;
     final StandardTermsIndexReader.FieldReader indexReader;
+    private final static int DEFAULT_CACHE_SIZE = 1024;
+    // Used for caching the least recently looked-up Terms
+    private final Cache<TermRef,CacheEntry> termsCache = new DoubleBarrelLRUCache<TermRef,CacheEntry>(DEFAULT_CACHE_SIZE);
 
     FieldReader(StandardTermsIndexReader.FieldReader fieldIndexReader, FieldInfo fieldInfo, long numTerms, long termsStartPointer) {
       assert numTerms > 0;
@@ -266,7 +269,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       ThreadResources resources = (ThreadResources) threadResources.get();
       if (resources == null) {
         // Cache does not have to be thread-safe, it is only used by one thread at the same time
-        resources = new ThreadResources(new SegmentTermsEnum(), numTerms);
+        resources = new ThreadResources(new SegmentTermsEnum());
         threadResources.set(resources);
       }
       return resources;
@@ -317,15 +320,11 @@ public class StandardTermsDictReader extends FieldsProducer {
       @Override
       public SeekStatus seek(TermRef term) throws IOException {
 
-        ReuseLRUCache<TermRef, CacheEntry> cache = null;
         CacheEntry entry = null;
         TermRef entryKey = null;
 
         if (docs.canCaptureState()) {
-          final ThreadResources resources = getThreadResources();
-          cache = resources.cache;
-
-          entry = cache.get(term);
+          entry = termsCache.get(term);
           if (entry != null) {
             docFreq = entry.freq;
             bytesReader.term.copy(term);
@@ -412,21 +411,13 @@ public class StandardTermsDictReader extends FieldsProducer {
             // does 
             if (docs.canCaptureState()) {
               // Store in cache
-              if (cache.eldest != null) {
-                entry = cache.eldest;
-                cache.eldest = null;
-                docs.captureState(entry);
-                entryKey = cache.eldestKey;
-                entryKey.copy(bytesReader.term);
-              } else {
-                entry = docs.captureState(null);
-                entryKey = (TermRef) bytesReader.term.clone();
-              }
+              entry = docs.captureState();
+              entryKey = (TermRef) bytesReader.term.clone();
               entry.freq = docFreq;
               entry.termUpTo = termUpto;
               entry.filePointer = in.getFilePointer();
             
-              cache.put(entryKey, entry);
+              termsCache.put(entryKey, entry);
             }
             return SeekStatus.FOUND;
           } else if (cmp > 0) {
@@ -558,64 +549,15 @@ public class StandardTermsDictReader extends FieldsProducer {
     public Document docs[];
     public boolean pendingIndexTerm;
   }
-
-  private static final int MAX_CACHE_SIZE = 1024;
   
   /**
    * Per-thread resources managed by ThreadLocal
    */
   private static final class ThreadResources {
-    // Used for caching the least recently looked-up Terms
-    final ReuseLRUCache<TermRef, CacheEntry> cache;
     final TermsEnum termsEnum;
 
-    ThreadResources(TermsEnum termsEnum, long numTerms) {
-      final int cacheSize;
-      if (numTerms >= MAX_CACHE_SIZE) {
-        cacheSize = MAX_CACHE_SIZE;
-      } else if (numTerms < 1) {
-        cacheSize = 1;
-      } else {
-        cacheSize = (int) numTerms;
-      }
-
-      cache = new ReuseLRUCache<TermRef, CacheEntry>(cacheSize);
+    ThreadResources(TermsEnum termsEnum) {
       this.termsEnum = termsEnum;
     }
   }
-
-  // nocommit -- must cutover to DBLRU
-  private static class ReuseLRUCache<K,V> extends LinkedHashMap<K, V> {
-
-    /**
-     * 
-     */
-    private static final long serialVersionUID = 1L;
-    private final static float LOADFACTOR = 0.75f;
-    private int cacheSize;
-    V eldest;
-    K eldestKey;
-
-    /**
-     * Creates a last-recently-used cache with the specified size.
-     */
-    public ReuseLRUCache(int cacheSize) {
-      // TODO: -- we should not init cache w/ full
-      // capacity? init it at 0, and only start evicting
-      // once #entries is over our max
-      super((int) Math.ceil(cacheSize / LOADFACTOR) + 1, LOADFACTOR, true);
-      this.cacheSize = cacheSize;
-    }
-
-    @Override
-    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-      boolean remove = size() > ReuseLRUCache.this.cacheSize;
-      if (remove) {
-        this.eldest = eldest.getValue();
-        this.eldestKey = eldest.getKey();
-      }
-      return remove;
-    }
-  }
-
 }

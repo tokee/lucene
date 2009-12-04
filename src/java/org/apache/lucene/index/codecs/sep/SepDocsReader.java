@@ -547,13 +547,8 @@ public class SepDocsReader extends StandardDocsProducer {
 
     // nocommit: rought start
     @Override
-      public CacheEntry captureState(CacheEntry reusableState) throws IOException {
-      TermDictsReaderState state;
-      if (reusableState == null) {
-        state = new TermDictsReaderState();
-      } else {
-        state = (TermDictsReaderState) reusableState;
-      }
+    public CacheEntry captureState() throws IOException {
+      TermDictsReaderState state = new TermDictsReaderState();
       if (posReader != null) {
         state.posIndexState = posReader.posIndex.captureState();
         state.payloadOffset = posReader.payloadOffset;
