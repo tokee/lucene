@@ -30,5 +30,5 @@ import java.io.IOException;
  */
 public abstract class FieldsProducer extends Fields {
   public abstract void close() throws IOException;
-  public abstract void loadTermsIndex() throws IOException;
+  public abstract void loadTermsIndex(int indexDivisor) throws IOException;
 }

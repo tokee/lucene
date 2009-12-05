@@ -621,7 +621,7 @@ public class IndexWriter implements Closeable {
           // index (eg because it's doing deletes, or an NRT
           // reader is being opened) we ask the reader to
           // load its terms index.
-          sr.loadTermsIndex();
+          sr.loadTermsIndex(termsIndexDivisor);
         }
       }
 

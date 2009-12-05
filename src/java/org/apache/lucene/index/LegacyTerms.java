@@ -20,9 +20,9 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 
-/** Implements new API (FieldsEnum/TermsEnum) on top of old
- *  API.  Used only for IndexReader impls outside Lucene's
- *  core. */
+/** Implements flex API (FieldsEnum/TermsEnum) on top of
+ *  pre-flex API.  Used only for IndexReader impls outside
+ *  Lucene's core. */
 class LegacyTerms extends Terms {
 
   private final IndexReader r;
@@ -36,9 +36,6 @@ class LegacyTerms extends Terms {
   @Override
   public TermsEnum iterator() throws IOException {
     return new LegacyFieldsEnum.LegacyTermsEnum(r, field);
-  }
-
-  public void close() {
   }
 
   @Override

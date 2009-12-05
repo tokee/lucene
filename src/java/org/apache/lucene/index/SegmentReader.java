@@ -1136,8 +1136,8 @@ public class SegmentReader extends IndexReader implements Cloneable {
   // sharing a segment that's still being merged.  This
   // method is not thread safe, and relies on the
   // synchronization in IndexWriter
-  void loadTermsIndex() throws IOException {
-    core.fields.loadTermsIndex();
+  void loadTermsIndex(int indexDivisor) throws IOException {
+    core.fields.loadTermsIndex(indexDivisor);
   }
 
   // for testing only

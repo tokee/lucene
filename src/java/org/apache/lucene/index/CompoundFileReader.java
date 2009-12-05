@@ -32,7 +32,8 @@ import java.io.IOException;
  * This class implements a directory, but is limited to only read operations.
  * Directory methods that would normally modify data throw an exception.
  */
-class CompoundFileReader extends Directory {
+// nocmmit -- made public
+public class CompoundFileReader extends Directory {
 
     private int readBufferSize;
 

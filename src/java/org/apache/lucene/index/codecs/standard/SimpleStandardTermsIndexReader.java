@@ -59,7 +59,7 @@ import org.apache.lucene.index.IndexFileNames;
 public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
   final private int totalIndexInterval;
-  final private int indexDivisor;
+  private int indexDivisor;
   final private int indexInterval;
 
   final private IndexInput in;
@@ -471,9 +471,10 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
   }
 
   @Override
-  public void loadTermsIndex() throws IOException {
-
+  public void loadTermsIndex(int indexDivisor) throws IOException {
     if (!indexLoaded) {
+
+      this.indexDivisor = indexDivisor;
 
       // mxx
       if (Codec.DEBUG) {

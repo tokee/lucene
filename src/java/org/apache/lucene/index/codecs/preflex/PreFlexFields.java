@@ -33,27 +33,43 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.CompoundFileReader;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 
+/** Exposes flex API on a pre-flex index, as a codec. */
 public class PreFlexFields extends FieldsProducer {
 
   // nocommit -- needed public by SegmentReader
-  public final TermInfosReader tis;
+  public TermInfosReader tis;
+  public final TermInfosReader tisNoIndex;
 
   // nocomit -- needed public by SR
   public final IndexInput freqStream;
   // nocomit -- needed public by SR
   public final IndexInput proxStream;
   final private FieldInfos fieldInfos;
+  private final SegmentInfo si;
   final TreeMap<String,FieldInfo> fields = new TreeMap<String,FieldInfo>();
+  private final Directory dir;
+  private final int readBufferSize;
+  private Directory cfsReader;
 
   PreFlexFields(Directory dir, FieldInfos fieldInfos, SegmentInfo info, int readBufferSize, int indexDivisor)
     throws IOException {
-    tis = new TermInfosReader(dir, info.name, fieldInfos, readBufferSize, indexDivisor);    
+
+    si = info;
+    TermInfosReader r = new TermInfosReader(dir, info.name, fieldInfos, readBufferSize, indexDivisor);    
+    if (indexDivisor == -1) {
+      tisNoIndex = r;
+    } else {
+      tisNoIndex = null;
+      tis = r;
+    }
+    this.readBufferSize = readBufferSize;
     this.fieldInfos = fieldInfos;
 
     // make sure that all index files have been read or are kept open
@@ -76,6 +92,8 @@ public class PreFlexFields extends FieldsProducer {
     } else {
       proxStream = null;
     }
+
+    this.dir = dir;
   }
 
   static void files(Directory dir, SegmentInfo info, Collection<String> files) throws IOException {
@@ -111,20 +129,58 @@ public class PreFlexFields extends FieldsProducer {
     }
   }
 
+  synchronized private TermInfosReader getTermsDict() {
+    if (tis != null) {
+      return tis;
+    } else {
+      return tisNoIndex;
+    }
+  }
+
   @Override
-  public void loadTermsIndex() throws IOException {
-    // nocommit -- todo
+  synchronized public void loadTermsIndex(int indexDivisor) throws IOException {
+    if (tis == null) {
+      Directory dir0;
+      if (si.getUseCompoundFile()) {
+        // In some cases, we were originally opened when CFS
+        // was not used, but then we are asked to open the
+        // terms reader with index, the segment has switched
+        // to CFS
+
+        // nocommit -- not clean that I open my own CFS
+        // reader here; caller should pass it in?
+        if (!(dir instanceof CompoundFileReader)) {
+          dir0 = cfsReader = new CompoundFileReader(dir, si.name + "." + IndexFileNames.COMPOUND_FILE_EXTENSION, readBufferSize);
+        } else {
+          dir0 = dir;
+        }
+        dir0 = cfsReader;
+      } else {
+        dir0 = dir;
+      }
+
+      tis = new TermInfosReader(dir0, si.name, fieldInfos, readBufferSize, indexDivisor);
+    }
   }
 
   @Override
   public void close() throws IOException {
-    tis.close();
+    if (tis != null) {
+      tis.close();
+    }
+    if (tisNoIndex != null) {
+      tisNoIndex.close();
+    }
+    if (cfsReader != null) {
+      cfsReader.close();
+    }
   }
 
   private class Fields extends FieldsEnum {
     Iterator<FieldInfo> it;
     FieldInfo current;
-    private PreTermsEnum lastTermsEnum;
+    private SegmentTermEnum lastTermEnum;
+    private int fieldCount;
 
     public Fields() {
       it = fields.values().iterator();
@@ -133,6 +189,7 @@ public class PreFlexFields extends FieldsProducer {
     @Override
     public String next() {
       if (it.hasNext()) {
+        fieldCount++;
         current = it.next();
         return current.name;
       } else {
@@ -143,13 +200,17 @@ public class PreFlexFields extends FieldsProducer {
     @Override
     public TermsEnum terms() throws IOException {
       final PreTermsEnum terms;
-      if (lastTermsEnum != null) {
-        // Carry over SegmentTermsEnum
-        terms = new PreTermsEnum(current, lastTermsEnum.terms);
+      if (lastTermEnum != null) {
+        // Re-use SegmentTermEnum to avoid seeking for
+        // linear scan (done by merging)
+        terms = new PreTermsEnum(current, lastTermEnum);
       } else {
-        terms = new PreTermsEnum(current);
+        // If fieldCount is 1 then the terms enum can simply
+        // start at the start of the index (need not seek to
+        // the current field):
+        terms = new PreTermsEnum(current, fieldCount != 1);
+        lastTermEnum = terms.terms;
       }
-      lastTermsEnum = terms;
       return terms;
     }
   }
@@ -161,9 +222,9 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public TermsEnum iterator() {
+    public TermsEnum iterator() throws IOException {
       //System.out.println("pff.init create no context");
-      return new PreTermsEnum(fieldInfo);
+      return new PreTermsEnum(fieldInfo, true);
     }
 
     @Override
@@ -176,18 +237,36 @@ public class PreFlexFields extends FieldsProducer {
   private class PreTermsEnum extends TermsEnum {
     private SegmentTermEnum terms;
     private final FieldInfo fieldInfo;
-    private PreDocsEnum docsEnum;
+    private PreDocsEnum docsEnum; // nocommit -- unused
     private boolean skipNext;
     private TermRef current;
+    private final TermRef scratchTermRef = new TermRef();
 
-    PreTermsEnum(FieldInfo fieldInfo) {
+    // Pass needsSeek=false if the field is the very first
+    // field in the index -- this is used for linear scan of
+    // the index, eg when merging segments:
+    PreTermsEnum(FieldInfo fieldInfo, boolean needsSeek) throws IOException {
       this.fieldInfo = fieldInfo;
-      terms = tis.terms();
+      if (!needsSeek) {
+        terms = getTermsDict().terms();
+      } else {
+        terms = getTermsDict().terms(new Term(fieldInfo.name, ""));
+        skipNext = true;
+      }
     }
 
-    PreTermsEnum(FieldInfo fieldInfo, SegmentTermEnum terms) {
+    PreTermsEnum(FieldInfo fieldInfo, SegmentTermEnum terms) throws IOException {
       this.fieldInfo = fieldInfo;
-      this.terms = terms;
+      if (terms.term() == null || terms.term().field() != fieldInfo.name) {
+        terms = getTermsDict().terms(new Term(fieldInfo.name, ""));
+      } else {
+        // Carefully avoid seeking in the linear-scan case,
+        // because segment doesn't load/need the terms dict
+        // index during merging.  If the terms is already on
+        // our field, it must be because it had seeked to
+        // exhaustion on the last field
+        this.terms = terms;
+      }
       skipNext = true;
       if (Codec.DEBUG) {
         System.out.println("pff.terms.init field=" + fieldInfo.name);
@@ -215,15 +294,13 @@ public class PreFlexFields extends FieldsProducer {
       if (Codec.DEBUG) {
         System.out.println("pff.seek term=" + term);
       }
-      terms = tis.terms(new Term(fieldInfo.name, term.toString()));
+      terms = getTermsDict().terms(new Term(fieldInfo.name, term.toString()));
       final Term t = terms.term();
-      //System.out.println("  got to term=" + t  + " field eq?=" + (t.field() == fieldInfo.name) + " term eq?=" +
-      //term.equals(new TermRef(t.text())));
 
-      // nocommit -- reuse TermRef instance
       final TermRef tr;
       if (t != null) {
-        tr = new TermRef(t.text());
+        tr = scratchTermRef;
+        scratchTermRef.copy(t.text());
       } else {
         tr = null;
       }
@@ -245,8 +322,8 @@ public class PreFlexFields extends FieldsProducer {
       if (skipNext) {
         // nocommit -- is there a cleaner way?
         skipNext = false;
-        // nocommit -- reuse TermRef
-        current = new TermRef(terms.term().text());
+        scratchTermRef.copy(terms.term().text());
+        current = scratchTermRef;
         return current;
       }
       if (terms.next()) {
@@ -255,11 +332,11 @@ public class PreFlexFields extends FieldsProducer {
           System.out.println("pff.next term=" + t);
         }
         if (t.field() == fieldInfo.name) {
-          // nocommit -- reuse TermRef instance
           if (Codec.DEBUG) {
             System.out.println("  ok");
           }
-          current = new TermRef(t.text());
+          scratchTermRef.copy(t.text());
+          current = scratchTermRef;
           return current;
         } else {
           // Crossed into new field
@@ -298,16 +375,16 @@ public class PreFlexFields extends FieldsProducer {
     final private PrePositionsEnum prePos;
 
     PreDocsEnum(Bits skipDocs, Term t) throws IOException {
-      current = docs = new SegmentTermDocs(freqStream, skipDocs, tis, fieldInfos);
-      pos = new SegmentTermPositions(freqStream, proxStream, skipDocs, tis, fieldInfos);
+      current = docs = new SegmentTermDocs(freqStream, skipDocs, getTermsDict(), fieldInfos);
+      pos = new SegmentTermPositions(freqStream, proxStream, skipDocs, getTermsDict(), fieldInfos);
       prePos = new PrePositionsEnum(pos);
       docs.seek(t);
       pos.seek(t);
     }
 
     PreDocsEnum(Bits skipDocs, SegmentTermEnum te) throws IOException {
-      current = docs = new SegmentTermDocs(freqStream, skipDocs, tis, fieldInfos);
-      pos = new SegmentTermPositions(freqStream, proxStream, skipDocs, tis, fieldInfos);
+      current = docs = new SegmentTermDocs(freqStream, skipDocs, getTermsDict(), fieldInfos);
+      pos = new SegmentTermPositions(freqStream, proxStream, skipDocs, getTermsDict(), fieldInfos);
       prePos = new PrePositionsEnum(pos);
       docs.seek(te);
       pos.seek(te);

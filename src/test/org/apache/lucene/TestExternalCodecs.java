@@ -88,7 +88,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public void loadTermsIndex() {
+      public void loadTermsIndex(int indexDivisor) {
       }
     } 
 
@@ -586,11 +586,11 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public void loadTermsIndex() throws IOException {
+      public void loadTermsIndex(int indexDivisor) throws IOException {
         Iterator<FieldsProducer> it = codecs.values().iterator();
         while(it.hasNext()) {
           // nocommit -- catch exc and keep closing the rest?
-          it.next().loadTermsIndex();
+          it.next().loadTermsIndex(indexDivisor);
         }
       }
     }

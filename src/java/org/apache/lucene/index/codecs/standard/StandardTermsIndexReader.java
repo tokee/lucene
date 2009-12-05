@@ -63,7 +63,7 @@ public abstract class StandardTermsIndexReader {
 
   public abstract FieldReader getField(FieldInfo fieldInfo);
 
-  public abstract void loadTermsIndex() throws IOException;
+  public abstract void loadTermsIndex(int indexDivisor) throws IOException;
 
   public abstract void close() throws IOException;
 

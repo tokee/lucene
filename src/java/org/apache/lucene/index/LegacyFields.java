@@ -40,8 +40,4 @@ class LegacyFields extends Fields {
     // nocommit
     return new LegacyTerms(r, field);
   }
-
-  public void close() throws IOException {
-    // nocommit
-  }
 }

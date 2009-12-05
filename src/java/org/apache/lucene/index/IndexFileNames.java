@@ -64,7 +64,8 @@ public final class IndexFileNames {
   static final String VECTORS_INDEX_EXTENSION = "tvx";
 
   /** Extension of compound file */
-  static final String COMPOUND_FILE_EXTENSION = "cfs";
+  // nocommit made public
+  public static final String COMPOUND_FILE_EXTENSION = "cfs";
 
   /** Extension of compound file for doc store files*/
   static final String COMPOUND_FILE_STORE_EXTENSION = "cfx";

@@ -26,7 +26,6 @@ import org.apache.lucene.util.Bits;
 
 public abstract class Terms {
 
-  // nocommit -- char[] or byte[] version?
   /** Returns an iterator that will step through all terms */
   public abstract TermsEnum iterator() throws IOException;
   

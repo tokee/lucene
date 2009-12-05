@@ -19,6 +19,7 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 
+// @deprecated This is pre-flex API
 final class LegacySegmentMergeInfo {
   Term term;
   int base;

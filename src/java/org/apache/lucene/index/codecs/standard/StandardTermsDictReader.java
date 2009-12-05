@@ -127,8 +127,11 @@ public class StandardTermsDictReader extends FieldsProducer {
   }
 
   @Override
-  public void loadTermsIndex() throws IOException {
-    indexReader.loadTermsIndex();
+  public void loadTermsIndex(int indexDivisor) throws IOException {
+    // nocommit -- must handle case where segment has become
+    // a CFS since we originall opened; maybe Directory
+    // should be passed in?
+    indexReader.loadTermsIndex(indexDivisor);
   }
 
   @Override

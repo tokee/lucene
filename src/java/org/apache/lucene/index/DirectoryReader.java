@@ -1127,8 +1127,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
     public FieldsEnumWithBase(IndexReader reader, int base) throws IOException {
       this.base = base;
       length = reader.maxDoc();
-      deletedDocs = reader.getDeletedDocs();
-      fields = reader.fields().iterator();
+      deletedDocs = reader.getDeletedDocs(); 
+     fields = reader.fields().iterator();
     }
   }
 
@@ -1265,6 +1265,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  // Exposes flex API, merged from flex API of sub-segments
   private final static class MultiFieldsEnum extends FieldsEnum {
     private final FieldMergeQueue queue;
 
@@ -1329,6 +1330,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  // Exposes flex API, merged from flex API of sub-segments
   private static final class MultiTermsEnum extends TermsEnum {
     
     private final TermMergeQueue queue;
@@ -1641,8 +1643,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
-
-  // Legacy API
+  // @deprecated This is pre-flex API
+  // Exposes pre-flex API by doing on-the-fly merging
+  // pre-flex API to each segment
   static class MultiTermEnum extends TermEnum {
     IndexReader topReader; // used for matching TermEnum to TermDocs
     private LegacySegmentMergeQueue queue;
@@ -1729,7 +1732,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
-  // Legacy API
+  // @deprecated This is pre-flex API
+  // Exposes pre-flex API by doing on-the-fly merging
+  // pre-flex API to each segment
   static class MultiTermDocs implements TermDocs {
     IndexReader topReader;  // used for matching TermEnum to TermDocs
     protected IndexReader[] readers;
@@ -1881,7 +1886,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
-  // Legacy API
+  // @deprecated This is pre-flex API
+  // Exposes pre-flex API by doing on-the-fly merging
+  // pre-flex API to each segment
   static class MultiTermPositions extends MultiTermDocs implements TermPositions {
     public MultiTermPositions(IndexReader topReader, IndexReader[] r, int[] s) {
       super(topReader,r,s);

@@ -296,7 +296,7 @@ public class StandardDocsReader extends StandardDocsProducer {
 
         while(true) {
           if (count == docFreq) {
-            return NO_MORE_DOCS;
+            return doc = NO_MORE_DOCS;
           }
 
           count++;
@@ -499,8 +499,7 @@ public class StandardDocsReader extends StandardDocsProducer {
         
         // Now, linear scan for the rest:
         do {
-          if (nextDoc() == NO_MORE_DOCS)
-            return NO_MORE_DOCS;
+          nextDoc();
         } while (target > doc);
 
         return doc;

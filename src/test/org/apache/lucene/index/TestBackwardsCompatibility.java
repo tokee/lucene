@@ -645,4 +645,59 @@ public class TestBackwardsCompatibility extends LuceneTestCase
   /* This was used in 2.9 to generate an index with compressed field:
   static final int BINARY_COMPRESSED_LENGTH = CompressionTools.compress(BINARY_TO_COMPRESS).length;
   */
+
+  private int countDocs(DocsEnum docs) throws IOException {
+    int count = 0;
+    while((docs.nextDoc()) != DocsEnum.NO_MORE_DOCS) {
+      count ++;
+    }
+    return count;
+  }
+
+  // flex: test basics of TermsEnum api on non-flex index
+  public void testNextIntoWrongField() throws Exception {
+    for(int i=0;i<oldNames.length;i++) {
+      String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
+      unzip(dirName, oldNames[i]);
+      String fullPath = fullDir(oldNames[i]);
+      Directory dir = FSDirectory.open(new File(fullPath));
+      IndexReader r = IndexReader.open(dir);
+      TermsEnum terms = r.fields().terms("content").iterator();
+      TermRef t = terms.next();
+      assertNotNull(t);
+
+      // content field only has term aaa:
+      assertEquals("aaa", t.toString());
+      assertNull(terms.next());
+
+      TermRef aaaTerm = new TermRef("aaa");
+
+      // should be found exactly
+      assertEquals(TermsEnum.SeekStatus.FOUND,
+                   terms.seek(aaaTerm));
+      assertEquals(35, countDocs(terms.docs(null)));
+      assertNull(terms.next());
+
+      // should hit end of field
+      assertEquals(TermsEnum.SeekStatus.END,
+                   terms.seek(new TermRef("bbb")));
+      assertNull(terms.next());
+
+      // should seek to aaa
+      assertEquals(TermsEnum.SeekStatus.NOT_FOUND,
+                   terms.seek(new TermRef("a")));
+      assertTrue(terms.term().termEquals(aaaTerm));
+      assertEquals(35, countDocs(terms.docs(null)));
+      assertNull(terms.next());
+
+      assertEquals(TermsEnum.SeekStatus.FOUND,
+                   terms.seek(aaaTerm));
+      assertEquals(35, countDocs(terms.docs(null)));
+      assertNull(terms.next());
+
+      r.close();
+      dir.close();
+      rmDir(oldNames[i]);
+    }
+  }
 }
