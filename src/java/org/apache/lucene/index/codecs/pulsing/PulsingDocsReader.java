@@ -203,7 +203,7 @@ public class PulsingDocsReader extends StandardDocsProducer {
       }
 
       @Override
-      public int next() {
+      public int nextDoc() {
         while(true) {
           if (nextRead >= docFreq) {
             return NO_MORE_DOCS;
@@ -242,6 +242,11 @@ public class PulsingDocsReader extends StandardDocsProducer {
       @Override
       public int freq() {
         return doc.numPositions;
+      }
+
+      @Override
+      public int docID() {
+        return doc.docID;
       }
 
       class PulsingPositionsEnum extends PositionsEnum {
@@ -301,7 +306,7 @@ public class PulsingDocsReader extends StandardDocsProducer {
       @Override
       public int advance(int target) throws IOException {
         int doc;
-        while((doc=next()) != NO_MORE_DOCS) {
+        while((doc=nextDoc()) != NO_MORE_DOCS) {
           if (doc >= target)
             return doc;
         }

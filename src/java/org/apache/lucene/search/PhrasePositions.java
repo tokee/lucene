@@ -39,7 +39,7 @@ final class PhrasePositions {
   }
 
   final boolean next() throws IOException {	  // increments to next doc
-    doc = docs.next();
+    doc = docs.nextDoc();
     if (doc == docs.NO_MORE_DOCS) {
       return false;
     }

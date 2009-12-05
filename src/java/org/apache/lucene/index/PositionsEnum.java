@@ -21,8 +21,18 @@ import java.io.IOException;
 
 import org.apache.lucene.util.AttributeSource;
 
-public abstract class PositionsEnum extends AttributeSource {
+public abstract class PositionsEnum {
 
+  private AttributeSource atts = null;
+
+  /**
+   * Returns the related attributes.
+   */
+  public AttributeSource attributes() {
+    if (atts == null) atts = new AttributeSource();
+    return atts;
+  }
+  
   // nocommit
   public String desc;
 

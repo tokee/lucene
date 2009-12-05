@@ -280,7 +280,7 @@ public class SepDocsReader extends StandardDocsProducer {
       }
 
       @Override
-      public int next() throws IOException {
+      public int nextDoc() throws IOException {
 
         if (Codec.DEBUG) {
           if (!omitTF) {
@@ -292,7 +292,7 @@ public class SepDocsReader extends StandardDocsProducer {
 
         while(true) {
           if (count == docFreq) {
-            return NO_MORE_DOCS;
+            return doc = NO_MORE_DOCS;
           }
 
           count++;
@@ -361,6 +361,11 @@ public class SepDocsReader extends StandardDocsProducer {
       @Override
       public int freq() {
         return freq;
+      }
+
+      @Override
+      public int docID() {
+        return doc;
       }
 
       // Holds pending seek data for positions:
@@ -522,7 +527,7 @@ public class SepDocsReader extends StandardDocsProducer {
         
         // Now, linear scan for the rest:
         do {
-          if (next() == NO_MORE_DOCS) {
+          if (nextDoc() == NO_MORE_DOCS) {
             return NO_MORE_DOCS;
           }
         } while (target > doc);

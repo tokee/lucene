@@ -289,7 +289,7 @@ public class StandardDocsReader extends StandardDocsProducer {
       }
 
       @Override
-      public int next() throws IOException {
+      public int nextDoc() throws IOException {
         if (Codec.DEBUG) {
           System.out.println("sdr.next [" + desc + "] count=" + count + " vs df=" + docFreq + " freq pointer=" + freqIn.getFilePointer() + " (in=" + freqIn + "; this=" + this + ") + has skip docs=" + (skipDocs != null));
         }
@@ -379,7 +379,8 @@ public class StandardDocsReader extends StandardDocsProducer {
         return i;
       }
 
-      public int doc() {
+      @Override
+      public int docID() {
         return doc;
       }
 
@@ -498,7 +499,7 @@ public class StandardDocsReader extends StandardDocsProducer {
         
         // Now, linear scan for the rest:
         do {
-          if (next() == NO_MORE_DOCS)
+          if (nextDoc() == NO_MORE_DOCS)
             return NO_MORE_DOCS;
         } while (target > doc);
 

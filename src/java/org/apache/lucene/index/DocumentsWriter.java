@@ -1030,7 +1030,7 @@ final class DocumentsWriter {
           if (docs != null) {
             int limit = entry.getValue().getNum();
             while (true) {
-              final int docID = docs.next();
+              final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS || docIDStart+docID >= limit) {
                 break;
               }

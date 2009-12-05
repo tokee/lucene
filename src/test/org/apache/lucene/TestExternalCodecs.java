@@ -346,9 +346,10 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
+      // nocommit: Is this ok? it always return NO_MORE_DOCS
       public int advance(int targetDocID) {
         do {
-          next();
+          nextDoc();
         } while (upto < ramTerm.docs.size() && current.docID < targetDocID);
         return NO_MORE_DOCS;
       }
@@ -356,7 +357,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       // TODO: override bulk read, for better perf
 
       @Override
-      public int next() {
+      public int nextDoc() {
         while(true) {
           upto++;
           if (upto < ramTerm.docs.size()) {
@@ -373,6 +374,11 @@ public class TestExternalCodecs extends LuceneTestCase {
       @Override
       public int freq() {
         return current.positions.length;
+      }
+
+      @Override
+      public int docID() {
+        return current.docID;
       }
 
       @Override

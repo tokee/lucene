@@ -120,7 +120,7 @@ public class FieldNormModifier {
           while(termsEnum.next() != null) {
             DocsEnum docs = termsEnum.docs(delDocs);
             while(true) {
-              int docID = docs.next();
+              int docID = docs.nextDoc();
               if (docID != docs.NO_MORE_DOCS) {
                 termCounts[docID] += docs.freq();
               } else {

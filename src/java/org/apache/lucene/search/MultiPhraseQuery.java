@@ -399,7 +399,7 @@ class UnionDocsEnum extends DocsEnum {
       Iterator i = docsEnums.iterator();
       while (i.hasNext()) {
         DocsEnumWrapper docs = (DocsEnumWrapper) i.next();
-        docs.doc = docs.docsEnum.next();
+        docs.doc = docs.docsEnum.nextDoc();
         if (docs.doc != DocsEnum.NO_MORE_DOCS) {
           add(docs);
         }
@@ -485,7 +485,7 @@ class UnionDocsEnum extends DocsEnum {
   }
 
   @Override
-  public final int next() throws IOException {
+  public final int nextDoc() throws IOException {
     if (_queue.size() == 0) {
       return NO_MORE_DOCS;
     }
@@ -507,7 +507,7 @@ class UnionDocsEnum extends DocsEnum {
         _posList.add(positions.next());
       }
 
-      docs.doc = docs.docsEnum.next();
+      docs.doc = docs.docsEnum.nextDoc();
 
       if (docs.doc != NO_MORE_DOCS) {
         _queue.updateTop();
@@ -554,12 +554,17 @@ class UnionDocsEnum extends DocsEnum {
         _queue.add(docs);
       }
     }
-    return next();
+    return nextDoc();
   }
 
   @Override
   public final int freq() {
     return _freq;
+  }
+
+  @Override
+  public final int docID() {
+    return _doc;
   }
 
   /**

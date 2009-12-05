@@ -314,7 +314,7 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public int next() throws IOException {
+    public int nextDoc() throws IOException {
       if (Codec.DEBUG) {
         System.out.println("pff.docs.next");
       }
@@ -337,6 +337,11 @@ public class PreFlexFields extends FieldsProducer {
     @Override
     public int freq() {
       return current.freq();
+    }
+
+    @Override
+    public int docID() {
+      return current.doc();
     }
 
     @Override

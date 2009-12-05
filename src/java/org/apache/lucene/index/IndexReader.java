@@ -850,8 +850,12 @@ public abstract class IndexReader implements Cloneable,Closeable {
       return NO_MORE_DOCS;
     }
     @Override
-    public int next() {
+    public int nextDoc() {
       return NO_MORE_DOCS;
+    }
+    @Override
+    public int docID() {
+      return -1;
     }
     @Override
     public int freq() {

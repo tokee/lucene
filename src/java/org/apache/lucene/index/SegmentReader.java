@@ -1546,7 +1546,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
     public boolean next() throws IOException {
       if (docs == null) return false;
-      doc = docs.next();
+      doc = docs.nextDoc();
       return doc != DocsEnum.NO_MORE_DOCS;
     }
   }

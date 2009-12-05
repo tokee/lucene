@@ -1513,6 +1513,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     DocsEnum currentDocs;
     int currentBase;
     Bits skipDocs;
+    int doc = -1;
 
     MultiDocsEnum(int count) {
       subs = new DocsEnumWithBase[count];
@@ -1564,6 +1565,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
+    public int docID() {
+      return doc;
+    }
+
+    @Override
     public int read(final int docs[], final int freqs[]) throws IOException {
       while (true) {
         while (currentDocs == null) {
@@ -1595,10 +1601,10 @@ class DirectoryReader extends IndexReader implements Cloneable {
           if (doc == NO_MORE_DOCS) {
             currentDocs = null;
           } else {
-            return doc + currentBase;
+            return this.doc = doc + currentBase;
           }
         } else if (upto == numSubs-1) {
-          return NO_MORE_DOCS;
+          return this.doc = NO_MORE_DOCS;
         } else {
           upto++;
           currentDocs = subs[upto].docs;
@@ -1608,11 +1614,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
-    public int next() throws IOException {
+    public int nextDoc() throws IOException {
       while(true) {
         if (currentDocs == null) {
           if (upto == numSubs-1) {
-            return NO_MORE_DOCS;
+            return this.doc = NO_MORE_DOCS;
           } else {
             upto++;
             currentDocs = subs[upto].docs;
@@ -1620,9 +1626,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
           }
         }
 
-        final int doc = currentDocs.next();
+        final int doc = currentDocs.nextDoc();
         if (doc != NO_MORE_DOCS) {
-          return currentBase + doc;
+          return this.doc = currentBase + doc;
         } else {
           currentDocs = null;
         }

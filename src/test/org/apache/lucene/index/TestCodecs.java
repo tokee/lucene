@@ -359,14 +359,14 @@ public class TestCodecs extends LuceneTestCase {
 
     private void verifyDocs(int[] docs, PositionData[][] positions, DocsEnum docsEnum, boolean doPos) throws Throwable {
       for(int i=0;i<docs.length;i++) {
-        int doc = docsEnum.next();
+        int doc = docsEnum.nextDoc();
         assertTrue(doc != DocsEnum.NO_MORE_DOCS);
         assertEquals(docs[i], doc);
         if (doPos) {
           verifyPositions(positions[i], docsEnum.positions());
         }
       }
-      assertEquals(DocsEnum.NO_MORE_DOCS, docsEnum.next());
+      assertEquals(DocsEnum.NO_MORE_DOCS, docsEnum.nextDoc());
     }
 
     byte[] data = new byte[10];
@@ -524,7 +524,7 @@ public class TestCodecs extends LuceneTestCase {
                 // nocommit -- test skipping to non-existent doc
                 assertEquals(term.docs[upto2], doc);
               } else {
-                doc = docs.next();
+                doc = docs.nextDoc();
                 assertTrue(doc != -1);
                 if (Codec.DEBUG) {
                   System.out.println("TEST [" + getDesc(field, term) + "]: got next doc...");
@@ -547,7 +547,7 @@ public class TestCodecs extends LuceneTestCase {
               }
             }
 
-            assertEquals(DocsEnum.NO_MORE_DOCS, docs.next());
+            assertEquals(DocsEnum.NO_MORE_DOCS, docs.nextDoc());
 
           } else if (Codec.DEBUG) {
             System.out.println("\nTEST [" + getDesc(field, term) + "]: skip docs");

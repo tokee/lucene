@@ -281,7 +281,7 @@ class FieldCacheImpl implements FieldCache {
             final byte termval = parser.parseByte(term);
             final DocsEnum docs = termsEnum.docs(delDocs);
             while (true) {
-              final int docID = docs.next();
+              final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
                 break;
               }
@@ -334,7 +334,7 @@ class FieldCacheImpl implements FieldCache {
             final short termval = parser.parseShort(term);
             final DocsEnum docs = termsEnum.docs(delDocs);
             while (true) {
-              final int docID = docs.next();
+              final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
                 break;
               }
@@ -397,7 +397,7 @@ class FieldCacheImpl implements FieldCache {
 
             final DocsEnum docs = termsEnum.docs(delDocs);
             while (true) {
-              final int docID = docs.next();
+              final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
                 break;
               }
@@ -468,7 +468,7 @@ class FieldCacheImpl implements FieldCache {
 
             final DocsEnum docs = termsEnum.docs(delDocs);
             while (true) {
-              final int docID = docs.next();
+              final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
                 break;
               }
@@ -534,7 +534,7 @@ class FieldCacheImpl implements FieldCache {
 
             final DocsEnum docs = termsEnum.docs(delDocs);
             while (true) {
-              final int docID = docs.next();
+              final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
                 break;
               }
@@ -602,7 +602,7 @@ class FieldCacheImpl implements FieldCache {
 
             final DocsEnum docs = termsEnum.docs(delDocs);
             while (true) {
-              final int docID = docs.next();
+              final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
                 break;
               }
@@ -647,7 +647,7 @@ class FieldCacheImpl implements FieldCache {
           final DocsEnum docs = termsEnum.docs(delDocs);
           final String termval = term.toString();
           while (true) {
-            final int docID = docs.next();
+            final int docID = docs.nextDoc();
             if (docID == DocsEnum.NO_MORE_DOCS) {
               break;
             }
@@ -707,7 +707,7 @@ class FieldCacheImpl implements FieldCache {
 
           final DocsEnum docs = termsEnum.docs(delDocs);
           while (true) {
-            final int docID = docs.next();
+            final int docID = docs.nextDoc();
             if (docID == DocsEnum.NO_MORE_DOCS) {
               break;
             }

@@ -59,7 +59,7 @@ public abstract class DocsConsumer {
       final int base = toMerge[i].docBase;
 
       while(true) {
-        final int startDoc = docs.next();
+        final int startDoc = docs.nextDoc();
         if (startDoc == DocsEnum.NO_MORE_DOCS) {
           break;
         }

@@ -46,7 +46,7 @@ public class TermSpans extends Spans {
   @Override
   public boolean next() throws IOException {
     if (count == freq) {
-      doc = docs.next();
+      doc = docs.nextDoc();
       if (doc == DocsEnum.NO_MORE_DOCS) {
         return false;
       }

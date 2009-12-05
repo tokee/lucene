@@ -611,7 +611,7 @@ public class CheckIndex {
 
           int lastDoc = -1;
           while(true) {
-            final int doc = docs.next();
+            final int doc = docs.nextDoc();
             if (doc == DocsEnum.NO_MORE_DOCS) {
               break;
             }
@@ -652,7 +652,7 @@ public class CheckIndex {
           if (reader.hasDeletions()) {
             final DocsEnum docsNoDel = terms.docs(null);
             int count = 0;
-            while(docsNoDel.next() != DocsEnum.NO_MORE_DOCS) {
+            while(docsNoDel.nextDoc() != DocsEnum.NO_MORE_DOCS) {
               count++;
             }
             if (count != docFreq) {

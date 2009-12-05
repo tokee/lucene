@@ -19,23 +19,27 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.AttributeSource;
 
 /** On obtaining a DocsEnum, you must first call next() */
 
-public abstract class DocsEnum extends AttributeSource {
+public abstract class DocsEnum extends DocIdSetIterator {
+
+  private AttributeSource atts = null;
+
   // nocommit
   public String desc;
 
-  public final static int NO_MORE_DOCS = Integer.MAX_VALUE;
-
-  /** Moves forward to the doc id >= target */
-  public abstract int advance(int target) throws IOException;
-
-  /** Returns the next docID, {@link #NO_MORE_DOCS} at the end. */
-  public abstract int next() throws IOException;
-
   public abstract int freq();
+  
+  /**
+   * Returns the related attributes.
+   */
+  public AttributeSource attributes() {
+    if (atts == null) atts = new AttributeSource();
+    return atts;
+  }
   
   // nocommit -- fix this API so that intblock codecs are
   // able to return their own int arrays, to save a copy
@@ -44,7 +48,7 @@ public abstract class DocsEnum extends AttributeSource {
   public int read(int[] docs, int[] freqs) throws IOException {
     int count = 0;
     while(count < docs.length) {
-      final int doc = next();
+      final int doc = nextDoc();
       if (doc != NO_MORE_DOCS) {
         docs[count] = doc;
         freqs[count] = freq();

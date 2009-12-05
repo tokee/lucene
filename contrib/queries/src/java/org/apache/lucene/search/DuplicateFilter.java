@@ -95,7 +95,7 @@ public class DuplicateFilter extends Filter
           break;
         } else {
           DocsEnum docs = termsEnum.docs(delDocs);
-          int doc = docs.next();
+          int doc = docs.nextDoc();
           if (doc != docs.NO_MORE_DOCS) {
             if (keepMode == KM_USE_FIRST_OCCURRENCE) {
               bits.set(doc);
@@ -103,7 +103,7 @@ public class DuplicateFilter extends Filter
               int lastDoc = doc;
               while (true) {
                 lastDoc = doc;
-                doc = docs.next();
+                doc = docs.nextDoc();
                 if (doc == docs.NO_MORE_DOCS) {
                   break;
                 }
@@ -134,10 +134,10 @@ public class DuplicateFilter extends Filter
           if (termsEnum.docFreq() > 1) {
             // unset potential duplicates
             DocsEnum docs = termsEnum.docs(delDocs);
-            int doc = docs.next();
+            int doc = docs.nextDoc();
             if (doc != docs.NO_MORE_DOCS) {
               if (keepMode == KM_USE_FIRST_OCCURRENCE) {
-                doc = docs.next();
+                doc = docs.nextDoc();
               }
             }
             
@@ -145,7 +145,7 @@ public class DuplicateFilter extends Filter
             while (true) {
               lastDoc = doc;
               bits.clear(lastDoc);
-              doc = docs.next();
+              doc = docs.nextDoc();
               if (doc == docs.NO_MORE_DOCS) {
                 break;
               }

@@ -171,6 +171,7 @@ class LegacyFieldsEnum extends FieldsEnum {
     final Bits skipDocs;
 
     TermPositions tp;
+    int doc = -1;
 
     LegacyDocsEnum(IndexReader r, String field, Term term, Bits skipDocs) throws IOException {
       this.r = r;
@@ -184,26 +185,31 @@ class LegacyFieldsEnum extends FieldsEnum {
     // always secretly skip deleted docs, and we can't work
     // around that for external readers?
     @Override
-    public int next() throws IOException {
+    public int nextDoc() throws IOException {
       if (td.next()) {
-        return td.doc();
+        return doc = td.doc();
       } else {
-        return NO_MORE_DOCS;
+        return doc = NO_MORE_DOCS;
       }
     }
 
     @Override
     public int advance(int target) throws IOException {
       if (td.skipTo(target)) {
-        return td.doc();
+        return doc = td.doc();
       } else {
-        return NO_MORE_DOCS;
+        return doc = NO_MORE_DOCS;
       }
     }
 
     @Override
     public int freq() {
       return td.freq();
+    }
+
+    @Override
+    public int docID() {
+      return doc;
     }
 
     @Override

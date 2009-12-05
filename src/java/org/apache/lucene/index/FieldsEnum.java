@@ -25,8 +25,18 @@ import org.apache.lucene.util.AttributeSource;
  *
  * NOTE: this API is experimental and will likely change */
 
-public abstract class FieldsEnum extends AttributeSource {
+public abstract class FieldsEnum {
 
+  private AttributeSource atts = null;
+
+  /**
+   * Returns the related attributes.
+   */
+  public AttributeSource attributes() {
+    if (atts == null) atts = new AttributeSource();
+    return atts;
+  }
+  
   // nocommit -- do we need seek?
 
   /** Increments the enumeration to the next field.

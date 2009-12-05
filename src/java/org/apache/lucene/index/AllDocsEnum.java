@@ -38,7 +38,12 @@ class AllDocsEnum extends DocsEnum {
   }
 
   @Override
-  public int next() throws IOException {
+  public int docID() {
+    return doc;
+  }
+
+  @Override
+  public int nextDoc() throws IOException {
     return advance(doc+1);
   }
 

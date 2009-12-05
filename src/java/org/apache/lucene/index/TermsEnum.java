@@ -31,10 +31,24 @@ import org.apache.lucene.util.Bits;
  * #docFreq}), and obtain a {@link DocsEnum} for the current
  * term ({@link #docs)}.
  * 
+ * <p>Term enumerations are always ordered by
+ * {@link #getTermComparator}.  Each term in the enumeration is
+ * greater than all that precede it.</p>
+ *
  * <p>On obtaining a TermsEnum, you must first call
  * {@link #next} or {@link #seek}. */
-public abstract class TermsEnum extends AttributeSource {
+public abstract class TermsEnum {
 
+  private AttributeSource atts = null;
+
+  /**
+   * Returns the related attributes.
+   */
+  public AttributeSource attributes() {
+    if (atts == null) atts = new AttributeSource();
+    return atts;
+  }
+  
   /** Represents returned result from {@link TermsEnum.seek}.
    *  If status is FOUND, then the precise term was found.
    *  If status is NOT_FOUND, then a different term was
