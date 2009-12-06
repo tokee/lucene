@@ -65,6 +65,7 @@ class LegacyFieldsEnum extends FieldsEnum {
     private final String field;
     private TermEnum terms;
     private TermRef current;
+    private final TermRef tr = new TermRef();
 
     LegacyTermsEnum(IndexReader r, String field) throws IOException {
       this.r = r;
@@ -80,24 +81,27 @@ class LegacyFieldsEnum extends FieldsEnum {
 
     @Override
     public SeekStatus seek(TermRef text) throws IOException {
-
-      // nocommit: too slow?
+      
+      // nocommit -- should we optimize for "silly seek"
+      // cases, here?  ie seek to term you're already on, to
+      // very next term , etc.
       terms.close();
       terms = r.terms(new Term(field, text.toString()));
+
       final Term t = terms.term();
       if (t == null) {
         current = null;
         return SeekStatus.END;
-      } else {
-        final TermRef tr = new TermRef(t.text());
+      } else if (t.field() == field) {
+        tr.copy(t.text());
+        current = tr;
         if (text.termEquals(tr)) {
-          current = tr;
           return SeekStatus.FOUND;
         } else {
-          // nocommit reuse TermRef instance
-          current = tr;
           return SeekStatus.NOT_FOUND;
         }
+      } else {
+        return SeekStatus.END;
       }
     }
 
@@ -114,8 +118,12 @@ class LegacyFieldsEnum extends FieldsEnum {
     @Override
     public TermRef next() throws IOException {
       if (terms.next()) {
-        // nocommit -- reuse TermRef instance
-        current = new TermRef(terms.term().text());
+        if (terms.term().field == field) {
+          tr.copy(terms.term().text());
+          current = tr;
+        } else {
+          current = null;
+        }
         return current;
       } else {
         current = null;

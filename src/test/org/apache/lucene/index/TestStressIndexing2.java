@@ -28,6 +28,8 @@ import java.io.IOException;
 
 import junit.framework.TestCase;
 
+// nocommit -- cut test over to flex API, but not too soon
+// (it catches bugs in emulation)
 public class TestStressIndexing2 extends LuceneTestCase {
   static int maxFields=4;
   static int bigFieldSize=10;

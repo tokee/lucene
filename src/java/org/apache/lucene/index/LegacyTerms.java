@@ -17,8 +17,9 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-
 import java.io.IOException;
+
+import org.apache.lucene.util.StringHelper;
 
 /** Implements flex API (FieldsEnum/TermsEnum) on top of
  *  pre-flex API.  Used only for IndexReader impls outside
@@ -30,7 +31,7 @@ class LegacyTerms extends Terms {
 
   LegacyTerms(IndexReader r, String field) {
     this.r = r;
-    this.field = field;
+    this.field = StringHelper.intern(field);
   }
 
   @Override

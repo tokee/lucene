@@ -24,7 +24,6 @@ import java.io.IOException;
  *  core. */
 class LegacyFields extends Fields {
   private final IndexReader r;
-  private TermEnum terms;
 
   public LegacyFields(IndexReader r) throws IOException {
     this.r = r;
@@ -37,7 +36,6 @@ class LegacyFields extends Fields {
 
   @Override
   public Terms terms(String field) throws IOException {
-    // nocommit
     return new LegacyTerms(r, field);
   }
 }

@@ -38,8 +38,6 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BitVector;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.CloseableThreadLocal;
-import org.apache.lucene.util.cache.Cache;
-import org.apache.lucene.util.cache.SimpleLRUCache;
 import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.preflex.PreFlexFields;
@@ -923,31 +921,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
       return new LegacyTermPositions();
   }
 
-  private final CloseableThreadLocal perThread = new CloseableThreadLocal();
-
-  // nocommit -- move term vectors under here
-  private static final class PerThread {
-    LegacyTermEnum terms;
-    
-    // Used for caching the least recently looked-up Terms
-    Cache termsCache;
-  }
-
-  private final static int DEFAULT_TERMS_CACHE_SIZE = 1024;
-
-  private PerThread getPerThread() throws IOException {
-    PerThread resources = (PerThread) perThread.get();
-    if (resources == null) {
-      resources = new PerThread();
-      resources.terms = new LegacyTermEnum(null);
-      // Cache does not have to be thread-safe, it is only used by one thread at the same time
-      resources.termsCache = new SimpleLRUCache(DEFAULT_TERMS_CACHE_SIZE);
-      perThread.set(resources);
-    }
-    return resources;
-  }
-
-  
   @Override
   public int docFreq(Term t) throws IOException {
     ensureOpen();
@@ -1354,13 +1327,14 @@ public class SegmentReader extends IndexReader implements Cloneable {
     TermRef currentTerm;
 
     public LegacyTermEnum(Term t) throws IOException {
-      //System.out.println("sr.lte.init: term=" + t);
+      // System.out.println("sr.lte.init: term=" + t);
       fields = core.fields.iterator();
       currentField = fields.next();
       if (currentField == null) {
+        // no fields
         done = true;
       } else if (t != null) {
-        // Pre-seek
+        // Pre-seek to this term
 
         // nocommit -- inefficient; do we need
         // FieldsEnum.seek? (but this is slow only for
@@ -1375,29 +1349,43 @@ public class SegmentReader extends IndexReader implements Cloneable {
         }
 
         if (!done) {
-          if (currentField == t.field) {
-            // Field matches -- get terms
-            terms = fields.terms();
+          // We found some field -- get its terms:
+          terms = fields.terms();
+
+          if (currentField.equals(t.field)) {
+            // We found exactly the requested field; now
+            // seek the term text:
             String text = t.text();
             TermRef tr;
+
             // this is a hack only for backwards compatibility.
             // previously you could supply a term ending with a lead surrogate,
             // and it would return the next Term.
             // if someone does this, tack on the lowest possible trail surrogate.
             // this emulates the old behavior, and forms "valid UTF-8" unicode.
             if (text.length() > 0 
-                && Character.isHighSurrogate(text.charAt(text.length() - 1)))
+                && Character.isHighSurrogate(text.charAt(text.length() - 1))) {
               tr = new TermRef(t.text() + "\uDC00");
-            else
+            } else {
               tr = new TermRef(t.text());
+            }
             TermsEnum.SeekStatus status = terms.seek(tr);
             if (status == TermsEnum.SeekStatus.END) {
-              // leave currentTerm null
+              // Rollover to the next field
+              terms = null;
+              next();
             } else if (status == TermsEnum.SeekStatus.FOUND) {
+              // Found exactly the term
               currentTerm = tr;
             } else {
+              // Found another term, in this same field
               currentTerm = terms.term();
             }
+          } else {
+            // We didn't find exact field (we found the
+            // following field); advance to first term in
+            // this field
+            next();
           }
         }
       } else {
@@ -1433,7 +1421,8 @@ public class SegmentReader extends IndexReader implements Cloneable {
           // This field still has terms
           return true;
         } else {
-          // Done producing terms from this field
+          // Done producing terms from this field; advance
+          // to next field
           terms = null;
         }
       }
@@ -1441,10 +1430,8 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
     @Override
     public Term term() {
-      if (terms != null && !done) {
-        if (currentTerm != null) {
-          return new Term(currentField, currentTerm.toString());
-        }
+      if (!done && terms != null && currentTerm != null) {
+        return new Term(currentField, currentTerm.toString());
       }
       return null;
     }

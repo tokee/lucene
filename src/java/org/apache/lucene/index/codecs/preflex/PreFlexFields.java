@@ -58,6 +58,7 @@ public class PreFlexFields extends FieldsProducer {
   private final int readBufferSize;
   private Directory cfsReader;
 
+  // nocommit -- we need the legacy terms cache back in here
   PreFlexFields(Directory dir, FieldInfos fieldInfos, SegmentInfo info, int readBufferSize, int indexDivisor)
     throws IOException {
 
@@ -364,6 +365,7 @@ public class PreFlexFields extends FieldsProducer {
 
     @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
+      // nocommit -- reuse?
       return new PreDocsEnum(skipDocs, terms);
     }
   }
