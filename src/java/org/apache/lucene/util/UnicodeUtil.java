@@ -364,6 +364,48 @@ final public class UnicodeUtil {
     result.length = outUpto;
   }
 
+  /**
+   * Get the next valid UTF-16 String in UTF-16 order.
+   * <p>
+   * If the input String is already valid, it is returned.
+   * Otherwise the next String in code unit order is returned.
+   * </p>
+   * @param s input String (possibly with unpaired surrogates)
+   * @return next valid UTF-16 String in UTF-16 order
+   */
+  public static String nextValidUTF16String(String s) {
+    final int size = s.length();
+    for (int i = 0; i < size; i++) {
+      char ch = s.charAt(i);
+      if (ch >= UnicodeUtil.UNI_SUR_HIGH_START
+          && ch <= UnicodeUtil.UNI_SUR_HIGH_END) {
+        if (i < size - 1) {
+          i++;
+          char nextCH = s.charAt(i);
+          if (nextCH >= UnicodeUtil.UNI_SUR_LOW_START
+              && nextCH <= UnicodeUtil.UNI_SUR_LOW_END) {
+            // Valid surrogate pair
+          } else
+          // Unmatched high surrogate
+            if (nextCH < UnicodeUtil.UNI_SUR_LOW_START) // SMP not enumerated 
+              return s.substring(0, i) + 
+                (char) UnicodeUtil.UNI_SUR_LOW_START;
+            else // SMP already enumerated
+              return s.substring(0, i - 1) + 
+                (char) (UnicodeUtil.UNI_SUR_LOW_END + 1);
+        } else
+        // Unmatched high surrogate in final position, SMP not yet enumerated
+        return s + (char) UnicodeUtil.UNI_SUR_LOW_START;
+      } else if (ch >= UnicodeUtil.UNI_SUR_LOW_START
+          && ch <= UnicodeUtil.UNI_SUR_LOW_END)
+      // Unmatched low surrogate, SMP already enumerated
+      return s.substring(0, i) + 
+        (char) (UnicodeUtil.UNI_SUR_LOW_END + 1);
+    }
+    
+    return s;
+  }
+  
   // Only called from assert
   /*
   private static boolean matches(char[] source, int offset, int length, byte[] result, int upto) {

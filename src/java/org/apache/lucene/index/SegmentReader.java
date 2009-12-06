@@ -38,6 +38,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BitVector;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.CloseableThreadLocal;
+import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.preflex.PreFlexFields;
@@ -1356,19 +1357,12 @@ public class SegmentReader extends IndexReader implements Cloneable {
             // We found exactly the requested field; now
             // seek the term text:
             String text = t.text();
-            TermRef tr;
-
-            // this is a hack only for backwards compatibility.
-            // previously you could supply a term ending with a lead surrogate,
+            // this is only for backwards compatibility.
+            // previously you could supply a term with unpaired surrogates,
             // and it would return the next Term.
             // if someone does this, tack on the lowest possible trail surrogate.
             // this emulates the old behavior, and forms "valid UTF-8" unicode.
-            if (text.length() > 0 
-                && Character.isHighSurrogate(text.charAt(text.length() - 1))) {
-              tr = new TermRef(t.text() + "\uDC00");
-            } else {
-              tr = new TermRef(t.text());
-            }
+            TermRef tr = new TermRef(UnicodeUtil.nextValidUTF16String(text));
             TermsEnum.SeekStatus status = terms.seek(tr);
             if (status == TermsEnum.SeekStatus.END) {
               // Rollover to the next field
