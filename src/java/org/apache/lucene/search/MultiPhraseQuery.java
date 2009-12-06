@@ -382,37 +382,30 @@ public class MultiPhraseQuery extends Query {
  * Takes the logical union of multiple DocsEnum iterators.
  */
 
+// nocommit -- this must carefully take union of attr source
+// as well -- this is tricky
 class UnionDocsEnum extends DocsEnum {
 
-  private final static class DocsEnumWrapper {
-    int doc;
-    final DocsEnum docsEnum;
-    public DocsEnumWrapper(DocsEnum docsEnum) {
-      this.docsEnum = docsEnum;
-    }
-  }
-
-  private static final class DocsQueue extends PriorityQueue {
-    DocsQueue(List docsEnums) throws IOException {
+  private static final class DocsQueue extends PriorityQueue<DocsEnum> {
+    DocsQueue(List<DocsEnum> docsEnums) throws IOException {
       initialize(docsEnums.size());
 
-      Iterator i = docsEnums.iterator();
+      Iterator<DocsEnum> i = docsEnums.iterator();
       while (i.hasNext()) {
-        DocsEnumWrapper docs = (DocsEnumWrapper) i.next();
-        docs.doc = docs.docsEnum.nextDoc();
-        if (docs.doc != DocsEnum.NO_MORE_DOCS) {
+        DocsEnum docs = (DocsEnum) i.next();
+        if (docs.nextDoc() != DocsEnum.NO_MORE_DOCS) {
           add(docs);
         }
       }
     }
 
-    final public DocsEnumWrapper peek() {
-      return (DocsEnumWrapper) top();
+    final public DocsEnum peek() {
+      return top();
     }
 
     @Override
-    public final boolean lessThan(Object a, Object b) {
-      return ((DocsEnumWrapper) a).doc < ((DocsEnumWrapper) b).doc;
+    public final boolean lessThan(DocsEnum a, DocsEnum b) {
+      return a.docID() < b.docID();
     }
   }
 
@@ -421,7 +414,7 @@ class UnionDocsEnum extends DocsEnum {
     private int _index = 0;
     private int _lastIndex = 0;
     private int[] _array = new int[_arraySize];
-
+    
     final void add(int i) {
       if (_lastIndex == _arraySize)
         growArray();
@@ -470,7 +463,7 @@ class UnionDocsEnum extends DocsEnum {
                                                terms[i].field(),
                                                new TermRef(terms[i].text()));
       if (docs != null) {
-        docsEnums.add(new DocsEnumWrapper(docs));
+        docsEnums.add(docs);
       }
     }
 
@@ -494,27 +487,25 @@ class UnionDocsEnum extends DocsEnum {
     // doesn't need the positions for this doc then don't
     // waste CPU merging them:
     _posList.clear();
-    _doc = _queue.peek().doc;
+    _doc = _queue.top().docID();
 
     // merge sort all positions together
-    DocsEnumWrapper docs;
+    DocsEnum docs;
     do {
-      docs = _queue.peek();
-      final PositionsEnum positions = docs.docsEnum.positions();
+      docs = _queue.top();
+      final PositionsEnum positions = docs.positions();
 
-      final int freq = docs.docsEnum.freq();
+      final int freq = docs.freq();
       for (int i = 0; i < freq; i++) {
         _posList.add(positions.next());
       }
 
-      docs.doc = docs.docsEnum.nextDoc();
-
-      if (docs.doc != NO_MORE_DOCS) {
+      if (docs.nextDoc() != NO_MORE_DOCS) {
         _queue.updateTop();
       } else {
         _queue.pop();
       }
-    } while (_queue.size() > 0 && _queue.peek().doc == _doc);
+    } while (_queue.size() > 0 && _queue.top().docID() == _doc);
 
     _posList.sort();
     _freq = _posList.size();
@@ -547,10 +538,9 @@ class UnionDocsEnum extends DocsEnum {
 
   @Override
   public final int advance(int target) throws IOException {
-    while (_queue.peek() != null && target > _queue.peek().doc) {
-      DocsEnumWrapper docs = (DocsEnumWrapper) _queue.pop();
-      docs.doc = docs.docsEnum.advance(target);
-      if (docs.doc != NO_MORE_DOCS) {
+    while (_queue.top() != null && target > _queue.top().docID()) {
+      DocsEnum docs = _queue.pop();
+      if (docs.advance(target) != NO_MORE_DOCS) {
         _queue.add(docs);
       }
     }
