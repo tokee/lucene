@@ -74,6 +74,9 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
   public final int hashCode() {
     return query.hashCode();
   }
+
+  /** Returns the field name for this query */
+  public final String getField() { return query.getField(); }
   
   /**
    * Expert: Return the number of unique terms visited during execution of the filter.
@@ -104,16 +107,16 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
    */
   @Override
   public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
-    final FilteredTermsEnum termsEnum = query.getTermsEnum(reader);
+    final TermsEnum termsEnum = query.getTermsEnum(reader);
     if (termsEnum != null) {
-      if (!termsEnum.empty()) {
+      if (termsEnum.next() != null) {
         // fill into a OpenBitSet
         final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());
         final int[] docs = new int[32];
         final int[] freqs = new int[32];
         int termCount = 0;
         final Bits delDocs = reader.getDeletedDocs();
-        while (true) {
+        do {
           termCount++;
           // System.out.println("  iter termCount=" + termCount + " term=" +
           // enumerator.term().toBytesString());
@@ -128,13 +131,7 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
               break;
             }
           }
-          TermRef term = termsEnum.next();
-          if (term == null) {
-            break;
-          }
-          // System.out.println("  enum next term=" + term.toBytesString());
-          assert term.termEquals(termsEnum.term());
-        }
+        } while (termsEnum.next() != null);
         // System.out.println("  done termCount=" + termCount);
 
         query.incTotalNumberOfTerms(termCount);

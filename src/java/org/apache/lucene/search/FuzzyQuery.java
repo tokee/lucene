@@ -19,9 +19,12 @@ package org.apache.lucene.search;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.ToStringUtils;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.PriorityQueue;
 
 /** Implements the fuzzy search query. The similarity measurement
@@ -34,6 +37,63 @@ import java.util.PriorityQueue;
  */
 public class FuzzyQuery extends MultiTermQuery {
   
+  private static class FuzzyRewrite extends RewriteMethod implements Serializable {
+    @Override
+    public Query rewrite(IndexReader reader, MultiTermQuery query) throws IOException {
+      int maxSize = BooleanQuery.getMaxClauseCount();
+      PriorityQueue<ScoreTerm> stQueue = new PriorityQueue<ScoreTerm>(1024);
+      
+      TermsEnum termsEnum = query.getTermsEnum(reader);
+      assert termsEnum != null;
+      final String field = query.field;
+      if (field == null)
+        throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
+      final MultiTermQuery.BoostAttribute boostAtt =
+        termsEnum.attributes().addAttribute(MultiTermQuery.BoostAttribute.class);
+      ScoreTerm bottomSt = null;
+      TermRef t;
+      final Term placeholderTerm = new Term(field);
+      while ((t = termsEnum.next()) != null) {
+        if (t == null) break;
+        ScoreTerm st = new ScoreTerm(placeholderTerm.createTerm(t.toString()), boostAtt.getBoost());
+        if (stQueue.size() < maxSize) {
+          // record the current bottom item
+          if (bottomSt == null || st.compareTo(bottomSt) > 0) {
+            bottomSt = st;
+          }
+          // add to PQ, as it is not yet filled up
+          stQueue.offer(st);
+        } else {
+          assert bottomSt != null;
+          // only add to PQ, if the ScoreTerm is greater than the current bottom,
+          // as all entries will be enqueued after the current bottom and will never be visible
+          if (st.compareTo(bottomSt) < 0) {
+            stQueue.offer(st);
+          }
+        }
+        //System.out.println("current: "+st.term+"("+st.score+"), bottom: "+bottomSt.term+"("+bottomSt.score+")");
+      }
+      
+      BooleanQuery bq = new BooleanQuery(true);
+      int size = Math.min(stQueue.size(), maxSize);
+      for(int i = 0; i < size; i++){
+        ScoreTerm st = stQueue.poll();
+        TermQuery tq = new TermQuery(st.term);      // found a match
+        tq.setBoost(query.getBoost() * st.score); // set the boost
+        bq.add(tq, BooleanClause.Occur.SHOULD);          // add to query
+      }
+      query.incTotalNumberOfTerms(bq.clauses().size());
+      return bq;
+    }
+
+    // Make sure we are still a singleton even after deserializing
+    protected Object readResolve() {
+      return FUZZY_REWRITE;
+    }
+  }
+  
+  private final static RewriteMethod FUZZY_REWRITE = new FuzzyRewrite();
+
   public final static float defaultMinSimilarity = 0.5f;
   public final static int defaultPrefixLength = 0;
   
@@ -60,6 +120,7 @@ public class FuzzyQuery extends MultiTermQuery {
    * or if prefixLength &lt; 0
    */
   public FuzzyQuery(Term term, float minimumSimilarity, int prefixLength) throws IllegalArgumentException {
+    super(term.field());
     this.term = term;
     
     if (minimumSimilarity >= 1.0f)
@@ -75,14 +136,14 @@ public class FuzzyQuery extends MultiTermQuery {
     
     this.minimumSimilarity = minimumSimilarity;
     this.prefixLength = prefixLength;
-    rewriteMethod = SCORING_BOOLEAN_QUERY_REWRITE;
+    rewriteMethod = FUZZY_REWRITE;
   }
   
   /**
    * Calls {@link #FuzzyQuery(Term, float) FuzzyQuery(term, minimumSimilarity, 0)}.
    */
   public FuzzyQuery(Term term, float minimumSimilarity) throws IllegalArgumentException {
-      this(term, minimumSimilarity, defaultPrefixLength);
+    this(term, minimumSimilarity, defaultPrefixLength);
   }
 
   /**
@@ -109,14 +170,19 @@ public class FuzzyQuery extends MultiTermQuery {
     return prefixLength;
   }
 
-  // @deprecated see #getTermsEnum
-  @Override
+  @Override @Deprecated
   protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
+    if (!termLongEnough) {  // can only match if it's exact
+      return new SingleTermEnum(reader, term);
+    }
     return new FuzzyTermEnum(reader, getTerm(), minimumSimilarity, prefixLength);
   }
   
   @Override
-  protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
+  protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
+    if (!termLongEnough) {  // can only match if it's exact
+      return new SingleTermsEnum(reader, term);
+    }
     return new FuzzyTermsEnum(reader, getTerm(), minimumSimilarity, prefixLength);
   }
   
@@ -130,55 +196,6 @@ public class FuzzyQuery extends MultiTermQuery {
   @Override
   public void setRewriteMethod(RewriteMethod method) {
     throw new UnsupportedOperationException("FuzzyQuery cannot change rewrite method");
-  }
-  
-  @Override
-  public Query rewrite(IndexReader reader) throws IOException {
-    if(!termLongEnough) {  // can only match if it's exact
-      return new TermQuery(term);
-    }
-
-    int maxSize = BooleanQuery.getMaxClauseCount();
-    PriorityQueue<ScoreTerm> stQueue = new PriorityQueue<ScoreTerm>(1024);
-    //nocommit: use termsEnum
-    FilteredTermEnum enumerator = getEnum(reader);
-    try {
-      ScoreTerm bottomSt = null;
-      do {
-        final Term t = enumerator.term();
-        if (t == null) break;
-        ScoreTerm st = new ScoreTerm(t, enumerator.difference());
-        if (stQueue.size() < maxSize) {
-          // record the current bottom item
-          if (bottomSt == null || st.compareTo(bottomSt) > 0) {
-            bottomSt = st;
-          }
-          // add to PQ, as it is not yet filled up
-          stQueue.offer(st);
-        } else {
-          assert bottomSt != null;
-          // only add to PQ, if the ScoreTerm is greater than the current bottom,
-          // as all entries will be enqueued after the current bottom and will never be visible
-          if (st.compareTo(bottomSt) < 0) {
-            stQueue.offer(st);
-          }
-        }
-        //System.out.println("current: "+st.term+"("+st.score+"), bottom: "+bottomSt.term+"("+bottomSt.score+")");
-      } while (enumerator.next());
-    } finally {
-      enumerator.close();
-    }
-    
-    BooleanQuery query = new BooleanQuery(true);
-    int size = Math.min(stQueue.size(), maxSize);
-    for(int i = 0; i < size; i++){
-      ScoreTerm st = stQueue.poll();
-      TermQuery tq = new TermQuery(st.term);      // found a match
-      tq.setBoost(getBoost() * st.score); // set the boost
-      query.add(tq, BooleanClause.Occur.SHOULD);          // add to query
-    }
-
-    return query;
   }
   
   protected static class ScoreTerm implements Comparable<ScoreTerm> {

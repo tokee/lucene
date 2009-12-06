@@ -28,7 +28,6 @@ import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermRef;
-import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 
 /**
@@ -160,10 +159,10 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
   private NumericRangeQuery(final String field, final int precisionStep, final int valSize,
     T min, T max, final boolean minInclusive, final boolean maxInclusive
   ) {
+    super(field);
     assert (valSize == 32 || valSize == 64);
     if (precisionStep < 1)
       throw new IllegalArgumentException("precisionStep must be >=1");
-    this.field = StringHelper.intern(field);
     this.precisionStep = precisionStep;
     this.valSize = valSize;
     this.min = min;
@@ -303,13 +302,13 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     return new NumericRangeQuery<Float>(field, NumericUtils.PRECISION_STEP_DEFAULT, 32, min, max, minInclusive, maxInclusive);
   }
 
-  @Override
-  protected FilteredTermsEnum getTermsEnum(final IndexReader reader) throws IOException {
-    return new NumericRangeTermsEnum(reader);
+  @Override @SuppressWarnings("unchecked")
+  protected TermsEnum getTermsEnum(final IndexReader reader) throws IOException {
+    // very strange: java.lang.Number itsself is not Comparable, but all subclasses used here are
+    return (min != null && max != null && ((Comparable<T>) min).compareTo(max) > 0) ?
+      new EmptyTermsEnum() :
+      new NumericRangeTermsEnum(reader);
   }
-
-  /** Returns the field name for this query */
-  public String getField() { return field; }
 
   /** Returns <code>true</code> if the lower endpoint is inclusive */
   public boolean includesMin() { return minInclusive; }
@@ -326,7 +325,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
   @Override
   public String toString(final String field) {
     final StringBuilder sb = new StringBuilder();
-    if (!this.field.equals(field)) sb.append(this.field).append(':');
+    if (!getField().equals(field)) sb.append(getField()).append(':');
     return sb.append(minInclusive ? '[' : '{')
       .append((min == null) ? "*" : min.toString())
       .append(" TO ")
@@ -344,7 +343,6 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     if (o instanceof NumericRangeQuery) {
       final NumericRangeQuery q=(NumericRangeQuery)o;
       return (
-        field==q.field &&
         (q.min == null ? min == null : q.min.equals(min)) &&
         (q.max == null ? max == null : q.max.equals(max)) &&
         minInclusive == q.minInclusive &&
@@ -358,22 +356,15 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
   @Override
   public final int hashCode() {
     int hash = super.hashCode();
-    hash += field.hashCode()^0x4565fd66 + precisionStep^0x64365465;
+    hash += precisionStep^0x64365465;
     if (min != null) hash += min.hashCode()^0x14fa55fb;
     if (max != null) hash += max.hashCode()^0x733fa5fe;
     return hash +
       (Boolean.valueOf(minInclusive).hashCode()^0x14fa55fb)+
       (Boolean.valueOf(maxInclusive).hashCode()^0x733fa5fe);
   }
-  
-  // field must be interned after reading from stream
-  private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    field = StringHelper.intern(field);
-  }
 
   // members (package private, to be also fast accessible by NumericRangeTermEnum)
-  String field;
   final int precisionStep, valSize;
   final T min, max;
   final boolean minInclusive,maxInclusive;
@@ -390,15 +381,13 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
    */
   private final class NumericRangeTermsEnum extends FilteredTermsEnum {
 
-    private final IndexReader reader;
+    private final TermRef currentLowerBound = new TermRef(), currentUpperBound = new TermRef();
+
     private final LinkedList<String> rangeBounds = new LinkedList<String>();
-    private TermRef currentUpperBound = null;
-    private final boolean empty;
     private final TermRef.Comparator termComp;
 
     NumericRangeTermsEnum(final IndexReader reader) throws IOException {
-      this.reader = reader;
-
+      super(reader, getField());
       switch (valSize) {
         case 64: {
           // lower
@@ -475,98 +464,31 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
           throw new IllegalArgumentException("valSize must be 32 or 64");
       }
 
-      // initialize iterator
-      final Terms terms = reader.fields().terms(field);
-      if (terms != null) {
-        // TODO: NRQ by design relies on a specific sort
-        // order; I think UT8 or UTF16 would work (NRQ encodes
-        // to only ASCII).
-        termComp = terms.getTermComparator();
-        actualEnum = terms.iterator();
-      } else {
-        termComp = null;
-        actualEnum = null;
-      }
-
-      // seek to first term
-      empty = next() == null;
-    }
-
-    @Override
-    public float difference() {
-      return 1.0f;
+      termComp = getTermComparator();
     }
     
     @Override
-    public boolean empty() {
-      return empty;
-    }
-
-    @Override
-    protected TermRef setEnum(TermsEnum actualEnum, TermRef term) throws IOException {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public SeekStatus seek(TermRef term) throws IOException {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public SeekStatus seek(long ord) throws IOException {
-      throw new UnsupportedOperationException("not implemented");
-    }
-    
-    @Override
-    public String field() {
-      return field;
-    }
-    
-    @Override
-    protected AcceptStatus accept(TermRef term) {
-      return (termComp.compare(term, currentUpperBound) <= 0) ?
-        AcceptStatus.YES : AcceptStatus.NO;
-    }
-
-    @Override
-    public TermRef next() throws IOException {
-      if (actualEnum == null) {
-        return null;
-      }
-      
-      // try change to next term, if no such term exists, fall-through
-      // (we can only do this if the enum was already seeked)
-      if (currentUpperBound != null) {
-        final TermRef term = actualEnum.next();
-        if (term != null && accept(term) == AcceptStatus.YES) {
-          return term;
-        }
-      }
-
-      // if all above fails, we seek forward
-      while (rangeBounds.size() >= 2) {
+    protected final TermRef nextSeekTerm() throws IOException {
+      if (rangeBounds.size() >= 2) {
         assert rangeBounds.size() % 2 == 0;
 
-        final TermRef lowerBound = new TermRef(rangeBounds.removeFirst());
-        assert currentUpperBound == null || termComp.compare(currentUpperBound, lowerBound) <= 0 :
+        this.currentLowerBound.copy(rangeBounds.removeFirst());
+        assert termComp.compare(currentUpperBound, currentLowerBound) <= 0 :
           "The current upper bound must be <= the new lower bound";
         
-        this.currentUpperBound = new TermRef(rangeBounds.removeFirst());
-
-        SeekStatus status = actualEnum.seek(lowerBound);
-        if (status == SeekStatus.END) {
-          return null;
-        }
-        
-        final TermRef term = actualEnum.term();
-        if (accept(term) == AcceptStatus.YES) {
-          return term;
-        }
+        this.currentUpperBound.copy(rangeBounds.removeFirst());
+        return currentLowerBound;
       }
       
       // no more sub-range enums available
       assert rangeBounds.size() == 0;
       return null;
+    }
+    
+    @Override
+    protected AcceptStatus accept(TermRef term) {
+      return (currentUpperBound != null && termComp.compare(term, currentUpperBound) <= 0) ?
+        AcceptStatus.YES : AcceptStatus.NO_AND_SEEK;
     }
 
   }

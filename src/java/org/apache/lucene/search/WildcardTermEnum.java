@@ -30,6 +30,7 @@ import org.apache.lucene.index.Term;
  * the enumeration is greater than all that precede it.
  * @deprecated Please use {@link WildcardTermsEnum} instead.
  */
+@Deprecated
 public class WildcardTermEnum extends FilteredTermEnum {
   final Term searchTerm;
   final String field;

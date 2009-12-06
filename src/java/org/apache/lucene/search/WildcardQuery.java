@@ -19,6 +19,8 @@ package org.apache.lucene.search;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.ToStringUtils;
 
 import java.io.IOException;
@@ -41,6 +43,7 @@ public class WildcardQuery extends MultiTermQuery {
   protected Term term;
     
   public WildcardQuery(Term term) {
+    super(term.field());
     this.term = term;
     String text = term.text();
     this.termContainsWildcard = (text.indexOf('*') != -1)
@@ -51,16 +54,29 @@ public class WildcardQuery extends MultiTermQuery {
   }
   
   @Override
-  protected FilteredTermsEnum getTermsEnum(IndexReader reader) throws IOException {
+  protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
+    if (termIsPrefix) {
+      final String text = getTerm().text();
+      final Term t = getTerm().createTerm(text.substring(0,text.length()-1));
+      if (t.text().length() == 0) {
+        final Terms terms = reader.fields().terms(getField());
+        return (terms != null) ? terms.iterator() : new EmptyTermsEnum();
+      }
+      return new PrefixTermsEnum(reader, t);
+    }
     if (termContainsWildcard)
       return new WildcardTermsEnum(reader, getTerm());
     else
       return new SingleTermsEnum(reader, getTerm());
   }
   
-  // @deprecated see getTermsEnum
-  @Override
+  @Override @Deprecated
   protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
+    if (termIsPrefix) {
+      final String text = getTerm().text();
+      final Term t = getTerm().createTerm(text.substring(0,text.length()-1));
+      return new PrefixTermEnum(reader, t);
+    }
     if (termContainsWildcard)
       return new WildcardTermEnum(reader, getTerm());
     else
@@ -74,25 +90,12 @@ public class WildcardQuery extends MultiTermQuery {
     return term;
   }
 
-  @Override
-  public Query rewrite(IndexReader reader) throws IOException {
-    if (termIsPrefix) {
-      MultiTermQuery rewritten = new PrefixQuery(term.createTerm(term.text()
-          .substring(0, term.text().indexOf('*'))));
-      rewritten.setBoost(getBoost());
-      rewritten.setRewriteMethod(getRewriteMethod());
-      return rewritten;
-    } else {
-      return super.rewrite(reader);
-    }
-  }
-  
   /** Prints a user-readable version of this query. */
   @Override
   public String toString(String field) {
     StringBuilder buffer = new StringBuilder();
-    if (!term.field().equals(field)) {
-      buffer.append(term.field());
+    if (!getField().equals(field)) {
+      buffer.append(getField());
       buffer.append(":");
     }
     buffer.append(term.text());

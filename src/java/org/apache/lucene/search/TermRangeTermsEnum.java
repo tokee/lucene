@@ -22,28 +22,24 @@ import java.text.Collator;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.TermRef;
-import org.apache.lucene.index.Terms;
-//import org.apache.lucene.index.Term;
 import org.apache.lucene.util.StringHelper;
 
 /**
  * Subclass of FilteredTermEnum for enumerating all terms that match the
  * specified range parameters.
- * <p>
- * Term enumerations are always ordered by Term.compareTo().  Each term in
- * the enumeration is greater than all that precede it.
+ * <p>Term enumerations are always ordered by
+ * {@link #getTermComparator}.  Each term in the enumeration is
+ * greater than all that precede it.</p>
  */
 public class TermRangeTermsEnum extends FilteredTermsEnum {
 
   private Collator collator;
-  private String field;
   private String upperTermText;
   private String lowerTermText;
   private boolean includeLower;
   private boolean includeUpper;
   final private TermRef lowerTermRef;
   final private TermRef upperTermRef;
-  private final boolean empty;
   private final TermRef.Comparator termComp;
 
   /**
@@ -75,12 +71,12 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
    */
   public TermRangeTermsEnum(IndexReader reader, String field, String lowerTermText, String upperTermText, 
     boolean includeLower, boolean includeUpper, Collator collator) throws IOException {
+    super(reader, field);
     this.collator = collator;
     this.upperTermText = upperTermText;
     this.lowerTermText = lowerTermText;
     this.includeLower = includeLower;
     this.includeUpper = includeUpper;
-    this.field = StringHelper.intern(field);
 
     // do a little bit of normalization...
     // open ended range queries should always be inclusive.
@@ -97,42 +93,16 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
       upperTermRef = new TermRef(upperTermText);
     }
 
-    String startTermText = collator == null ? this.lowerTermText : "";
-    Terms terms = reader.fields().terms(field);
-
-    if (terms != null) {
-      termComp = terms.getTermComparator();
-      final boolean foundFirstTerm = setEnum(terms.iterator(), new TermRef(startTermText)) != null;
-
-      if (foundFirstTerm && collator == null && !this.includeLower && term().termEquals(lowerTermRef)) {
-        empty = next() == null;
-      } else {
-        empty = !foundFirstTerm;
-      }
-    } else {
-      empty = true;
-      termComp = null;
-    }
-  }
-
-  @Override
-  public float difference() {
-    return 1.0f;
-  }
-
-  @Override
-  public boolean empty() {
-    return empty;
-  }
-
-  @Override
-  public String field() {
-    return field;
+    TermRef startTermRef = (collator == null) ? lowerTermRef : new TermRef("");
+    setInitialSeekTerm(startTermRef);
+    termComp = getTermComparator();
   }
 
   @Override
   protected AcceptStatus accept(TermRef term) {
     if (collator == null) {
+      if (!this.includeLower && term.equals(lowerTermRef))
+        return AcceptStatus.NO;
       // Use this field's default sort ordering
       if (upperTermRef != null) {
         final int cmp = termComp.compare(upperTermRef, term);

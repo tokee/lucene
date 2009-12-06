@@ -17,40 +17,41 @@ package org.apache.lucene.search;
  * limitations under the License.
  */
 
-import java.io.IOException;
-
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.TermsEnum;
 
 /**
- * Subclass of FilteredTermEnum for enumerating all terms that match the
- * specified prefix filter term.
- * <p>Term enumerations are always ordered by
- * {@link #getTermComparator}.  Each term in the enumeration is
- * greater than all that precede it.</p>
+ * Subclass of {@code FilteredTermsEnum} that is always empty.
+ * <p>
+ * This can be used by {@link MultiTermQuery}s (if no terms can ever match the query),
+ * but want to preserve MultiTermQuery semantics such as
+ * {@link MultiTermQuery#rewriteMethod}.
  */
-public class PrefixTermsEnum extends FilteredTermsEnum {
-
-  private final Term prefix;
-  private final TermRef prefixRef;
-
-  public PrefixTermsEnum(IndexReader reader, Term prefix) throws IOException {
-    super(reader, prefix.field());
-    this.prefix = prefix;
-    setInitialSeekTerm(prefixRef = new TermRef(prefix.text()));
-  }
-
-  protected Term getPrefixTerm() {
-    return prefix;
+public final class EmptyTermsEnum extends FilteredTermsEnum {
+  
+  /**
+   * Creates a new <code>EmptyTermsEnum</code>.
+   */
+  public EmptyTermsEnum() {
+    super((TermsEnum) null);
   }
 
   @Override
+  /** Always returns {@link AcceptStatus#END}. */
   protected AcceptStatus accept(TermRef term) {
-    if (term.startsWith(prefixRef)) {
-      return AcceptStatus.YES;
-    } else {
-      return AcceptStatus.END;
-    }
+    return AcceptStatus.END;
   }
+
+  /** Always returns {@link SeekStatus#END}. */
+  @Override
+  public SeekStatus seek(TermRef term) {
+    return SeekStatus.END;
+  }
+
+  /** Always returns {@link SeekStatus#END}. */
+  @Override
+  public SeekStatus seek(long ord) {
+    return SeekStatus.END;
+  }
+
 }

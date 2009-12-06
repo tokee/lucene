@@ -33,6 +33,7 @@ import org.apache.lucene.util.StringHelper;
  * @since 2.9
  * @deprecated Please switch to {@link TermRangeTermsEnum}
  */
+@Deprecated
 public class TermRangeTermEnum extends FilteredTermEnum {
 
   private Collator collator = null;

@@ -204,21 +204,21 @@ public class FuzzyLikeThisQuery extends Query
                   int df = reader.docFreq(startTerm);
                   int numVariants=0;
                   int totalVariantDocFreqs=0;
-                  if (!fe.empty()) {
-                    do {
-                      TermRef possibleMatch = fe.term();
+                  TermRef possibleMatch;
+                  MultiTermQuery.BoostAttribute boostAtt =
+                    fe.attributes().addAttribute(MultiTermQuery.BoostAttribute.class);
+                  while ((possibleMatch = fe.next()) != null) {
                       if (possibleMatch!=null) {
                         numVariants++;
                         totalVariantDocFreqs+=fe.docFreq();
-                        float score=fe.difference();
+                        float score=boostAtt.getBoost();
                         if (variantsQ.size() < MAX_VARIANTS_PER_TERM || score > minScore){
                           ScoreTerm st=new ScoreTerm(new Term(startTerm.field(), possibleMatch.toString()),score,startTerm);                    
                           variantsQ.insertWithOverflow(st);
                           minScore = variantsQ.top().score; // maintain minScore
                         }
                       }
-                    } while(fe.next() != null);
-                  }
+                    }
 
                   if(numVariants>0)
                     {

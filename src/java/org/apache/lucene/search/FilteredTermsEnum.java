@@ -18,153 +18,186 @@ package org.apache.lucene.search;
  */
 
 import java.io.IOException;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.Bits;
 
 /**
  * Abstract class for enumerating a subset of all terms. 
- *
- * <p>On creation, the enumerator must already be positioned
- * to the first term.</p>
  * 
  * <p>Term enumerations are always ordered by
- * Term.compareTo().  Each term in the enumeration is
+ * {@link #getTermComparator}.  Each term in the enumeration is
  * greater than all that precede it.</p>
-*/
+ * <p><em>Please note:</em> Consumers of this enum cannot
+ * call {@code seek()}, it is forward only; it throws
+ * {@link UnsupportedOperationException} when a seeking method
+ * is called.
+ */
 public abstract class FilteredTermsEnum extends TermsEnum {
 
-  protected static enum AcceptStatus {YES, NO, END};
-    
-  /** the delegate enum - to set this member use {@link #setEnum} */
-  protected TermsEnum actualEnum;
-    
-  /** Return true if term is accepted */
-  protected abstract AcceptStatus accept(TermRef term);
-    
-  /** Equality measure on the term */
-  public abstract float difference();
+  private TermRef initialSeekTerm = null;
+  private boolean doSeek = true;        
 
-  public abstract String field();
+  protected final TermsEnum tenum;
 
-  /** Only called once, right after construction, to check
-   *  whether there are no matching terms */
-  public abstract boolean empty();
+  /** Return value, if term should be accepted or the iteration should
+   * {@code END}. The {@code *_SEEK} values denote, that after handling the current term
+   * the enum should call {@link nextSeekTerm()} and step forward.
+   * @see #accept(TermRef)
+   */
+  protected static enum AcceptStatus {YES, YES_AND_SEEK, NO, NO_AND_SEEK, END};
+  
+  /** Return if term is accepted, not accepted or the iteration should ended
+   * (and possibly seek).
+   */
+  protected abstract AcceptStatus accept(TermRef term) throws IOException;
 
   /**
-   * use this method to set the actual TermsEnum (e.g. in ctor),
-   * it will be automatically positioned on the first
-   * accepted term, and returns the term found or null if
-   * there is no matching term.
+   * Creates a filtered {@link TermsEnum} for the given field name and reader.
    */
-  protected TermRef setEnum(TermsEnum actualEnum, TermRef term) throws IOException {
-    this.actualEnum = actualEnum;
-
-    // Find the first term that matches
-    if (term != null) {
-      SeekStatus status = actualEnum.seek(term);
-      if (status == SeekStatus.END) {
-        return null;
-      } else {
-        AcceptStatus s = accept(actualEnum.term());
-        if (s == AcceptStatus.NO) {
-          return next();
-        } else if (s == AcceptStatus.END) {
-          return null;
-        } else {
-          return actualEnum.term();
-        }
-      }
-    } else {
-      return next();
-    }
+  public FilteredTermsEnum(final IndexReader reader, final String field) throws IOException {
+    final Terms terms = reader.fields().terms(field);
+    tenum = (terms != null) ? terms.iterator() : null;
   }
 
+  /**
+   * Creates a filtered {@link TermsEnum} on a terms enum for the given field name.
+   * @param tenum the terms enumeration to filter, if {@code null} this is the null iterator.
+   * @param field the field name this enum operates on (needed by {@link MultiTermQuery}).
+   */
+  public FilteredTermsEnum(final TermsEnum tenum) {
+    this.tenum = tenum;
+  }
+
+  /**
+   * Use this method to set the initial {@link TermRef}
+   * to seek before iterating. This is a convenience method for
+   * subclasses that do not override {@link #nextSeekTerm}.
+   * If the initial seek term is {@code null} (default),
+   * the enum is empty.
+   * <P>You can only use this method, if you keep the default
+   * implementation of {@link #nextSeekTerm}.
+   */
+  protected final void setInitialSeekTerm(TermRef term) throws IOException {
+    this.initialSeekTerm = term;
+  }
+  
+  /** On the first call to {@link #next} or if {@link #accept} returns
+   * {@link AcceptStatus#YES_AND_SEEK} or {@link AcceptStatus#NO_AND_SEEK},
+   * this method will be called to eventually seek the underlying TermsEnum
+   * to a new position.
+   * This method returns per default only one time the initial seek term
+   * and then {@code null}, so no repositioning is ever done.
+   * <p>Override this method, if you want a more sophisticated TermsEnum,
+   * that repositions the iterator during enumeration.
+   * If this method always returns {@code null} the enum is empty.
+   * <p><em>Please note:</em> This method should always provide a greater term
+   * than the last enumerated term, else the behaviour of this enum
+   * violates the contract for TermsEnums.
+   */
+  protected TermRef nextSeekTerm() throws IOException {
+    final TermRef t = initialSeekTerm;
+    initialSeekTerm = null;
+    return t;
+  }
+
+  /**
+   * Returns the related attributes, the returned {@link AttributeSource}
+   * is shared with the delegate {@code TermsEnum}.
+   */
+  @Override
+  public AttributeSource attributes() {
+    /* if we have no tenum, we return a new attributes instance,
+     * to prevent NPE in subclasses that use attributes.
+     * in all other cases we share the attributes with our delegate. */
+    return (tenum == null) ? super.attributes() : tenum.attributes();
+  }
+  
   @Override
   public TermRef term() throws IOException {
-    if(actualEnum == null) {
-      return null;
-    }
-    return actualEnum.term();
+    return (tenum == null) ? null : tenum.term();
   }
 
   @Override
-  /** Don't call this until after setEnum, else you'll hit NPE */
   public TermRef.Comparator getTermComparator() throws IOException {
-    return actualEnum.getTermComparator();
+    return (tenum == null) ? null : tenum.getTermComparator();
   }
     
-  /** 
-   * Returns the docFreq of the current Term in the enumeration.
-   * Returns -1 if no Term matches or all terms have been enumerated.
-   */
   @Override
   public int docFreq() {
-    assert actualEnum != null;
-    return actualEnum.docFreq();
-  }
-    
-  /** Increments the enumeration to the next element.
-   * Non-null if one exists, or null if it's the end. */
-  @Override
-  public TermRef next() throws IOException {
-    assert actualEnum != null;
-    while (true) {
-      TermRef term = actualEnum.next();
-      if (term != null) {
-        AcceptStatus s = accept(term);
-        if (s == AcceptStatus.YES) {
-          return term;
-        } else if (s == AcceptStatus.END) {
-          // end
-          return null;
-        }
-      } else {
-        // end
-        return null;
-      }
-    }
+    return (tenum == null) ? -1 : tenum.docFreq();
   }
 
+  /** This enum does not support seeking!
+   * @throws UnsupportedOperationException
+   */
   @Override
   public SeekStatus seek(TermRef term) throws IOException {
-    return finishSeek(actualEnum.seek(term));
+    throw new UnsupportedOperationException(getClass().getName()+" does not support seeking");
   }
 
+  /** This enum does not support seeking!
+   * @throws UnsupportedOperationException
+   */
   @Override
   public SeekStatus seek(long ord) throws IOException {
-    return finishSeek(actualEnum.seek(ord));
-  }
-
-  private SeekStatus finishSeek(SeekStatus status) throws IOException {
-    if (status != SeekStatus.END) {
-      TermRef term = actualEnum.term();
-      final AcceptStatus s = accept(term);
-      if (s == AcceptStatus.NO) {
-        term = next();
-        if (term == null) {
-          return SeekStatus.END;
-        } else {
-          return SeekStatus.NOT_FOUND;
-        }
-      } else if (s == AcceptStatus.END) {
-        return SeekStatus.END;
-      } else {
-        return status;
-      }
-    } else {
-      return status;
-    }
+    throw new UnsupportedOperationException(getClass().getName()+" does not support seeking");
   }
 
   @Override
   public long ord() throws IOException {
-    return actualEnum.ord();
+    return (tenum == null) ? -1 : tenum.ord();
   }
 
   @Override
   public DocsEnum docs(Bits bits) throws IOException {
-    return actualEnum.docs(bits);
+    return (tenum == null) ? null : tenum.docs(bits);
   }
+    
+  @Override
+  public TermRef next() throws IOException {
+    if (tenum == null)
+      return null;
+    for (;;) {
+      // Seek or forward the iterator
+      final TermRef term;
+      if (doSeek) {
+        doSeek = false;
+        final TermRef t = nextSeekTerm();
+        if (t == null || tenum.seek(t) == SeekStatus.END) {
+          // no more terms to seek to or enum exhausted
+          return null;
+        }
+        term = tenum.term();
+      } else {
+        term = tenum.next();
+        if (term == null) {
+          // enum exhausted
+          return null;
+        }
+      }
+      
+      // check if term is accepted
+      switch (accept(term)) {
+        case YES_AND_SEEK:
+          doSeek = true;
+          // term accepted, but we need to seek so fall-through
+        case YES:
+          // term accepted
+          return term;
+        case NO_AND_SEEK:
+          // invalid term, seek next time
+          doSeek = true;
+          break;
+        case END:
+          // we are supposed to end the enum
+          return null;
+      }
+    }
+  }
+
 }

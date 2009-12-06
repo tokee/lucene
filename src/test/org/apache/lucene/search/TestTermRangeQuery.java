@@ -80,6 +80,25 @@ public class TestTermRangeQuery extends LuceneTestCase {
     assertEquals("C added - A, B, C in range", 3, hits.length);
     searcher.close();
   }
+  
+  public void testAllDocs() throws Exception {
+    initializeIndex(new String[]{"A", "B", "C", "D"});
+    IndexSearcher searcher = new IndexSearcher(dir, true);
+    TermRangeQuery query = new TermRangeQuery("content", null, null, true, true);
+    assertFalse(query.getTermsEnum(searcher.getIndexReader()) instanceof TermRangeTermsEnum);
+    assertEquals(4, searcher.search(query, null, 1000).scoreDocs.length);
+    query = new TermRangeQuery("content", null, null, false, false);
+    assertFalse(query.getTermsEnum(searcher.getIndexReader()) instanceof TermRangeTermsEnum);
+    assertEquals(4, searcher.search(query, null, 1000).scoreDocs.length);
+    query = new TermRangeQuery("content", "", null, true, false);
+    assertFalse(query.getTermsEnum(searcher.getIndexReader()) instanceof TermRangeTermsEnum);
+    assertEquals(4, searcher.search(query, null, 1000).scoreDocs.length);
+    // and now anothe one
+    query = new TermRangeQuery("content", "B", null, true, false);
+    assertTrue(query.getTermsEnum(searcher.getIndexReader()) instanceof TermRangeTermsEnum);
+    assertEquals(3, searcher.search(query, null, 1000).scoreDocs.length);
+    searcher.close();
+  }
 
   public void testEqualsHashcode() {
     Query query = new TermRangeQuery("content", "A", "C", true, true);

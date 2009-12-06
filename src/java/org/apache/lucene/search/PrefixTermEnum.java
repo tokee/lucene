@@ -31,6 +31,7 @@ import org.apache.lucene.index.Term;
  *
  * @deprecated Use {@link PrefixTermsEnum} instead.
  */
+@Deprecated
 public class PrefixTermEnum extends FilteredTermEnum {
 
   private final Term prefix;

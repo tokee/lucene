@@ -37,15 +37,12 @@ import java.io.IOException;
  */
 
 public class RegexTermsEnum extends FilteredTermsEnum {
-  private String field = "";
   private String pre = "";
-  private final boolean empty;
   private RegexCapabilities regexImpl;
   private final TermRef prefixRef;
 
   public RegexTermsEnum(IndexReader reader, Term term, RegexCapabilities regexImpl) throws IOException {
-    super();
-    field = term.field();
+    super(reader, term.field());
     String text = term.text();
     this.regexImpl = regexImpl;
 
@@ -54,33 +51,16 @@ public class RegexTermsEnum extends FilteredTermsEnum {
     pre = regexImpl.prefix();
     if (pre == null) pre = "";
 
-    Terms terms = reader.fields().terms(term.field());
     prefixRef = new TermRef(pre);
-    if (terms != null) {
-      empty = setEnum(terms.iterator(), prefixRef) == null;
-    } else {
-      empty = true;
-    }
+    setInitialSeekTerm(prefixRef);
   }
 
-  public String field() {
-    return field;
-  }
-
+  @Override
   protected final AcceptStatus accept(TermRef term) {
     if (term.startsWith(prefixRef)) {
       return regexImpl.match(term.toString()) ? AcceptStatus.YES : AcceptStatus.NO;
     } else {
       return AcceptStatus.END;
     }
-  }
-
-  public final float difference() {
-// TODO: adjust difference based on distance of searchTerm.text() and term().text()
-    return 1.0f;
-  }
-
-  public final boolean empty() {
-    return empty;
   }
 }

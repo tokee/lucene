@@ -30,6 +30,7 @@ import org.apache.lucene.index.Term;
  *
  * @deprecated Please use {@link FuzzyTermsEnum} instead.
  */
+@Deprecated
 public final class FuzzyTermEnum extends FilteredTermEnum {
 
   /* Allows us save time required to create a new array
@@ -138,7 +139,7 @@ public final class FuzzyTermEnum extends FilteredTermEnum {
     return false;
   }
   
-  /** {@inheritDoc} */
+  /** @deprecated Use {@link MultiTermQuery.BoostAttribute} together with {@link FuzzyTermsEnum} */
   @Override
   public final float difference() {
     return (similarity - minimumSimilarity) * scale_factor;

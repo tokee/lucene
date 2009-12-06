@@ -27,6 +27,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.IndexWriter.MaxFieldLength;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.NumericUtils;
@@ -442,20 +443,18 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
   private void testEnum(int lower, int upper) throws Exception {
     NumericRangeQuery<Integer> q = NumericRangeQuery.newIntRange("field4", 4,
         lower, upper, true, true);
-    FilteredTermsEnum termEnum = q.getTermsEnum(searcher.getIndexReader());
+    TermsEnum termEnum = q.getTermsEnum(searcher.getIndexReader());
     int count = 0;
-    if (!termEnum.empty()) {
-      do {
-        final TermRef t = termEnum.term();
-        if (t != null) {
-          final int val = NumericUtils.prefixCodedToInt(t.toString());
-          assertTrue("value not in bounds " + val + " >= " + lower + " && "
-              + val + " <= " + upper, val >= lower && val <= upper);
-          count++;
-        } else
-          break;
-      } while (termEnum.next() != null);
-    }
+    while (termEnum.next() != null) {
+      final TermRef t = termEnum.term();
+      if (t != null) {
+        final int val = NumericUtils.prefixCodedToInt(t.toString());
+        assertTrue("value not in bounds " + val + " >= " + lower + " && "
+            + val + " <= " + upper, val >= lower && val <= upper);
+        count++;
+      } else
+        break;
+    } 
     assertNull(termEnum.next());
     System.out.println("TermEnum on 'field4' for range [" + lower + "," + upper
         + "] contained " + count + " terms.");

@@ -35,11 +35,9 @@ import org.apache.lucene.index.TermRef;
  */
 public class WildcardTermsEnum extends FilteredTermsEnum {
   final Term searchTerm;
-  final String field;
   final String text;
   final String pre;
   final int preLen;
-  private final boolean empty;
   private final TermRef preTermRef;
 
   /**
@@ -49,9 +47,8 @@ public class WildcardTermsEnum extends FilteredTermsEnum {
    * valid term if such a term exists.
    */
   public WildcardTermsEnum(IndexReader reader, Term term) throws IOException {
-    super();
-    searchTerm = term;
-    field = searchTerm.field();
+    super(reader, term.field());
+    this.searchTerm = term;
     final String searchTermText = searchTerm.text();
 
     final int sidx = searchTermText.indexOf(WILDCARD_STRING);
@@ -67,19 +64,7 @@ public class WildcardTermsEnum extends FilteredTermsEnum {
 
     preLen = pre.length();
     text = searchTermText.substring(preLen);
-    preTermRef = new TermRef(pre);
-
-    Terms terms = reader.fields().terms(searchTerm.field());
-    if (terms != null) {
-      empty = setEnum(terms.iterator(), preTermRef) == null;
-    } else {
-      empty = true;
-    }
-  }
-
-  @Override
-  public String field() {
-    return searchTerm.field();
+    setInitialSeekTerm(preTermRef = new TermRef(pre));
   }
 
   @Override
@@ -97,16 +82,6 @@ public class WildcardTermsEnum extends FilteredTermsEnum {
     } else {
       return AcceptStatus.END;
     }
-  }
-
-  @Override
-  public float difference() {
-    return 1.0f;
-  }
-
-  @Override
-  public final boolean empty() {
-    return empty;
   }
 
   /********************************************

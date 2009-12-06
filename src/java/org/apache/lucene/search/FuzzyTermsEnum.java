@@ -19,7 +19,6 @@ package org.apache.lucene.search;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermRef;
 
 import java.io.IOException;
@@ -27,8 +26,9 @@ import java.io.IOException;
 /** Subclass of FilteredTermEnum for enumerating all terms that are similar
  * to the specified filter term.
  *
- * <p>Term enumerations are always ordered by Term.compareTo().  Each term in
- * the enumeration is greater than all that precede it.
+ * <p>Term enumerations are always ordered by
+ * {@link #getTermComparator}.  Each term in the enumeration is
+ * greater than all that precede it.</p>
  */
 public final class FuzzyTermsEnum extends FilteredTermsEnum {
 
@@ -43,17 +43,16 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
    */
   private int[][] d;
 
-  private float similarity;
-  private final boolean empty;
-
   private Term searchTerm;
-  private final String field;
   private final String text;
   private final String prefix;
 
   private final float minimumSimilarity;
   private final float scale_factor;
   private final int[] maxDistances = new int[TYPICAL_LONGEST_WORD_IN_INDEX];
+  
+  private final MultiTermQuery.BoostAttribute boostAtt =
+    attributes().addAttribute(MultiTermQuery.BoostAttribute.class);
 
   // nocommit -- remove some of these ctors:
   /**
@@ -102,7 +101,7 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
    * @throws IOException
    */
   public FuzzyTermsEnum(IndexReader reader, Term term, final float minSimilarity, final int prefixLength) throws IOException {
-    super();
+    super(reader, term.field());
     
     if (minSimilarity >= 1.0f)
       throw new IllegalArgumentException("minimumSimilarity cannot be greater than or equal to 1");
@@ -114,7 +113,6 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
     this.minimumSimilarity = minSimilarity;
     this.scale_factor = 1.0f / (1.0f - minimumSimilarity);
     this.searchTerm = term;
-    this.field = searchTerm.field();
 
     //The prefix could be longer than the word.
     //It's kind of silly though.  It means we must match the entire word.
@@ -127,20 +125,10 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
     initializeMaxDistances();
     this.d = initDistanceArray();
 
-    Terms terms = reader.fields().terms(field);
-    if (terms != null) {
-      empty = setEnum(terms.iterator(), prefixTermRef) == null;
-    } else {
-      empty = false;
-    }
+    setInitialSeekTerm(prefixTermRef);
   }
 
   private final TermRef prefixTermRef;
-
-  @Override
-  public String field() {
-    return field;
-  }
 
   /**
    * The termCompare method in FuzzyTermEnum uses Levenshtein distance to 
@@ -151,21 +139,14 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
     if (term.startsWith(prefixTermRef)) {
       // TODO: costly that we create intermediate String:
       final String target = term.toString().substring(prefix.length());
-      this.similarity = similarity(target);
-      return (similarity > minimumSimilarity) ? AcceptStatus.YES : AcceptStatus.NO;
+      final float similarity = similarity(target);
+      if (similarity > minimumSimilarity) {
+        boostAtt.setBoost((float)((similarity - minimumSimilarity) * scale_factor));
+        return AcceptStatus.YES;
+      } else return AcceptStatus.NO;
     } else {
       return AcceptStatus.END;
     }
-  }
-  
-  @Override
-  public final float difference() {
-    return (float)((similarity - minimumSimilarity) * scale_factor);
-  }
-  
-  @Override
-  public final boolean empty() {
-    return empty;
   }
   
   /******************************

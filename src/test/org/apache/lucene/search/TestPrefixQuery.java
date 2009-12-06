@@ -52,5 +52,10 @@ public class TestPrefixQuery extends LuceneTestCase {
     query = new PrefixQuery(new Term("category", "/Computers/Mac"));
     hits = searcher.search(query, null, 1000).scoreDocs;
     assertEquals("One in /Computers/Mac", 1, hits.length);
+
+    query = new PrefixQuery(new Term("category", ""));
+    assertFalse(query.getTermsEnum(searcher.getIndexReader()) instanceof PrefixTermsEnum);
+    hits = searcher.search(query, null, 1000).scoreDocs;
+    assertEquals("everything", 3, hits.length);
   }
 }

@@ -28,6 +28,7 @@ import org.apache.lucene.index.TermEnum;
 
   @deprecated Switch to {@link FilteredTermsEnum} instead.
 */
+@Deprecated
 public abstract class FilteredTermEnum extends TermEnum {
     /** the current term */
     protected Term currentTerm = null;
@@ -40,7 +41,13 @@ public abstract class FilteredTermEnum extends TermEnum {
     /** Equality compare on the term */
     protected abstract boolean termCompare(Term term);
     
-    /** Equality measure on the term */
+    /** Equality measure on the term, it is in reality a boost
+     * factor and used like so in {@link MultiTermQuery},
+     * so the name is wrong.
+     * @deprecated Use {@link MultiTermQuery.BoostAttribute}
+     * together with {@link FilteredTermsEnum}. For example
+     * see {@link FuzzyTermsEnum}
+     */
     public abstract float difference();
 
     /** Indicates the end of the enumeration has been reached */

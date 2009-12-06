@@ -38,6 +38,7 @@ public class RegexQuery extends MultiTermQuery implements RegexQueryCapable {
 
   /** Constructs a query for terms matching <code>term</code>. */
   public RegexQuery(Term term) {
+    super(term.field());
     this.term = term;
   }
   

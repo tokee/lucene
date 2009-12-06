@@ -26,7 +26,10 @@ import java.util.Collection;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermRef;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.queryParser.QueryParser; // for javadoc
+import org.apache.lucene.util.Attribute;
+import org.apache.lucene.util.AttributeImpl;
 
 /**
  * An abstract {@link Query} that matches documents
@@ -58,8 +61,58 @@ import org.apache.lucene.queryParser.QueryParser; // for javadoc
  * #CONSTANT_SCORE_AUTO_REWRITE_DEFAULT} by default.
  */
 public abstract class MultiTermQuery extends Query {
+  protected final String field;
   protected RewriteMethod rewriteMethod = CONSTANT_SCORE_AUTO_REWRITE_DEFAULT;
   transient int numberOfTerms = 0;
+  
+  /** Add this {@link Attribute} to a {@link TermsEnum} returned by {@link #getTermsEnum}
+   * and update the boost on each returned term. This enables to control the boost factor
+   * for each matching term in {@link #SCORING_BOOLEAN_QUERY_REWRITE} mode.
+   * {@link FuzzyQuery} is using this to take the edit distance into account.
+   */
+  public static interface BoostAttribute extends Attribute {
+    /** Sets the boost in this attribute */
+    public void setBoost(float boost);
+    /** Retrieves the boost, default is {@code 1.0f}. */
+    public float getBoost();
+  }
+
+  /** Implementation class for {@link BoostAttribute}. */
+  public static class BoostAttributeImpl extends AttributeImpl implements BoostAttribute {
+    private float boost = 1.0f;
+  
+    public void setBoost(float boost) {
+      this.boost = boost;
+    }
+    
+    public float getBoost() {
+      return boost;
+    }
+
+    @Override
+    public void clear() {
+      boost = 1.0f;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other)
+        return true;
+      if (other instanceof BoostAttributeImpl)
+        return ((BoostAttributeImpl) other).boost == boost;
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Float.floatToIntBits(boost);
+    }
+    
+    @Override
+    public void copyTo(AttributeImpl target) {
+      ((BoostAttribute) target).setBoost(boost);
+    }
+  }
 
   /** Abstract class that defines how the query is rewritten. */
   public static abstract class RewriteMethod implements Serializable {
@@ -98,31 +151,30 @@ public abstract class MultiTermQuery extends Query {
     @Override
     public Query rewrite(IndexReader reader, MultiTermQuery query) throws IOException {
 
-      FilteredTermsEnum termsEnum = query.getTermsEnum(reader);
+      final TermsEnum termsEnum = query.getTermsEnum(reader);
       if (termsEnum != null) {
-
+        final BoostAttribute boostAtt =
+          termsEnum.attributes().addAttribute(BoostAttribute.class);
+      
         // nocommit -- if no terms we'd want to return NullQuery
         BooleanQuery result = new BooleanQuery(true);
-        if (!termsEnum.empty()) {
-          final String field = termsEnum.field();
-          assert field != null;
-          int count = 0;
-          TermRef term = termsEnum.term();
-          // first term must exist since termsEnum wasn't null
-          assert term != null;
-          do {
-            TermQuery tq = new TermQuery(new Term(field, term.toString())); // found a match
-            tq.setBoost(query.getBoost() * termsEnum.difference()); // set the boost
-            result.add(tq, BooleanClause.Occur.SHOULD); // add to query
-            count++;
-            term = termsEnum.next();
-          } while(term != null);
-          query.incTotalNumberOfTerms(count);
+        final String field = query.field;
+        if (field == null)
+          throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
+        int count = 0;
+        TermRef term;
+        final Term placeholderTerm = new Term(field);
+        while ((term = termsEnum.next()) != null) {
+          TermQuery tq = new TermQuery(placeholderTerm.createTerm(term.toString())); // found a match
+          tq.setBoost(query.getBoost() * boostAtt.getBoost()); // set the boost
+          result.add(tq, BooleanClause.Occur.SHOULD); // add to query
+          count++;
         }
+        query.incTotalNumberOfTerms(count);
         return result;
       } else {
         // deprecated case
-        FilteredTermEnum enumerator = query.getEnum(reader);
+        final FilteredTermEnum enumerator = query.getEnum(reader);
         BooleanQuery result = new BooleanQuery(true);
         int count = 0;
         try {
@@ -167,9 +219,14 @@ public abstract class MultiTermQuery extends Query {
   private static class ConstantScoreBooleanQueryRewrite extends ScoringBooleanQueryRewrite implements Serializable {
     @Override
     public Query rewrite(IndexReader reader, MultiTermQuery query) throws IOException {
-      // strip the scores off
-      Query result = new ConstantScoreQuery(new QueryWrapperFilter(super.rewrite(reader, query)));
-      result.setBoost(query.getBoost());
+      Query result = super.rewrite(reader, query);
+      assert result instanceof BooleanQuery;
+      // nocommit: if empty boolean query return NullQuery
+      if (!((BooleanQuery) result).clauses().isEmpty()) {
+        // strip the scores off
+        result = new ConstantScoreQuery(new QueryWrapperFilter(result));
+        result.setBoost(query.getBoost());
+      }
       return result;
     }
 
@@ -248,54 +305,55 @@ public abstract class MultiTermQuery extends Query {
       // exhaust the enum before hitting either of the
       // cutoffs, we use ConstantBooleanQueryRewrite; else,
       // ConstantFilterRewrite:
-      final Collection<TermRef> pendingTerms = new ArrayList<TermRef>();
-      final Collection<Term> oldApiPendingTerms = new ArrayList<Term>();
       final int docCountCutoff = (int) ((docCountPercent / 100.) * reader.maxDoc());
       final int termCountLimit = Math.min(BooleanQuery.getMaxClauseCount(), termCountCutoff);
       int docVisitCount = 0;
 
-      FilteredTermsEnum termsEnum = query.getTermsEnum(reader);
+      TermsEnum termsEnum = query.getTermsEnum(reader);
       if (termsEnum != null) {
-        if (!termsEnum.empty()) {
-          final String field = termsEnum.field();
-          assert field != null;
-          TermRef term = termsEnum.term();
-          // first term must exist since termsEnum wasn't null
-          assert term != null;
-          do {
-            pendingTerms.add((TermRef) term.clone());
-            if (pendingTerms.size() >= termCountLimit || docVisitCount >= docCountCutoff) {
-              // Too many terms -- cut our losses now and make a filter.
-              Query result = new ConstantScoreQuery(new MultiTermQueryWrapperFilter(query));
-              result.setBoost(query.getBoost());
-              return result;
-            }
-            // Loading the TermInfo from the terms dict here
-            // should not be costly, because 1) the
-            // query/filter will load the TermInfo when it
-            // runs, and 2) the terms dict has a cache:
-            docVisitCount += reader.docFreq(field, term);
-            term = termsEnum.next();
-          } while(term != null);
-        
-          // Enumeration is done, and we hit a small
-          // enough number of terms & docs -- just make a
-          // BooleanQuery, now
+        final Collection<TermRef> pendingTerms = new ArrayList<TermRef>();
+        final String field = query.field;
+        if (field == null)
+          throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
+        TermRef term;
+        while ((term = termsEnum.next()) != null) {
+          pendingTerms.add((TermRef) term.clone());
+          if (pendingTerms.size() >= termCountLimit || docVisitCount >= docCountCutoff) {
+            // Too many terms -- cut our losses now and make a filter.
+            Query result = new ConstantScoreQuery(new MultiTermQueryWrapperFilter<MultiTermQuery>(query));
+            result.setBoost(query.getBoost());
+            return result;
+          }
+          // Loading the TermInfo from the terms dict here
+          // should not be costly, because 1) the
+          // query/filter will load the TermInfo when it
+          // runs, and 2) the terms dict has a cache:
+          docVisitCount += reader.docFreq(field, term);
+        }
+      
+        // Enumeration is done, and we hit a small
+        // enough number of terms & docs -- just make a
+        // BooleanQuery, now
+
+        // nocommit: if pendingTerms.size()==0 return NullQuery
+        final Query result;
+        if (pendingTerms.isEmpty()) {
+          result = new BooleanQuery(true);
+        } else {
           BooleanQuery bq = new BooleanQuery(true);
+          final Term placeholderTerm = new Term(field);
           for(TermRef termRef : pendingTerms) {
-            TermQuery tq = new TermQuery(new Term(field, termRef.toString()));
+            TermQuery tq = new TermQuery(placeholderTerm.createTerm(termRef.toString()));
             bq.add(tq, BooleanClause.Occur.SHOULD);
           }
           // Strip scores
-          Query result = new ConstantScoreQuery(new QueryWrapperFilter(bq));
+          result = new ConstantScoreQuery(new QueryWrapperFilter(bq));
           result.setBoost(query.getBoost());
-          query.incTotalNumberOfTerms(pendingTerms.size());
-          return result;
-        } else {
-          // nocommit -- need NullQuery here
-          return new BooleanQuery();
         }
+        query.incTotalNumberOfTerms(pendingTerms.size());
+        return result;
       } else {
+        final Collection<Term> pendingTerms = new ArrayList<Term>();
 
         // deprecated case
         FilteredTermEnum enumerator = query.getEnum(reader);
@@ -303,7 +361,7 @@ public abstract class MultiTermQuery extends Query {
           while(true) {
             Term t = enumerator.term();
             if (t != null) {
-              oldApiPendingTerms.add(t);
+              pendingTerms.add(t);
               // Loading the TermInfo from the terms dict here
               // should not be costly, because 1) the
               // query/filter will load the TermInfo when it
@@ -313,21 +371,26 @@ public abstract class MultiTermQuery extends Query {
 
             if (pendingTerms.size() >= termCountLimit || docVisitCount >= docCountCutoff) {
               // Too many terms -- make a filter.
-              Query result = new ConstantScoreQuery(new MultiTermQueryWrapperFilter(query));
+              Query result = new ConstantScoreQuery(new MultiTermQueryWrapperFilter<MultiTermQuery>(query));
               result.setBoost(query.getBoost());
               return result;
             } else  if (!enumerator.next()) {
               // Enumeration is done, and we hit a small
               // enough number of terms & docs -- just make a
               // BooleanQuery, now
-              BooleanQuery bq = new BooleanQuery(true);
-           	  for (final Term term: oldApiPendingTerms) {
-              	TermQuery tq = new TermQuery(term);
-              	bq.add(tq, BooleanClause.Occur.SHOULD);
+              final Query result;
+              if (pendingTerms.isEmpty()) {
+                result = new BooleanQuery(true);
+              } else {
+                BooleanQuery bq = new BooleanQuery(true);
+                for(Term term : pendingTerms) {
+                  TermQuery tq = new TermQuery(term);
+                  bq.add(tq, BooleanClause.Occur.SHOULD);
+                }
+                // Strip scores
+                result = new ConstantScoreQuery(new QueryWrapperFilter(bq));
+                result.setBoost(query.getBoost());
               }
-              // Strip scores
-              Query result = new ConstantScoreQuery(new QueryWrapperFilter(bq));
-              result.setBoost(query.getBoost());
               query.incTotalNumberOfTerms(pendingTerms.size());
               return result;
             }
@@ -399,14 +462,30 @@ public abstract class MultiTermQuery extends Query {
    * Constructs a query matching terms that cannot be represented with a single
    * Term.
    */
-  public MultiTermQuery() {
+  public MultiTermQuery(final String field) {
+    this.field = field;
   }
+
+  /**
+   * Constructs a query matching terms that cannot be represented with a single
+   * Term.
+   * @deprecated Use {@link #MultiTermQuery(String)}, as the flex branch can
+   * only work on one field per terms enum. If you override
+   * {@link #getTermsEnum(IndexReader)}, you cannot use this ctor.
+   */
+  @Deprecated
+  public MultiTermQuery() {
+    this(null);
+  }
+
+  /** Returns the field name for this query */
+  public final String getField() { return field; }
 
   /** Construct the enumeration to be used, expanding the
    * pattern term.
    * @deprecated Please override {@link #getTermsEnum} instead */
-  protected FilteredTermEnum getEnum(IndexReader reader)
-    throws IOException {
+  @Deprecated
+  protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
     return null;
   }
 
@@ -417,8 +496,7 @@ public abstract class MultiTermQuery extends Query {
    *  term.
    *
    *  nocommit in 3.x this will become abstract  */
-  protected FilteredTermsEnum getTermsEnum(IndexReader reader)
-    throws IOException {
+  protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
     return null;
   }
 
@@ -479,8 +557,8 @@ public abstract class MultiTermQuery extends Query {
     final int prime = 31;
     int result = 1;
     result = prime * result + Float.floatToIntBits(getBoost());
-    result = prime * result;
-    result += rewriteMethod.hashCode();
+    result = prime * result + rewriteMethod.hashCode();
+    if (field != null) result = prime * result + field.hashCode();
     return result;
   }
 
@@ -498,7 +576,7 @@ public abstract class MultiTermQuery extends Query {
     if (!rewriteMethod.equals(other.rewriteMethod)) {
       return false;
     }
-    return true;
+    return (other.field == null ? field == null : other.field.equals(field));
   }
  
 }

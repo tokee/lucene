@@ -31,10 +31,8 @@ import org.apache.lucene.index.Terms;
  * but want to preserve MultiTermQuery semantics such as
  * {@link MultiTermQuery#rewriteMethod}.
  */
-public class SingleTermsEnum extends FilteredTermsEnum {
-  private final Term singleTerm;
+public final class SingleTermsEnum extends FilteredTermsEnum {
   private final TermRef singleRef;
-  private final boolean empty;
   
   /**
    * Creates a new <code>SingleTermsEnum</code>.
@@ -43,38 +41,14 @@ public class SingleTermsEnum extends FilteredTermsEnum {
    * if it exists.
    */
   public SingleTermsEnum(IndexReader reader, Term singleTerm) throws IOException {
-    this.singleTerm = singleTerm;
-    Terms terms = reader.fields().terms(singleTerm.field());
-    if (terms != null) {
-      singleRef = new TermRef(singleTerm.text());
-      empty = setEnum(terms.iterator(), singleRef) == null;
-    } else {
-      empty = true;
-      singleRef = null;
-    }
+    super(reader, singleTerm.field());
+    singleRef = new TermRef(singleTerm.text());
+    setInitialSeekTerm(singleRef);
   }
 
   @Override
   protected AcceptStatus accept(TermRef term) {
-    if (term.equals(singleRef)) {
-      return AcceptStatus.YES;
-    } else {
-      return AcceptStatus.END;
-    }
+    return term.equals(singleRef) ? AcceptStatus.YES : AcceptStatus.END;
   }
-
-  @Override
-  public float difference() {
-    return 1.0F;
-  }
-
-  @Override
-  public boolean empty() {
-    return empty;
-  }
-
-  @Override
-  public String field() {
-    return singleTerm.field();
-  }
+  
 }
