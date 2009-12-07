@@ -436,8 +436,8 @@ public class TestIndexWriter extends LuceneTestCase {
 
           dir.close();
 
-          // Try again with 2000 more bytes of free space:
-          diskFree += 2000;
+          // Try again with 5000 more bytes of free space:
+          diskFree += 5000;
         }
       }
 
@@ -2208,7 +2208,7 @@ public class TestIndexWriter extends LuceneTestCase {
 
       int idUpto = 0;
       int fullCount = 0;
-      final long stopTime = System.currentTimeMillis() + 500;
+      final long stopTime = System.currentTimeMillis() + 200;
 
       while(System.currentTimeMillis() < stopTime) {
         try {
@@ -2255,7 +2255,7 @@ public class TestIndexWriter extends LuceneTestCase {
   public void testCloseWithThreads() throws Exception {
     int NUM_THREADS = 3;
 
-    for(int iter=0;iter<20;iter++) {
+    for(int iter=0;iter<7;iter++) {
       MockRAMDirectory dir = new MockRAMDirectory();
       IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
       ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
@@ -2438,7 +2438,7 @@ public class TestIndexWriter extends LuceneTestCase {
 
     int NUM_THREADS = 3;
 
-    for(int iter=0;iter<5;iter++) {
+    for(int iter=0;iter<2;iter++) {
       MockRAMDirectory dir = new MockRAMDirectory();
       IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
       ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
