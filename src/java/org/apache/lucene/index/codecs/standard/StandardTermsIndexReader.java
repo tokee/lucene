@@ -40,7 +40,7 @@ import java.util.Collection;
 public abstract class StandardTermsIndexReader {
 
   static class TermsIndexResult {
-    int position;
+    long position;
     final TermRef term = new TermRef();
     long offset;
   };
@@ -58,7 +58,11 @@ public abstract class StandardTermsIndexReader {
 
     /** Call this sequentially for each term encoutered,
      *  after calling {@link #getIndexOffset}. */
-    public abstract boolean isIndexTerm(int position, int docFreq) throws IOException;
+    public abstract boolean isIndexTerm(long ord, int docFreq) throws IOException;
+
+    /** Finds the next index term, after the specified
+     *  ord.  Returns true if one exists.  */
+    public abstract boolean nextIndexTerm(long ord, TermsIndexResult result) throws IOException;
   }
 
   public abstract FieldReader getField(FieldInfo fieldInfo);

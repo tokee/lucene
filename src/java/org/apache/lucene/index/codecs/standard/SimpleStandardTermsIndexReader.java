@@ -232,8 +232,17 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     }
 
     @Override
-    public boolean isIndexTerm(int position, int docFreq) {
-      return position % totalIndexInterval == 0;
+    public boolean isIndexTerm(long ord, int docFreq) {
+      return ord % totalIndexInterval == 0;
+    }
+
+    @Override
+    public boolean nextIndexTerm(long ord, TermsIndexResult result) throws IOException {
+      if (coreIndex == null) {
+        throw new IllegalStateException("terms index was not loaded");
+      } else {
+        return coreIndex.nextIndexTerm(ord, result);
+      }
     }
 
     @Override
@@ -275,6 +284,9 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       // sufficient?  have to use negative space?
       // TODO: used packed ints here: we know max term
       // length; often its small
+
+      // TODO: can we inline this w/ the bytes?  like
+      // DW.  vast majority of terms only need 1 byte, not 2
       final short[] termLength;
 
       final int numIndexTerms;
@@ -410,6 +422,25 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         }
       }
 
+      public final boolean nextIndexTerm(long ord, TermsIndexResult result) throws IOException {
+        int idx = 1 + (int) (ord / totalIndexInterval);
+        if (idx < numIndexTerms) {
+          fillResult(idx, result);
+          return true;
+        } else {
+          return false;
+        }
+      }
+
+      private final void fillResult(int idx, TermsIndexResult result) {
+        final long loc = blockPointer[idx];
+        result.term.bytes = blocks[(int) (loc >> BYTE_BLOCK_SHIFT)];
+        result.term.offset = (int) (loc & BYTE_BLOCK_MASK);
+        result.term.length = termLength[idx];
+        result.position = idx * totalIndexInterval;
+        result.offset = fileOffset[idx];
+      }
+
       public final void getIndexOffset(TermRef term, TermsIndexResult result) throws IOException {
 
         if (Codec.DEBUG) {
@@ -459,13 +490,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         int idx = (int) (ord / totalIndexInterval);
         // caller must ensure ord is in bounds
         assert idx < numIndexTerms;
-
-        final long loc = blockPointer[idx];
-        result.term.bytes = blocks[(int) (loc >> BYTE_BLOCK_SHIFT)];
-        result.term.offset = (int) (loc & BYTE_BLOCK_MASK);
-        result.term.length = termLength[idx];
-        result.position = idx * totalIndexInterval;
-        result.offset = fileOffset[idx];
+        fillResult(idx, result);
       }
     }
   }

@@ -293,7 +293,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       private final IndexInput in;
       private final DeltaBytesReader bytesReader;
       // nocommit: long?
-      private int termUpto;
+      private int termUpto = -1;
       private final StandardDocsProducer.Reader docs;
       private int docFreq;
       private final StandardTermsIndexReader.TermsIndexResult indexResult = new StandardTermsIndexReader.TermsIndexResult();
@@ -344,53 +344,73 @@ public class StandardTermsDictReader extends FieldsProducer {
           System.out.println(Thread.currentThread().getName() + ":stdr.seek(text=" + fieldInfo.name + ":" + term + ") seg=" + segment);
         }
 
-        // nocommit -- test if this is really
-        // helping/necessary -- that compareTerm isn't that
-        // cheap, and, how often do callers really seek to
-        // the term they are already on (it's silly to do
-        // so) -- I'd prefer such silly apps take the hit,
-        // not well behaved apps?
+        boolean doSeek = true;
 
-        if (bytesReader.started && termUpto < numTerms && bytesReader.term.termEquals(term)) {
-          // nocommit -- not right if text is ""?
+        if (termUpto != -1 && termUpto < numTerms) {
+
+          final int cmp = termComp.compare(bytesReader.term, term);
+
+          if (cmp == 0) {
+            // nocommit -- should we really bother special
+            // casing this?  how often does it really
+            // happen?
+            // We are already on the requested term
+            // nocommit -- not right if text is ""?
+            if (Codec.DEBUG) {
+              System.out.println(Thread.currentThread().getName() + ":  already here!");
+            }
+
+            // nocommit -- cache this?
+            return SeekStatus.FOUND;
+          }
+
+          if (cmp < 0) {
+
+            // Requested term is after our current term --
+            // read next index term:
+            if (indexReader.nextIndexTerm(termUpto, indexResult)) {
+              final int cmpNext = termComp.compare(indexResult.term, term);
+
+              if (cmpNext > 0) {
+                // Requested term is within the same index
+                // block we are in; skip seeking
+                doSeek = false;
+              }
+            }
+          }
+        }
+
+        if (doSeek) {
+          // nocommit -- also, not sure it'll help, but, we
+          // can bound this binary search, since we know the
+          // term ord we are now on, and we can compare how
+          // this new term compars to our current term
+
+          // Find latest index term that's <= our text:
+          indexReader.getIndexOffset(term, indexResult);
+
           // mxx
           if (Codec.DEBUG) {
-            System.out.println(Thread.currentThread().getName() + ":  already here!");
+            System.out.println(Thread.currentThread().getName() + ": index pos=" + indexResult.position + " termFP=" + indexResult.offset + " term=" + indexResult.term + " this=" + this);
           }
-          // nocommit -- cache this
-          return SeekStatus.FOUND;
-        }
 
-        // nocommit -- carry over logic from TermInfosReader,
-        // here, that avoids the binary search if the seek
-        // is w/in the current index block
+          in.seek(indexResult.offset);
 
-        // nocommit -- also, not sure it'll help, but, we
-        // can bound this binary search, since we know the
-        // term ord we are now on, and we can compare how
-        // this new term compars to our current term
+          // NOTE: the first next() after an index seek is
+          // wasteful, since it redundantly reads the same
+          // bytes into the buffer
+          bytesReader.reset(indexResult.term);
 
-        // Find latest index term that's <= our text:
-        indexReader.getIndexOffset(term, indexResult);
+          termUpto = (int) indexResult.position-1;
+          assert termUpto >= -1: "termUpto=" + termUpto;
 
-        // mxx
-        if (Codec.DEBUG) {
-          System.out.println(Thread.currentThread().getName() + ":  index pos=" + indexResult.position + " termFP=" + indexResult.offset + " term=" + indexResult.term + " this=" + this);
-        }
+          // mxx
+          if (Codec.DEBUG) {
+            System.out.println(Thread.currentThread().getName() + ":  set termUpto=" + termUpto);
+          }
 
-        in.seek(indexResult.offset);
-
-        // NOTE: the first next() after an index seek is
-        // wasteful, since it redundantly reads the same
-        // bytes into the buffer
-        bytesReader.reset(indexResult.term);
-
-        termUpto = indexResult.position;
-        assert termUpto>=0: "termUpto=" + termUpto;
-
-        // mxx
-        if (Codec.DEBUG) {
-          System.out.println(Thread.currentThread().getName() + ":  set termUpto=" + termUpto);
+        } else if (Codec.DEBUG) {
+          System.out.println(Thread.currentThread().getName() + ": use scanning only (no seek)");
         }
 
         // Now, scan:
@@ -412,7 +432,9 @@ public class StandardTermsDictReader extends FieldsProducer {
             // NOT_FOUND is then sent back here?  silly for
             // apps to do so... but we should see if Lucene
             // does 
-            if (docs.canCaptureState()) {
+            // nocommit -- maybe we sometimes want to cache,
+            // with doSeek?
+            if (docs.canCaptureState() && doSeek) {
               // Store in cache
               entry = docs.captureState();
               entryKey = (TermRef) bytesReader.term.clone();
@@ -464,11 +486,11 @@ public class StandardTermsDictReader extends FieldsProducer {
         // bytes into the buffer
         bytesReader.reset(indexResult.term);
 
-        termUpto = indexResult.position;
-        assert termUpto>=0: "termUpto=" + termUpto;
+        termUpto = (int) indexResult.position-1;
+        assert termUpto >= -1: "termUpto=" + termUpto;
 
         // Now, scan:
-        int left = (int) (1 + pos - termUpto);
+        int left = (int) (pos - termUpto);
         while(left > 0) {
           TermRef term = next();
           assert term != null;
@@ -491,7 +513,7 @@ public class StandardTermsDictReader extends FieldsProducer {
 
       @Override
       public TermRef next() throws IOException {
-        if (termUpto >= numTerms) {
+        if (termUpto >= numTerms-1) {
           return null;
         }
         if (Codec.DEBUG) {
@@ -509,7 +531,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         // possibly store a "how many terms until next index
         // entry" in each index entry, but that'd require
         // some tricky lookahead work when writing the index
-        final boolean isIndex = indexReader.isIndexTerm(termUpto, docFreq);
+        final boolean isIndex = indexReader.isIndexTerm(1+termUpto, docFreq);
 
         // mxx
         // System.out.println(Thread.currentThread().getName() + ": isIndex=" + isIndex);

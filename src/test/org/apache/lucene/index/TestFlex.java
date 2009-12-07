@@ -56,5 +56,20 @@ public class TestFlex extends LuceneTestCase {
     w.close();
     d.close();
   }
+
+  public void testTermOrd() throws Exception {
+    Directory d = new MockRAMDirectory();
+    IndexWriter w = new IndexWriter(d, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
+    Document doc = new Document();
+    doc.add(new Field("f", "a b c", Field.Store.NO, Field.Index.ANALYZED));
+    w.addDocument(doc);
+    IndexReader r = w.getReader();
+    TermsEnum terms = r.getSequentialSubReaders()[0].fields().terms("f").iterator();
+    assertTrue(terms.next() != null);
+    assertEquals(0, terms.ord());
+    r.close();
+    w.close();
+    d.close();
+  }
 }
 

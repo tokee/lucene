@@ -26,7 +26,6 @@ import java.io.IOException;
 final class DeltaBytesReader {
   final TermRef term = new TermRef();
   final IndexInput in;
-  boolean started;
 
   DeltaBytesReader(IndexInput in) {
     this.in = in;
