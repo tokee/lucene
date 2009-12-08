@@ -32,17 +32,11 @@ import org.apache.lucene.index.TermRef;
  */
 public class PrefixTermsEnum extends FilteredTermsEnum {
 
-  private final Term prefix;
   private final TermRef prefixRef;
 
   public PrefixTermsEnum(IndexReader reader, Term prefix) throws IOException {
     super(reader, prefix.field());
-    this.prefix = prefix;
     setInitialSeekTerm(prefixRef = new TermRef(prefix.text()));
-  }
-
-  protected Term getPrefixTerm() {
-    return prefix;
   }
 
   @Override
