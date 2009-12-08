@@ -151,7 +151,12 @@ public class ParallelReader extends IndexReader {
     @Override
     public TermsEnum terms() throws IOException {
       assert currentReader != null;
-      return currentReader.fields().terms(currentField).iterator();
+      Terms terms = currentReader.fields().terms(currentField);
+      if (terms != null) {
+        return terms.iterator();
+      } else {
+        return null;
+      }
     }
   }
 

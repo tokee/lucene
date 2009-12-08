@@ -763,10 +763,15 @@ class DirectoryReader extends IndexReader implements Cloneable {
     ensureOpen();
     return new MultiTermDocs(this, subReaders, starts);
   }
-  
+
   @Override
   public Fields fields() throws IOException {
-    return fields;
+    if (subReaders.length == 1) {
+      // Optimize the single reader case
+      return subReaders[0].fields();
+    } else {
+      return fields;
+    }
   }
 
   @Override
