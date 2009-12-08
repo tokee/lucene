@@ -314,95 +314,12 @@ public class TestIndexReaderClone extends LuceneTestCase {
     TestIndexReaderReopen.createIndex(dir1, false);
     SegmentReader origSegmentReader = SegmentReader.getOnlySegmentReader(dir1);
     origSegmentReader.deleteDocument(10);
-    assertDelDocsRefCountEquals(1, origSegmentReader);
     origSegmentReader.undeleteAll();
-    assertNull(origSegmentReader.deletedDocsRef);
     origSegmentReader.close();
     // need to test norms?
     dir1.close();
   }
   
-  public void testSegmentReaderCloseReferencing() throws Exception {
-    final Directory dir1 = new MockRAMDirectory();
-    TestIndexReaderReopen.createIndex(dir1, false);
-    SegmentReader origSegmentReader = SegmentReader.getOnlySegmentReader(dir1);
-    origSegmentReader.deleteDocument(1);
-    origSegmentReader.setNorm(4, "field1", 0.5f);
-
-    SegmentReader clonedSegmentReader = (SegmentReader) origSegmentReader
-        .clone();
-    assertDelDocsRefCountEquals(2, origSegmentReader);
-    origSegmentReader.close();
-    assertDelDocsRefCountEquals(1, origSegmentReader);
-    // check the norm refs
-    Norm norm = clonedSegmentReader.norms.get("field1");
-    assertEquals(1, norm.bytesRef().refCount());
-    clonedSegmentReader.close();
-    dir1.close();
-  }
-  
-  public void testSegmentReaderDelDocsReferenceCounting() throws Exception {
-    final Directory dir1 = new MockRAMDirectory();
-    TestIndexReaderReopen.createIndex(dir1, false);
-
-    IndexReader origReader = IndexReader.open(dir1, false);
-    SegmentReader origSegmentReader = SegmentReader.getOnlySegmentReader(origReader);
-    // deletedDocsRef should be null because nothing has updated yet
-    assertNull(origSegmentReader.deletedDocsRef);
-
-    // we deleted a document, so there is now a deletedDocs bitvector and a
-    // reference to it
-    origReader.deleteDocument(1);
-    assertDelDocsRefCountEquals(1, origSegmentReader);
-
-    // the cloned segmentreader should have 2 references, 1 to itself, and 1 to
-    // the original segmentreader
-    IndexReader clonedReader = (IndexReader) origReader.clone();
-    SegmentReader clonedSegmentReader = SegmentReader.getOnlySegmentReader(clonedReader);
-    assertDelDocsRefCountEquals(2, origSegmentReader);
-    // deleting a document creates a new deletedDocs bitvector, the refs goes to
-    // 1
-    clonedReader.deleteDocument(2);
-    assertDelDocsRefCountEquals(1, origSegmentReader);
-    assertDelDocsRefCountEquals(1, clonedSegmentReader);
-
-    // make sure the deletedocs objects are different (copy
-    // on write)
-    assertTrue(origSegmentReader.deletedDocs != clonedSegmentReader.deletedDocs);
-
-    assertDocDeleted(origSegmentReader, clonedSegmentReader, 1);
-    assertTrue(!origSegmentReader.isDeleted(2)); // doc 2 should not be deleted
-                                                  // in original segmentreader
-    assertTrue(clonedSegmentReader.isDeleted(2)); // doc 2 should be deleted in
-                                                  // cloned segmentreader
-
-    // deleting a doc from the original segmentreader should throw an exception
-    try {
-      origReader.deleteDocument(4);
-      fail("expected exception");
-    } catch (LockObtainFailedException lbfe) {
-      // expected
-    }
-
-    origReader.close();
-    // try closing the original segment reader to see if it affects the
-    // clonedSegmentReader
-    clonedReader.deleteDocument(3);
-    clonedReader.flush();
-    assertDelDocsRefCountEquals(1, clonedSegmentReader);
-
-    // test a reopened reader
-    IndexReader reopenedReader = clonedReader.reopen();
-    IndexReader cloneReader2 = (IndexReader) reopenedReader.clone();
-    SegmentReader cloneSegmentReader2 = SegmentReader.getOnlySegmentReader(cloneReader2);
-    assertDelDocsRefCountEquals(2, cloneSegmentReader2);
-    clonedReader.close();
-    reopenedReader.close();
-    cloneReader2.close();
-
-    dir1.close();
-  }
-
   // LUCENE-1648
   public void testCloneWithDeletes() throws Throwable {
     final Directory dir1 = new MockRAMDirectory();
@@ -446,10 +363,6 @@ public class TestIndexReaderClone extends LuceneTestCase {
     assertEquals(reader.isDeleted(doc), reader2.isDeleted(doc));
   }
 
-  private void assertDelDocsRefCountEquals(int refCount, SegmentReader reader) {
-    assertEquals(refCount, reader.deletedDocsRef.refCount());
-  }
-  
   public void testCloneSubreaders() throws Exception {
     final Directory dir1 = new MockRAMDirectory();
  
