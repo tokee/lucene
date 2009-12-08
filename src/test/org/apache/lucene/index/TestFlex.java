@@ -35,24 +35,33 @@ public class TestFlex extends LuceneTestCase {
 
     IndexWriter w = new IndexWriter(d, new WhitespaceAnalyzer(),
                                     IndexWriter.MaxFieldLength.UNLIMITED);
-    w.setMaxBufferedDocs(7);
-    Document doc = new Document();
-    doc.add(new Field("field1", "this is field1", Field.Store.NO, Field.Index.ANALYZED));
-    doc.add(new Field("field2", "this is field2", Field.Store.NO, Field.Index.ANALYZED));
-    doc.add(new Field("field3", "aaa", Field.Store.NO, Field.Index.ANALYZED));
-    doc.add(new Field("field4", "bbb", Field.Store.NO, Field.Index.ANALYZED));
-    for(int i=0;i<DOC_COUNT;i++) {
-      w.addDocument(doc);
+
+    for(int iter=0;iter<2;iter++) {
+      if (iter == 0) {
+        w.setMaxBufferedDocs(7);
+        Document doc = new Document();
+        doc.add(new Field("field1", "this is field1", Field.Store.NO, Field.Index.ANALYZED));
+        doc.add(new Field("field2", "this is field2", Field.Store.NO, Field.Index.ANALYZED));
+        doc.add(new Field("field3", "aaa", Field.Store.NO, Field.Index.ANALYZED));
+        doc.add(new Field("field4", "bbb", Field.Store.NO, Field.Index.ANALYZED));
+        for(int i=0;i<DOC_COUNT;i++) {
+          w.addDocument(doc);
+        }
+      } else {
+        w.optimize();
+      }
+
+      IndexReader r = w.getReader();
+      TermEnum terms = r.terms(new Term("field3", "bbb"));
+      // pre-flex API should seek to the next field
+      assertNotNull(terms.term());
+      assertEquals("field4", terms.term().field());
+      
+      terms = r.terms(new Term("field5", "abc"));
+      assertNull(terms.term());
+      r.close();
     }
 
-    IndexReader r = w.getReader();
-
-    TermEnum terms = r.terms(new Term("field3", "bbb"));
-    // pre-flex API should seek to the next field
-    assertNotNull(terms.term());
-    assertEquals("field4", terms.term().field());
-
-    r.close();
     w.close();
     d.close();
   }
