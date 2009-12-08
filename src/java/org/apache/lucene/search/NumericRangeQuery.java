@@ -468,7 +468,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     }
     
     @Override
-    protected final TermRef nextSeekTerm() throws IOException {
+    protected final TermRef nextSeekTerm(TermRef term) throws IOException {
       if (rangeBounds.size() >= 2) {
         assert rangeBounds.size() % 2 == 0;
 

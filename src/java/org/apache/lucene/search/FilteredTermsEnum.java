@@ -41,8 +41,9 @@ public abstract class FilteredTermsEnum extends TermsEnum {
 
   private TermRef initialSeekTerm = null;
   private boolean doSeek = true;        
+  private TermRef actualTerm = null;
 
-  protected final TermsEnum tenum;
+  private final TermsEnum tenum;
 
   /** Return value, if term should be accepted or the iteration should
    * {@code END}. The {@code *_SEEK} values denote, that after handling the current term
@@ -90,6 +91,8 @@ public abstract class FilteredTermsEnum extends TermsEnum {
    * {@link AcceptStatus#YES_AND_SEEK} or {@link AcceptStatus#NO_AND_SEEK},
    * this method will be called to eventually seek the underlying TermsEnum
    * to a new position.
+   * On the first call, {@code currentTerm} will be {@code null}, later
+   * calls will provide the term the underlying enum is positioned at.
    * This method returns per default only one time the initial seek term
    * and then {@code null}, so no repositioning is ever done.
    * <p>Override this method, if you want a more sophisticated TermsEnum,
@@ -99,7 +102,7 @@ public abstract class FilteredTermsEnum extends TermsEnum {
    * than the last enumerated term, else the behaviour of this enum
    * violates the contract for TermsEnums.
    */
-  protected TermRef nextSeekTerm() throws IOException {
+  protected TermRef nextSeekTerm(final TermRef currentTerm) throws IOException {
     final TermRef t = initialSeekTerm;
     initialSeekTerm = null;
     return t;
@@ -164,31 +167,30 @@ public abstract class FilteredTermsEnum extends TermsEnum {
       return null;
     for (;;) {
       // Seek or forward the iterator
-      final TermRef term;
       if (doSeek) {
         doSeek = false;
-        final TermRef t = nextSeekTerm();
+        final TermRef t = nextSeekTerm(actualTerm);
         if (t == null || tenum.seek(t) == SeekStatus.END) {
           // no more terms to seek to or enum exhausted
           return null;
         }
-        term = tenum.term();
+        actualTerm = tenum.term();
       } else {
-        term = tenum.next();
-        if (term == null) {
+        actualTerm = tenum.next();
+        if (actualTerm == null) {
           // enum exhausted
           return null;
         }
       }
       
       // check if term is accepted
-      switch (accept(term)) {
+      switch (accept(actualTerm)) {
         case YES_AND_SEEK:
           doSeek = true;
           // term accepted, but we need to seek so fall-through
         case YES:
           // term accepted
-          return term;
+          return actualTerm;
         case NO_AND_SEEK:
           // invalid term, seek next time
           doSeek = true;
