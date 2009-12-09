@@ -374,36 +374,53 @@ final public class UnicodeUtil {
    * @return next valid UTF-16 String in UTF-16 order
    */
   public static String nextValidUTF16String(String s) {
-    final int size = s.length();
+    if (validUTF16String(s))
+        return s;
+    else {
+      UTF16Result chars = new UTF16Result();
+      chars.copyText(s);
+      nextValidUTF16String(chars);
+      return new String(chars.result, 0, chars.length);
+    }
+  }
+  
+  public static void nextValidUTF16String(UTF16Result s) {
+    final int size = s.length;
     for (int i = 0; i < size; i++) {
-      char ch = s.charAt(i);
+      char ch = s.result[i];
       if (ch >= UnicodeUtil.UNI_SUR_HIGH_START
           && ch <= UnicodeUtil.UNI_SUR_HIGH_END) {
         if (i < size - 1) {
           i++;
-          char nextCH = s.charAt(i);
+          char nextCH = s.result[i];
           if (nextCH >= UnicodeUtil.UNI_SUR_LOW_START
               && nextCH <= UnicodeUtil.UNI_SUR_LOW_END) {
             // Valid surrogate pair
           } else
           // Unmatched high surrogate
-            if (nextCH < UnicodeUtil.UNI_SUR_LOW_START) // SMP not enumerated 
-              return s.substring(0, i) + 
-                (char) UnicodeUtil.UNI_SUR_LOW_START;
-            else // SMP already enumerated
-              return s.substring(0, i - 1) + 
-                (char) (UnicodeUtil.UNI_SUR_LOW_END + 1);
-        } else
+            if (nextCH < UnicodeUtil.UNI_SUR_LOW_START) { // SMP not enumerated
+              s.setLength(i + 1);
+              s.result[i] = (char) UnicodeUtil.UNI_SUR_LOW_START;             
+              return;
+            } else { // SMP already enumerated
+              s.setLength(i);
+              s.result[i - 1] = (char) (UnicodeUtil.UNI_SUR_LOW_END + 1);              
+              return;
+            }
+        } else {
         // Unmatched high surrogate in final position, SMP not yet enumerated
-        return s + (char) UnicodeUtil.UNI_SUR_LOW_START;
+          s.setLength(i + 2);
+          s.result[i + 1] = (char) UnicodeUtil.UNI_SUR_LOW_START;
+          return;
+        }
       } else if (ch >= UnicodeUtil.UNI_SUR_LOW_START
-          && ch <= UnicodeUtil.UNI_SUR_LOW_END)
+          && ch <= UnicodeUtil.UNI_SUR_LOW_END) {
       // Unmatched low surrogate, SMP already enumerated
-      return s.substring(0, i) + 
-        (char) (UnicodeUtil.UNI_SUR_LOW_END + 1);
+        s.setLength(i + 1);
+        s.result[i] = (char) (UnicodeUtil.UNI_SUR_LOW_END + 1);
+        return;
+      }
     }
-    
-    return s;
   }
   
   // Only called from assert
@@ -460,7 +477,7 @@ final public class UnicodeUtil {
       return false;
     }
   }
-
+  */
   public static final boolean validUTF16String(String s) {
     final int size = s.length();
     for(int i=0;i<size;i++) {
@@ -505,5 +522,4 @@ final public class UnicodeUtil {
 
     return true;
   }
-  */
 }
