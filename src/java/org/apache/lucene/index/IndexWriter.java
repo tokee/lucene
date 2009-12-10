@@ -4346,7 +4346,9 @@ public class IndexWriter implements Closeable {
                 merge.readersClone[i].close();
               } catch (Throwable t) {
               }
-              // This was a private clone and we had the only reference
+              // This was a private clone and we had the
+              // only reference
+              // nocommit -- why commented out?
               // assert merge.readersClone[i].getRefCount() == 0: "refCount should be 0 but is " + merge.readersClone[i].getRefCount();
             }
           }
@@ -4359,6 +4361,7 @@ public class IndexWriter implements Closeable {
             if (merge.readersClone[i] != null) {
               merge.readersClone[i].close();
               // This was a private clone and we had the only reference
+              // nocommit -- why commented out?
               //assert merge.readersClone[i].getRefCount() == 0;
             }
           }
