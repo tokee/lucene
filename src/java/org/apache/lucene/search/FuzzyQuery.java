@@ -24,76 +24,21 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.ToStringUtils;
 
 import java.io.IOException;
-import java.io.Serializable;
-import java.util.PriorityQueue;
 
 /** Implements the fuzzy search query. The similarity measurement
  * is based on the Levenshtein (edit distance) algorithm.
  * 
- * Warning: this query is not very scalable with its default prefix
+ * <p><em>Warning:</em> this query is not very scalable with its default prefix
  * length of 0 - in this case, *every* term will be enumerated and
  * cause an edit score calculation.
  * 
+ * <p>This query uses {@link MultiTermQuery#TOP_TERMS_SCORING_BOOLEAN_REWRITE)
+ * as default. So terms will be collected and scored according to their
+ * edit distance. Only the top terms are used for building the {@link BooleanQuery}.
+ * It is not recommended to change the rewrite mode for fuzzy queries.
  */
 public class FuzzyQuery extends MultiTermQuery {
   
-  private static class FuzzyRewrite extends RewriteMethod implements Serializable {
-    @Override
-    public Query rewrite(IndexReader reader, MultiTermQuery query) throws IOException {
-      int maxSize = BooleanQuery.getMaxClauseCount();
-      PriorityQueue<ScoreTerm> stQueue = new PriorityQueue<ScoreTerm>(1024);
-      
-      TermsEnum termsEnum = query.getTermsEnum(reader);
-      assert termsEnum != null;
-      final String field = query.field;
-      if (field == null)
-        throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
-      final MultiTermQuery.BoostAttribute boostAtt =
-        termsEnum.attributes().addAttribute(MultiTermQuery.BoostAttribute.class);
-      ScoreTerm bottomSt = null;
-      TermRef t;
-      final Term placeholderTerm = new Term(field);
-      while ((t = termsEnum.next()) != null) {
-        if (t == null) break;
-        ScoreTerm st = new ScoreTerm(placeholderTerm.createTerm(t.toString()), boostAtt.getBoost());
-        if (stQueue.size() < maxSize) {
-          // record the current bottom item
-          if (bottomSt == null || st.compareTo(bottomSt) > 0) {
-            bottomSt = st;
-          }
-          // add to PQ, as it is not yet filled up
-          stQueue.offer(st);
-        } else {
-          assert bottomSt != null;
-          // only add to PQ, if the ScoreTerm is greater than the current bottom,
-          // as all entries will be enqueued after the current bottom and will never be visible
-          if (st.compareTo(bottomSt) < 0) {
-            stQueue.offer(st);
-          }
-        }
-        //System.out.println("current: "+st.term+"("+st.score+"), bottom: "+bottomSt.term+"("+bottomSt.score+")");
-      }
-      
-      BooleanQuery bq = new BooleanQuery(true);
-      int size = Math.min(stQueue.size(), maxSize);
-      for(int i = 0; i < size; i++){
-        ScoreTerm st = stQueue.poll();
-        TermQuery tq = new TermQuery(st.term);      // found a match
-        tq.setBoost(query.getBoost() * st.score); // set the boost
-        bq.add(tq, BooleanClause.Occur.SHOULD);          // add to query
-      }
-      query.incTotalNumberOfTerms(bq.clauses().size());
-      return bq;
-    }
-
-    // Make sure we are still a singleton even after deserializing
-    protected Object readResolve() {
-      return FUZZY_REWRITE;
-    }
-  }
-  
-  private final static RewriteMethod FUZZY_REWRITE = new FuzzyRewrite();
-
   public final static float defaultMinSimilarity = 0.5f;
   public final static int defaultPrefixLength = 0;
   
@@ -122,6 +67,7 @@ public class FuzzyQuery extends MultiTermQuery {
   public FuzzyQuery(Term term, float minimumSimilarity, int prefixLength) throws IllegalArgumentException {
     super(term.field());
     this.term = term;
+    setRewriteMethod(TOP_TERMS_SCORING_BOOLEAN_REWRITE);
     
     if (minimumSimilarity >= 1.0f)
       throw new IllegalArgumentException("minimumSimilarity >= 1");
@@ -136,7 +82,6 @@ public class FuzzyQuery extends MultiTermQuery {
     
     this.minimumSimilarity = minimumSimilarity;
     this.prefixLength = prefixLength;
-    rewriteMethod = FUZZY_REWRITE;
   }
   
   /**
@@ -192,12 +137,12 @@ public class FuzzyQuery extends MultiTermQuery {
   public Term getTerm() {
     return term;
   }
-
-  @Override
-  public void setRewriteMethod(RewriteMethod method) {
-    throw new UnsupportedOperationException("FuzzyQuery cannot change rewrite method");
-  }
   
+  /**
+   * @deprecated This class was used in previous FuzzyQuery implementations, but is now replaced by
+   * a new rewrite mode {@link MultiTermQuery#TOP_TERMS_SCORING_BOOLEAN_REWRITE}.
+   */
+  @Deprecated
   protected static class ScoreTerm implements Comparable<ScoreTerm> {
     public Term term;
     public float score;

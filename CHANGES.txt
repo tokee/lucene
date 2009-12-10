@@ -55,6 +55,10 @@ Optimizations
   This avoid the overhead of using a PQ unecessarily.  (Mike
   McCandless)
 
+* LUCENE-2123: Move FuzzyQuery rewrite as separate RewriteMode into
+  MTQ. This also fixes a slowdown / memory issue added by LUCENE-504.
+  (Uwe Schindler, Robert Muir, Mike McCandless)
+
 Build
 
 Test Cases
