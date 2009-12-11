@@ -731,24 +731,23 @@ class DirectoryReader extends IndexReader implements Cloneable {
   public TermEnum terms() throws IOException {
     ensureOpen();
     //nocommit: investigate this opto
-//    if (subReaders.length == 1) {
+    if (subReaders.length == 1) {
       // Optimize single segment case:
-//      return subReaders[0].terms();
-//    } else {
-      return new MultiTermEnum(this, subReaders, starts, null);
-//    }
+      return subReaders[0].terms();
+    } else {
+     return new MultiTermEnum(this, subReaders, starts, null);
+    }
   }
 
   @Override
   public TermEnum terms(Term term) throws IOException {
     ensureOpen();
-    //nocommit: investigate this opto
-//    if (subReaders.length == 1) {
+    if (subReaders.length == 1) {
       // Optimize single segment case:
-//      return subReaders[0].terms(term);
-//    } else {
+      return subReaders[0].terms(term);
+    } else {
       return new MultiTermEnum(this, subReaders, starts, term);
-//    }
+    }
   }
 
   @Override
