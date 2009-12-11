@@ -64,10 +64,6 @@ public class TestCodecs extends LuceneTestCase {
     return RANDOM.nextInt(lim);
   }
 
-  private boolean nextBoolean() {
-    return 0 == nextInt(1);
-  }
-
   char[] getRandomText() {
 
     final int len = 1+nextInt(10);
@@ -193,7 +189,7 @@ public class TestCodecs extends LuceneTestCase {
     //final int numTerms = 2;
     TermData[] terms = new TermData[numTerms];
 
-    final HashSet termsSeen = new HashSet();
+    final HashSet<String> termsSeen = new HashSet<String>();
 
     for(int i=0;i<numTerms;i++) {
 
@@ -404,8 +400,6 @@ public class TestCodecs extends LuceneTestCase {
 
     public void _run() throws Throwable {
       
-      final FieldsEnum fieldsEnum = termsDict.iterator();
-
       for(int iter=0;iter<NUM_TEST_ITER;iter++) {
         final FieldData field = fields[nextInt(fields.length)];
         if (Codec.DEBUG) {

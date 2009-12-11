@@ -50,11 +50,11 @@ public class MockRAMDirectory extends RAMDirectory {
   // order in which our constructor actually does this
   // member initialization vs when it calls super.  It seems
   // like super is called, then our members are initialized:
-  Map openFiles;
+  Map<String,Integer> openFiles;
 
   private synchronized void init() {
     if (openFiles == null)
-      openFiles = new HashMap();
+      openFiles = new HashMap<String,Integer>();
     if (createdFiles == null)
       createdFiles = new HashSet<String>();
     if (unSyncedFiles == null)
@@ -224,15 +224,6 @@ public class MockRAMDirectory extends RAMDirectory {
     return new MockRAMOutputStream(this, file, name);
   }
   
-  static class OpenFile {
-    final String name;
-    final Throwable stack;
-    OpenFile(String name) {
-      this.name = name;
-      this.stack = new Throwable();
-    }
-  }
-
   @Override
   public synchronized IndexInput openInput(String name) throws IOException {
     RAMFile file = fileMap.get(name);
@@ -244,7 +235,7 @@ public class MockRAMDirectory extends RAMDirectory {
         v = Integer.valueOf(v.intValue()+1);
         openFiles.put(name, v);
       } else {
-         openFiles.put(name, Integer.valueOf(1));
+        openFiles.put(name, Integer.valueOf(1));
       }
     }
     return new MockRAMInputStream(this, name, file);
@@ -280,14 +271,7 @@ public class MockRAMDirectory extends RAMDirectory {
     if (noDeleteOpenFile && openFiles.size() > 0) {
       // RuntimeException instead of IOException because
       // super() does not throw IOException currently:
-        Iterator it = openFiles.values().iterator();
-        System.out.println("\nMockRAMDirectory open files:");
-        while(it.hasNext()) {
-          OpenFile openFile = (OpenFile) it.next();
-          System.out.println("\nfile " + openFile.name + " opened from:\n");
-          openFile.stack.printStackTrace(System.out);
-        }
-        throw new RuntimeException("MockRAMDirectory: cannot close: there are still open files");
+      throw new RuntimeException("MockRAMDirectory: cannot close: there are still open files");
     }
   }
 

@@ -455,7 +455,7 @@ class UnionDocsEnum extends DocsEnum {
   private final UnionPositionsEnum unionPositionsEnum;
 
   public UnionDocsEnum(IndexReader indexReader, Term[] terms) throws IOException {
-    List docsEnums = new LinkedList();
+    List<DocsEnum> docsEnums = new LinkedList<DocsEnum>();
     final Bits delDocs = indexReader.getDeletedDocs();
 
     for (int i = 0; i < terms.length; i++) {

@@ -512,7 +512,7 @@ public class TestExternalCodecs extends LuceneTestCase {
 
     private class FieldsReader extends FieldsProducer {
 
-      private final Set<String> fields = new TreeSet();
+      private final Set<String> fields = new TreeSet<String>();
       private final Map<Codec,FieldsProducer> codecs = new HashMap<Codec,FieldsProducer>();
 
       public FieldsReader(Directory dir, FieldInfos fieldInfos,
@@ -603,7 +603,7 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
 
     @Override
-    public void files(Directory dir, SegmentInfo info, Collection files) throws IOException {
+    public void files(Directory dir, SegmentInfo info, Collection<String> files) throws IOException {
       Iterator<Codec> it = fields.values().iterator();
       Set<Codec> seen = new HashSet<Codec>();
       while(it.hasNext()) {
@@ -616,7 +616,7 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
 
     @Override
-    public void getExtensions(Collection extensions) {
+    public void getExtensions(Collection<String> extensions) {
       Iterator<Codec> it = fields.values().iterator();
       while(it.hasNext()) {
         final Codec codec = it.next();

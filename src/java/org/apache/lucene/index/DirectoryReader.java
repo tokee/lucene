@@ -1198,29 +1198,25 @@ class DirectoryReader extends IndexReader implements Cloneable {
     int base;
   }
 
-  private final static class FieldMergeQueue extends PriorityQueue {
+  private final static class FieldMergeQueue extends PriorityQueue<FieldsEnumWithBase> {
     FieldMergeQueue(int size) {
       initialize(size);
     }
 
     @Override
-    protected final boolean lessThan(Object a, Object b) {
-      FieldsEnumWithBase fieldsA = (FieldsEnumWithBase) a;
-      FieldsEnumWithBase fieldsB = (FieldsEnumWithBase) b;
+    protected final boolean lessThan(FieldsEnumWithBase fieldsA, FieldsEnumWithBase fieldsB) {
       return fieldsA.current.compareTo(fieldsB.current) < 0;
     }
   }
 
-  private final static class TermMergeQueue extends PriorityQueue {
+  private final static class TermMergeQueue extends PriorityQueue<TermsEnumWithBase> {
     TermRef.Comparator termComp;
     TermMergeQueue(int size) {
       initialize(size);
     }
 
     @Override
-    protected final boolean lessThan(Object a, Object b) {
-      TermsEnumWithBase termsA = (TermsEnumWithBase) a;
-      TermsEnumWithBase termsB = (TermsEnumWithBase) b;
+    protected final boolean lessThan(TermsEnumWithBase termsA, TermsEnumWithBase termsB) {
       final int cmp = termComp.compare(termsA.current, termsB.current);
       if (cmp != 0) {
         return cmp < 0;
@@ -1348,8 +1344,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
       // gather equal top fields
       if (queue.size() > 0) {
         while(true) {
-          top[numTop++] = (FieldsEnumWithBase) queue.pop();
-          if (queue.size() == 0 || ((FieldsEnumWithBase) queue.top()).current != top[0].current) {
+          top[numTop++] = queue.pop();
+          if (queue.size() == 0 || (queue.top()).current != top[0].current) {
             break;
           }
         }
@@ -1494,8 +1490,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
     private final void pullTop() {
       assert numTop == 0;
       while(true) {
-        top[numTop++] = (TermsEnumWithBase) queue.pop();
-        if (queue.size() == 0 || !((TermsEnumWithBase) queue.top()).current.termEquals(top[0].current)) {
+        top[numTop++] = queue.pop();
+        if (queue.size() == 0 || !(queue.top()).current.termEquals(top[0].current)) {
           break;
         }
       } 
