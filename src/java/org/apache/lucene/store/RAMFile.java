@@ -62,7 +62,7 @@ class RAMFile implements Serializable {
     if (directory!=null)
       synchronized (directory) {             // Ensure addition of buffer and adjustment to directory size are atomic wrt directory
         buffers.add(buffer);
-        directory.sizeInBytes += size;
+        directory.sizeInBytes.getAndAdd(size);
         sizeInBytes += size;
       }
     else

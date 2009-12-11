@@ -213,7 +213,7 @@ public class MockRAMDirectory extends RAMDirectory {
       throw new IOException("file " + name + " already exists");
     else {
       if (existing!=null) {
-        sizeInBytes -= existing.sizeInBytes;
+        sizeInBytes.getAndAdd(-existing.sizeInBytes);
         existing.directory = null;
       }
 
