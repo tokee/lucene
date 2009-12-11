@@ -315,6 +315,69 @@ public abstract class IndexReader implements Cloneable,Closeable {
     return open(commit.getDirectory(), deletionPolicy, commit, readOnly, termInfosIndexDivisor, null);
   }
 
+  /** Expert: returns an IndexReader reading the index in
+   *  the given Directory, with a custom {@link
+   *  IndexDeletionPolicy}, and specified {@link Codecs}.
+   *  You should pass readOnly=true, since it gives much
+   *  better concurrent performance, unless you intend to do
+   *  write operations (delete documents or change norms)
+   *  with the reader.
+   * @param directory the index directory
+   * @param deletionPolicy a custom deletion policy (only used
+   *  if you use this reader to perform deletes or to set
+   *  norms); see {@link IndexWriter} for details.
+   * @param readOnly true if no changes (deletions, norms) will be made with this IndexReader
+   * @param termInfosIndexDivisor Subsamples which indexed
+   *  terms are loaded into RAM. This has the same effect as {@link
+   *  IndexWriter#setTermIndexInterval} except that setting
+   *  must be done at indexing time while this setting can be
+   *  set per reader.  When set to N, then one in every
+   *  N*termIndexInterval terms in the index is loaded into
+   *  memory.  By setting this to a value > 1 you can reduce
+   *  memory usage, at the expense of higher latency when
+   *  loading a TermInfo.  The default value is 1.  Set this
+   *  to -1 to skip loading the terms index entirely.
+   * @param codecs Codecs to use when opening index
+   * @throws CorruptIndexException if the index is corrupt
+   * @throws IOException if there is a low-level IO error
+   */
+  public static IndexReader open(final Directory directory, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, Codecs codecs) throws CorruptIndexException, IOException {
+    return open(directory, deletionPolicy, null, readOnly, termInfosIndexDivisor, codecs);
+  }
+
+  /** Expert: returns an IndexReader reading the index in
+   *  the given Directory, using a specific commit and with
+   *  a custom {@link IndexDeletionPolicy} and specified
+   *  {@link Codecs}.  You should pass readOnly=true, since
+   *  it gives much better concurrent performance, unless
+   *  you intend to do write operations (delete documents or
+   *  change norms) with the reader.
+
+   * @param commit the specific {@link IndexCommit} to open;
+   * see {@link IndexReader#listCommits} to list all commits
+   * in a directory
+   * @param deletionPolicy a custom deletion policy (only used
+   *  if you use this reader to perform deletes or to set
+   *  norms); see {@link IndexWriter} for details.
+   * @param readOnly true if no changes (deletions, norms) will be made with this IndexReader
+   * @param termInfosIndexDivisor Subsamples which indexed
+   *  terms are loaded into RAM. This has the same effect as {@link
+   *  IndexWriter#setTermIndexInterval} except that setting
+   *  must be done at indexing time while this setting can be
+   *  set per reader.  When set to N, then one in every
+   *  N*termIndexInterval terms in the index is loaded into
+   *  memory.  By setting this to a value > 1 you can reduce
+   *  memory usage, at the expense of higher latency when
+   *  loading a TermInfo.  The default value is 1.  Set this
+   *  to -1 to skip loading the terms index entirely.
+   * @param codecs Codecs to use when opening index
+   * @throws CorruptIndexException if the index is corrupt
+   * @throws IOException if there is a low-level IO error
+   */
+  public static IndexReader open(final IndexCommit commit, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, Codecs codecs) throws CorruptIndexException, IOException {
+    return open(commit.getDirectory(), deletionPolicy, commit, readOnly, termInfosIndexDivisor, codecs);
+  }
+
   private static IndexReader open(final Directory directory, final IndexDeletionPolicy deletionPolicy, final IndexCommit commit, final boolean readOnly, int termInfosIndexDivisor,
       Codecs codecs) throws CorruptIndexException, IOException {
     if (codecs == null) {
