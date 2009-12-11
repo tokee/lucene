@@ -35,6 +35,7 @@ import org.apache.lucene.util.Version;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -253,9 +254,9 @@ public class TestMultiSearcher extends LuceneTestCase
     assertTrue("document.getFields() Size: " + document.getFields().size() + " is not: " + 2, document.getFields().size() == 2);
     //Should be one document from each directory
     //they both have two fields, contents and other
-    Set ftl = new HashSet();
+    Set<String> ftl = new HashSet<String>();
     ftl.add("other");
-    SetBasedFieldSelector fs = new SetBasedFieldSelector(ftl, Collections.EMPTY_SET);
+    SetBasedFieldSelector fs = new SetBasedFieldSelector(ftl, Collections. <String> emptySet());
     document = searcher.doc(hits[0].doc, fs);
     assertTrue("document is null and it shouldn't be", document != null);
     assertTrue("document.getFields() Size: " + document.getFields().size() + " is not: " + 1, document.getFields().size() == 1);
@@ -265,7 +266,7 @@ public class TestMultiSearcher extends LuceneTestCase
     assertTrue("value is null and it shouldn't be", value != null);
     ftl.clear();
     ftl.add("contents");
-    fs = new SetBasedFieldSelector(ftl, Collections.EMPTY_SET);
+    fs = new SetBasedFieldSelector(ftl, Collections. <String> emptySet());
     document = searcher.doc(hits[1].doc, fs);
     value = document.get("contents");
     assertTrue("value is null and it shouldn't be", value != null);    
@@ -397,5 +398,26 @@ public class TestMultiSearcher extends LuceneTestCase
         // The scores from the IndexSearcher and Multisearcher should be the same
         // if the same similarity is used.
         assertEquals("MultiSearcher score must be equal to single esrcher score!", score1, scoreN, 1e-6);
+    }
+    
+    public void testCreateDocFrequencyMap() throws IOException{
+      RAMDirectory dir1 = new RAMDirectory();
+      RAMDirectory dir2 = new RAMDirectory();
+      Term template = new Term("contents") ;
+      String[] contents  = {"a", "b", "c"};
+      HashSet<Term> termsSet = new HashSet<Term>();
+      for (int i = 0; i < contents.length; i++) {
+        initIndex(dir1, i+10, i==0, contents[i]); 
+        initIndex(dir2, i+5, i==0, contents[i]);
+        termsSet.add(template.createTerm(contents[i]));
+      }
+      IndexSearcher searcher1 = new IndexSearcher(dir1, true);
+      IndexSearcher searcher2 = new IndexSearcher(dir2, true);
+      MultiSearcher multiSearcher = getMultiSearcherInstance(new Searcher[]{searcher1, searcher2});
+      Map<Term,Integer> docFrequencyMap = multiSearcher.createDocFrequencyMap(termsSet);
+      assertEquals(3, docFrequencyMap.size());
+      for (int i = 0; i < contents.length; i++) {
+        assertEquals(Integer.valueOf((i*2) +15), docFrequencyMap.get(template.createTerm(contents[i])));
+      }
     }
 }

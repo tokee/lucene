@@ -17,12 +17,8 @@ package org.apache.lucene.analysis.snowball;
  * limitations under the License.
  */
 
-import java.io.Reader;
-import java.io.StringReader;
-
 import org.apache.lucene.analysis.BaseTokenStreamTestCase;
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.WhitespaceTokenizer;
 import org.apache.lucene.index.Payload;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.FlagsAttribute;
@@ -41,32 +37,50 @@ public class TestSnowball extends BaseTokenStreamTestCase {
         new String[]{"he", "abhor", "accent"});
   }
 
+  /**
+   * Test english lowercasing. Test both cases (pre-3.1 and post-3.1) to ensure
+   * we lowercase I correct for non-Turkish languages in either case.
+   */
+  public void testEnglishLowerCase() throws Exception {
+    Analyzer a = new SnowballAnalyzer(Version.LUCENE_CURRENT, "English");
+    assertAnalyzesTo(a, "cryogenic", new String[] { "cryogen" });
+    assertAnalyzesTo(a, "CRYOGENIC", new String[] { "cryogen" });
+    
+    Analyzer b = new SnowballAnalyzer(Version.LUCENE_30, "English");
+    assertAnalyzesTo(b, "cryogenic", new String[] { "cryogen" });
+    assertAnalyzesTo(b, "CRYOGENIC", new String[] { "cryogen" });
+  }
+  
+  /**
+   * Test turkish lowercasing
+   */
+  public void testTurkish() throws Exception {
+    Analyzer a = new SnowballAnalyzer(Version.LUCENE_CURRENT, "Turkish");
+
+    assertAnalyzesTo(a, "ağacı", new String[] { "ağaç" });
+    assertAnalyzesTo(a, "AĞACI", new String[] { "ağaç" });
+  }
+  
+  /**
+   * Test turkish lowercasing (old buggy behavior)
+   * @deprecated Remove this when support for 3.0 indexes is no longer required
+   */
+  public void testTurkishBWComp() throws Exception {
+    Analyzer a = new SnowballAnalyzer(Version.LUCENE_30, "Turkish");
+    // AĞACI in turkish lowercases to ağacı, but with lowercase filter ağaci.
+    // this fails due to wrong casing, because the stemmer
+    // will only remove -ı, not -i
+    assertAnalyzesTo(a, "ağacı", new String[] { "ağaç" });
+    assertAnalyzesTo(a, "AĞACI", new String[] { "ağaci" });
+  }
+
+  
   public void testReusableTokenStream() throws Exception {
     Analyzer a = new SnowballAnalyzer(Version.LUCENE_CURRENT, "English");
     assertAnalyzesToReuse(a, "he abhorred accents",
         new String[]{"he", "abhor", "accent"});
     assertAnalyzesToReuse(a, "she abhorred him",
         new String[]{"she", "abhor", "him"});
-  }
-  
-  /**
-   * subclass that acts just like whitespace analyzer for testing
-   */
-  private class SnowballSubclassAnalyzer extends SnowballAnalyzer {
-    public SnowballSubclassAnalyzer(String name) {
-      super(Version.LUCENE_CURRENT, name);
-    }
-    
-    @Override
-    public TokenStream tokenStream(String fieldName, Reader reader) {
-      return new WhitespaceTokenizer(reader);
-    }
-  }
-  
-  public void testLUCENE1678BWComp() throws Exception {
-    Analyzer a = new SnowballSubclassAnalyzer("English");
-    assertAnalyzesToReuse(a, "he abhorred accents",
-        new String[]{"he", "abhorred", "accents"});
   }
   
   public void testFilterTokens() throws Exception {

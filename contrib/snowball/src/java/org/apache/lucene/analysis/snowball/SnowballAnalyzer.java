@@ -19,6 +19,7 @@ package org.apache.lucene.analysis.snowball;
 
 import org.apache.lucene.analysis.*;
 import org.apache.lucene.analysis.standard.*;
+import org.apache.lucene.analysis.tr.TurkishLowerCaseFilter;
 import org.apache.lucene.util.Version;
 
 import java.io.IOException;
@@ -33,9 +34,13 @@ import java.util.Set;
  * {@link org.tartarus.snowball.ext.EnglishStemmer} is named "English".
  *
  * <p><b>NOTE</b>: This class uses the same {@link Version}
- * dependent settings as {@link StandardAnalyzer}.</p>
+ * dependent settings as {@link StandardAnalyzer}, with the following addition:
+ * <ul>
+ *   <li> As of 3.1, uses {@link TurkishLowerCaseFilter} for Turkish language.
+ * </ul>
+ * </p>
  */
-public class SnowballAnalyzer extends Analyzer {
+public final class SnowballAnalyzer extends Analyzer {
   private String name;
   private Set<?> stopSet;
   private final Version matchVersion;
@@ -43,7 +48,6 @@ public class SnowballAnalyzer extends Analyzer {
   /** Builds the named analyzer with no stop words. */
   public SnowballAnalyzer(Version matchVersion, String name) {
     this.name = name;
-    setOverridesTokenStreamMethod(SnowballAnalyzer.class);
     this.matchVersion = matchVersion;
   }
 
@@ -60,7 +64,11 @@ public class SnowballAnalyzer extends Analyzer {
   public TokenStream tokenStream(String fieldName, Reader reader) {
     TokenStream result = new StandardTokenizer(matchVersion, reader);
     result = new StandardFilter(result);
-    result = new LowerCaseFilter(matchVersion, result);
+    // Use a special lowercase filter for turkish, the stemmer expects it.
+    if (matchVersion.onOrAfter(Version.LUCENE_31) && name.equals("Turkish"))
+      result = new TurkishLowerCaseFilter(result);
+    else
+      result = new LowerCaseFilter(matchVersion, result);
     if (stopSet != null)
       result = new StopFilter(matchVersion,
                               result, stopSet);
@@ -71,7 +79,7 @@ public class SnowballAnalyzer extends Analyzer {
   private class SavedStreams {
     Tokenizer source;
     TokenStream result;
-  };
+  }
   
   /** Returns a (possibly reused) {@link StandardTokenizer} filtered by a 
    * {@link StandardFilter}, a {@link LowerCaseFilter}, 
@@ -79,19 +87,16 @@ public class SnowballAnalyzer extends Analyzer {
   @Override
   public TokenStream reusableTokenStream(String fieldName, Reader reader)
       throws IOException {
-    if (overridesTokenStreamMethod) {
-      // LUCENE-1678: force fallback to tokenStream() if we
-      // have been subclassed and that subclass overrides
-      // tokenStream but not reusableTokenStream
-      return tokenStream(fieldName, reader);
-    }
-    
     SavedStreams streams = (SavedStreams) getPreviousTokenStream();
     if (streams == null) {
       streams = new SavedStreams();
       streams.source = new StandardTokenizer(matchVersion, reader);
       streams.result = new StandardFilter(streams.source);
-      streams.result = new LowerCaseFilter(matchVersion, streams.result);
+      // Use a special lowercase filter for turkish, the stemmer expects it.
+      if (matchVersion.onOrAfter(Version.LUCENE_31) && name.equals("Turkish"))
+        streams.result = new TurkishLowerCaseFilter(streams.result);
+      else
+        streams.result = new LowerCaseFilter(matchVersion, streams.result);
       if (stopSet != null)
         streams.result = new StopFilter(matchVersion,
                                         streams.result, stopSet);

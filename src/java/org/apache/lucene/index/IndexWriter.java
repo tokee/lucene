@@ -3390,9 +3390,14 @@ public class IndexWriter implements Closeable {
     startCommit(0, commitUserData);
   }
 
+  // Used only by commit, below; lock order is commitLock -> IW
+  private final Object commitLock = new Object();
+
   private void commit(long sizeInBytes) throws IOException {
-    startCommit(sizeInBytes, null);
-    finishCommit();
+    synchronized(commitLock) {
+      startCommit(sizeInBytes, null);
+      finishCommit();
+    }
   }
 
   /**
@@ -3442,17 +3447,26 @@ public class IndexWriter implements Closeable {
 
     ensureOpen();
 
-    if (infoStream != null)
+    if (infoStream != null) {
       message("commit: start");
+    }
 
-    if (pendingCommit == null) {
-      if (infoStream != null)
-        message("commit: now prepare");
-      prepareCommit(commitUserData);
-    } else if (infoStream != null)
-      message("commit: already prepared");
+    synchronized(commitLock) {
+      if (infoStream != null) {
+        message("commit: enter lock");
+      }
 
-    finishCommit();
+      if (pendingCommit == null) {
+        if (infoStream != null) {
+          message("commit: now prepare");
+        }
+        prepareCommit(commitUserData);
+      } else if (infoStream != null) {
+        message("commit: already prepared");
+      }
+
+      finishCommit();
+    }
   }
 
   private synchronized final void finishCommit() throws CorruptIndexException, IOException {
@@ -4583,6 +4597,9 @@ public class IndexWriter implements Closeable {
   private void startCommit(long sizeInBytes, Map<String,String> commitUserData) throws IOException {
 
     assert testPoint("startStartCommit");
+
+    // TODO: as of LUCENE-2095, we can simplify this method,
+    // since only 1 thread can be in here at once
 
     if (hitOOM) {
       throw new IllegalStateException("this writer hit an OutOfMemoryError; cannot commit");

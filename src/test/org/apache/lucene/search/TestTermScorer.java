@@ -75,7 +75,7 @@ public class TestTermScorer extends LuceneTestCase
         Scorer ts = weight.scorer(indexSearcher.getIndexReader(),
                                   true, true);
         //we have 2 documents with the term all in them, one document for all the other values
-        final List docs = new ArrayList();
+        final List<TestHit> docs = new ArrayList<TestHit>();
         //must call next first
 
 
@@ -106,8 +106,8 @@ public class TestTermScorer extends LuceneTestCase
             }
         });
         assertTrue("docs Size: " + docs.size() + " is not: " + 2, docs.size() == 2);
-        TestHit doc0 = (TestHit) docs.get(0);
-        TestHit doc5 = (TestHit) docs.get(1);
+        TestHit doc0 =  docs.get(0);
+        TestHit doc5 =  docs.get(1);
         //The scores should be the same
         assertTrue(doc0.score + " does not equal: " + doc5.score, doc0.score == doc5.score);
         /*

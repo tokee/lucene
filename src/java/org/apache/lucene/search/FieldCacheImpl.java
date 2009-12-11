@@ -697,12 +697,6 @@ class FieldCacheImpl implements FieldCache {
           }
 
           // store term text
-          // we expect that there is at most one term per document
-          if (t >= mterms.length) {
-            throw new RuntimeException ("there are more terms than " +
-                                        "documents in field \"" + field + "\", but it's impossible to sort on " +
-                                        "tokenized fields");
-          }
           mterms[t] = term.toString();
 
           final DocsEnum docs = termsEnum.docs(delDocs);

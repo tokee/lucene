@@ -4,6 +4,10 @@ $Id$
 ======================= Trunk (not yet released) =======================
 Changes in backwards compatibility policy
 
+* LUCENE-1483: Removed utility class oal.util.SorterTemplate; this
+  class is no longer used by Lucene.  (Gunnar Wagenknecht via Mike
+  McCandless)
+
 * LUCENE-2123: Removed the protected inner class ScoreTerm from
   FuzzyQuery. The class was never intended to be public.
   (Uwe Schindler, Mike McCandless)
@@ -20,6 +24,10 @@ API Changes
   custom Similarity can alter how norms are encoded, though they must
   still be encoded as a single byte (Johan Kindgren via Mike
   McCandless)
+  
+* LUCENE-2103: NoLockFactory should have a private constructor;
+  until Lucene 4.0 the default one will be deprecated.
+  (Shai Erera via Uwe Schindler) 
 
 Bug fixes
 
@@ -27,7 +35,25 @@ Bug fixes
   and equals methods, cause bad things to happen when caching
   BooleanQueries.  (Chris Hostetter, Mike McCandless)
 
+* LUCENE-2095: Fixes: when two threads call IndexWriter.commit() at
+  the same time, it's possible for commit to return control back to
+  one of the threads before all changes are actually committed.
+  (Sanne Grinovero via Mike McCandless)
+
+* LUCENE-2119: Don't throw NegativeArraySizeException if you pass
+  Integer.MAX_VALUE as nDocs to IndexSearcher search methods.  (Paul
+  Taylor via Mike McCandless)
+
+* LUCENE-2132: Fix the demo result.jsp to use QueryParser with a 
+  Version argument.  (Brian Li via Robert Muir)
+
+* LUCENE-2142: FieldCacheImpl.getStringIndex no longer throws an
+  exception when term count exceeds doc count.  (Mike McCandless)
+  
 New features
+
+* LUCENE-2128: Parallelized fetching document frequencies during weight
+  creation. (Israel Tsadok, Simon Willnauer via Uwe Schindler) 
 
 * LUCENE-2069: Added Unicode 4 support to CharArraySet. Due to the switch
   to Java 5, supplementary characters are now lowercased correctly if the
@@ -59,16 +85,33 @@ Optimizations
   This avoid the overhead of using a PQ unecessarily.  (Mike
   McCandless)
 
+* LUCENE-2137: Switch to AtomicInteger for some ref counting (Earwin
+  Burrfoot via Mike McCandless)
+
 * LUCENE-2123: Move FuzzyQuery rewrite as separate RewriteMode into
   MTQ. This also fixes a slowdown / memory issue added by LUCENE-504.
   (Uwe Schindler, Robert Muir, Mike McCandless)
 
 Build
 
+ * LUCENE-2124: Moved the JDK-based collation support from contrib/collation 
+   into core, and moved the ICU-based collation support into contrib/icu.  
+   (Robert Muir)
+
 Test Cases
+
+* LUCENE-2037 Allow Junit4 tests in our envrionment (Erick Erickson
+  via Mike McCandless)
 
 * LUCENE-1844: Speed up the unit tests (Mark Miller, Erick Erickson,
   Mike McCandless)
+
+* LUCENE-2065: Use Java 5 generics throughout our unit tests.  (Kay
+  Kay via Mike McCandless)
+
+* LUCENE-2114: Change TestFilteredSearch to test on multi-segment
+  index as well; improve javadocs of Filter to call out that the
+  provided reader is per-segment (Simon Willnauer via Mike McCandless)
 
 ======================= Release 3.0.0 2009-11-25 =======================
 

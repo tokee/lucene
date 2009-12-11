@@ -18,7 +18,6 @@ package org.apache.lucene.store;
  */
 
 import java.io.IOException;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Iterator;
 import java.util.Random;
@@ -57,9 +56,9 @@ public class MockRAMDirectory extends RAMDirectory {
     if (openFiles == null)
       openFiles = new HashMap();
     if (createdFiles == null)
-      createdFiles = new HashSet();
+      createdFiles = new HashSet<String>();
     if (unSyncedFiles == null)
-      unSyncedFiles = new HashSet();
+      unSyncedFiles = new HashSet<String>();
   }
 
   public MockRAMDirectory() {
@@ -90,9 +89,9 @@ public class MockRAMDirectory extends RAMDirectory {
    *  unsynced files. */
   public synchronized void crash() throws IOException {
     crashed = true;
-    openFiles = new HashMap();
+    openFiles = new HashMap<String,Integer>();
     Iterator<String> it = unSyncedFiles.iterator();
-    unSyncedFiles = new HashSet();
+    unSyncedFiles = new HashSet<String>();
     int count = 0;
     while(it.hasNext()) {
       String name = it.next();
@@ -215,7 +214,7 @@ public class MockRAMDirectory extends RAMDirectory {
       throw new IOException("file " + name + " already exists");
     else {
       if (existing!=null) {
-        sizeInBytes -= existing.sizeInBytes;
+        sizeInBytes.getAndAdd(-existing.sizeInBytes);
         existing.directory = null;
       }
 
@@ -240,10 +239,15 @@ public class MockRAMDirectory extends RAMDirectory {
     if (file == null)
       throw new FileNotFoundException(name);
     else {
-      IndexInput in = new MockRAMInputStream(this, name, file);
-      openFiles.put(in, new OpenFile(name));
-      return in;
+      if (openFiles.containsKey(name)) {
+        Integer v =  (Integer) openFiles.get(name);
+        v = Integer.valueOf(v.intValue()+1);
+        openFiles.put(name, v);
+      } else {
+         openFiles.put(name, Integer.valueOf(1));
+      }
     }
+    return new MockRAMInputStream(this, name, file);
   }
 
   /** Provided for testing purposes.  Use sizeInBytes() instead. */
@@ -271,7 +275,7 @@ public class MockRAMDirectory extends RAMDirectory {
   @Override
   public synchronized void close() {
     if (openFiles == null) {
-      openFiles = new HashMap();
+      openFiles = new HashMap<String,Integer>();
     }
     if (noDeleteOpenFile && openFiles.size() > 0) {
       // RuntimeException instead of IOException because
@@ -325,7 +329,7 @@ public class MockRAMDirectory extends RAMDirectory {
     }
   }
 
-  ArrayList failures;
+  ArrayList<Failure> failures;
 
   /**
    * add a Failure object to the list of objects to be evaluated
@@ -333,7 +337,7 @@ public class MockRAMDirectory extends RAMDirectory {
    */
   synchronized public void failOn(Failure fail) {
     if (failures == null) {
-      failures = new ArrayList();
+      failures = new ArrayList<Failure>();
     }
     failures.add(fail);
   }
@@ -345,7 +349,7 @@ public class MockRAMDirectory extends RAMDirectory {
   synchronized void maybeThrowDeterministicException() throws IOException {
     if (failures != null) {
       for(int i = 0; i < failures.size(); i++) {
-        ((Failure)failures.get(i)).eval(this);
+        failures.get(i).eval(this);
       }
     }
   }

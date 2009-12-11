@@ -17,7 +17,6 @@ package org.apache.lucene.search;
  * limitations under the License.
  */
 
-import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.index.IndexReader;
@@ -69,7 +68,7 @@ public class TestMultiPhraseQuery extends LuceneTestCase
         query1.add(new Term("body", "blueberry"));
         query2.add(new Term("body", "strawberry"));
 
-        LinkedList termsWithPrefix = new LinkedList();
+        LinkedList<Term> termsWithPrefix = new LinkedList<Term>();
         IndexReader ir = IndexReader.open(indexStore, true);
 
         // this TermEnum gives "piccadilly", "pie" and "pizza".
@@ -82,9 +81,9 @@ public class TestMultiPhraseQuery extends LuceneTestCase
             }
         } while (te.next());
 
-        query1.add((Term[])termsWithPrefix.toArray(new Term[0]));
+        query1.add(termsWithPrefix.toArray(new Term[0]));
         assertEquals("body:\"blueberry (piccadilly pie pizza)\"", query1.toString());
-        query2.add((Term[])termsWithPrefix.toArray(new Term[0]));
+        query2.add(termsWithPrefix.toArray(new Term[0]));
         assertEquals("body:\"strawberry (piccadilly pie pizza)\"", query2.toString());
 
         ScoreDoc[] result;
@@ -105,8 +104,7 @@ public class TestMultiPhraseQuery extends LuceneTestCase
             }
         } while (te.next());
         ir.close();
-
-        query3.add((Term[])termsWithPrefix.toArray(new Term[0]));
+        query3.add(termsWithPrefix.toArray(new Term[0]));
         query3.add(new Term("body", "pizza"));
 
         result = searcher.search(query3, null, 1000).scoreDocs;

@@ -2,6 +2,20 @@ Lucene contrib change Log
 
 ======================= Trunk (not yet released) =======================
 
+Changes in backwards compatibility policy
+
+ * LUCENE-2100: All Analyzers in Lucene-contrib have been marked as final.
+   Analyzers should be only act as a composition of TokenStreams, users should
+   compose their own analyzers instead of subclassing existing ones.
+   (Simon Willnauer) 
+
+Changes in runtime behavior
+
+ * LUCENE-2117: SnowballAnalyzer uses TurkishLowerCaseFilter instead of
+   LowercaseFilter to correctly handle the unique Turkish casing behavior if
+   used with Version > 3.0 and the TurkishStemmer.
+   (Robert Muir via Simon Willnauer)  
+
 Bug fixes
 
  * LUCENE-2068: Fixed ReverseStringFilter which was not aware of supplementary
@@ -9,14 +23,52 @@ Bug fixes
    will be replaced by U+FFFD by the indexer, but not at query time. The filter
    now reverses supplementary characters correctly if used with Version > 3.0.
    (Simon Willnauer, Robert Muir)
+
+ * LUCENE-2144: Fix InstantiatedIndex to handle termDocs(null)
+   correctly (enumerate all non-deleted docs).  (Karl Wettin via Mike
+   McCandless)
    
+API Changes
+
+ * LUCENE-2108: Add SpellChecker.close, to close the underlying
+   reader.  (Eirik Bjørsnøs via Mike McCandless)
+
 New features
+
+ * LUCENE-2102: Add a Turkish LowerCase Filter. TurkishLowerCaseFilter handles
+   Turkish and Azeri unique casing behavior correctly.
+   (Ahmet Arslan, Robert Muir via Simon Willnauer)
+ 
+ * LUCENE-2039: Add a extensible query parser to contrib/misc.
+   ExtendableQueryParser enables arbitrary parser extensions based on a
+   customizable field naming scheme.
+   (Simon Willnauer)
+
+ * LUCENE-2108: Spellchecker now safely supports concurrent modifications to
+   the spell-index. Threads can safely obtain term suggestions while the spell-
+   index is rebuild, cleared or reset. Internal IndexSearcher instances remain
+   open until the last thread accessing them releases the reference.
+   (Simon Willnauer)
 
  * LUCENE-2067: Add a Czech light stemmer. CzechAnalyzer will now stem words
    when Version is set to 3.1 or higher.  (Robert Muir)
    
  * LUCENE-2062: Add a Bulgarian analyzer.  (Robert Muir, Simon Willnauer)
-   
+
+Build
+
+ * LUCENE-2117: SnowballAnalyzer now holds a runtime-dependency on
+   contrib-analyzers to correctly handle the unique Turkish casing behavior.
+   (Robert Muir via Simon Willnauer)  
+
+ * LUCENE-2124: Moved the JDK-based collation support from contrib/collation 
+   into core, and moved the ICU-based collation support into contrib/icu.  
+   (Robert Muir)
+
+Test Cases
+
+ * LUCENE-2115: Cutover contrib tests to use Java5 generics.  (Kay Kay
+   via Mike McCandless)
 
 ======================= Release 3.0.0 2009-11-25 =======================
 

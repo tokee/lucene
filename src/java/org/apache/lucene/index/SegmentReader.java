@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.search.Similarity;
@@ -62,7 +63,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   CloseableThreadLocal<TermVectorsReader> termVectorsLocal = new CloseableThreadLocal<TermVectorsReader>();
 
   BitVector deletedDocs = null;
-  Ref deletedDocsRef = null;
+  AtomicInteger deletedDocsRef = null;
   private boolean deletedDocsDirty = false;
   private boolean normsDirty = false;
   private int pendingDeleteCount;
@@ -74,7 +75,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   // optionally used for the .nrm file shared by multiple norms
   private IndexInput singleNormStream;
-  private Ref singleNormRef;
+  private AtomicInteger singleNormRef;
 
   CoreReaders core;
 
@@ -88,7 +89,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     // closed.  A given instance of SegmentReader may be
     // closed, even those it shares core objects with other
     // SegmentReaders:
-    private final Ref ref = new Ref();
+    private final AtomicInteger ref = new AtomicInteger(1);
 
     final String segment;
     final FieldInfos fieldInfos;
@@ -163,7 +164,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
 
     synchronized void incRef() {
-      ref.incRef();
+      ref.incrementAndGet();
     }
 
     synchronized Directory getCFSReader() {
@@ -172,7 +173,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
     synchronized void decRef() throws IOException {
 
-      if (ref.decRef() == 0) {
+      if (ref.decrementAndGet() == 0) {
 
         if (fields != null) {
           fields.close();
@@ -260,31 +261,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
   }
   
-  static class Ref {
-    private int refCount = 1;
-    
-    @Override
-    public String toString() {
-      return "refcount: "+refCount;
-    }
-    
-    public synchronized int refCount() {
-      return refCount;
-    }
-    
-    public synchronized int incRef() {
-      assert refCount > 0;
-      refCount++;
-      return refCount;
-    }
-
-    public synchronized int decRef() {
-      assert refCount > 0;
-      refCount--;
-      return refCount;
-    }
-  }
-  
   /**
    * Byte[] referencing is used because a new norm object needs 
    * to be created for each clone, and the byte array is all 
@@ -305,7 +281,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     private long normSeek;
 
     // null until bytes is set
-    private Ref bytesRef;
+    private AtomicInteger bytesRef;
     private byte[] bytes;
     private boolean dirty;
     private int number;
@@ -330,7 +306,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         } else {
           // We are sharing this with others -- decRef and
           // maybe close the shared norm stream
-          if (singleNormRef.decRef() == 0) {
+          if (singleNormRef.decrementAndGet() == 0) {
             singleNormStream.close();
             singleNormStream = null;
           }
@@ -353,7 +329,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
         if (bytes != null) {
           assert bytesRef != null;
-          bytesRef.decRef();
+          bytesRef.decrementAndGet();
           bytes = null;
           bytesRef = null;
         } else {
@@ -396,7 +372,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
           // byte[]
           bytes = origNorm.bytes();
           bytesRef = origNorm.bytesRef;
-          bytesRef.incRef();
+          bytesRef.incrementAndGet();
 
           // Once we've loaded the bytes we no longer need
           // origNorm:
@@ -418,7 +394,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
             in.readBytes(bytes, 0, count, false);
           }
 
-          bytesRef = new Ref();
+          bytesRef = new AtomicInteger(1);
           closeInput();
         }
       }
@@ -427,7 +403,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
 
     // Only for testing
-    Ref bytesRef() {
+    AtomicInteger bytesRef() {
       return bytesRef;
     }
 
@@ -438,15 +414,15 @@ public class SegmentReader extends IndexReader implements Cloneable {
       bytes();
       assert bytes != null;
       assert bytesRef != null;
-      if (bytesRef.refCount() > 1) {
+      if (bytesRef.get() > 1) {
         // I cannot be the origNorm for another norm
         // instance if I'm being changed.  Ie, only the
         // "head Norm" can be changed:
         assert refCount == 1;
-        final Ref oldRef = bytesRef;
+        final AtomicInteger oldRef = bytesRef;
         bytes = cloneNormBytes(bytes);
-        bytesRef = new Ref();
-        oldRef.decRef();
+        bytesRef = new AtomicInteger(1);
+        oldRef.decrementAndGet();
       }
       dirty = true;
       return bytes;
@@ -472,7 +448,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         assert origNorm == null;
 
         // Clone holds a reference to my bytes:
-        clone.bytesRef.incRef();
+        clone.bytesRef.incrementAndGet();
       } else {
         assert bytesRef == null;
         if (origNorm == null) {
@@ -573,7 +549,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     // NOTE: the bitvector is stored using the regular directory, not cfs
     if (hasDeletions(si)) {
       deletedDocs = new BitVector(directory(), si.getDelFileName());
-      deletedDocsRef = new Ref();
+      deletedDocsRef = new AtomicInteger(1);
      
       assert si.getDelCount() == deletedDocs.count() : 
         "delete count mismatch: info=" + si.getDelCount() + " vs BitVector=" + deletedDocs.count();
@@ -667,7 +643,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
       
       if (doClone) {
         if (deletedDocs != null) {
-          deletedDocsRef.incRef();
+          deletedDocsRef.incrementAndGet();
           clone.deletedDocs = deletedDocs;
           clone.deletedDocsRef = deletedDocsRef;
         }
@@ -677,7 +653,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
           assert clone.deletedDocs == null;
           clone.loadDeletedDocs();
         } else if (deletedDocs != null) {
-          deletedDocsRef.incRef();
+          deletedDocsRef.incrementAndGet();
           clone.deletedDocs = deletedDocs;
           clone.deletedDocsRef = deletedDocsRef;
         }
@@ -755,7 +731,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     fieldsReaderLocal.close();
     
     if (deletedDocs != null) {
-      deletedDocsRef.decRef();
+      deletedDocsRef.decrementAndGet();
       // null so if an app hangs on to us we still free most ram
       deletedDocs = null;
     }
@@ -791,16 +767,16 @@ public class SegmentReader extends IndexReader implements Cloneable {
   protected void doDelete(int docNum) {
     if (deletedDocs == null) {
       deletedDocs = new BitVector(maxDoc());
-      deletedDocsRef = new Ref();
+      deletedDocsRef = new AtomicInteger(1);
     }
     // there is more than 1 SegmentReader with a reference to this
     // deletedDocs BitVector so decRef the current deletedDocsRef,
     // clone the BitVector, create a new deletedDocsRef
-    if (deletedDocsRef.refCount() > 1) {
-      Ref oldRef = deletedDocsRef;
+    if (deletedDocsRef.get() > 1) {
+      AtomicInteger oldRef = deletedDocsRef;
       deletedDocs = cloneDeletedDocs(deletedDocs);
-      deletedDocsRef = new Ref();
-      oldRef.decRef();
+      deletedDocsRef = new AtomicInteger(1);
+      oldRef.decrementAndGet();
     }
     deletedDocsDirty = true;
     if (!deletedDocs.getAndSet(docNum))
@@ -812,7 +788,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     deletedDocsDirty = false;
     if (deletedDocs != null) {
       assert deletedDocsRef != null;
-      deletedDocsRef.decRef();
+      deletedDocsRef.decrementAndGet();
       deletedDocs = null;
       deletedDocsRef = null;
       pendingDeleteCount = 0;
@@ -961,7 +937,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
 
   /**
-   * @see IndexReader#getFieldNames(IndexReader.FieldOption fldOption)
+   * @see IndexReader#getFieldNames(org.apache.lucene.index.IndexReader.FieldOption)
    */
   @Override
   public Collection<String> getFieldNames(IndexReader.FieldOption fieldOption) {
@@ -1086,9 +1062,9 @@ public class SegmentReader extends IndexReader implements Cloneable {
           normSeek = nextNormSeek;
           if (singleNormStream == null) {
             singleNormStream = d.openInput(fileName, readBufferSize);
-            singleNormRef = new Ref();
+            singleNormRef = new AtomicInteger(1);
           } else {
-            singleNormRef.incRef();
+            singleNormRef.incrementAndGet();
           }
           // All norms in the .nrm file can share a single IndexInput since
           // they are only used in a synchronized context.

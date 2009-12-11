@@ -53,8 +53,8 @@ public class TestNorms extends LuceneTestCase {
   private Similarity similarityOne;
   private Analyzer anlzr;
   private int numDocNorms;
-  private ArrayList norms; 
-  private ArrayList modifiedNorms; 
+  private ArrayList<Float> norms; 
+  private ArrayList<Float> modifiedNorms; 
   private float lastNorm = 0;
   private float normDelta = (float) 0.001;
 
@@ -80,19 +80,19 @@ public class TestNorms extends LuceneTestCase {
     File indexDir1 = _TestUtil.getTempDir("lucenetestindex1");
     Directory dir1 = FSDirectory.open(indexDir1);
 
-    norms = new ArrayList();
-    modifiedNorms = new ArrayList();
+    norms = new ArrayList<Float>();
+    modifiedNorms = new ArrayList<Float>();
 
     createIndex(dir1);
     doTestNorms(dir1);
 
     // test with a single index: index2
-    ArrayList norms1 = norms;
-    ArrayList modifiedNorms1 = modifiedNorms;
+    ArrayList<Float> norms1 = norms;
+    ArrayList<Float> modifiedNorms1 = modifiedNorms;
     int numDocNorms1 = numDocNorms;
 
-    norms = new ArrayList();
-    modifiedNorms = new ArrayList();
+    norms = new ArrayList<Float>();
+    modifiedNorms = new ArrayList<Float>();
     numDocNorms = 0;
     
     File indexDir2 = _TestUtil.getTempDir("lucenetestindex2");
@@ -185,10 +185,10 @@ public class TestNorms extends LuceneTestCase {
       String field = "f"+i;
       byte b[] = ir.norms(field);
       assertEquals("number of norms mismatches",numDocNorms,b.length);
-      ArrayList storedNorms = (i==1 ? modifiedNorms : norms);
+      ArrayList<Float> storedNorms = (i==1 ? modifiedNorms : norms);
       for (int j = 0; j < b.length; j++) {
         float norm = similarityOne.decodeNormValue(b[j]);
-        float norm1 = ((Float)storedNorms.get(j)).floatValue();
+        float norm1 = storedNorms.get(j).floatValue();
         assertEquals("stored norm value of "+field+" for doc "+j+" is "+norm+" - a mismatch!", norm, norm1, 0.000001);
       }
     }

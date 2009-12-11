@@ -85,8 +85,23 @@ public abstract class PriorityQueue<T> {
     if (0 == maxSize)
       // We allocate 1 extra to avoid if statement in top()
       heapSize = 2;
-    else
-      heapSize = maxSize + 1;
+    else {
+      if (maxSize == Integer.MAX_VALUE) {
+        // Don't wrap heapSize to -1, in this case, which
+        // causes a confusing NegativeArraySizeException.
+        // Note that very likely this will simply then hit
+        // an OOME, but at least that's more indicative to
+        // caller that this values is too big.  We don't +1
+        // in this case, but it's very unlikely in practice
+        // one will actually insert this many objects into
+        // the PQ:
+        heapSize = Integer.MAX_VALUE;
+      } else {
+        // NOTE: we add +1 because all access to heap is
+        // 1-based not 0-based.  heap[0] is unused.
+        heapSize = maxSize + 1;
+      }
+    }
     heap = (T[]) new Object[heapSize]; // T is unbounded type, so this unchecked cast works always
     this.maxSize = maxSize;
     

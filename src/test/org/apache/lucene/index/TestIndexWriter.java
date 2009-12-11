@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.analysis.Analyzer;
@@ -49,6 +50,7 @@ import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.PhraseQuery;
@@ -2132,7 +2134,7 @@ public class TestIndexWriter extends LuceneTestCase {
         writer.setMergeFactor(2);
 
         final IndexWriter finalWriter = writer;
-        final ArrayList failure = new ArrayList();
+        final ArrayList<Throwable> failure = new ArrayList<Throwable>();
         Thread t1 = new Thread() {
             @Override
             public void run() {
@@ -2161,7 +2163,7 @@ public class TestIndexWriter extends LuceneTestCase {
           };
 
         if (failure.size() > 0)
-          throw (Throwable) failure.get(0);
+          throw failure.get(0);
 
         t1.start();
 
@@ -3476,14 +3478,14 @@ public class TestIndexWriter extends LuceneTestCase {
       final TermAttribute termAtt = addAttribute(TermAttribute.class);
       final PositionIncrementAttribute posIncrAtt = addAttribute(PositionIncrementAttribute.class);
       
-      final Iterator tokens = Arrays.asList(new String[]{"a","b","c"}).iterator();
+      final Iterator<String> tokens = Arrays.asList(new String[]{"a","b","c"}).iterator();
       boolean first = true;
       
       @Override
       public boolean incrementToken() {
         if (!tokens.hasNext()) return false;
         clearAttributes();
-        termAtt.setTermBuffer((String) tokens.next());
+        termAtt.setTermBuffer( tokens.next());
         posIncrAtt.setPositionIncrement(first ? 0 : 1);
         first = false;
         return true;
@@ -3644,7 +3646,7 @@ public class TestIndexWriter extends LuceneTestCase {
     Directory dir, dir2;
     final static int NUM_INIT_DOCS = 17;
     IndexWriter writer2;
-    final List failures = new ArrayList();
+    final List<Throwable> failures = new ArrayList<Throwable>();
     volatile boolean didClose;
     final IndexReader[] readers;
     final int NUM_COPY;
@@ -3993,7 +3995,7 @@ public class TestIndexWriter extends LuceneTestCase {
     w.setMaxBufferedDocs(2);
     for(int j=0;j<17;j++)
       addDoc(w);
-    Map data = new HashMap();
+    Map<String,String> data = new HashMap<String,String>();
     data.put("label", "test1");
     w.commit(data);
     w.close();
@@ -4041,7 +4043,7 @@ public class TestIndexWriter extends LuceneTestCase {
   // LUCENE-1429
   public void testOutOfMemoryErrorCausesCloseToFail() throws Exception {
 
-    final List thrown = new ArrayList();
+    final List<Throwable> thrown = new ArrayList<Throwable>();
 
     final IndexWriter writer = new IndexWriter(new MockRAMDirectory(), new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT), IndexWriter.MaxFieldLength.UNLIMITED) {
         @Override
@@ -4563,7 +4565,7 @@ public class TestIndexWriter extends LuceneTestCase {
     w.addDocument(doc);
     IndexReader r = w.getReader();
     doc = r.document(0);
-    Iterator it = doc.getFields().iterator();
+    Iterator<Fieldable> it = doc.getFields().iterator();
     assertTrue(it.hasNext());
     Field f = (Field) it.next();
     assertEquals(f.name(), "zzz");
@@ -4613,6 +4615,58 @@ public class TestIndexWriter extends LuceneTestCase {
 
     _TestUtil.checkIndex(dir);
     dir.close();
+  }
+  
+    // LUCENE-2095: make sure with multiple threads commit
+  // doesn't return until all changes are in fact in the
+  // index
+  public void testCommitThreadSafety() throws Throwable {
+    final int NUM_THREADS = 5;
+    final double RUN_SEC = 0.5;
+    final Directory dir = new MockRAMDirectory();
+    final IndexWriter w = new IndexWriter(dir, new SimpleAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
+    w.commit();
+    final AtomicBoolean failed = new AtomicBoolean();
+    Thread[] threads = new Thread[NUM_THREADS];
+    final long endTime = System.currentTimeMillis()+((long) (RUN_SEC*1000));
+    for(int i=0;i<NUM_THREADS;i++) {
+      final int finalI = i;
+      threads[i] = new Thread() {
+          public void run() {
+            try {
+              final Document doc = new Document();
+              IndexReader r = IndexReader.open(dir);
+              Field f = new Field("f", "", Field.Store.NO, Field.Index.NOT_ANALYZED);
+              doc.add(f);
+              int count = 0;
+              while(System.currentTimeMillis() < endTime && !failed.get()) {
+                for(int j=0;j<10;j++) {
+                  final String s = finalI + "_" + String.valueOf(count++);
+                  f.setValue(s);
+                  w.addDocument(doc);
+                  w.commit();
+                  IndexReader r2 = r.reopen();
+                  assertTrue(r2 != r);
+                  r.close();
+                  r = r2;
+                  assertEquals("term=f:" + s, 1, r.docFreq(new Term("f", s)));
+                }
+              }
+              r.close();
+            } catch (Throwable t) {
+              failed.set(true);
+              throw new RuntimeException(t);
+            }
+          }
+        };
+      threads[i].start();
+    }
+    for(int i=0;i<NUM_THREADS;i++) {
+      threads[i].join();
+    }
+    w.close();
+    dir.close();
+    assertFalse(failed.get());
   }
 
   // both start & end are inclusive

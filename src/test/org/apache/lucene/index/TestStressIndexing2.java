@@ -75,8 +75,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
     // dir1 = FSDirectory.open("foofoofoo");
     Directory dir2 = new MockRAMDirectory();
     // mergeFactor=2; maxBufferedDocs=2; Map docs = indexRandom(1, 3, 2, dir1);
-
-    Map docs = indexRandom(10, 10, 100, dir1);
+    Map<String,Document> docs = indexRandom(10, 10, 100, dir1);
     indexSerial(docs, dir2);
 
     // verifying verify
@@ -102,7 +101,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
       Directory dir2 = new MockRAMDirectory();
       //System.out.println("iter=" + iter + " range=" + range);
       //System.out.println("TEST: index random");
-      Map docs = indexRandom(nThreads, iter, range, dir1);
+      Map<String,Document> docs = indexRandom(nThreads, iter, range, dir1);
       //System.out.println("TEST: index serial");
       indexSerial(docs, dir2);
       //System.out.println("TEST: verify");
@@ -113,9 +112,9 @@ public class TestStressIndexing2 extends LuceneTestCase {
 
   static Term idTerm = new Term("id","");
   IndexingThread[] threads;
-  static Comparator fieldNameComparator = new Comparator() {
-        public int compare(Object o1, Object o2) {
-          return ((Fieldable)o1).name().compareTo(((Fieldable)o2).name());
+  static Comparator<Fieldable> fieldNameComparator = new Comparator<Fieldable>() {
+        public int compare(Fieldable o1, Fieldable o2) {
+          return o1.name().compareTo(o2.name());
         }
   };
 
@@ -124,12 +123,12 @@ public class TestStressIndexing2 extends LuceneTestCase {
   // everything.
   
   public static class DocsAndWriter {
-    Map docs;
+    Map<String,Document> docs;
     IndexWriter writer;
   }
   
   public DocsAndWriter indexRandomIWReader(int nThreads, int iterations, int range, Directory dir) throws IOException, InterruptedException {
-    Map docs = new HashMap();
+    Map<String,Document> docs = new HashMap<String,Document>();
     IndexWriter w = new MockIndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.UNLIMITED);
     w.setUseCompoundFile(false);
 
@@ -179,8 +178,8 @@ public class TestStressIndexing2 extends LuceneTestCase {
     return dw;
   }
   
-  public Map indexRandom(int nThreads, int iterations, int range, Directory dir) throws IOException, InterruptedException {
-    Map docs = new HashMap();
+  public Map<String,Document> indexRandom(int nThreads, int iterations, int range, Directory dir) throws IOException, InterruptedException {
+    Map<String,Document> docs = new HashMap<String,Document>();
     for(int iter=0;iter<3;iter++) {
       IndexWriter w = new MockIndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.UNLIMITED);
       w.setUseCompoundFile(false);
@@ -226,14 +225,14 @@ public class TestStressIndexing2 extends LuceneTestCase {
   }
 
   
-  public static void indexSerial(Map docs, Directory dir) throws IOException {
+  public static void indexSerial(Map<String,Document> docs, Directory dir) throws IOException {
     IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
 
     // index all docs in a single thread
-    Iterator iter = docs.values().iterator();
+    Iterator<Document> iter = docs.values().iterator();
     while (iter.hasNext()) {
-      Document d = (Document)iter.next();
-      ArrayList fields = new ArrayList();
+      Document d = iter.next();
+      ArrayList<Fieldable> fields = new ArrayList<Fieldable>();
       fields.addAll(d.getFields());
       // put fields in same order each time
       Collections.sort(fields, fieldNameComparator);
@@ -241,7 +240,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
       Document d1 = new Document();
       d1.setBoost(d.getBoost());
       for (int i=0; i<fields.size(); i++) {
-        d1.add((Fieldable) fields.get(i));
+        d1.add(fields.get(i));
       }
       w.addDocument(d1);
       // System.out.println("indexing "+d1);
@@ -406,8 +405,8 @@ public class TestStressIndexing2 extends LuceneTestCase {
   }
 
   public static void verifyEquals(Document d1, Document d2) {
-    List ff1 = d1.getFields();
-    List ff2 = d2.getFields();
+    List<Fieldable> ff1 = d1.getFields();
+    List<Fieldable> ff2 = d2.getFields();
 
     Collections.sort(ff1, fieldNameComparator);
     Collections.sort(ff2, fieldNameComparator);
@@ -420,8 +419,8 @@ public class TestStressIndexing2 extends LuceneTestCase {
 
 
     for (int i=0; i<ff1.size(); i++) {
-      Fieldable f1 = (Fieldable)ff1.get(i);
-      Fieldable f2 = (Fieldable)ff2.get(i);
+      Fieldable f1 = ff1.get(i);
+      Fieldable f2 = ff2.get(i);
       if (f1.isBinary()) {
         assert(f2.isBinary());
         //TODO
@@ -495,7 +494,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
     int base;
     int range;
     int iterations;
-    Map docs = new HashMap();  // Map<String,Document>
+    Map<String,Document> docs = new HashMap<String,Document>();  
     Random r;
 
     public int nextInt(int lim) {
@@ -576,7 +575,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
     public void indexDoc() throws IOException {
       Document d = new Document();
 
-      ArrayList fields = new ArrayList();      
+      ArrayList<Field> fields = new ArrayList<Field>();      
       String idString = getIdString();
       Field idField =  new Field(idTerm.field(), idString, Field.Store.YES, Field.Index.NOT_ANALYZED_NO_NORMS);
       fields.add(idField);
@@ -624,7 +623,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
       }
 
       for (int i=0; i<fields.size(); i++) {
-        d.add((Fieldable) fields.get(i));
+        d.add(fields.get(i));
       }
       w.updateDocument(idTerm.createTerm(idString), d);
       // System.out.println("indexing "+d);

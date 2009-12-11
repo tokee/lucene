@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -55,9 +56,9 @@ public class TestIndexReaderCloneNorms extends LuceneTestCase {
 
   private int numDocNorms;
 
-  private ArrayList norms;
+  private ArrayList<Float> norms;
 
-  private ArrayList modifiedNorms;
+  private ArrayList<Float> modifiedNorms;
 
   private float lastNorm = 0;
 
@@ -91,19 +92,19 @@ public class TestIndexReaderCloneNorms extends LuceneTestCase {
     Directory dir1 = FSDirectory.open(indexDir1);
     IndexWriter.unlock(dir1);
 
-    norms = new ArrayList();
-    modifiedNorms = new ArrayList();
+    norms = new ArrayList<Float>();
+    modifiedNorms = new ArrayList<Float>();
 
     createIndex(dir1);
     doTestNorms(dir1);
 
     // test with a single index: index2
-    ArrayList norms1 = norms;
-    ArrayList modifiedNorms1 = modifiedNorms;
+    ArrayList<Float> norms1 = norms;
+    ArrayList<Float> modifiedNorms1 = modifiedNorms;
     int numDocNorms1 = numDocNorms;
 
-    norms = new ArrayList();
-    modifiedNorms = new ArrayList();
+    norms = new ArrayList<Float>();
+    modifiedNorms = new ArrayList<Float>();
     numDocNorms = 0;
 
     File indexDir2 = new File(tempDir, "lucenetestindex2");
@@ -173,11 +174,11 @@ public class TestIndexReaderCloneNorms extends LuceneTestCase {
     SegmentReader reader1 = SegmentReader.getOnlySegmentReader(dir1);
     reader1.norms("field1");
     Norm r1norm = reader1.norms.get("field1");
-    SegmentReader.Ref r1BytesRef = r1norm.bytesRef();
+    AtomicInteger r1BytesRef = r1norm.bytesRef();
     SegmentReader reader2 = (SegmentReader)reader1.clone();
-    assertEquals(2, r1norm.bytesRef().refCount());
+    assertEquals(2, r1norm.bytesRef().get());
     reader1.close();
-    assertEquals(1, r1BytesRef.refCount());
+    assertEquals(1, r1BytesRef.get());
     reader2.norms("field1");
     reader2.close();
     dir1.close();
@@ -192,19 +193,19 @@ public class TestIndexReaderCloneNorms extends LuceneTestCase {
     SegmentReader segmentReader2C = SegmentReader.getOnlySegmentReader(reader2C);
     segmentReader2C.norms("field1"); // load the norms for the field
     Norm reader2CNorm = segmentReader2C.norms.get("field1");
-    assertTrue("reader2CNorm.bytesRef()=" + reader2CNorm.bytesRef(), reader2CNorm.bytesRef().refCount() == 2);
+    assertTrue("reader2CNorm.bytesRef()=" + reader2CNorm.bytesRef(), reader2CNorm.bytesRef().get() == 2);
     
     
     
     IndexReader reader3C = (IndexReader) reader2C.clone();
     SegmentReader segmentReader3C = SegmentReader.getOnlySegmentReader(reader3C);
     Norm reader3CCNorm = segmentReader3C.norms.get("field1");
-    assertEquals(3, reader3CCNorm.bytesRef().refCount());
+    assertEquals(3, reader3CCNorm.bytesRef().get());
     
     // edit a norm and the refcount should be 1
     IndexReader reader4C = (IndexReader) reader3C.clone();
     SegmentReader segmentReader4C = SegmentReader.getOnlySegmentReader(reader4C);
-    assertEquals(4, reader3CCNorm.bytesRef().refCount());
+    assertEquals(4, reader3CCNorm.bytesRef().get());
     reader4C.setNorm(5, "field1", 0.33f);
     
     // generate a cannot update exception in reader1
@@ -219,14 +220,14 @@ public class TestIndexReaderCloneNorms extends LuceneTestCase {
     assertTrue(Similarity.getDefault().decodeNormValue(segmentReader3C.norms("field1")[5]) 
     		!= Similarity.getDefault().decodeNormValue(segmentReader4C.norms("field1")[5]));
     Norm reader4CCNorm = segmentReader4C.norms.get("field1");
-    assertEquals(3, reader3CCNorm.bytesRef().refCount());
-    assertEquals(1, reader4CCNorm.bytesRef().refCount());
+    assertEquals(3, reader3CCNorm.bytesRef().get());
+    assertEquals(1, reader4CCNorm.bytesRef().get());
         
     IndexReader reader5C = (IndexReader) reader4C.clone();
     SegmentReader segmentReader5C = SegmentReader.getOnlySegmentReader(reader5C);
     Norm reader5CCNorm = segmentReader5C.norms.get("field1");
     reader5C.setNorm(5, "field1", 0.7f);
-    assertEquals(1, reader5CCNorm.bytesRef().refCount());    
+    assertEquals(1, reader5CCNorm.bytesRef().get());
 
     reader5C.close();
     reader4C.close();
@@ -256,8 +257,8 @@ public class TestIndexReaderCloneNorms extends LuceneTestCase {
     // System.out.println("modifyNormsForF1 maxDoc: "+n);
     for (int i = 0; i < n; i += 3) { // modify for every third doc
       int k = (i * 3) % modifiedNorms.size();
-      float origNorm = ((Float) modifiedNorms.get(i)).floatValue();
-      float newNorm = ((Float) modifiedNorms.get(k)).floatValue();
+      float origNorm =  modifiedNorms.get(i).floatValue();
+      float newNorm =  modifiedNorms.get(k).floatValue();
       // System.out.println("Modifying: for "+i+" from "+origNorm+" to
       // "+newNorm);
       // System.out.println(" and: for "+k+" from "+newNorm+" to "+origNorm);
@@ -282,10 +283,10 @@ public class TestIndexReaderCloneNorms extends LuceneTestCase {
       String field = "f" + i;
       byte b[] = ir.norms(field);
       assertEquals("number of norms mismatches", numDocNorms, b.length);
-      ArrayList storedNorms = (i == 1 ? modifiedNorms : norms);
+      ArrayList<Float> storedNorms = (i == 1 ? modifiedNorms : norms);
       for (int j = 0; j < b.length; j++) {
         float norm = Similarity.getDefault().decodeNormValue(b[j]);
-        float norm1 = ((Float) storedNorms.get(j)).floatValue();
+        float norm1 =  storedNorms.get(j).floatValue();
         assertEquals("stored norm value of " + field + " for doc " + j + " is "
             + norm + " - a mismatch!", norm, norm1, 0.000001);
       }

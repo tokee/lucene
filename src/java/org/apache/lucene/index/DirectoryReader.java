@@ -730,13 +730,25 @@ class DirectoryReader extends IndexReader implements Cloneable {
   @Override
   public TermEnum terms() throws IOException {
     ensureOpen();
-    return new MultiTermEnum(this, subReaders, starts, null);
+    //nocommit: investigate this opto
+//    if (subReaders.length == 1) {
+      // Optimize single segment case:
+//      return subReaders[0].terms();
+//    } else {
+      return new MultiTermEnum(this, subReaders, starts, null);
+//    }
   }
 
   @Override
   public TermEnum terms(Term term) throws IOException {
     ensureOpen();
-    return new MultiTermEnum(this, subReaders, starts, term);
+    //nocommit: investigate this opto
+//    if (subReaders.length == 1) {
+      // Optimize single segment case:
+//      return subReaders[0].terms(term);
+//    } else {
+      return new MultiTermEnum(this, subReaders, starts, term);
+//    }
   }
 
   @Override
@@ -761,7 +773,23 @@ class DirectoryReader extends IndexReader implements Cloneable {
   @Override
   public TermDocs termDocs() throws IOException {
     ensureOpen();
-    return new MultiTermDocs(this, subReaders, starts);
+    if (subReaders.length == 1) {
+      // Optimize single segment case:
+      return subReaders[0].termDocs();
+    } else {
+      return new MultiTermDocs(this, subReaders, starts);
+    }
+  }
+
+  @Override
+  public TermDocs termDocs(Term term) throws IOException {
+    ensureOpen();
+    if (subReaders.length == 1) {
+      // Optimize single segment case:
+      return subReaders[0].termDocs(term);
+    } else {
+      return super.termDocs(term);
+    }
   }
 
   @Override
@@ -777,7 +805,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
   @Override
   public TermPositions termPositions() throws IOException {
     ensureOpen();
-    return new MultiTermPositions(this, subReaders, starts);
+    if (subReaders.length == 1) {
+      // Optimize single segment case:
+      return subReaders[0].termPositions();
+    } else {
+      return new MultiTermPositions(this, subReaders, starts);
+    }
   }
 
   /**
