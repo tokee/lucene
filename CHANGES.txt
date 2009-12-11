@@ -4,6 +4,10 @@ $Id$
 ======================= Trunk (not yet released) =======================
 Changes in backwards compatibility policy
 
+* LUCENE-2123: Removed the protected inner class ScoreTerm from
+  FuzzyQuery. The class was never intended to be public.
+  (Uwe Schindler, Mike McCandless)
+
 Changes in runtime behavior
 
 API Changes
