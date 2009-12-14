@@ -80,11 +80,23 @@ public abstract class MultiTermQuery extends Query {
     public void setBoost(float boost);
     /** Retrieves the boost, default is {@code 1.0f}. */
     public float getBoost();
+    /** Sets the maximum boost for terms that would never get
+     * into the priority queue of {@link MultiTermQuery#TOP_TERMS_SCORING_BOOLEAN_REWRITE}.
+     * This value is not changed by {@link AttributeImpl#clear}
+     * and not used in {@code equals()} and {@code hashCode()}.
+     * Do not change the value in the {@link TermsEnum}!
+     */
+    public void setMaxNonCompetitiveBoost(float maxNonCompetitiveBoost);
+    /** Retrieves the maximum boost that is not competitive,
+     * default is megative infinity. You can use this boost value
+     * as a hint when writing the {@link TermsEnum}.
+     */
+    public float getMaxNonCompetitiveBoost();
   }
 
   /** Implementation class for {@link BoostAttribute}. */
-  public static class BoostAttributeImpl extends AttributeImpl implements BoostAttribute {
-    private float boost = 1.0f;
+  public static final class BoostAttributeImpl extends AttributeImpl implements BoostAttribute {
+    private float boost = 1.0f, maxNonCompetitiveBoost = Float.NEGATIVE_INFINITY;
   
     public void setBoost(float boost) {
       this.boost = boost;
@@ -92,6 +104,14 @@ public abstract class MultiTermQuery extends Query {
     
     public float getBoost() {
       return boost;
+    }
+  
+    public void setMaxNonCompetitiveBoost(float maxNonCompetitiveBoost) {
+      this.maxNonCompetitiveBoost = maxNonCompetitiveBoost;
+    }
+    
+    public float getMaxNonCompetitiveBoost() {
+      return maxNonCompetitiveBoost;
     }
 
     @Override
@@ -161,6 +181,7 @@ public abstract class MultiTermQuery extends Query {
           termsEnum.attributes().addAttribute(BoostAttribute.class);
         if (query.field == null)
           throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
+        collector.boostAtt = boostAtt;
         int count = 0;
         TermRef term;
         final Term placeholderTerm = new Term(query.field);
@@ -171,6 +192,7 @@ public abstract class MultiTermQuery extends Query {
             break;
           }
         }
+        collector.boostAtt = null;
         return count;
       } else {
         // deprecated case
@@ -194,9 +216,17 @@ public abstract class MultiTermQuery extends Query {
       }
     }
     
-    protected interface TermCollector {
+    protected static abstract class TermCollector {
+      /** this field is only set if a boostAttribute is used (e.g. {@link FuzzyTermsEnum}) */
+      private BoostAttribute boostAtt = null;
+    
       /** return false to stop collecting */
-      boolean collect(Term t, float boost) throws IOException;
+      public abstract boolean collect(Term t, float boost) throws IOException;
+      
+      /** set the minimum boost as a hint for the term producer */
+      protected final void setMaxNonCompetitiveBoost(float maxNonCompetitiveBoost) {
+        if (boostAtt != null) boostAtt.setMaxNonCompetitiveBoost(maxNonCompetitiveBoost);
+      }
     }
     
   }
@@ -253,6 +283,7 @@ public abstract class MultiTermQuery extends Query {
           stQueue.offer(st);
           // possibly drop entries from queue
           st = (stQueue.size() > maxSize) ? stQueue.poll() : new ScoreTerm();
+          setMaxNonCompetitiveBoost((stQueue.size() >= maxSize) ? stQueue.peek().boost : Float.NEGATIVE_INFINITY);
           return true;
         }
         
@@ -416,7 +447,7 @@ public abstract class MultiTermQuery extends Query {
       }
     }
     
-    private static final class CutOffTermCollector implements TermCollector {
+    private static final class CutOffTermCollector extends TermCollector {
       CutOffTermCollector(IndexReader reader, int docCountCutoff, int termCountLimit) {
         this.reader = reader;
         this.docCountCutoff = docCountCutoff;
