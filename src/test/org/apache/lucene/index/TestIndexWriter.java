@@ -2204,7 +2204,7 @@ public class TestIndexWriter extends LuceneTestCase {
       int fullCount = 0;
       final long stopTime = System.currentTimeMillis() + 200;
 
-      while(System.currentTimeMillis() < stopTime) {
+      do {
         try {
           writer.updateDocument(new Term("id", ""+(idUpto++)), doc);
           addCount++;
@@ -2238,7 +2238,7 @@ public class TestIndexWriter extends LuceneTestCase {
           }
           break;
         }
-      }
+      } while(System.currentTimeMillis() < stopTime);
     }
   }
 
