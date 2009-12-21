@@ -26,6 +26,7 @@ import java.util.*;
 // nocommit -- test multiple codecs here?
 
 // TODO
+//   - test across fields
 //   - fix this test to run once for all codecs
 //   - make more docs per term, to test > 1 level skipping
 //   - test all combinations of payloads/not and omitTF/not

@@ -69,7 +69,7 @@ public abstract class DocsConsumer {
         if (docMap != null) {
           // map around deletions
           doc = docMap[startDoc];
-          assert doc != -1: "postings enum returned deleted docID " + startDoc + " freq=" + docs.freq() + " df=" + df;
+          assert doc != -1: "docs enum returned deleted docID " + startDoc + " freq=" + docs.freq() + " df=" + df + " de=" + docs;
         } else {
           doc = startDoc;
         }

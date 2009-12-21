@@ -22,32 +22,40 @@ import org.apache.lucene.util.Bits;
 
 /** Implements flex API (FieldsEnum/TermsEnum) on top of
  *  pre-flex API.  Used only for IndexReader impls outside
- *  Lucene's core. */
+ *  Lucene's core.
+ *
+ *  @deprecated Migrate the external reader to the flex API */
+@Deprecated
 class LegacyFieldsEnum extends FieldsEnum {
   private final IndexReader r;
   private TermEnum terms;
   private String field;
+  private boolean init;
 
   public LegacyFieldsEnum(IndexReader r) throws IOException {
     this.r = r;
     terms = r.terms();
-  }
-
-  private void doSeek(Term t) throws IOException {
-    terms.close();
-    terms = r.terms(t);
+    init = true;
   }
 
   @Override
   public String next() throws IOException {
 
     if (field != null) {
-      final Term seekTo = new Term(field, "\uFFFF");
-      doSeek(seekTo);
+      terms.close();
+      // jump to end of the current field:
+      terms = r.terms(new Term(field, "\uFFFF"));
+      assert terms.term() == null || !terms.term().field.equals(field);
+    }
+    if (init) {
+      init = false;
+      if (!terms.next()) {
+        return null;
+      }
     }
     if (terms.term() != null) {
       String newField = terms.term().field;
-      assert !newField.equals(field);
+      assert field == null || !newField.equals(field);
       field = newField;
       return field;
     } else {
@@ -66,11 +74,12 @@ class LegacyFieldsEnum extends FieldsEnum {
     private TermEnum terms;
     private TermRef current;
     private final TermRef tr = new TermRef();
+    private final LegacyDocsEnum docsEnum;
 
     LegacyTermsEnum(IndexReader r, String field) throws IOException {
       this.r = r;
       this.field = field;
-      this.terms = r.terms(new Term(field, ""));
+      docsEnum = new LegacyDocsEnum(r, field);
     }
 
     @Override
@@ -81,11 +90,9 @@ class LegacyFieldsEnum extends FieldsEnum {
 
     @Override
     public SeekStatus seek(TermRef text) throws IOException {
-      
-      // nocommit -- should we optimize for "silly seek"
-      // cases, here?  ie seek to term you're already on, to
-      // very next term , etc.
-      terms.close();
+      if (terms != null) {
+        terms.close();
+      }
       terms = r.terms(new Term(field, text.toString()));
 
       final Term t = terms.term();
@@ -117,16 +124,23 @@ class LegacyFieldsEnum extends FieldsEnum {
 
     @Override
     public TermRef next() throws IOException {
-      if (terms.next()) {
+      if (terms == null) {
+        // first next -- seek to start of field
+        terms = r.terms(new Term(field, ""));
+        if (terms.term() == null) {
+          return null;
+        } else {
+          tr.copy(terms.term().text());
+          return current = tr;
+        }
+      } else if (terms.next()) {
         if (terms.term().field == field) {
           tr.copy(terms.term().text());
-          current = tr;
+          return current = tr;
         } else {
-          current = null;
+          return null;
         }
-        return current;
       } else {
-        current = null;
         return null;
       }
     }
@@ -136,12 +150,6 @@ class LegacyFieldsEnum extends FieldsEnum {
       return current;
     }
 
-    /*
-    public String text() {
-      return terms.term().text;
-    }
-    */
-
     @Override
     public int docFreq() {
       return terms.docFreq();
@@ -149,7 +157,8 @@ class LegacyFieldsEnum extends FieldsEnum {
 
     @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
-      return new LegacyDocsEnum(r, field, terms.term(), skipDocs);
+      docsEnum.reset(terms.term(), skipDocs);
+      return docsEnum;
     }
 
     public void close() throws IOException {
@@ -159,30 +168,39 @@ class LegacyFieldsEnum extends FieldsEnum {
 
   // Emulates flex on top of legacy API
   private static class LegacyDocsEnum extends DocsEnum {
-    final TermDocs td;
-    final Term term;
-    final IndexReader r;
-    final String field;
-    final Bits skipDocs;
+    private final IndexReader r;
+    private final String field;
+    private final TermPositions tp;
+    private final LegacyPositionsEnum posEnum;
 
-    TermPositions tp;
-    int doc = -1;
+    private Term term;
 
-    LegacyDocsEnum(IndexReader r, String field, Term term, Bits skipDocs) throws IOException {
+    private int doc = -1;
+
+    LegacyDocsEnum(IndexReader r, String field) throws IOException {
       this.r = r;
       this.field = field;
-      this.term = term;
-      td = r.termDocs(term);
-      this.skipDocs = skipDocs;
+      tp = r.termPositions();
+      posEnum = new LegacyPositionsEnum(tp);
     }
 
-    // nocommit -- must enforce skipDocs... but old API will
-    // always secretly skip deleted docs, and we can't work
-    // around that for external readers?
+    public void reset(Term term, Bits skipDocs) throws IOException {
+      this.term = term;
+      tp.seek(term);
+
+      if (skipDocs != r.getDeletedDocs()) {
+        // An external reader's TermDocs/Positions will
+        // silently skip deleted docs, so, we can't allow
+        // arbitrary skipDocs here:
+        //System.out.println("skipDocs=" + skipDocs + " vs " + r.getDeletedDocs());
+        throw new IllegalStateException("external IndexReader requires skipDocs == IndexReader.getDeletedDocs()");
+      }
+    }
+
     @Override
     public int nextDoc() throws IOException {
-      if (td.next()) {
-        return doc = td.doc();
+      if (tp.next()) {
+        return doc = tp.doc();
       } else {
         return doc = NO_MORE_DOCS;
       }
@@ -190,8 +208,8 @@ class LegacyFieldsEnum extends FieldsEnum {
 
     @Override
     public int advance(int target) throws IOException {
-      if (td.skipTo(target)) {
-        return doc = td.doc();
+      if (tp.skipTo(target)) {
+        return doc = tp.doc();
       } else {
         return doc = NO_MORE_DOCS;
       }
@@ -199,7 +217,7 @@ class LegacyFieldsEnum extends FieldsEnum {
 
     @Override
     public int freq() {
-      return td.freq();
+      return tp.freq();
     }
 
     @Override
@@ -207,27 +225,18 @@ class LegacyFieldsEnum extends FieldsEnum {
       return doc;
     }
 
-    @Override
-    public int read(int[] docs, int[] freqs) throws IOException {
-      return td.read(docs, freqs);
-    }
-
     public void close() throws IOException {
-      td.close();
+      tp.close();
     }
-
-    LegacyPositionsEnum lpe;
 
     @Override
     public PositionsEnum positions() throws IOException {
-      if (tp == null) {
-        tp = r.termPositions(term);
-        lpe = new LegacyPositionsEnum(tp);
-      } else {
-        tp.seek(term);
-      }
-      return lpe;
+      return posEnum;
     }
+
+    // NOTE: we don't override bulk-read (docs & freqs) API
+    // -- leave it to base class, because TermPositions
+    // can't do bulk read
   }
 
   // Emulates flex on top of legacy API

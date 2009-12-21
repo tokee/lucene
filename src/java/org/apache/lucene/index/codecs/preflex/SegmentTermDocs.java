@@ -31,9 +31,9 @@ import org.apache.lucene.util.Bits;
 /** @deprecated */
 public class SegmentTermDocs implements TermDocs {
   //protected SegmentReader parent;
-  protected final Bits skipDocs;
   private final FieldInfos fieldInfos;
   private final TermInfosReader tis;
+  protected Bits skipDocs;
   protected IndexInput freqStream;
   protected int count;
   protected int df;
@@ -66,9 +66,8 @@ public class SegmentTermDocs implements TermDocs {
   */
 
   // nocommit -- SR needs public
-  public SegmentTermDocs(IndexInput freqStream, Bits skipDocs, TermInfosReader tis, FieldInfos fieldInfos) {
+  public SegmentTermDocs(IndexInput freqStream, TermInfosReader tis, FieldInfos fieldInfos) {
     this.freqStream = (IndexInput) freqStream.clone();
-    this.skipDocs = skipDocs;
     this.tis = tis;
     this.fieldInfos = fieldInfos;
     skipInterval = tis.getSkipInterval();
@@ -78,6 +77,10 @@ public class SegmentTermDocs implements TermDocs {
   public void seek(Term term) throws IOException {
     TermInfo ti = tis.get(term);
     seek(ti, term);
+  }
+
+  public void setSkipDocs(Bits skipDocs) {
+    this.skipDocs = skipDocs;
   }
 
   public void seek(TermEnum termEnum) throws IOException {

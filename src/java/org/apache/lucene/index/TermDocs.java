@@ -30,6 +30,7 @@ import java.io.Closeable;
  @deprecated Use {@link DocsEnum} instead
 */
 
+@Deprecated
 public interface TermDocs extends Closeable {
   /** Sets this to the data for a term.
    * The enumeration is reset to the start of the data for this term.

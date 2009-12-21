@@ -30,7 +30,12 @@ import org.apache.lucene.index.codecs.FieldsProducer;
 
 /** Codec that reads the pre-flex-indexing postings
  *  format.  It does not provide a writer because newly
- *  written segments should use StandardCodec. */
+ *  written segments should use StandardCodec.
+ *
+ * @deprecated This is only used to read indexes created
+ * before 3.1.
+ */
+@Deprecated
 public class PreFlexCodec extends Codec {
 
   /** Extension of terms file */

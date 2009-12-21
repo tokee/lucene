@@ -116,8 +116,8 @@ public class PreFlexFields extends FieldsProducer {
   }
 
   @Override
-  public FieldsEnum iterator() {
-    return new Fields();
+  public FieldsEnum iterator() throws IOException {
+    return new PreFlexFieldsEnum();
   }
 
   @Override
@@ -177,42 +177,32 @@ public class PreFlexFields extends FieldsProducer {
     }
   }
 
-  private class Fields extends FieldsEnum {
-    Iterator<FieldInfo> it;
+  private class PreFlexFieldsEnum extends FieldsEnum {
+    final Iterator<FieldInfo> it;
+    private final PreTermsEnum termsEnum;
+    private int count;
     FieldInfo current;
-    private SegmentTermEnum lastTermEnum;
-    private int fieldCount;
 
-    public Fields() {
+    public PreFlexFieldsEnum() throws IOException {
       it = fields.values().iterator();
+      termsEnum = new PreTermsEnum();
     }
 
     @Override
     public String next() {
       if (it.hasNext()) {
-        fieldCount++;
+        count++;
         current = it.next();
         return current.name;
       } else {
         return null;
       }
     }
-    
+
     @Override
     public TermsEnum terms() throws IOException {
-      final PreTermsEnum terms;
-      if (lastTermEnum != null) {
-        // Re-use SegmentTermEnum to avoid seeking for
-        // linear scan (done by merging)
-        terms = new PreTermsEnum(current, lastTermEnum);
-      } else {
-        // If fieldCount is 1 then the terms enum can simply
-        // start at the start of the index (need not seek to
-        // the current field):
-        terms = new PreTermsEnum(current, fieldCount != 1);
-        lastTermEnum = terms.terms;
-      }
-      return terms;
+      termsEnum.reset(current, count == 1);
+      return termsEnum;
     }
   }
   
@@ -223,9 +213,10 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public TermsEnum iterator() throws IOException {
-      //System.out.println("pff.init create no context");
-      return new PreTermsEnum(fieldInfo, true);
+    public TermsEnum iterator() throws IOException {    
+      PreTermsEnum termsEnum = new PreTermsEnum();
+      termsEnum.reset(fieldInfo, false);
+      return termsEnum;
     }
 
     @Override
@@ -236,41 +227,38 @@ public class PreFlexFields extends FieldsProducer {
   }
 
   private class PreTermsEnum extends TermsEnum {
-    private SegmentTermEnum terms;
-    private final FieldInfo fieldInfo;
-    private PreDocsEnum docsEnum; // nocommit -- unused
+    private SegmentTermEnum termEnum;
+    private FieldInfo fieldInfo;
+    private final PreDocsEnum docsEnum;
     private boolean skipNext;
     private TermRef current;
     private final TermRef scratchTermRef = new TermRef();
 
-    // Pass needsSeek=false if the field is the very first
-    // field in the index -- this is used for linear scan of
-    // the index, eg when merging segments:
-    PreTermsEnum(FieldInfo fieldInfo, boolean needsSeek) throws IOException {
-      this.fieldInfo = fieldInfo;
-      if (!needsSeek) {
-        terms = getTermsDict().terms();
-      } else {
-        terms = getTermsDict().terms(new Term(fieldInfo.name, ""));
-        skipNext = true;
-      }
+    public PreTermsEnum() throws IOException {
+      docsEnum = new PreDocsEnum();
     }
 
-    PreTermsEnum(FieldInfo fieldInfo, SegmentTermEnum terms) throws IOException {
+    void reset(FieldInfo fieldInfo, boolean isFirstField) throws IOException {
       this.fieldInfo = fieldInfo;
-      if (terms.term() == null || terms.term().field() != fieldInfo.name) {
-        terms = getTermsDict().terms(new Term(fieldInfo.name, ""));
+      if (termEnum == null) {
+        // First time reset is called
+        if (isFirstField) {
+          termEnum = getTermsDict().terms();
+          skipNext = false;
+        } else {
+          termEnum = getTermsDict().terms(new Term(fieldInfo.name, ""));
+          skipNext = true;
+        }
       } else {
-        // Carefully avoid seeking in the linear-scan case,
-        // because segment doesn't load/need the terms dict
-        // index during merging.  If the terms is already on
-        // our field, it must be because it had seeked to
-        // exhaustion on the last field
-        this.terms = terms;
-      }
-      skipNext = true;
-      if (Codec.DEBUG) {
-        System.out.println("pff.terms.init field=" + fieldInfo.name);
+        final Term t = termEnum.term();
+        if (t != null && t.field() == fieldInfo.name) {
+          // No need to seek -- we have already advanced onto
+          // this field
+        } else {
+          assert t == null || !t.field().equals(fieldInfo.name);  // make sure field name is interned
+          termEnum = getTermsDict().terms(new Term(fieldInfo.name, ""));
+        }
+        skipNext = true;
       }
     }
 
@@ -295,8 +283,9 @@ public class PreFlexFields extends FieldsProducer {
       if (Codec.DEBUG) {
         System.out.println("pff.seek term=" + term);
       }
-      terms = getTermsDict().terms(new Term(fieldInfo.name, term.toString()));
-      final Term t = terms.term();
+      skipNext = false;
+      termEnum = getTermsDict().terms(new Term(fieldInfo.name, term.toString()));
+      final Term t = termEnum.term();
 
       final TermRef tr;
       if (t != null) {
@@ -321,14 +310,16 @@ public class PreFlexFields extends FieldsProducer {
     @Override
     public TermRef next() throws IOException {
       if (skipNext) {
-        // nocommit -- is there a cleaner way?
         skipNext = false;
-        scratchTermRef.copy(terms.term().text());
-        current = scratchTermRef;
-        return current;
+        if (termEnum.term() == null) {
+          return null;
+        } else {
+          scratchTermRef.copy(termEnum.term().text());
+          return current = scratchTermRef;
+        }
       }
-      if (terms.next()) {
-        final Term t = terms.term();
+      if (termEnum.next()) {
+        final Term t = termEnum.term();
         if (Codec.DEBUG) {
           System.out.println("pff.next term=" + t);
         }
@@ -340,15 +331,14 @@ public class PreFlexFields extends FieldsProducer {
           current = scratchTermRef;
           return current;
         } else {
+          assert !t.field().equals(fieldInfo.name);  // make sure field name is interned
           // Crossed into new field
           if (Codec.DEBUG) {
             System.out.println("  stop (new field " + t.field());
           }
-          current = null;
           return null;
         }
       } else {
-        current = null;
         return null;
       }
     }
@@ -360,36 +350,29 @@ public class PreFlexFields extends FieldsProducer {
 
     @Override
     public int docFreq() {
-      return terms.docFreq();
+      return termEnum.docFreq();
     }
 
     @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
-      // nocommit -- reuse?
-      return new PreDocsEnum(skipDocs, terms);
+      docsEnum.reset(termEnum, skipDocs);        
+      return docsEnum;
     }
   }
 
   private final class PreDocsEnum extends DocsEnum {
-    final private SegmentTermDocs docs;
     final private SegmentTermPositions pos;
-    private SegmentTermDocs current;
     final private PrePositionsEnum prePos;
+    private Bits skipDocs;
 
-    PreDocsEnum(Bits skipDocs, Term t) throws IOException {
-      current = docs = new SegmentTermDocs(freqStream, skipDocs, getTermsDict(), fieldInfos);
-      pos = new SegmentTermPositions(freqStream, proxStream, skipDocs, getTermsDict(), fieldInfos);
+    PreDocsEnum() throws IOException {
+      pos = new SegmentTermPositions(freqStream, proxStream, getTermsDict(), fieldInfos);
       prePos = new PrePositionsEnum(pos);
-      docs.seek(t);
-      pos.seek(t);
     }
 
-    PreDocsEnum(Bits skipDocs, SegmentTermEnum te) throws IOException {
-      current = docs = new SegmentTermDocs(freqStream, skipDocs, getTermsDict(), fieldInfos);
-      pos = new SegmentTermPositions(freqStream, proxStream, skipDocs, getTermsDict(), fieldInfos);
-      prePos = new PrePositionsEnum(pos);
-      docs.seek(te);
-      pos.seek(te);
+    public void reset(SegmentTermEnum termEnum, Bits skipDocs) throws IOException {
+      pos.setSkipDocs(skipDocs);
+      pos.seek(termEnum);
     }
 
     @Override
@@ -397,8 +380,8 @@ public class PreFlexFields extends FieldsProducer {
       if (Codec.DEBUG) {
         System.out.println("pff.docs.next");
       }
-      if (current.next()) {
-        return current.doc();
+      if (pos.next()) {
+        return pos.doc();
       } else {
         return NO_MORE_DOCS;
       }
@@ -406,8 +389,8 @@ public class PreFlexFields extends FieldsProducer {
 
     @Override
     public int advance(int target) throws IOException {
-      if (current.skipTo(target)) {
-        return current.doc();
+      if (pos.skipTo(target)) {
+        return pos.doc();
       } else {
         return NO_MORE_DOCS;
       }
@@ -415,31 +398,22 @@ public class PreFlexFields extends FieldsProducer {
 
     @Override
     public int freq() {
-      return current.freq();
+      return pos.freq();
     }
 
     @Override
     public int docID() {
-      return current.doc();
-    }
-
-    @Override
-    public int read(int[] docIDs, int[] freqs) throws IOException {
-      if (current != docs) {
-        docs.skipTo(current.doc());
-        current = docs;
-      }
-      return current.read(docIDs, freqs);
+      return pos.doc();
     }
 
     @Override
     public PositionsEnum positions() throws IOException {
-      if (current != pos) {
-        pos.skipTo(docs.doc());
-        current = pos;
-      }
       return prePos;
     }
+
+    // NOTE: we don't override bulk-read (docs & freqs) API
+    // -- leave it to base class, because TermPositions
+    // can't do bulk read
   }
 
   private final class PrePositionsEnum extends PositionsEnum {

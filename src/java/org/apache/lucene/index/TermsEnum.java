@@ -98,10 +98,10 @@ public abstract class TermsEnum {
    *  are done using the DocsEnum. */
   public abstract DocsEnum docs(Bits skipDocs) throws IOException;
 
-  /** Return the TermRef Comparator used to sort terms
-   *  provided by the iterator.  NOTE: this may return null
-   *  if there are no terms.  This method may be invoked
-   *  many times; it's best to cache a single instance &
-   *  reuse it. */
+  /** Return the {@link TermRef} Comparator used to sort
+   *  terms provided by the iterator.  NOTE: this may return
+   *  null if there are no terms.  Callers may invoke this
+   *  method many times, so it's best to cache a single
+   *  instance & reuse it. */
   public abstract TermRef.Comparator getTermComparator() throws IOException;
 }

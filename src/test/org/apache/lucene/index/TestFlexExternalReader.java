@@ -27,106 +27,6 @@ import org.apache.lucene.util.*;
 
 public class TestFlexExternalReader extends LuceneTestCase {
 
-  // Delegates to a "normal" IndexReader, making it look
-  // "external", to force testing of the "flex API on
-  // external reader" layer
-  private final static class ExternalReader extends IndexReader {
-    private final IndexReader r;
-    public ExternalReader(IndexReader r) {
-      this.r = r;
-    }
-
-    public TermFreqVector[] getTermFreqVectors(int docNumber) throws IOException {
-      return r.getTermFreqVectors(docNumber);
-    }
-
-    public TermFreqVector getTermFreqVector(int docNumber, String field) throws IOException {
-      return r.getTermFreqVector(docNumber, field);
-    }
-
-    public void getTermFreqVector(int docNumber, String field, TermVectorMapper mapper) throws IOException {
-      r.getTermFreqVector(docNumber, field, mapper);
-    }
-
-    public void getTermFreqVector(int docNumber, TermVectorMapper mapper) throws IOException {
-      r.getTermFreqVector(docNumber, mapper);
-    }
-
-    public int numDocs() {
-      return r.numDocs();
-    }
-
-    public int maxDoc() {
-      return r.maxDoc();
-    }
-
-    public Document document(int n, FieldSelector fieldSelector) throws CorruptIndexException, IOException {
-      return r.document(n, fieldSelector);
-    }
-
-    public boolean isDeleted(int n) {
-      return r.isDeleted(n);
-    }
-
-    public boolean hasDeletions() {
-      return r.hasDeletions();
-    }
-
-    public byte[] norms(String field) throws IOException {
-      return r.norms(field);
-    }
-
-    public void norms(String field, byte[] bytes, int offset) 
-      throws IOException {
-      r.norms(field, bytes, offset);
-    }
-    
-    protected  void doSetNorm(int doc, String field, byte value)
-      throws CorruptIndexException, IOException {
-      r.doSetNorm(doc, field, value);
-    }
-
-    public TermEnum terms() throws IOException {
-      return r.terms();
-    }
-
-    public TermEnum terms(Term t) throws IOException {
-      return r.terms(t);
-    }
-
-    public int docFreq(Term t) throws IOException {
-      return r.docFreq(t);
-    }
-
-    public TermDocs termDocs() throws IOException {
-      return r.termDocs();
-    }
-
-    public TermPositions termPositions() throws IOException {
-      return r.termPositions();
-    }
-
-    public void doDelete(int docID) throws IOException {
-      r.doDelete(docID);
-    }
-
-    public void doUndeleteAll() throws IOException {
-      r.doUndeleteAll();
-    }
-
-    protected void doCommit(Map<String, String> commitUserData) throws IOException {
-      r.doCommit(commitUserData);
-    }
-
-    protected void doClose() throws IOException {
-      r.doClose();
-    }
-
-    public Collection<String> getFieldNames(FieldOption fldOption) {
-      return r.getFieldNames(fldOption);
-    }
-  }
-
   public void testExternalReader() throws Exception {
     Directory d = new MockRAMDirectory();
 
@@ -144,7 +44,7 @@ public class TestFlexExternalReader extends LuceneTestCase {
       w.addDocument(doc);
     }
 
-    IndexReader r = new ExternalReader(w.getReader());
+    IndexReader r = new FlexTestUtil.ForcedExternalReader(w.getReader());
 
     TermRef field1Term = new TermRef("field1");
     TermRef field2Term = new TermRef("field2");

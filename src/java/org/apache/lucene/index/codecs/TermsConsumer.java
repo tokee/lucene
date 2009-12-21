@@ -110,6 +110,7 @@ public abstract class TermsConsumer {
 
       while(true) {
         TermMergeState state = pending[pendingCount++] = queue.pop();
+        
         DocsEnum docsEnum = state.termsEnum.docs(mergeState.readers.get(state.readerIndex).getDeletedDocs());
         if (docsEnum != null) {
           match[matchCount].docsEnum = docsEnum;

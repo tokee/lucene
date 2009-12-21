@@ -813,7 +813,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
       // direct access to old:
       return ((PreFlexFields) core.fields).tis.terms();
     } else {
-      // Emulate old API on top of new index
+      // Emulate pre-flex API on top of flex index
       return new LegacyTermEnum(null);
     }
   }
@@ -829,7 +829,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
       // direct access to old:
       return ((PreFlexFields) core.fields).tis.terms(t);
     } else {
-      // Emulate old API on top of new index
+      // Emulate pre-flex API on top of flex index
       return new LegacyTermEnum(t);
     }
   }
@@ -875,7 +875,9 @@ public class SegmentReader extends IndexReader implements Cloneable {
       // converting old API -> new API -> old API, just give
       // direct access to old:
       final PreFlexFields pre = (PreFlexFields) core.fields;
-      return new SegmentTermDocs(pre.freqStream, deletedDocs, pre.tis, core.fieldInfos);
+      SegmentTermDocs std = new SegmentTermDocs(pre.freqStream, pre.tis, core.fieldInfos);
+      std.setSkipDocs(deletedDocs);
+      return std;
     } else {
       // Emulate old API
       return new LegacyTermDocs();
@@ -892,7 +894,9 @@ public class SegmentReader extends IndexReader implements Cloneable {
       // converting old API -> new API -> old API, just give
       // direct access to old:
       final PreFlexFields pre = (PreFlexFields) core.fields;
-      return new SegmentTermPositions(pre.freqStream, pre.proxStream, deletedDocs, pre.tis, core.fieldInfos);
+      SegmentTermPositions stp = new SegmentTermPositions(pre.freqStream, pre.proxStream, pre.tis, core.fieldInfos);
+      stp.setSkipDocs(deletedDocs);
+      return stp;
     } else
       // Emulate old API
       return new LegacyTermPositions();
@@ -1295,7 +1299,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     return core.termsIndexDivisor;
   }
   
-  // Back compat: legacy TermEnum API over flex API
+  // Back compat: pre-flex TermEnum API over flex API
   final private class LegacyTermEnum extends TermEnum {
     FieldsEnum fields;
     TermsEnum terms;
@@ -1304,7 +1308,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
     TermRef currentTerm;
 
     public LegacyTermEnum(Term t) throws IOException {
-      // System.out.println("sr.lte.init: term=" + t);
       fields = core.fields.iterator();
       currentField = fields.next();
       if (currentField == null) {
@@ -1319,7 +1322,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         while(currentField.compareTo(t.field) < 0) {
           currentField = fields.next();
           if (currentField == null) {
-            // Didn't find the field
+            // Hit end of fields
             done = true;
             break;
           }
@@ -1329,10 +1332,12 @@ public class SegmentReader extends IndexReader implements Cloneable {
           // We found some field -- get its terms:
           terms = fields.terms();
 
-          if (currentField.equals(t.field)) {
+          // nocommit: confirm inlining is working!
+          if (currentField == t.field) {
             // We found exactly the requested field; now
             // seek the term text:
             String text = t.text();
+
             // this is only for backwards compatibility.
             // previously you could supply a term with unpaired surrogates,
             // and it would return the next Term.
@@ -1340,6 +1345,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
             // this emulates the old behavior, and forms "valid UTF-8" unicode.
             TermRef tr = new TermRef(UnicodeUtil.nextValidUTF16String(text));
             TermsEnum.SeekStatus status = terms.seek(tr);
+
             if (status == TermsEnum.SeekStatus.END) {
               // Rollover to the next field
               terms = null;
@@ -1379,8 +1385,9 @@ public class SegmentReader extends IndexReader implements Cloneable {
           // Advance to the next field
           currentField = fields.next();
           if (currentField == null) {
-            if (Codec.DEBUG)
+            if (Codec.DEBUG) {
               System.out.println("  fields.next returned false");
+            }
             done = true;
             return false;
           }
@@ -1569,6 +1576,4 @@ public class SegmentReader extends IndexReader implements Cloneable {
       return positions.hasPayload();
     }
   }
-
-
 }

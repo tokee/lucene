@@ -41,6 +41,8 @@ public abstract class DocsEnum extends DocIdSetIterator {
     return atts;
   }
   
+  // nocommit -- state in API that doc/freq are undefined
+  // (defined?) after this?
   // nocommit -- fix this API so that intblock codecs are
   // able to return their own int arrays, to save a copy
   /** Bulk read: returns number of docs read.  Subclass may

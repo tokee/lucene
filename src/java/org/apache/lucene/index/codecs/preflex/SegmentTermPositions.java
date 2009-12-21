@@ -51,8 +51,8 @@ extends SegmentTermDocs implements TermPositions {
   */
 
   // nocommit -- public
-  public SegmentTermPositions(IndexInput freqStream, IndexInput proxStream, Bits skipDocs, TermInfosReader tis, FieldInfos fieldInfos) {
-    super(freqStream, skipDocs, tis, fieldInfos);
+  public SegmentTermPositions(IndexInput freqStream, IndexInput proxStream, TermInfosReader tis, FieldInfos fieldInfos) {
+    super(freqStream, tis, fieldInfos);
     this.proxStreamOrig = proxStream;  // the proxStream will be cloned lazily when nextPosition() is called for the first time
   }
 

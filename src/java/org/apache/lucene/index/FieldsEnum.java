@@ -21,7 +21,8 @@ import java.io.IOException;
 
 import org.apache.lucene.util.AttributeSource;
 
-/** Enumerates indexed fields.
+/** Enumerates indexed fields.  You must first call {@link
+ * #next} before calling {@link #terms}.
  *
  * NOTE: this API is experimental and will likely change */
 
@@ -38,14 +39,20 @@ public abstract class FieldsEnum {
   }
   
   // nocommit -- do we need seek?
-
-  /** Increments the enumeration to the next field.
-   *  Returns null when there are no more fields.*/
+  // nocommit -- should this return FieldInfo?
+  /** Increments the enumeration to the next field.  The
+   *  returned field is always interned, so simple ==
+   *  comparison is allowed.  Returns null when there are no
+   *  more fields.*/
   public abstract String next() throws IOException;
 
-  /** Get TermsEnum for the current field.  You should not
-   *  call {@link #next()} until you're done using this
-   *  TermsEnum. */
+  // nocommit should we add a field()?  fieldInfo()?
+  // mirrors TermsEnum
+
+  /** Get {@link TermsEnum} for the current field.  You
+   *  should not call {@link #next()} until you're done
+   *  using this {@link TermsEnum}.  After {@link #next}
+   *  returns null, this method should not be called. */
   public abstract TermsEnum terms() throws IOException;
 }
 

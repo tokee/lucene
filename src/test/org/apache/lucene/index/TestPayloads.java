@@ -137,6 +137,9 @@ public class TestPayloads extends LuceneTestCase {
         analyzer.setPayloadData("f2", "somedata".getBytes(), 0, 1);
         analyzer.setPayloadData("f3", "somedata".getBytes(), 0, 3);
         writer.addDocument(d);
+
+        FlexTestUtil.verifyFlexVsPreFlex(rnd, writer);
+
         // force merge
         writer.optimize();
         // flush
@@ -147,7 +150,8 @@ public class TestPayloads extends LuceneTestCase {
         assertFalse("Payload field bit should not be set.", fi.fieldInfo("f1").storePayloads);
         assertTrue("Payload field bit should be set.", fi.fieldInfo("f2").storePayloads);
         assertTrue("Payload field bit should be set.", fi.fieldInfo("f3").storePayloads);
-        reader.close();        
+        reader.close();
+        FlexTestUtil.verifyFlexVsPreFlex(rnd, ram);
     }
 
     // Tests if payloads are correctly stored and loaded using both RamDirectory and FSDirectory
@@ -211,7 +215,9 @@ public class TestPayloads extends LuceneTestCase {
             writer.addDocument(d);
         }
         
+        FlexTestUtil.verifyFlexVsPreFlex(rnd, writer);
         writer.optimize();
+        FlexTestUtil.verifyFlexVsPreFlex(rnd, writer);
         // flush
         writer.close();
         
@@ -322,7 +328,9 @@ public class TestPayloads extends LuceneTestCase {
         writer.addDocument(d);
 
         
+        FlexTestUtil.verifyFlexVsPreFlex(rnd, writer);
         writer.optimize();
+        FlexTestUtil.verifyFlexVsPreFlex(rnd, writer);
         // flush
         writer.close();
         

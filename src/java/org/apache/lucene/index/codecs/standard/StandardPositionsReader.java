@@ -112,9 +112,10 @@ public class StandardPositionsReader extends StandardPositionsProducer {
     @Override
     public PositionsEnum positions() throws IOException {
 
-      if (positions == null)
+      if (positions == null) {
         // Lazy init
         positions = new SegmentPositionsEnum();
+      }
 
       return positions;
     }
@@ -161,8 +162,9 @@ public class StandardPositionsReader extends StandardPositionsProducer {
 
       void skip(int numPositions) {
         skipPosCount += numPositions;
-        if (Codec.DEBUG)
+        if (Codec.DEBUG) {
           System.out.println("pr [" + desc + "] skip " + numPositions + " positions; now " + skipPosCount);
+        }
       }
 
       void catchUp(int currentCount) throws IOException { 
@@ -194,14 +196,16 @@ public class StandardPositionsReader extends StandardPositionsProducer {
       @Override
       public int next() throws IOException {
 
-        if (Codec.DEBUG)
+        if (Codec.DEBUG) {
           System.out.println("    pr.next [" + desc + "]: fp=" + proxIn.getFilePointer() + " return pos=" + position);
+        }
 
         if (storePayloads) {
 
           if (payloadPending && payloadLength > 0) {
-            if (Codec.DEBUG)
+            if (Codec.DEBUG) {
               System.out.println("      payload pending: skip " + payloadLength + " bytes");
+            }
             proxIn.seek(proxIn.getFilePointer()+payloadLength);
           }
 
@@ -210,8 +214,9 @@ public class StandardPositionsReader extends StandardPositionsProducer {
             // Payload length has changed
             payloadLength = proxIn.readVInt();
             assert payloadLength >= 0;
-            if (Codec.DEBUG)
+            if (Codec.DEBUG) {
               System.out.println("      new payloadLen=" + payloadLength);
+            }
           }
           assert payloadLength != -1;
           
@@ -223,10 +228,11 @@ public class StandardPositionsReader extends StandardPositionsProducer {
         skipPosCount--;
 
         // NOTE: the old API actually allowed this...
-        assert skipPosCount >= 0: "next() was called too many times (more than FormatPostingsDocsEnum.freq() times)";
+        assert skipPosCount >= 0: "next() was called too many times (more than FormatPostingsDocsEnum.freq() times) skipPosCount=" + skipPosCount;
 
-        if (Codec.DEBUG)
+        if (Codec.DEBUG) {
           System.out.println("   proxFP=" + proxIn.getFilePointer() + " return pos=" + position);
+        }
         return position;
       }
 

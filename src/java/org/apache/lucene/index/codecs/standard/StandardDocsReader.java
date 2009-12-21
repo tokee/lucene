@@ -32,7 +32,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader.CacheEntry;
 
 /** Concrete class that reads the current doc/freq/skip
- *  postings format */
+ *  postings format. */
 
 // nocommit -- should we switch "hasProx" higher up?  and
 // create two separate docs readers, one that also reads
@@ -237,8 +237,6 @@ public class StandardDocsReader extends StandardDocsProducer {
       final boolean omitTF;
       private Bits skipDocs;
 
-      // nocommit -- should we do hasProx with 2 different enum classes?
-
       boolean skipped;
       DefaultSkipListReader skipper;
 
@@ -336,6 +334,7 @@ public class StandardDocsReader extends StandardDocsProducer {
         if (Codec.DEBUG) {
           System.out.println("  result doc=" + doc);
         }
+
         return doc;
       }
 
@@ -406,8 +405,9 @@ public class StandardDocsReader extends StandardDocsProducer {
             // indexing, which means we pretend termFreq is
             // always 1 with that 1 occurrence having
             // position 0
-            if (fakePositions == null)
+            if (fakePositions == null) {
               fakePositions = new FormatPostingsFakePositionsEnum();
+            }
             return fakePositions;
           } else {
             // TODO: abstraction violation

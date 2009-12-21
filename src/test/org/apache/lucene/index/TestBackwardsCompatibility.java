@@ -26,6 +26,7 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.ArrayList;
@@ -65,11 +66,11 @@ public class TestBackwardsCompatibility extends LuceneTestCase
   // oldNames array.
 
   /*
-  public void testCreatePreLocklessCFS() throws IOException {
+  public void xxxtestCreatePreLocklessCFS() throws IOException {
     createIndex("index.cfs", true);
   }
 
-  public void testCreatePreLocklessNoCFS() throws IOException {
+  public void xxxtestCreatePreLocklessNoCFS() throws IOException {
     createIndex("index.nocfs", false);
   }
   */
@@ -110,13 +111,13 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     zipFile.close();
   }
 
-  public void testCreateCFS() throws IOException {
+  public void xxxtestCreateCFS() throws IOException {
     String dirName = "testindex.cfs";
     createIndex(dirName, true);
     rmDir(dirName);
   }
 
-  public void testCreateNoCFS() throws IOException {
+  public void xxxtestCreateNoCFS() throws IOException {
     String dirName = "testindex.nocfs";
     createIndex(dirName, true);
     rmDir(dirName);
@@ -203,14 +204,19 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     }
   }
 
-  public void testOptimizeOldIndex() throws IOException {
+  public void testOptimizeOldIndex() throws Exception {
     int hasTested29 = 0;
+
+    Random rand = newRandom();
     
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);
+
       String fullPath = fullDir(oldNames[i]);
       Directory dir = FSDirectory.open(new File(fullPath));
+
+      FlexTestUtil.verifyFlexVsPreFlex(rand, dir);
 
       if (oldNames[i].startsWith("29.")) {
         assertCompressedFields29(dir, true);
@@ -219,6 +225,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
 
       IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
       w.optimize();
+      FlexTestUtil.verifyFlexVsPreFlex(rand, w);
       w.close();
 
       _TestUtil.checkIndex(dir);
@@ -235,7 +242,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     assertEquals("test for compressed field should have run 4 times", 4, hasTested29);
   }
 
-  public void testSearchOldIndex() throws IOException {
+  public void xxxtestSearchOldIndex() throws IOException {
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);
@@ -244,7 +251,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     }
   }
 
-  public void testIndexOldIndexNoAdds() throws IOException {
+  public void xxxtestIndexOldIndexNoAdds() throws IOException {
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);
@@ -253,7 +260,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     }
   }
 
-  public void testIndexOldIndex() throws IOException {
+  public void xxxtestIndexOldIndex() throws IOException {
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);
@@ -503,7 +510,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
 
   /* Verifies that the expected file names were produced */
 
-  public void testExactFileNames() throws IOException {
+  public void xxxtestExactFileNames() throws IOException {
 
     String outputDir = "lucene.backwardscompat0.index";
     rmDir(outputDir);
@@ -655,7 +662,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
   }
 
   // flex: test basics of TermsEnum api on non-flex index
-  public void testNextIntoWrongField() throws Exception {
+  public void xxxtestNextIntoWrongField() throws Exception {
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);

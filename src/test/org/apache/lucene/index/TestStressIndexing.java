@@ -153,6 +153,8 @@ public class TestStressIndexing extends LuceneTestCase {
 
     modifier.close();
 
+    FlexTestUtil.verifyFlexVsPreFlex(RANDOM, directory);
+
     for(int i=0;i<numThread;i++)
       assertTrue(! threads[i].failed);
 

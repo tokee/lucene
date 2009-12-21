@@ -1171,16 +1171,27 @@ public abstract class IndexReader implements Cloneable,Closeable {
    */
   public abstract Collection<String> getFieldNames(FieldOption fldOption);
 
+  // Only used by external subclasses of IndexReader; all
+  // internal classes should implement Bits more
+  // efficiently:
   private final class DeletedDocsBits implements Bits {
     public boolean get(int docID) {
       return isDeleted(docID);
     }
   }
 
+  /**
+   * Returns the {@link Bits} representing deleted docs.  A
+   * set bit indicates the doc ID has been deleted.  This
+   * method should return null when there are no deleted
+   * docs. */
+  private Bits deletedDocsBits;
   public Bits getDeletedDocs() throws IOException {
-    return new DeletedDocsBits();
+    if (deletedDocsBits == null) {
+      deletedDocsBits = new DeletedDocsBits();
+    }
+    return deletedDocsBits;
   }
-
 
   /**
    * Forcibly unlocks the index in the named directory.

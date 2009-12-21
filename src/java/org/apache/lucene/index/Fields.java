@@ -19,23 +19,12 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 
-// TODO: split out an "iterator" api from the terms(String
-// field) API?
-
-// nocommit -- intended to be forward only?  eg no "reset"?
-
 /** Access to fields and terms
  *
  * NOTE: this API is experimental and will likely change */
 
-// TODO: someday expose public version of FieldInfos here
 public abstract class Fields {
 
-  // nocommit -- clarify if this is forwards only.  should
-  // this be "skipTo"?
-  // nocommit -- clarify: when this returns false, what is
-  // its internal state?  eg if i call field() after getting
-  // false back?
   /** Returns an iterator that will step through all fields
    *  names */
   public abstract FieldsEnum iterator() throws IOException;

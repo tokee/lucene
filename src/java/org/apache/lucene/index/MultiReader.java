@@ -92,6 +92,7 @@ public class MultiReader extends IndexReader implements Cloneable {
       }
       subs[i] = subReaders[i].getDeletedDocs();
     }
+
     starts[subReaders.length] = maxDoc;
     if (hasDeletions) {
       deletedDocs = new MultiBits(subs, starts);
@@ -154,8 +155,12 @@ public class MultiReader extends IndexReader implements Cloneable {
   }
   
   @Override
-  public Bits getDeletedDocs() {
-    return deletedDocs;
+  public Bits getDeletedDocs() throws IOException {
+    if (subReaders.length == 1) {
+      return subReaders[0].getDeletedDocs();
+    } else {
+      return deletedDocs;
+    }
   }
 
   /**

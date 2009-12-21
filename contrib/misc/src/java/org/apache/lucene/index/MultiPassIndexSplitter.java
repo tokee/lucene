@@ -238,5 +238,29 @@ public class MultiPassIndexSplitter {
         }        
       };
     }
+
+    @Override
+    public TermDocs termDocs() throws IOException {
+      return new FilterTermDocs(in.termDocs()) {
+
+        @Override
+        public boolean next() throws IOException {
+          boolean res;
+          while ((res = super.next())) {
+            if (!dels.get(doc())) {
+              break;
+            }
+          }
+          return res;
+        }        
+      };
+    }
+
+    @Override
+    public TermDocs termDocs(Term term) throws IOException {
+      TermDocs termDocs = termDocs();
+      termDocs.seek(term);
+      return termDocs;
+    }
   }
 }

@@ -28,7 +28,7 @@ import java.io.IOException;
  * @see IndexReader#termPositions()
  * @deprecated Use {@link PositionsEnum} instead 
  */
-
+@Deprecated
 public interface TermPositions
     extends TermDocs
 {

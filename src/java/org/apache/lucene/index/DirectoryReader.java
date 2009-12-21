@@ -366,24 +366,29 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   private MultiBits deletedDocs;
 
-  // Exposes a slice of an existing Bits as a new Bits
-  final static class SubBits implements Bits {
+  // Exposes a slice of an existing Bits as a new Bits.
+  // Only used when one provides an external skipDocs (ie,
+  // not the del docs from this DirectoryReader), to pull
+  // the DocsEnum of the sub readers
+  private final static class SubBits implements Bits {
     private final Bits parent;
     private final int start;
     private final int length;
 
     // start is inclusive; end is exclusive (length = end-start)
-    public SubBits(Bits parent, int start, int end) {
+    public SubBits(Bits parent, int start, int length) {
       this.parent = parent;
       this.start = start;
-      this.length = end - start;
+      this.length = length;
+      assert length >= 0: "length=" + length;
     }
     
     public boolean get(int doc) {
       if (doc >= length) {
         throw new RuntimeException("doc " + doc + " is out of bounds 0 .. " + (length-1));
       }
-      return parent.get(doc-start);
+      assert doc < length: "doc=" + doc + " length=" + length;
+      return parent.get(doc+start);
     }
   }
     
@@ -392,6 +397,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   // should return null from getDeletedDocs:
   static final class MultiBits implements Bits {
     private final Bits[] subs;
+    // this is 1+subs.length, ie the last entry has the maxDoc
     final int[] starts;
 
     public MultiBits(Bits[] subs, int[] starts) {
@@ -405,6 +411,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
       if (bits == null) {
         return false;
       } else {
+        final int length = starts[1+reader]-starts[reader];
+        assert doc - starts[reader] < length: "doc=" + doc + " reader=" + reader + " starts[reader]=" + starts[reader] + " length=" + length;
         return bits.get(doc-starts[reader]);
       }
     }
@@ -1144,12 +1152,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
     Terms terms;
     int base;
     int length;
-    Bits deletedDocs;
+    Bits skipDocs;
 
     public TermsWithBase(IndexReader reader, int base, String field) throws IOException {
       this.base = base;
       length = reader.maxDoc();
-      deletedDocs = reader.getDeletedDocs();
+      assert length >= 0: "length=" + length;
+      skipDocs = reader.getDeletedDocs();
       terms = reader.fields().terms(field);
     }
   }
@@ -1159,37 +1168,40 @@ class DirectoryReader extends IndexReader implements Cloneable {
     String current;
     int base;
     int length;
-    Bits deletedDocs;
+    Bits skipDocs;
 
     public FieldsEnumWithBase(IndexReader reader, int base) throws IOException {
       this.base = base;
       length = reader.maxDoc();
-      deletedDocs = reader.getDeletedDocs(); 
-     fields = reader.fields().iterator();
+      assert length >= 0: "length=" + length;
+      skipDocs = reader.getDeletedDocs(); 
+      fields = reader.fields().iterator();
     }
   }
 
   private final static class TermsEnumWithBase {
-    TermsEnum terms;
-    int base;
-    int length;
+    final TermsEnum terms;
+    final int base;
+    final int length;
     TermRef current;
-    Bits deletedDocs;
+    final Bits skipDocs;
 
     public TermsEnumWithBase(FieldsEnumWithBase start, TermsEnum terms, TermRef term) {
       this.terms = terms;
       current = term;
-      deletedDocs = start.deletedDocs;
+      skipDocs = start.skipDocs;
       base = start.base;
       length = start.length;
+      assert length >= 0: "length=" + length;
     }
 
     public TermsEnumWithBase(TermsWithBase start, TermsEnum terms, TermRef term) {
       this.terms = terms;
       current = term;
-      deletedDocs = start.deletedDocs;
+      skipDocs = start.skipDocs;
       base = start.base;
       length = start.length;
+      assert length >= 0: "length=" + length;
     }
   }
 
@@ -1226,6 +1238,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  // Exposes flex API, merged from flex API of
+  // sub-segments.
   final static class MultiFields extends Fields {
     private final IndexReader[] readers;
     private final int[] starts;
@@ -1250,9 +1264,10 @@ class DirectoryReader extends IndexReader implements Cloneable {
       MultiTerms result = terms.get(field);
       if (result == null) {
 
+        // First time this field is requested, we create & add to terms:
         List<TermsWithBase> subs = new ArrayList<TermsWithBase>();
 
-        // Gather all sub-readers that have this field
+        // Gather all sub-readers that share this field
         for(int i=0;i<readers.length;i++) {
           Terms subTerms = readers[i].fields().terms(field);
           if (subTerms != null) {
@@ -1264,11 +1279,10 @@ class DirectoryReader extends IndexReader implements Cloneable {
       }
       return result;
     }
-
-    public void close() {
-    }
   }
-    
+
+  // Exposes flex API, merged from flex API of
+  // sub-segments.
   private final static class MultiTerms extends Terms {
     private final TermsWithBase[] subs;
     private final TermRef.Comparator termComp;
@@ -1281,7 +1295,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
         if (_termComp == null) {
           _termComp = subs[i].terms.getTermComparator();
         } else {
-          assert subs[i].terms.getTermComparator() == null || _termComp.equals(subs[i].terms.getTermComparator());
+          // We cannot merge sub-readers that have
+          // different TermComps
+          final TermRef.Comparator subTermComp = subs[i].terms.getTermComparator();
+          if (subTermComp != null && !subTermComp.equals(_termComp)) {
+            throw new IllegalStateException("sub-readers have different TermRef.Comparators; cannot merge");
+          }
         }
       }
       termComp = _termComp;
@@ -1298,21 +1317,28 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
-  // Exposes flex API, merged from flex API of sub-segments
+  // Exposes flex API, merged from flex API of
+  // sub-segments.  This does a merge sort, by field name,
+  // of the sub-readers.
   private final static class MultiFieldsEnum extends FieldsEnum {
     private final FieldMergeQueue queue;
 
-    private String currentField;
-
+    // Holds sub-readers containing field we are currently
+    // on, popped from queue.
     private final FieldsEnumWithBase[] top;
     private int numTop;
 
+    // Re-used TermsEnum
     private final MultiTermsEnum terms;
 
+    private String currentField;
+    
     MultiFieldsEnum(FieldsEnumWithBase[] subs) throws IOException {
       terms = new MultiTermsEnum(subs.length);
       queue = new FieldMergeQueue(subs.length);
       top = new FieldsEnumWithBase[subs.length];
+
+      // Init q
       for(int i=0;i<subs.length;i++) {
         subs[i].current = subs[i].fields.next();
         if (subs[i].current != null) {
@@ -1323,6 +1349,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
     public String field() {
       assert currentField != null;
+      assert numTop > 0;
       return currentField;
     }
 
@@ -1335,7 +1362,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
         if (top[i].current != null) {
           queue.add(top[i]);
         } else {
-          // no more fields in this reader
+          // no more fields in this sub-reader
         }
       }
 
@@ -1363,7 +1390,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
-  // Exposes flex API, merged from flex API of sub-segments
+  // Exposes flex API, merged from flex API of
+  // sub-segments.  This does a merge sort, by term text, of
+  // the sub-readers.
   private static final class MultiTermsEnum extends TermsEnum {
     
     private final TermMergeQueue queue;
@@ -1404,7 +1433,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
           if (termComp == null) {
             queue.termComp = termComp = termsEnum.getTermComparator();
           } else {
-            assert termsEnum.getTermComparator() == null || termComp.equals(termsEnum.getTermComparator());
+            // We cannot merge sub-readers that have
+            // different TermComps
+            final TermRef.Comparator subTermComp = termsEnum.getTermComparator();
+            if (subTermComp != null && !subTermComp.equals(termComp)) {
+              throw new IllegalStateException("sub-readers have different TermRef.Comparators; cannot merge");
+            }
           }
           final TermRef term = termsEnum.next();
           if (term != null) {
@@ -1488,6 +1522,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     private final void pullTop() {
+      // extract all subs from the queue that have the same
+      // top term
       assert numTop == 0;
       while(true) {
         top[numTop++] = queue.pop();
@@ -1499,6 +1535,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     private final void pushTop() throws IOException {
+      // call next() on each top, and put back into queue
       for(int i=0;i<numTop;i++) {
         top[i].current = top[i].terms.next();
         if (top[i].current != null) {
@@ -1507,7 +1544,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
           // no more fields in this reader
         }
       }
-
       numTop = 0;
     }
 
@@ -1561,16 +1597,20 @@ class DirectoryReader extends IndexReader implements Cloneable {
         Bits bits = null;
         boolean handled = false;
 
-        // Optimize for common case: requested skip docs is simply our
-        // deleted docs
+        assert subs[i].length >= 0: "subs[" + i + " of " + numSubs + "].length=" + subs[i].length;
+
+        // Optimize for common case: requested skip docs is
+        // simply our (DiretoryReader's) deleted docs.  In
+        // this case, we just pull the skipDocs from the sub
+        // reader, rather than making the inefficient
+        // Sub(Multi(sub-readers)):
         if (skipDocs instanceof MultiBits) {
           MultiBits multiBits = (MultiBits) skipDocs;
           int reader = ReaderUtil.subIndex(subs[i].base, multiBits.starts);
-          // System.out.println("bits=" + multiBits + " starts=" + multiBits.starts + " subs=" + subs + " subs[i]=" + subs[i] + " subs[1+i]=" + subs[1+i] + " i=" + i + " numSubs=" + numSubs);
+          assert reader < multiBits.starts.length-1: " reader=" + reader + " multiBits.starts.length=" + multiBits.starts.length;
+          final int length = multiBits.starts[reader+1] - multiBits.starts[reader];
           if (multiBits.starts[reader] == subs[i].base &&
-              (i == numSubs-1 ||
-               reader == multiBits.starts.length-1 ||
-               multiBits.starts[1+reader] == subs[1+i].base)) {
+              length == subs[i].length) {
             bits = multiBits.subs[reader];
             handled = true;
           }
@@ -1698,8 +1738,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
   
         if (t != null) {
           termEnum = reader.terms(t);
-        } else
+        } else {
           termEnum = reader.terms();
+        }
   
         LegacySegmentMergeInfo smi = new LegacySegmentMergeInfo(starts[i], termEnum, reader);
         smi.ord = i;
