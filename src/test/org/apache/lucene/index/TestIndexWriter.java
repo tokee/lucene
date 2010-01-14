@@ -2210,7 +2210,7 @@ public class TestIndexWriter extends LuceneTestCase {
       int fullCount = 0;
       final long stopTime = System.currentTimeMillis() + 200;
 
-      while(System.currentTimeMillis() < stopTime) {
+      do {
         try {
           writer.updateDocument(new Term("id", ""+(idUpto++)), doc);
           addCount++;
@@ -2244,7 +2244,7 @@ public class TestIndexWriter extends LuceneTestCase {
           }
           break;
         }
-      }
+      } while(System.currentTimeMillis() < stopTime);
     }
   }
 
@@ -2337,6 +2337,12 @@ public class TestIndexWriter extends LuceneTestCase {
       fail("did not hit disk full");
     } catch (IOException ioe) {
     }
+
+    // Make sure once disk space is avail again, we can
+    // cleanly close:
+    dir.setMaxSizeInBytes(0);
+    writer.close(false);
+    dir.close();
   }
 
   // LUCENE-1130: make sure immediate disk full on creating
@@ -2372,11 +2378,10 @@ public class TestIndexWriter extends LuceneTestCase {
         assertTrue("hit unexpected Throwable", threads[i].error == null);
       }
 
-      try {
-        writer.close(false);
-      } catch (IOException ioe) {
-      }
-
+      // Make sure once disk space is avail again, we can
+      // cleanly close:
+      dir.setMaxSizeInBytes(0);
+      writer.close(false);
       dir.close();
     }
   }

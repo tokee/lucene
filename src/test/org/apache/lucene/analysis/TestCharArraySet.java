@@ -67,6 +67,7 @@ public class TestCharArraySet extends LuceneTestCase {
     assertTrue(set.contains(Integer.valueOf(1)));
   }
   
+  /* clear() is now supported in 3.1, so disable this test in BW
   public void testClear(){
     CharArraySet set=new CharArraySet(10,true);
     set.addAll(Arrays.asList(TEST_STOP_WORDS));
@@ -79,6 +80,7 @@ public class TestCharArraySet extends LuceneTestCase {
       assertEquals("Not all words added", TEST_STOP_WORDS.length, set.size());
     }
   }
+  */
   
   public void testModifyOnUnmodifiable(){
     CharArraySet set=new CharArraySet(10,true);
