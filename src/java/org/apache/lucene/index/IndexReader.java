@@ -32,6 +32,7 @@ import java.io.Closeable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** IndexReader is an abstract class, providing an interface for accessing an
  index.  Search of an index is done entirely through this abstract interface,
@@ -119,13 +120,13 @@ public abstract class IndexReader implements Cloneable,Closeable {
   private boolean closed;
   protected boolean hasChanges;
   
-  private int refCount;
+  private final AtomicInteger refCount = new AtomicInteger();
 
   static int DEFAULT_TERMS_INDEX_DIVISOR = 1;
 
   /** Expert: returns the current refCount for this reader */
-  public synchronized int getRefCount() {
-    return refCount;
+  public int getRefCount() {
+    return refCount.get();
   }
   
   /**
@@ -142,41 +143,68 @@ public abstract class IndexReader implements Cloneable,Closeable {
    *
    * @see #decRef
    */
-  public synchronized void incRef() {
-    assert refCount > 0;
+  public void incRef() {
     ensureOpen();
-    refCount++;
+    refCount.incrementAndGet();
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public String toString() {
+    final StringBuilder buffer = new StringBuilder();
+    if (hasChanges) {
+      buffer.append('*');
+    }
+    buffer.append(getClass().getSimpleName());
+    buffer.append('(');
+    final IndexReader[] subReaders = getSequentialSubReaders();
+    if ((subReaders != null) && (subReaders.length > 0)) {
+      buffer.append(subReaders[0]);
+      for (int i = 1; i < subReaders.length; ++i) {
+        buffer.append(" ").append(subReaders[i]);
+      }
+    }
+    buffer.append(')');
+    return buffer.toString();
   }
 
   /**
    * Expert: decreases the refCount of this IndexReader
    * instance.  If the refCount drops to 0, then pending
    * changes (if any) are committed to the index and this
-   * reader is closed.
-   * 
+   * reader is closed.  If an exception is hit, the refCount
+   * is unchanged.
+   *
    * @throws IOException in case an IOException occurs in commit() or doClose()
    *
    * @see #incRef
    */
-  public synchronized void decRef() throws IOException {
-    assert refCount > 0;
+  public void decRef() throws IOException {
     ensureOpen();
-    if (refCount == 1) {
-      commit();
-      doClose();
+    if (refCount.getAndDecrement() == 1) {
+      boolean success = false;
+      try {
+        commit();
+        doClose();
+        success = true;
+      } finally {
+        if (!success) {
+          // Put reference back on failure
+          refCount.incrementAndGet();
+        }
+      }
     }
-    refCount--;
   }
   
   protected IndexReader() { 
-    refCount = 1;
+    refCount.set(1);
   }
   
   /**
    * @throws AlreadyClosedException if this IndexReader is closed
    */
   protected final void ensureOpen() throws AlreadyClosedException {
-    if (refCount <= 0) {
+    if (refCount.get() <= 0) {
       throw new AlreadyClosedException("this IndexReader is closed");
     }
   }
@@ -1361,5 +1389,14 @@ public abstract class IndexReader implements Cloneable,Closeable {
       numTerms += fields().terms(field).getUniqueTermCount();
     }
     return numTerms;
+  }
+
+  /** For IndexReader implementations that use
+   *  TermInfosReader to read terms, this returns the
+   *  current indexDivisor as specified when the reader was
+   *  opened.
+   */
+  public int getTermInfosIndexDivisor() {
+    throw new UnsupportedOperationException("This reader does not support this method.");
   }
 }

@@ -164,7 +164,7 @@ final class FieldsReader implements Cloneable {
   /**
    * @throws AlreadyClosedException if this FieldsReader is closed
    */
-  protected final void ensureOpen() throws AlreadyClosedException {
+  private void ensureOpen() throws AlreadyClosedException {
     if (closed) {
       throw new AlreadyClosedException("this FieldsReader is closed");
     }
@@ -412,6 +412,7 @@ final class FieldsReader implements Cloneable {
     private int toRead;
     private long pointer;
     /** @deprecated Only kept for backward-compatbility with <3.0 indexes. Will be removed in 4.0. */
+    @Deprecated
     private boolean isCompressed;
 
     public LazyField(String name, Field.Store store, int toRead, long pointer, boolean isBinary, boolean isCompressed) {

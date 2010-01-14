@@ -156,6 +156,7 @@ public class TaskSequence extends PerfTask {
       return count;
     }
 
+    @Override
     public void run() {
       try {
         count = task.runAndMaybeStats(letChildReport);
@@ -188,7 +189,7 @@ public class TaskSequence extends PerfTask {
             bgTasks = new ArrayList<RunBackgroundTask>();
           }
           RunBackgroundTask bgTask = new RunBackgroundTask(task, letChildReport);
-          bgTask.setPriority(getBackgroundDeltaPriority() + Thread.currentThread().getPriority());
+          bgTask.setPriority(task.getBackgroundDeltaPriority() + Thread.currentThread().getPriority());
           bgTask.start();
           bgTasks.add(bgTask);
         } else {

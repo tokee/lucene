@@ -9,6 +9,13 @@ Changes in backwards compatibility policy
    compose their own analyzers instead of subclassing existing ones.
    (Simon Willnauer) 
 
+ * LUCENE-2194, LUCENE-2201: Snowball APIs were upgraded to snowball revision
+   502 (with some local modifications for improved performance). 
+   Index backwards compatibility and binary backwards compatibility is 
+   preserved, but some protected/public member variables changed type. This 
+   does NOT affect java code/class files produced by the snowball compiler, 
+   but technically is a backwards compatibility break.  (Robert Muir)
+    
 Changes in runtime behavior
 
  * LUCENE-2117: SnowballAnalyzer uses TurkishLowerCaseFilter instead of
@@ -17,6 +24,9 @@ Changes in runtime behavior
    (Robert Muir via Simon Willnauer)  
 
 Bug fixes
+
+ * LUCENE-2199: ShingleFilter skipped over tri-gram shingles if outputUnigram
+   was set to false. (Simon Willnauer)
 
  * LUCENE-2068: Fixed ReverseStringFilter which was not aware of supplementary
    characters. During reverse the filter created unpaired surrogates, which
@@ -28,11 +38,24 @@ Bug fixes
    correctly (enumerate all non-deleted docs).  (Karl Wettin via Mike
    McCandless)
    
+ * LUCENE-2035: TokenSources.getTokenStream() does not assign  positionIncrement. 
+   (Christopher Morris via Mark Miller)
+   
 API Changes
 
  * LUCENE-2108: Add SpellChecker.close, to close the underlying
    reader.  (Eirik Bjørsnøs via Mike McCandless)
+ 
+ * LUCENE-2147: Spatial GeoHashUtils now always decode GeoHash strings
+   with full precision. GeoHash#decode_exactly(String) was merged into
+   GeoHash#decode(String). (Chris Male, Simon Willnauer)
+   
+ * LUCENE-2165: Add a constructor to SnowballAnalyzer that takes a Set of 
+   stopwords, and deprecate the String[] one.  (Nick Burch via Robert Muir)
 
+ * LUCENE-2204: Change some package private classes/members to publicly accessible to implement
+   custom FragmentsBuilders. (Koji Sekiguchi)
+   
 New features
 
  * LUCENE-2102: Add a Turkish LowerCase Filter. TurkishLowerCaseFilter handles
@@ -63,7 +86,18 @@ Build
 
  * LUCENE-2124: Moved the JDK-based collation support from contrib/collation 
    into core, and moved the ICU-based collation support into contrib/icu.  
-   (Robert Muir)
+   (Steven Rowe, Robert Muir)
+
+Optimizations
+
+ * LUCENE-2157: DelimitedPayloadTokenFilter no longer copies the buffer
+   over itsself. Instead it sets only the length. This patch also optimizes
+   the logic of the filter and uses NIO for IdentityEncoder. (Uwe Schindler)
+ 
+ * LUCENE-2084: Change IndexableBinaryStringTools to work on byte[] and char[]
+   directly, instead of Byte/CharBuffers, and modify ICUCollationKeyFilter to
+   take advantage of this for faster performance.
+   (Steven Rowe, Uwe Schindler, Robert Muir)
 
 Test Cases
 

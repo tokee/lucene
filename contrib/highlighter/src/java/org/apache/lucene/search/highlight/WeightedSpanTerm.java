@@ -53,7 +53,7 @@ public class WeightedSpanTerm extends WeightedTerm{
    * Checks to see if this term is valid at <code>position</code>.
    *
    * @param position
-   *            to check against valid term postions
+   *            to check against valid term positions
    * @return true iff this term is a hit at this position
    */
   public boolean checkPosition(int position) {

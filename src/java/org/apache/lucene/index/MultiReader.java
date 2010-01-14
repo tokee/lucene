@@ -32,6 +32,7 @@ import org.apache.lucene.index.DirectoryReader.MultiTermEnum;
 import org.apache.lucene.index.DirectoryReader.MultiTermPositions;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
 
 /** An IndexReader which reads multiple indexes, appending
  * their content. */
@@ -257,8 +258,10 @@ public class MultiReader extends IndexReader implements Cloneable {
   }
   
   @Override
-  public synchronized int numDocs() {
+  public int numDocs() {
     // Don't call ensureOpen() here (it could affect performance)
+    // NOTE: multiple threads may wind up init'ing
+    // numDocs... but that's harmless
     if (numDocs == -1) {        // check cache
       int n = 0;                // cache miss--recompute
       for (int i = 0; i < subReaders.length; i++)
@@ -459,6 +462,11 @@ public class MultiReader extends IndexReader implements Cloneable {
         subReaders[i].close();
       }
     }
+
+    // NOTE: only needed in case someone had asked for
+    // FieldCache for top-level reader (which is generally
+    // not a good idea):
+    FieldCache.DEFAULT.purge(this);
   }
   
   @Override

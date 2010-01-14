@@ -21,19 +21,21 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collections;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.LowerCaseFilter;
+import org.apache.lucene.analysis.ReusableAnalyzerBase.TokenStreamComponents; // javadoc @link
 import org.apache.lucene.analysis.StopFilter;
+import org.apache.lucene.analysis.StopwordAnalyzerBase;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.WordlistLoader;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;  // for javadoc
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.standard.StandardFilter;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
 import org.apache.lucene.util.Version;
@@ -49,13 +51,14 @@ import org.apache.lucene.util.Version;
  * <p><b>NOTE</b>: This class uses the same {@link Version}
  * dependent settings as {@link StandardAnalyzer}.</p>
  */
-public final class BrazilianAnalyzer extends Analyzer {
+public final class BrazilianAnalyzer extends StopwordAnalyzerBase {
 
 	/**
 	 * List of typical Brazilian Portuguese stopwords.
 	 * @deprecated use {@link #getDefaultStopSet()} instead
 	 */
   // TODO make this private in 3.1
+	@Deprecated
 	public final static String[] BRAZILIAN_STOP_WORDS = {
       "a","ainda","alem","ambas","ambos","antes",
       "ao","aonde","aos","apos","aquele","aqueles",
@@ -91,19 +94,13 @@ public final class BrazilianAnalyzer extends Analyzer {
             Arrays.asList(BRAZILIAN_STOP_WORDS), false));
   }
 
-	/**
-	 * Contains the stopwords used with the {@link StopFilter}.
-	 */
-	private final Set<?> stoptable;
-	
+
 	/**
 	 * Contains words that should be indexed but not stemmed.
 	 */
 	// TODO make this private in 3.1
 	private Set<?> excltable = Collections.emptySet();
 	
-  private final Version matchVersion;
-
 	/**
 	 * Builds an analyzer with the default stop words ({@link #BRAZILIAN_STOP_WORDS}).
 	 */
@@ -120,8 +117,7 @@ public final class BrazilianAnalyzer extends Analyzer {
    *          a stopword set
    */
   public BrazilianAnalyzer(Version matchVersion, Set<?> stopwords) {
-    stoptable = CharArraySet.unmodifiableSet(CharArraySet.copy(matchVersion, stopwords));
-    this.matchVersion = matchVersion;
+     super(matchVersion, stopwords);
   }
 
   /**
@@ -143,6 +139,7 @@ public final class BrazilianAnalyzer extends Analyzer {
 	 * Builds an analyzer with the given stop words.
 	 * @deprecated use {@link #BrazilianAnalyzer(Version, Set)} instead
 	 */
+  @Deprecated
   public BrazilianAnalyzer(Version matchVersion, String... stopwords) {
     this(matchVersion, StopFilter.makeStopSet(matchVersion, stopwords));
   }
@@ -151,6 +148,7 @@ public final class BrazilianAnalyzer extends Analyzer {
    * Builds an analyzer with the given stop words. 
    * @deprecated use {@link #BrazilianAnalyzer(Version, Set)} instead
    */
+  @Deprecated
   public BrazilianAnalyzer(Version matchVersion, Map<?,?> stopwords) {
     this(matchVersion, stopwords.keySet());
   }
@@ -159,6 +157,7 @@ public final class BrazilianAnalyzer extends Analyzer {
    * Builds an analyzer with the given stop words.
    * @deprecated use {@link #BrazilianAnalyzer(Version, Set)} instead
    */
+  @Deprecated
   public BrazilianAnalyzer(Version matchVersion, File stopwords)
       throws IOException {
     this(matchVersion, WordlistLoader.getWordSet(stopwords));
@@ -168,6 +167,7 @@ public final class BrazilianAnalyzer extends Analyzer {
 	 * Builds an exclusionlist from an array of Strings.
 	 * @deprecated use {@link #BrazilianAnalyzer(Version, Set, Set)} instead
 	 */
+	@Deprecated
 	public void setStemExclusionTable( String... exclusionlist ) {
 		excltable = StopFilter.makeStopSet( matchVersion, exclusionlist );
 		setPreviousTokenStream(null); // force a new stemmer to be created
@@ -176,6 +176,7 @@ public final class BrazilianAnalyzer extends Analyzer {
 	 * Builds an exclusionlist from a {@link Map}.
 	 * @deprecated use {@link #BrazilianAnalyzer(Version, Set, Set)} instead
 	 */
+	@Deprecated
 	public void setStemExclusionTable( Map<?,?> exclusionlist ) {
 		excltable = new HashSet<Object>(exclusionlist.keySet());
 		setPreviousTokenStream(null); // force a new stemmer to be created
@@ -184,57 +185,27 @@ public final class BrazilianAnalyzer extends Analyzer {
 	 * Builds an exclusionlist from the words contained in the given file.
 	 * @deprecated use {@link #BrazilianAnalyzer(Version, Set, Set)} instead
 	 */
+	@Deprecated
 	public void setStemExclusionTable( File exclusionlist ) throws IOException {
 		excltable = WordlistLoader.getWordSet( exclusionlist );
 		setPreviousTokenStream(null); // force a new stemmer to be created
 	}
-
-	/**
-	 * Creates a {@link TokenStream} which tokenizes all the text in the provided {@link Reader}.
-	 *
-	 * @return  A {@link TokenStream} built from a {@link StandardTokenizer} filtered with
-	 * 			{@link LowerCaseFilter}, {@link StandardFilter}, {@link StopFilter}, and 
-	 *          {@link BrazilianStemFilter}.
-	 */
-	@Override
-	public final TokenStream tokenStream(String fieldName, Reader reader) {
-                TokenStream result = new StandardTokenizer( matchVersion, reader );
-		result = new LowerCaseFilter( matchVersion, result );
-		result = new StandardFilter( result );
-		result = new StopFilter( matchVersion, result, stoptable );
-		result = new BrazilianStemFilter( result, excltable );
-		return result;
-	}
-	
-    private class SavedStreams {
-      Tokenizer source;
-      TokenStream result;
-    };
-    
-    /**
-     * Returns a (possibly reused) {@link TokenStream} which tokenizes all the text 
-     * in the provided {@link Reader}.
-     *
-     * @return  A {@link TokenStream} built from a {@link StandardTokenizer} filtered with
-     *          {@link LowerCaseFilter}, {@link StandardFilter}, {@link StopFilter}, and 
-     *          {@link BrazilianStemFilter}.
-     */
-    @Override
-    public TokenStream reusableTokenStream(String fieldName, Reader reader)
-      throws IOException {
-      SavedStreams streams = (SavedStreams) getPreviousTokenStream();
-      if (streams == null) {
-        streams = new SavedStreams();
-        streams.source = new StandardTokenizer(matchVersion, reader);
-        streams.result = new LowerCaseFilter(matchVersion, streams.source);
-        streams.result = new StandardFilter(streams.result);
-        streams.result = new StopFilter(matchVersion, streams.result, stoptable);
-        streams.result = new BrazilianStemFilter(streams.result, excltable);
-        setPreviousTokenStream(streams);
-      } else {
-        streams.source.reset(reader);
-      }
-      return streams.result;
-    }
+  /**
+   * Creates {@link TokenStreamComponents} used to tokenize all the text in the provided {@link Reader}.
+   *
+   * @return  {@link TokenStreamComponents} built from a {@link StandardTokenizer} filtered with
+   *      {@link LowerCaseFilter}, {@link StandardFilter}, {@link StopFilter}, and 
+   *          {@link BrazilianStemFilter}.
+   */
+  @Override
+  protected TokenStreamComponents createComponents(String fieldName,
+      Reader reader) {
+    Tokenizer source = new StandardTokenizer(matchVersion, reader);
+    TokenStream result = new LowerCaseFilter(matchVersion, source);
+    result = new StandardFilter(result);
+    result = new StopFilter(matchVersion, result, stopwords);
+    return new TokenStreamComponents(source, new BrazilianStemFilter(result,
+        excltable));
+  }
 }
 

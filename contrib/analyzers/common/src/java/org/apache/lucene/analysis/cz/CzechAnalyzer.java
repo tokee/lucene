@@ -17,6 +17,8 @@ package org.apache.lucene.analysis.cz;
  * limitations under the License.
  */
 
+import org.apache.lucene.analysis.ReusableAnalyzerBase;
+import org.apache.lucene.analysis.ReusableAnalyzerBase.TokenStreamComponents; // javadoc @link
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.LowerCaseFilter;
@@ -30,9 +32,9 @@ import org.apache.lucene.util.Version;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Collections;
 
 /**
  * {@link Analyzer} for Czech language.
@@ -53,13 +55,14 @@ import java.util.Collections;
  * <a href="https://issues.apache.org/jira/browse/LUCENE-1068">LUCENE-1068</a>)
  * </ul>
  */
-public final class CzechAnalyzer extends Analyzer {
+public final class CzechAnalyzer extends ReusableAnalyzerBase {
 
   /**
 	 * List of typical stopwords.
 	 * @deprecated use {@link #getDefaultStopSet()} instead
 	 */
   // TODO make this private in 3.1
+	@Deprecated
 	public final static String[] CZECH_STOP_WORDS = {
         "a","s","k","o","i","u","v","z","dnes","cz","t\u00edmto","bude\u0161","budem",
         "byli","jse\u0161","m\u016fj","sv\u00fdm","ta","tomto","tohle","tuto","tyto",
@@ -95,10 +98,11 @@ public final class CzechAnalyzer extends Analyzer {
 	      Version.LUCENE_CURRENT, Arrays.asList(CZECH_STOP_WORDS), false));
 	}
 
+ 
   /**
    * Contains the stopwords used with the {@link StopFilter}.
    */
-	// TODO make this final in 3.1
+	// TODO once loadStopWords is gone those member should be removed too in favor of StopwordAnalyzerBase
 	private Set<?> stoptable;
   private final Version matchVersion;
 
@@ -133,6 +137,7 @@ public final class CzechAnalyzer extends Analyzer {
    * @param stopwords a stopword set
    * @deprecated use {@link #CzechAnalyzer(Version, Set)} instead
    */
+  @Deprecated
   public CzechAnalyzer(Version matchVersion, String... stopwords) {
     this(matchVersion, StopFilter.makeStopSet( matchVersion, stopwords ));
 	}
@@ -145,6 +150,7 @@ public final class CzechAnalyzer extends Analyzer {
    * @param stopwords a stopword set
    * @deprecated use {@link #CzechAnalyzer(Version, Set)} instead
    */
+  @Deprecated
   public CzechAnalyzer(Version matchVersion, HashSet<?> stopwords) {
     this(matchVersion, (Set<?>)stopwords);
 	}
@@ -157,6 +163,7 @@ public final class CzechAnalyzer extends Analyzer {
    * @param stopwords a file containing stopwords
    * @deprecated use {@link #CzechAnalyzer(Version, Set)} instead
    */
+  @Deprecated
   public CzechAnalyzer(Version matchVersion, File stopwords ) throws IOException {
     this(matchVersion, (Set<?>)WordlistLoader.getWordSet( stopwords ));
 	}
@@ -168,6 +175,8 @@ public final class CzechAnalyzer extends Analyzer {
      * @deprecated use {@link WordlistLoader#getWordSet(Reader, String) }
      *             and {@link #CzechAnalyzer(Version, Set)} instead
      */
+    // TODO extend StopwordAnalyzerBase once this method is gone!
+    @Deprecated
     public void loadStopWords( InputStream wordfile, String encoding ) {
         setPreviousTokenStream(null); // force a new stopfilter to be created
         if ( wordfile == null ) {
@@ -191,58 +200,25 @@ public final class CzechAnalyzer extends Analyzer {
           stoptable = Collections.emptySet();
         }
     }
-
   /**
-   * Creates a {@link TokenStream} which tokenizes all the text in the provided
+   * Creates {@link TokenStreamComponents} used to tokenize all the text in the provided
    * {@link Reader}.
    * 
-   * @return A {@link TokenStream} built from a {@link StandardTokenizer}
+   * @return {@link TokenStreamComponents} built from a {@link StandardTokenizer}
    *         filtered with {@link StandardFilter}, {@link LowerCaseFilter},
    *         {@link StopFilter}, and {@link CzechStemFilter} (only if version is
    *         >= LUCENE_31)
    */
   @Override
-	public final TokenStream tokenStream( String fieldName, Reader reader ) {
-                TokenStream result = new StandardTokenizer( matchVersion, reader );
-		result = new StandardFilter( result );
-		result = new LowerCaseFilter( matchVersion, result );
-		result = new StopFilter( matchVersion, result, stoptable );
-		if (matchVersion.onOrAfter(Version.LUCENE_31))
-		  result = new CzechStemFilter(result);
-		return result;
-	}
-	
-	private class SavedStreams {
-	    Tokenizer source;
-	    TokenStream result;
-	};
-	
-  /**
-   * Returns a (possibly reused) {@link TokenStream} which tokenizes all the
-   * text in the provided {@link Reader}.
-   * 
-   * @return A {@link TokenStream} built from a {@link StandardTokenizer}
-   *         filtered with {@link StandardFilter}, {@link LowerCaseFilter},
-   *         {@link StopFilter}, and {@link CzechStemFilter} (only if version is
-   *         >= LUCENE_31)
-   */
-	@Override
-	public TokenStream reusableTokenStream(String fieldName, Reader reader)
-      throws IOException {
-      SavedStreams streams = (SavedStreams) getPreviousTokenStream();
-      if (streams == null) {
-        streams = new SavedStreams();
-        streams.source = new StandardTokenizer(matchVersion, reader);
-        streams.result = new StandardFilter(streams.source);
-        streams.result = new LowerCaseFilter(matchVersion, streams.result);
-        streams.result = new StopFilter( matchVersion, streams.result, stoptable);
-        if (matchVersion.onOrAfter(Version.LUCENE_31))
-          streams.result = new CzechStemFilter(streams.result);
-        setPreviousTokenStream(streams);
-      } else {
-        streams.source.reset(reader);
-      }
-      return streams.result;
-    }
+  protected TokenStreamComponents createComponents(String fieldName,
+      Reader reader) {
+    final Tokenizer source = new StandardTokenizer(matchVersion, reader);
+    TokenStream result = new StandardFilter(source);
+    result = new LowerCaseFilter(matchVersion, result);
+    result = new StopFilter( matchVersion, result, stoptable);
+    if (matchVersion.onOrAfter(Version.LUCENE_31))
+      result = new CzechStemFilter(result);
+    return new TokenStreamComponents(source, result);
+  }
 }
 

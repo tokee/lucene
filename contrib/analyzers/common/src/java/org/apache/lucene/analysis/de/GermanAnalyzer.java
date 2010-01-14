@@ -29,13 +29,15 @@ import java.util.Set;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.LowerCaseFilter;
+import org.apache.lucene.analysis.ReusableAnalyzerBase.TokenStreamComponents; // javadoc @link
 import org.apache.lucene.analysis.StopFilter;
+import org.apache.lucene.analysis.StopwordAnalyzerBase;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.WordlistLoader;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.standard.StandardFilter;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;  // for javadoc
 import org.apache.lucene.util.Version;
 
 /**
@@ -51,13 +53,14 @@ import org.apache.lucene.util.Version;
  * <p><b>NOTE</b>: This class uses the same {@link Version}
  * dependent settings as {@link StandardAnalyzer}.</p>
  */
-public final class GermanAnalyzer extends Analyzer {
+public final class GermanAnalyzer extends StopwordAnalyzerBase {
   
   /**
    * List of typical german stopwords.
    * @deprecated use {@link #getDefaultStopSet()} instead
    */
   //TODO make this private in 3.1
+  @Deprecated
   public final static String[] GERMAN_STOP_WORDS = {
     "einer", "eine", "eines", "einem", "einen",
     "der", "die", "das", "dass", "daß",
@@ -89,16 +92,12 @@ public final class GermanAnalyzer extends Analyzer {
   /**
    * Contains the stopwords used with the {@link StopFilter}.
    */
-  //TODO make this final in 3.1
-  private Set<?> stopSet;
-
+ 
   /**
    * Contains words that should be indexed but not stemmed.
    */
   // TODO make this final in 3.1
   private Set<?> exclusionSet;
-
-  private final Version matchVersion;
 
   /**
    * Builds an analyzer with the default stop words:
@@ -131,15 +130,15 @@ public final class GermanAnalyzer extends Analyzer {
    *          a stemming exclusion set
    */
   public GermanAnalyzer(Version matchVersion, Set<?> stopwords, Set<?> stemExclusionSet) {
-    stopSet = CharArraySet.unmodifiableSet(CharArraySet.copy(matchVersion, stopwords));
+    super(matchVersion, stopwords);
     exclusionSet = CharArraySet.unmodifiableSet(CharArraySet.copy(matchVersion, stemExclusionSet));
-    this.matchVersion = matchVersion;
   }
 
   /**
    * Builds an analyzer with the given stop words.
    * @deprecated use {@link #GermanAnalyzer(Version, Set)}
    */
+  @Deprecated
   public GermanAnalyzer(Version matchVersion, String... stopwords) {
     this(matchVersion, StopFilter.makeStopSet(matchVersion, stopwords));
   }
@@ -148,6 +147,7 @@ public final class GermanAnalyzer extends Analyzer {
    * Builds an analyzer with the given stop words.
    * @deprecated use {@link #GermanAnalyzer(Version, Set)}
    */
+  @Deprecated
   public GermanAnalyzer(Version matchVersion, Map<?,?> stopwords) {
     this(matchVersion, stopwords.keySet());
     
@@ -157,6 +157,7 @@ public final class GermanAnalyzer extends Analyzer {
    * Builds an analyzer with the given stop words.
    * @deprecated use {@link #GermanAnalyzer(Version, Set)}
    */
+  @Deprecated
   public GermanAnalyzer(Version matchVersion, File stopwords) throws IOException {
     this(matchVersion, WordlistLoader.getWordSet(stopwords));
   }
@@ -165,6 +166,7 @@ public final class GermanAnalyzer extends Analyzer {
    * Builds an exclusionlist from an array of Strings.
    * @deprecated use {@link #GermanAnalyzer(Version, Set, Set)} instead
    */
+  @Deprecated
   public void setStemExclusionTable(String[] exclusionlist) {
     exclusionSet = StopFilter.makeStopSet(matchVersion, exclusionlist);
     setPreviousTokenStream(null); // force a new stemmer to be created
@@ -174,6 +176,7 @@ public final class GermanAnalyzer extends Analyzer {
    * Builds an exclusionlist from a {@link Map}
    * @deprecated use {@link #GermanAnalyzer(Version, Set, Set)} instead
    */
+  @Deprecated
   public void setStemExclusionTable(Map<?,?> exclusionlist) {
     exclusionSet = new HashSet<Object>(exclusionlist.keySet());
     setPreviousTokenStream(null); // force a new stemmer to be created
@@ -183,55 +186,28 @@ public final class GermanAnalyzer extends Analyzer {
    * Builds an exclusionlist from the words contained in the given file.
    * @deprecated use {@link #GermanAnalyzer(Version, Set, Set)} instead
    */
+  @Deprecated
   public void setStemExclusionTable(File exclusionlist) throws IOException {
     exclusionSet = WordlistLoader.getWordSet(exclusionlist);
     setPreviousTokenStream(null); // force a new stemmer to be created
   }
-
+  
   /**
-   * Creates a {@link TokenStream} which tokenizes all the text in the provided {@link Reader}.
-   *
-   * @return A {@link TokenStream} built from a {@link StandardTokenizer} filtered with
-   *         {@link StandardFilter}, {@link LowerCaseFilter}, {@link StopFilter}, and
+   * Creates {@link TokenStreamComponents} used to tokenize all the text in the
+   * provided {@link Reader}.
+   * 
+   * @return {@link TokenStreamComponents} built from a
+   *         {@link StandardTokenizer} filtered with {@link StandardFilter},
+   *         {@link LowerCaseFilter}, {@link StopFilter}, and
    *         {@link GermanStemFilter}
    */
   @Override
-  public TokenStream tokenStream(String fieldName, Reader reader) {
-    TokenStream result = new StandardTokenizer(matchVersion, reader);
-    result = new StandardFilter(result);
+  protected TokenStreamComponents createComponents(String fieldName,
+      Reader reader) {
+    final Tokenizer source = new StandardTokenizer(matchVersion, reader);
+    TokenStream result = new StandardFilter(source);
     result = new LowerCaseFilter(matchVersion, result);
-    result = new StopFilter( matchVersion, result, stopSet);
-    result = new GermanStemFilter(result, exclusionSet);
-    return result;
-  }
-  
-  private class SavedStreams {
-    Tokenizer source;
-    TokenStream result;
-  };
-  
-  /**
-   * Returns a (possibly reused) {@link TokenStream} which tokenizes all the text 
-   * in the provided {@link Reader}.
-   *
-   * @return A {@link TokenStream} built from a {@link StandardTokenizer} filtered with
-   *         {@link StandardFilter}, {@link LowerCaseFilter}, {@link StopFilter}, and
-   *         {@link GermanStemFilter}
-   */
-  @Override
-  public TokenStream reusableTokenStream(String fieldName, Reader reader) throws IOException {
-    SavedStreams streams = (SavedStreams) getPreviousTokenStream();
-    if (streams == null) {
-      streams = new SavedStreams();
-      streams.source = new StandardTokenizer(matchVersion, reader);
-      streams.result = new StandardFilter(streams.source);
-      streams.result = new LowerCaseFilter(matchVersion, streams.result);
-      streams.result = new StopFilter( matchVersion, streams.result, stopSet);
-      streams.result = new GermanStemFilter(streams.result, exclusionSet);
-      setPreviousTokenStream(streams);
-    } else {
-      streams.source.reset(reader);
-    }
-    return streams.result;
+    result = new StopFilter( matchVersion, result, stopwords);
+    return new TokenStreamComponents(source, new GermanStemFilter(result, exclusionSet));
   }
 }

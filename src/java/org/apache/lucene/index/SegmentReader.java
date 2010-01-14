@@ -46,6 +46,7 @@ import org.apache.lucene.index.codecs.preflex.PreFlexFields;
 import org.apache.lucene.index.codecs.preflex.SegmentTermDocs;
 import org.apache.lucene.index.codecs.preflex.SegmentTermPositions;
 import org.apache.lucene.index.codecs.FieldsProducer;
+import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
 
 /** @version $Id */
 /**
@@ -103,12 +104,14 @@ public class SegmentReader extends IndexReader implements Cloneable {
     final int readBufferSize;
     final int termsIndexDivisor;
 
+    private final SegmentReader origInstance;
+
     FieldsReader fieldsReaderOrig;
     TermVectorsReader termVectorsReaderOrig;
     CompoundFileReader cfsReader;
     CompoundFileReader storeCFSReader;
 
-    CoreReaders(Directory dir, SegmentInfo si, int readBufferSize, int termsIndexDivisor, Codecs codecs) throws IOException {
+    CoreReaders(SegmentReader origInstance, Directory dir, SegmentInfo si, int readBufferSize, int termsIndexDivisor, Codecs codecs) throws IOException {
 
       if (termsIndexDivisor < 1 && termsIndexDivisor != -1) {
         throw new IllegalArgumentException("indexDivisor must be -1 (don't load terms index) or greater than 0: got " + termsIndexDivisor);
@@ -153,6 +156,12 @@ public class SegmentReader extends IndexReader implements Cloneable {
           decRef();
         }
       }
+
+      // Must assign this at the end -- if we hit an
+      // exception above core, we don't want to attempt to
+      // purge the FieldCache (will hit NPE because core is
+      // not assigned yet).
+      this.origInstance = origInstance;
     }
 
     synchronized TermVectorsReader getTermVectorsReaderOrig() {
@@ -193,6 +202,11 @@ public class SegmentReader extends IndexReader implements Cloneable {
   
         if (storeCFSReader != null) {
           storeCFSReader.close();
+        }
+
+        // Force FieldCache to evict our entries at this point
+        if (origInstance != null) {
+          FieldCache.DEFAULT.purge(origInstance);
         }
       }
     }
@@ -515,7 +529,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     boolean success = false;
 
     try {
-      instance.core = new CoreReaders(dir, si, readBufferSize, termInfosIndexDivisor, codecs);
+      instance.core = new CoreReaders(instance, dir, si, readBufferSize, termInfosIndexDivisor, codecs);
       if (doOpenStores) {
         instance.core.openDocStores(si);
       }
@@ -545,20 +559,31 @@ public class SegmentReader extends IndexReader implements Cloneable {
     return deletedDocs;
   }
 
+  private boolean checkDeletedCounts() throws IOException {
+    final int recomputedCount = deletedDocs.getRecomputedCount();
+     
+    assert deletedDocs.count() == recomputedCount : "deleted count=" + deletedDocs.count() + " vs recomputed count=" + recomputedCount;
+
+    assert si.getDelCount() == recomputedCount : 
+    "delete count mismatch: info=" + si.getDelCount() + " vs BitVector=" + recomputedCount;
+
+    // Verify # deletes does not exceed maxDoc for this
+    // segment:
+    assert si.getDelCount() <= maxDoc() : 
+    "delete count mismatch: " + recomputedCount + ") exceeds max doc (" + maxDoc() + ") for segment " + si.name;
+
+    return true;
+  }
+
   private void loadDeletedDocs() throws IOException {
     // NOTE: the bitvector is stored using the regular directory, not cfs
     if (hasDeletions(si)) {
       deletedDocs = new BitVector(directory(), si.getDelFileName());
       deletedDocsRef = new AtomicInteger(1);
-     
-      assert si.getDelCount() == deletedDocs.count() : 
-        "delete count mismatch: info=" + si.getDelCount() + " vs BitVector=" + deletedDocs.count();
-
-      // Verify # deletes does not exceed maxDoc for this
-      // segment:
-      assert si.getDelCount() <= maxDoc() : 
-        "delete count mismatch: " + deletedDocs.count() + ") exceeds max doc (" + maxDoc() + ") for segment " + si.name;
-
+      assert checkDeletedCounts();
+      if (deletedDocs.size() != si.docCount) {
+        throw new CorruptIndexException("document count mismatch: deleted docs count " + deletedDocs.size() + " vs segment doc count " + si.docCount);
+      }
     } else
       assert si.getDelCount() == 0;
   }
@@ -631,10 +656,10 @@ public class SegmentReader extends IndexReader implements Cloneable {
       clone.readOnly = openReadOnly;
       clone.si = si;
       clone.readBufferSize = readBufferSize;
+      clone.pendingDeleteCount = pendingDeleteCount;
 
       if (!openReadOnly && hasChanges) {
         // My pending changes transfer to the new reader
-        clone.pendingDeleteCount = pendingDeleteCount;
         clone.deletedDocsDirty = deletedDocsDirty;
         clone.normsDirty = normsDirty;
         clone.hasChanges = hasChanges;
@@ -1206,6 +1231,17 @@ public class SegmentReader extends IndexReader implements Cloneable {
     return termVectorsReader.get(docNumber);
   }
   
+  /** {@inheritDoc} */
+  @Override
+  public String toString() {
+    final StringBuilder buffer = new StringBuilder();
+    if (hasChanges) {
+      buffer.append('*');
+    }
+    buffer.append(si.toString(core.dir, pendingDeleteCount));
+    return buffer.toString();
+  }
+
   /**
    * Return the name of the segment this reader is reading.
    */
@@ -1276,6 +1312,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
    * We do it with R/W access for the tests (BW compatibility)
    * @deprecated Remove this when tests are fixed!
    */
+  @Deprecated
   static SegmentReader getOnlySegmentReader(Directory dir) throws IOException {
     return getOnlySegmentReader(IndexReader.open(dir, false));
   }
@@ -1295,6 +1332,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     throw new IllegalArgumentException(reader + " is not a SegmentReader or a single-segment DirectoryReader");
   }
 
+  @Override
   public int getTermInfosIndexDivisor() {
     return core.termsIndexDivisor;
   }

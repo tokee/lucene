@@ -31,6 +31,7 @@ class AllTermDocs extends AbstractAllTermDocs {
     }
   }
 
+  @Override
   public boolean isDeleted(int doc) {
     return deletedDocs != null && deletedDocs.get(doc);
   }

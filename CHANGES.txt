@@ -12,7 +12,21 @@ Changes in backwards compatibility policy
   FuzzyQuery. The class was never intended to be public.
   (Uwe Schindler, Mike McCandless)
 
+* LUCENE-2135: Added FieldCache.purge(IndexReader) method to the
+  interface.  Anyone implementing FieldCache externally will need to
+  fix their code to implement this, on upgrading.  (Mike McCandless)
+
+* LUCENE-1923: Renamed SegmentInfo & SegmentInfos segString method to
+  toString.  These are advanced APIs and subject to change suddenly.
+  (Tim Smith via Mike McCandless)
+
 Changes in runtime behavior
+
+* LUCENE-1923: Made IndexReader.toString() produce something
+  meaningful (Tim Smith via Mike McCandless)
+
+* LUCENE-2179: CharArraySet.clear() is now functional.
+  (Robert Muir, Uwe Schindler)
 
 API Changes
 
@@ -28,6 +42,25 @@ API Changes
 * LUCENE-2103: NoLockFactory should have a private constructor;
   until Lucene 4.0 the default one will be deprecated.
   (Shai Erera via Uwe Schindler) 
+
+* LUCENE-1609: Restore IndexReader.getTermInfosIndexDivisor (it was
+  accidentally removed in 3.0.0)  (Mike McCandless)
+
+* LUCENE-1972: Restore SortField.getComparatorSource (it was
+  accidentally removed in 3.0.0)  (John Wang via Uwe Schindler)
+
+* LUCENE-2177: Deprecate the Field ctors that take byte[] and Store.
+  Since the removal of compressed fields, Store can only be YES, so
+  it's not necessary to specify.  (Erik Hatcher via Mike McCandless)
+
+* LUCENE-2190: Added setNextReader method to CustomScoreQuery, which
+  is necessary with per-segment searching to notify the subclass
+  which reader the int doc, passed to customScore, refers to.  (Paul
+  chez Jamespot via Mike McCandless)
+
+* LUCENE-2200: Several final classes had non-overriding protected
+  members. These were converted to private and unused protected
+  constructors removed.  (Steven Rowe via Robert Muir)
 
 Bug fixes
 
@@ -49,6 +82,19 @@ Bug fixes
 
 * LUCENE-2142: FieldCacheImpl.getStringIndex no longer throws an
   exception when term count exceeds doc count.  (Mike McCandless)
+
+* LUCENE-2166: Don't incorrectly keep warning about the same immense
+  term, when IndexWriter.infoStream is on.  (Mike McCandless)
+
+* LUCENE-2104: NativeFSLock.release() would silently fail if the lock is held by 
+  another thread/process.  (Shai Erera via Uwe Schindler)
+
+* LUCENE-2158: At high indexing rates, NRT reader could temporarily
+  lose deletions.  (Mike McCandless)
+  
+* LUCENE-2182: DEFAULT_ATTRIBUTE_FACTORY was failing to load
+  implementation class when interface was loaded by a different
+  class loader.  (Uwe Schindler, reported on java-user by Ahmed El-dawy)
   
 New features
 
@@ -68,6 +114,12 @@ New features
   backwards compatibility. If Version < 3.1 is passed to the constructor, 
   LowerCaseFilter yields the old behavior. (Simon Willnauer, Robert Muir)  
 
+* LUCENE-2034: Added ReusableAnalyzerBase, an abstract subclass of Analyzer
+  that makes it easier to reuse TokenStreams correctly. This issue also added
+  StopwordAnalyzerBase, which improves consistency of all Analyzers that use
+  stopwords, and implement many analyzers in contrib with it.  
+  (Simon Willnauer via Robert Muir)
+  
 Optimizations
 
 * LUCENE-2086: When resolving deleted terms, do so in term sort order
@@ -95,6 +147,33 @@ Optimizations
 * LUCENE-2137: Switch to AtomicInteger for some ref counting (Earwin
   Burrfoot via Mike McCandless)
 
+* LUCENE-2135: On IndexReader.close, forcefully evict any entries from
+  the FieldCache rather than waiting for the WeakHashMap to release
+  the reference (Mike McCandless)
+
+* LUCENE-2161: Improve concurrency of IndexReader, especially in the
+  context of near real-time readers.  (Mike McCandless)
+
+* LUCENE-2164: ConcurrentMergeScheduler has more control over merge
+  threads.  First, it gives smaller merges higher thread priority than
+  larges ones.  Second, a new set/getMaxMergeCount setting will pause
+  the larger merges to allow smaller ones to finish.  The defaults for
+  these settings are now dynamic, depending the number CPU cores as
+  reported by Runtime.getRuntime().availableProcessors() (Mike
+  McCandless)
+
+* LUCENE-2169: Improved CharArraySet.copy(), if source set is
+  also a CharArraySet.  (Simon Willnauer via Uwe Schindler)
+
+* LUCENE-2084: Change IndexableBinaryStringTools to work on byte[] and char[]
+  directly, instead of Byte/CharBuffers, and modify CollationKeyFilter to
+  take advantage of this for faster performance.
+  (Steven Rowe, Uwe Schindler, Robert Muir)
+
+* LUCENE-2188: Add a utility class for tracking deprecated overridden
+  methods in non-final subclasses.
+  (Uwe Schindler, Robert Muir)
+   
 Build
 
  * LUCENE-2124: Moved the JDK-based collation support from contrib/collation 
@@ -115,6 +194,11 @@ Test Cases
 * LUCENE-2114: Change TestFilteredSearch to test on multi-segment
   index as well; improve javadocs of Filter to call out that the
   provided reader is per-segment (Simon Willnauer via Mike McCandless)
+
+* LUCENE-2155: Fix time and zone dependent localization test failures
+  in queryparser tests. (Uwe Schindler, Chris Male, Robert Muir)
+
+* LUCENE-2170: Fix thread starvation problems.  (Uwe Schindler)
 
 ======================= Release 3.0.0 2009-11-25 =======================
 

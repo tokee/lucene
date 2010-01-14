@@ -32,7 +32,6 @@ import java.util.Set;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.search.Similarity;
-import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockObtainFailedException;
@@ -40,6 +39,8 @@ import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.ReaderUtil;
+
+import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
 
 /** 
  * An IndexReader which reads indexes with multiple segments.
@@ -154,7 +155,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   DirectoryReader(IndexWriter writer, SegmentInfos infos, int termInfosIndexDivisor, Codecs codecs) throws IOException {
     this.directory = writer.getDirectory();
     this.readOnly = true;
-    this.segmentInfos = infos;
+    segmentInfos = infos;
     this.termInfosIndexDivisor = termInfosIndexDivisor;
     if (codecs == null) {
       this.codecs = Codecs.getDefault();
@@ -340,6 +341,22 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
+  /** {@inheritDoc} */
+  @Override
+  public String toString() {
+    final StringBuilder buffer = new StringBuilder();
+    if (hasChanges) {
+      buffer.append("*");
+    }
+    buffer.append(getClass().getSimpleName());
+    buffer.append('(');
+    for(SegmentReader r : subReaders) {
+      buffer.append(r);
+    }
+    buffer.append(')');
+    return buffer.toString();
+  }
+
   private void initialize(SegmentReader[] subReaders) {
     this.subReaders = subReaders;
     starts = new int[subReaders.length + 1];    // build starts array
@@ -456,22 +473,39 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   @Override
-  public final synchronized IndexReader reopen() throws CorruptIndexException, IOException {
+  public final IndexReader reopen() throws CorruptIndexException, IOException {
     // Preserve current readOnly
     return doReopen(readOnly, null);
   }
 
   @Override
-  public final synchronized IndexReader reopen(boolean openReadOnly) throws CorruptIndexException, IOException {
+  public final IndexReader reopen(boolean openReadOnly) throws CorruptIndexException, IOException {
     return doReopen(openReadOnly, null);
   }
 
   @Override
-  public final synchronized IndexReader reopen(final IndexCommit commit) throws CorruptIndexException, IOException {
+  public final IndexReader reopen(final IndexCommit commit) throws CorruptIndexException, IOException {
     return doReopen(true, commit);
   }
 
-  private synchronized IndexReader doReopen(final boolean openReadOnly, IndexCommit commit) throws CorruptIndexException, IOException {
+  private final IndexReader doReopenFromWriter(boolean openReadOnly, IndexCommit commit) throws CorruptIndexException, IOException {
+    assert readOnly;
+
+    if (!openReadOnly) {
+      throw new IllegalArgumentException("a reader obtained from IndexWriter.getReader() can only be reopened with openReadOnly=true (got false)");
+    }
+
+    if (commit != null) {
+      throw new IllegalArgumentException("a reader obtained from IndexWriter.getReader() cannot currently accept a commit");
+    }
+
+    // TODO: right now we *always* make a new reader; in
+    // the future we could have write make some effort to
+    // detect that no changes have occurred
+    return writer.getReader();
+  }
+
+  private IndexReader doReopen(final boolean openReadOnly, IndexCommit commit) throws CorruptIndexException, IOException {
     ensureOpen();
 
     assert commit == null || openReadOnly;
@@ -479,26 +513,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
     // If we were obtained by writer.getReader(), re-ask the
     // writer to get a new reader.
     if (writer != null) {
-      assert readOnly;
-
-      if (!openReadOnly) {
-        throw new IllegalArgumentException("a reader obtained from IndexWriter.getReader() can only be reopened with openReadOnly=true (got false)");
-      }
-
-      if (commit != null) {
-        throw new IllegalArgumentException("a reader obtained from IndexWriter.getReader() cannot currently accept a commit");
-      }
-
-      if (!writer.isOpen(true)) {
-        throw new AlreadyClosedException("cannot reopen: the IndexWriter this reader was obtained from is now closed");
-      }
-
-      // TODO: right now we *always* make a new reader; in
-      // the future we could have write make some effort to
-      // detect that no changes have occurred
-      IndexReader reader = writer.getReader();
-      return reader;
+      return doReopenFromWriter(openReadOnly, commit);
+    } else {
+      return doReopenNoWriter(openReadOnly, commit);
     }
+  }
+
+  private synchronized IndexReader doReopenNoWriter(final boolean openReadOnly, IndexCommit commit) throws CorruptIndexException, IOException {
 
     if (commit == null) {
       if (hasChanges) {
@@ -602,10 +623,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
     ensureOpen();
     return segmentInfos.size() == 1 && !hasDeletions();
   }
-  
+
   @Override
-  public synchronized int numDocs() {
+  public int numDocs() {
     // Don't call ensureOpen() here (it could affect performance)
+
+    // NOTE: multiple threads may wind up init'ing
+    // numDocs... but that's harmless
     if (numDocs == -1) {        // check cache
       int n = 0;                // cache miss--recompute
       for (int i = 0; i < subReaders.length; i++)
@@ -991,6 +1015,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
         if (ioe == null) ioe = e;
       }
     }
+
+    // NOTE: only needed in case someone had asked for
+    // FieldCache for top-level reader (which is generally
+    // not a good idea):
+    FieldCache.DEFAULT.purge(this);
+
     // throw the first exception
     if (ioe != null) throw ioe;
   }
@@ -1025,6 +1055,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return directory;
   }
 
+  @Override
   public int getTermInfosIndexDivisor() {
     return termInfosIndexDivisor;
   }

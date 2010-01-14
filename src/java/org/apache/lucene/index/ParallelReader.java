@@ -22,6 +22,7 @@ import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.document.FieldSelectorResult;
 import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
 
 import java.io.IOException;
 import java.util.*;
@@ -70,6 +71,21 @@ public class ParallelReader extends IndexReader {
   public ParallelReader(boolean closeSubReaders) throws IOException {
     super();
     this.incRefReaders = !closeSubReaders;
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public String toString() {
+    final StringBuilder buffer = new StringBuilder("ParallelReader(");
+    final Iterator<IndexReader> iter = readers.iterator();
+    if (iter.hasNext()) {
+      buffer.append(iter.next());
+    }
+    while (iter.hasNext()) {
+      buffer.append(", ").append(iter.next());
+    }
+    buffer.append(')');
+    return buffer.toString();
   }
 
  /** Add an IndexReader.
@@ -544,6 +560,8 @@ public class ParallelReader extends IndexReader {
         readers.get(i).close();
       }
     }
+
+    FieldCache.DEFAULT.purge(this);
   }
 
   @Override
