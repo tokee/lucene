@@ -471,7 +471,10 @@ public class TestPerfTasksLogic extends LuceneTestCase {
     int totalTokenCount2 = 0;
 
     FieldsEnum fields = reader.fields().iterator();
-    while(fields.next() != null) {
+    String fieldName = null;
+    while((fieldName = fields.next()) != null) {
+      if (fieldName == DocMaker.ID_FIELD)
+        continue;
       TermsEnum terms = fields.terms();
       while(terms.next() != null) {
         DocsEnum docs = terms.docs(reader.getDeletedDocs());
