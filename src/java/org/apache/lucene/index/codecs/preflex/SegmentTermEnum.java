@@ -28,6 +28,7 @@ import org.apache.lucene.index.CorruptIndexException;
  * @deprecated No longer used with flex indexing, except for
  * reading old segments */
 
+@Deprecated
 public final class SegmentTermEnum extends TermEnum implements Cloneable {
   private IndexInput input;
   FieldInfos fieldInfos;

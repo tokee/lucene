@@ -33,6 +33,7 @@ import org.apache.lucene.util.cache.SimpleLRUCache;
  * @deprecated This class has been replaced by
  * FormatPostingsTermsDictReader, except for reading old segments. */
 // nocommit -- public
+@Deprecated
 public final class TermInfosReader {
   private final Directory directory;
   private final String segment;

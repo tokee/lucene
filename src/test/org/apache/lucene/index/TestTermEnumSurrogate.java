@@ -32,6 +32,7 @@ import org.apache.lucene.util.LuceneTestCase;
  * 
  * @deprecated Remove this when the old API is no longer supported.
  */
+@Deprecated
 public class TestTermEnumSurrogate extends LuceneTestCase {
   public void testSeekSurrogate() throws Exception {
     RAMDirectory dir = new RAMDirectory();

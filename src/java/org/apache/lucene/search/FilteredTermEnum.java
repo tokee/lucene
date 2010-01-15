@@ -48,6 +48,7 @@ public abstract class FilteredTermEnum extends TermEnum {
      * together with {@link FilteredTermsEnum}. For example
      * see {@link FuzzyTermsEnum}
      */
+    @Deprecated
     public abstract float difference();
 
     /** Indicates the end of the enumeration has been reached */

@@ -31,6 +31,7 @@ import java.util.List;
  * @deprecated This class is being replaced by the package
  * private MultiDocsEnum on org.apache.lucene.search.
  */
+@Deprecated
 public class MultipleTermPositions implements TermPositions {
 
   private static final class TermPositionsQueue extends PriorityQueue<TermPositions> {

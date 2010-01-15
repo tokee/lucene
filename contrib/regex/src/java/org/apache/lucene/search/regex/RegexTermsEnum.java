@@ -33,7 +33,6 @@ import java.io.IOException;
  * Term enumerations are always ordered by Term.compareTo().  Each term in
  * the enumeration is greater than all that precede it.
  *
- * @deprecated Use {@link RegexTermsEnum} instead.
  */
 
 public class RegexTermsEnum extends FilteredTermsEnum {

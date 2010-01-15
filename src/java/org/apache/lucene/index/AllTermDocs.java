@@ -20,6 +20,7 @@ package org.apache.lucene.index;
 import org.apache.lucene.util.BitVector;
 
 /** @deprecated Switch to AllDocsEnum */
+@Deprecated
 class AllTermDocs extends AbstractAllTermDocs {
 
   protected BitVector deletedDocs;

@@ -22,6 +22,7 @@ package org.apache.lucene.index.codecs.preflex;
  * @deprecated This class is no longer used in flexible
  * indexing. */
 
+@Deprecated
 final class TermInfo {
   /** The number of documents which contain the term. */
   int docFreq = 0;

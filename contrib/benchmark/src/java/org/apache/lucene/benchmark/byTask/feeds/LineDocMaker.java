@@ -38,6 +38,7 @@ import org.apache.lucene.benchmark.byTask.utils.Config;
  * </ul>
  * @deprecated Please use {@link DocMaker} instead, with content.source=LineDocSource
  */
+@Deprecated
 public class LineDocMaker extends DocMaker {
   @Override
   public void setConfig(Config config) {

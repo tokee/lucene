@@ -26,6 +26,7 @@ import java.io.Closeable;
   the enumeration is greater than all that precede it.
 * @deprecated Use TermsEnum instead */
 
+@Deprecated
 public abstract class TermEnum implements Closeable {
   /** Increments the enumeration to the next element.  True if one exists.*/
   public abstract boolean next() throws IOException;

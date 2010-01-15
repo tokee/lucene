@@ -148,6 +148,7 @@ public class TermRangeQuery extends MultiTermQuery {
   }
 
   /** @deprecated */
+  @Deprecated
   public String field() {
     return getField();
   }

@@ -878,6 +878,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * @deprecated Use the new flex API ({@link #fields()}) instead.
    * @throws IOException if there is a low-level IO error
    */
+  @Deprecated
   public abstract TermEnum terms() throws IOException;
 
   // Default impl emulates new API using old one
@@ -893,12 +894,14 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * @deprecated Use the new flex API ({@link #fields()}) instead.
    * @throws IOException if there is a low-level IO error
    */
+  @Deprecated
   public abstract TermEnum terms(Term t) throws IOException;
 
   /** Returns the number of documents containing the term <code>t</code>.
    * @throws IOException if there is a low-level IO error
    * @deprecated Use {@link #docFreq(String,TermRef)} instead.
    */
+  @Deprecated
   public abstract int docFreq(Term t) throws IOException;
 
   /** Returns the number of documents containing the term
@@ -928,6 +931,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * @deprecated Use the new flex API ({@link #termDocsEnum()}) instead.
    * @throws IOException if there is a low-level IO error
    */
+  @Deprecated
   public TermDocs termDocs(Term term) throws IOException {
     ensureOpen();
     TermDocs termDocs = termDocs();
@@ -994,6 +998,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * @deprecated Use the new flex API ({@link #fields()}) instead.
    * @throws IOException if there is a low-level IO error
    */
+  @Deprecated
   public abstract TermDocs termDocs() throws IOException;
 
   /** Returns an enumeration of all the documents which contain
@@ -1015,6 +1020,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * #termDocsEnum()}) instead
    * @throws IOException if there is a low-level IO error
    */
+  @Deprecated
   public TermPositions termPositions(Term term) throws IOException {
     ensureOpen();
     TermPositions termPositions = termPositions();
@@ -1027,6 +1033,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * #termDocsEnum()}) instead
    * @throws IOException if there is a low-level IO error
    */
+  @Deprecated
   public abstract TermPositions termPositions() throws IOException;
 
 
@@ -1231,6 +1238,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    *             This method will be removed in the 3.0 release.
    * 
    */
+  @Deprecated
   public static void unlock(Directory directory) throws IOException {
     directory.makeLock(IndexWriter.WRITE_LOCK_NAME).release();
   }

@@ -124,6 +124,7 @@ final public class UnicodeUtil {
    *
    * @deprecated Use {@link #UTF16toUTF8(char[], int, int,
    * UTF8Result)} instead. */
+  @Deprecated
   public static void UTF16toUTF8(final char[] source, final int offset, UTF8Result result) {
 
     int upto = 0;

@@ -35,6 +35,7 @@ import org.apache.lucene.search.Explanation;
  *  migration to segment-based searching. Please change your
  *  code to not pass composite readers to these APIs. */
 
+@Deprecated
 public final class MultiValueSource extends ValueSource {
 
   final ValueSource other;

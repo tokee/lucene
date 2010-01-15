@@ -34,6 +34,7 @@ import java.io.IOException;
  * @deprecated Use {@link RegexTermsEnum} instead.
  */
 
+@Deprecated
 public class RegexTermEnum extends FilteredTermEnum {
   private String field = "";
   private String pre = "";

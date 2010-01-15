@@ -140,6 +140,7 @@ public final class FuzzyTermEnum extends FilteredTermEnum {
   }
   
   /** @deprecated Use {@link MultiTermQuery.BoostAttribute} together with {@link FuzzyTermsEnum} */
+  @Deprecated
   @Override
   public final float difference() {
     return (similarity - minimumSimilarity) * scale_factor;

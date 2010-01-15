@@ -845,6 +845,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   /** @deprecated Please switch to the flex API ({@link
    * #fields}) instead. */
+  @Deprecated
   @Override
   public TermEnum terms(Term t) throws IOException {
     ensureOpen();
@@ -876,6 +877,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   /** @deprecated Switch to the flex API ({@link
    * IndexReader#termDocsEnum}) instead. */
+  @Deprecated
   @Override
   public TermDocs termDocs(Term term) throws IOException {
     if (term == null) {
@@ -892,6 +894,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   /** @deprecated Switch to the flex API {@link
    *  IndexReader#termDocsEnum} instead. */
+  @Deprecated
   @Override
   public TermDocs termDocs() throws IOException {
     ensureOpen();
@@ -911,6 +914,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   /** @deprecated Switch to the flex API {@link
    *  IndexReader#termDocsEnum} instead */
+  @Deprecated
   @Override
   public TermPositions termPositions() throws IOException {
     ensureOpen();

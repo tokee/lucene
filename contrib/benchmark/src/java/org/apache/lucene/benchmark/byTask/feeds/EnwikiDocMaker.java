@@ -25,6 +25,7 @@ import org.apache.lucene.benchmark.byTask.utils.Config;
  * content source was defined in the configuration.
  * @deprecated Please use {@link DocMaker} instead, with content.source=EnwikiContentSource
  */
+@Deprecated
 public class EnwikiDocMaker extends DocMaker {
   @Override
   public void setConfig(Config config) {
