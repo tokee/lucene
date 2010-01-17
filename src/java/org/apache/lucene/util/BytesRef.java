@@ -52,7 +52,8 @@ public final class BytesRef {
    * unpaired surrogates or U+FFFF.
    */
   public void copy(String text) {
-    // nocommit -- assert text has no unpaired surrogates??
+    // nocommit -- remove this paranoia
+    assert UnicodeUtil.validUTF16String(text);
     try {
       bytes = text.getBytes("UTF-8");
     } catch (UnsupportedEncodingException uee) {
