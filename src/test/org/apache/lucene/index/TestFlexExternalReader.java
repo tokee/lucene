@@ -46,8 +46,8 @@ public class TestFlexExternalReader extends LuceneTestCase {
 
     IndexReader r = new FlexTestUtil.ForcedExternalReader(w.getReader());
 
-    TermRef field1Term = new TermRef("field1");
-    TermRef field2Term = new TermRef("field2");
+    BytesRef field1Term = new BytesRef("field1");
+    BytesRef field2Term = new BytesRef("field2");
 
     assertEquals(DOC_COUNT, r.maxDoc());
     assertEquals(DOC_COUNT, r.numDocs());
@@ -60,19 +60,19 @@ public class TestFlexExternalReader extends LuceneTestCase {
     assertEquals(TermsEnum.SeekStatus.FOUND, termsEnum.seek(field1Term));
 
     assertEquals(TermsEnum.SeekStatus.NOT_FOUND, termsEnum.seek(field2Term));
-    assertTrue(new TermRef("is").termEquals(termsEnum.term()));
+    assertTrue(new BytesRef("is").bytesEquals(termsEnum.term()));
 
     terms = fields.terms("field2");
     termsEnum = terms.iterator();
     assertEquals(TermsEnum.SeekStatus.NOT_FOUND, termsEnum.seek(field1Term));
-    assertTrue(termsEnum.term().termEquals(field2Term));
+    assertTrue(termsEnum.term().bytesEquals(field2Term));
 
     assertEquals(TermsEnum.SeekStatus.FOUND, termsEnum.seek(field2Term));
 
     termsEnum = fields.terms("field3").iterator();
-    assertEquals(TermsEnum.SeekStatus.END, termsEnum.seek(new TermRef("bbb")));
+    assertEquals(TermsEnum.SeekStatus.END, termsEnum.seek(new BytesRef("bbb")));
 
-    assertEquals(TermsEnum.SeekStatus.FOUND, termsEnum.seek(new TermRef("aaa")));
+    assertEquals(TermsEnum.SeekStatus.FOUND, termsEnum.seek(new BytesRef("aaa")));
     assertNull(termsEnum.next());
 
     r.close();

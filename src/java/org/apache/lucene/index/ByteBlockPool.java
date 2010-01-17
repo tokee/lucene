@@ -34,6 +34,7 @@ package org.apache.lucene.index;
  * hit a non-zero byte. */
 
 import java.util.Arrays;
+import org.apache.lucene.util.BytesRef;
 
 final class ByteBlockPool {
 
@@ -144,9 +145,9 @@ final class ByteBlockPool {
     return newUpto+3;
   }
 
-  // Fill in a TermRef from terms length & bytes encoded in
+  // Fill in a BytesRef from term's length & bytes encoded in
   // byte block
-  final TermRef setTermRef(TermRef term, int textStart) {
+  final BytesRef setBytesRef(BytesRef term, int textStart) {
     final byte[] bytes = term.bytes = buffers[textStart >> DocumentsWriter.BYTE_BLOCK_SHIFT];
     int pos = textStart & DocumentsWriter.BYTE_BLOCK_MASK;
     if ((bytes[pos] & 0x80) == 0) {

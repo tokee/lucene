@@ -22,7 +22,7 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentWriteState;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.codecs.Codec;
 
 import java.util.List;
@@ -88,7 +88,7 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
     }
 
     @Override
-    public boolean checkIndexTerm(TermRef text, int docFreq) throws IOException {
+    public boolean checkIndexTerm(BytesRef text, int docFreq) throws IOException {
       // First term is first indexed term:
       if (0 == (numTerms++ % termIndexInterval)) {
         final long termsPointer = termsOut.getFilePointer();

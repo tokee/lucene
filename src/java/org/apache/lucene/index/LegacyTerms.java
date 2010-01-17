@@ -20,6 +20,7 @@ package org.apache.lucene.index;
 import java.io.IOException;
 
 import org.apache.lucene.util.StringHelper;
+import org.apache.lucene.util.BytesRef;
 
 /** Implements flex API (FieldsEnum/TermsEnum) on top of
  *  pre-flex API.  Used only for IndexReader impls outside
@@ -40,9 +41,9 @@ class LegacyTerms extends Terms {
   }
 
   @Override
-  public TermRef.Comparator getTermComparator() {
+  public BytesRef.Comparator getComparator() {
     // Pre-flex indexes always sorted in UTF16 order
-    return TermRef.getUTF8SortedAsUTF16Comparator();
+    return BytesRef.getUTF8SortedAsUTF16Comparator();
   }
 }
 

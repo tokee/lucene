@@ -39,6 +39,7 @@ import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.ReaderUtil;
+import org.apache.lucene.util.BytesRef;
 
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
 
@@ -792,7 +793,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   @Override
-  public int docFreq(String field, TermRef term) throws IOException {
+  public int docFreq(String field, BytesRef term) throws IOException {
     ensureOpen();
     int total = 0;          // sum freqs in segments
     for (int i = 0; i < subReaders.length; i++) {
@@ -1214,10 +1215,10 @@ class DirectoryReader extends IndexReader implements Cloneable {
     final TermsEnum terms;
     final int base;
     final int length;
-    TermRef current;
+    BytesRef current;
     final Bits skipDocs;
 
-    public TermsEnumWithBase(FieldsEnumWithBase start, TermsEnum terms, TermRef term) {
+    public TermsEnumWithBase(FieldsEnumWithBase start, TermsEnum terms, BytesRef term) {
       this.terms = terms;
       current = term;
       skipDocs = start.skipDocs;
@@ -1226,7 +1227,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       assert length >= 0: "length=" + length;
     }
 
-    public TermsEnumWithBase(TermsWithBase start, TermsEnum terms, TermRef term) {
+    public TermsEnumWithBase(TermsWithBase start, TermsEnum terms, BytesRef term) {
       this.terms = terms;
       current = term;
       skipDocs = start.skipDocs;
@@ -1253,7 +1254,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   private final static class TermMergeQueue extends PriorityQueue<TermsEnumWithBase> {
-    TermRef.Comparator termComp;
+    BytesRef.Comparator termComp;
     TermMergeQueue(int size) {
       initialize(size);
     }
@@ -1316,21 +1317,21 @@ class DirectoryReader extends IndexReader implements Cloneable {
   // sub-segments.
   private final static class MultiTerms extends Terms {
     private final TermsWithBase[] subs;
-    private final TermRef.Comparator termComp;
+    private final BytesRef.Comparator termComp;
 
     public MultiTerms(TermsWithBase[] subs) throws IOException {
       this.subs = subs;
       
-      TermRef.Comparator _termComp = null;
+      BytesRef.Comparator _termComp = null;
       for(int i=0;i<subs.length;i++) {
         if (_termComp == null) {
-          _termComp = subs[i].terms.getTermComparator();
+          _termComp = subs[i].terms.getComparator();
         } else {
           // We cannot merge sub-readers that have
           // different TermComps
-          final TermRef.Comparator subTermComp = subs[i].terms.getTermComparator();
+          final BytesRef.Comparator subTermComp = subs[i].terms.getComparator();
           if (subTermComp != null && !subTermComp.equals(_termComp)) {
-            throw new IllegalStateException("sub-readers have different TermRef.Comparators; cannot merge");
+            throw new IllegalStateException("sub-readers have different BytesRef.Comparators; cannot merge");
           }
         }
       }
@@ -1343,7 +1344,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
-    public TermRef.Comparator getTermComparator() {
+    public BytesRef.Comparator getComparator() {
       return termComp;
     }
   }
@@ -1431,9 +1432,9 @@ class DirectoryReader extends IndexReader implements Cloneable {
     private final TermsEnumWithBase[] top;
     int numTop;
     int numSubs;
-    private TermRef current;
+    private BytesRef current;
     private final MultiDocsEnum docs;
-    private TermRef.Comparator termComp;
+    private BytesRef.Comparator termComp;
 
     MultiTermsEnum(int size) {
       queue = new TermMergeQueue(size);
@@ -1443,12 +1444,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
-    public TermRef term() {
+    public BytesRef term() {
       return current;
     }
 
     @Override
-    public TermRef.Comparator getTermComparator() {
+    public BytesRef.Comparator getComparator() {
       return termComp;
     }
 
@@ -1462,16 +1463,16 @@ class DirectoryReader extends IndexReader implements Cloneable {
         final TermsEnum termsEnum = terms[i].terms.iterator();
         if (termsEnum != null) {
           if (termComp == null) {
-            queue.termComp = termComp = termsEnum.getTermComparator();
+            queue.termComp = termComp = termsEnum.getComparator();
           } else {
             // We cannot merge sub-readers that have
             // different TermComps
-            final TermRef.Comparator subTermComp = termsEnum.getTermComparator();
+            final BytesRef.Comparator subTermComp = termsEnum.getComparator();
             if (subTermComp != null && !subTermComp.equals(termComp)) {
-              throw new IllegalStateException("sub-readers have different TermRef.Comparators; cannot merge");
+              throw new IllegalStateException("sub-readers have different BytesRef.Comparators; cannot merge");
             }
           }
-          final TermRef term = termsEnum.next();
+          final BytesRef term = termsEnum.next();
           if (term != null) {
             subs[numSubs] = new TermsEnumWithBase(terms[i], termsEnum, term);
             queue.add(subs[numSubs]);
@@ -1494,12 +1495,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
       for(int i=0;i<numFields;i++) {
         final TermsEnum terms = fields[i].fields.terms();
         if (terms != null) {
-          final TermRef term = terms.next();
+          final BytesRef term = terms.next();
           if (term != null) {
             if (termComp == null) {
-              queue.termComp = termComp = terms.getTermComparator();
+              queue.termComp = termComp = terms.getComparator();
             } else {
-              assert termComp.equals(terms.getTermComparator());
+              assert termComp.equals(terms.getComparator());
             }
             subs[numSubs] = new TermsEnumWithBase(fields[i], terms, term);
             queue.add(subs[numSubs]);
@@ -1514,7 +1515,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
-    public SeekStatus seek(TermRef term) throws IOException {
+    public SeekStatus seek(BytesRef term) throws IOException {
       queue.clear();
       numTop = 0;
       for(int i=0;i<numSubs;i++) {
@@ -1558,7 +1559,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
       assert numTop == 0;
       while(true) {
         top[numTop++] = queue.pop();
-        if (queue.size() == 0 || !(queue.top()).current.termEquals(top[0].current)) {
+        if (queue.size() == 0 || !(queue.top()).current.bytesEquals(top[0].current)) {
           break;
         }
       } 
@@ -1579,7 +1580,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
-    public TermRef next() throws IOException {
+    public BytesRef next() throws IOException {
       // restore queue
       pushTop();
 

@@ -36,7 +36,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util._TestUtil;
@@ -219,7 +219,7 @@ public class TestRemoteSort extends LuceneTestCase implements Serializable {
     @Override
     public void setNextReader(IndexReader reader, int docBase) throws IOException {
       docValues = FieldCache.DEFAULT.getInts(reader, "parser", new FieldCache.IntParser() {
-          public final int parseInt(TermRef termRef) {
+          public final int parseInt(BytesRef termRef) {
             return (termRef.toString().charAt(0)-'A') * 123456;
           }
         });

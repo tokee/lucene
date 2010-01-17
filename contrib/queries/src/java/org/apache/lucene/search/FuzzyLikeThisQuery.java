@@ -29,7 +29,7 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.PriorityQueue;
 
 /**
@@ -204,7 +204,7 @@ public class FuzzyLikeThisQuery extends Query
                   int df = reader.docFreq(startTerm);
                   int numVariants=0;
                   int totalVariantDocFreqs=0;
-                  TermRef possibleMatch;
+                  BytesRef possibleMatch;
                   MultiTermQuery.BoostAttribute boostAtt =
                     fe.attributes().addAttribute(MultiTermQuery.BoostAttribute.class);
                   while ((possibleMatch = fe.next()) != null) {

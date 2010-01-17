@@ -19,7 +19,7 @@ package org.apache.lucene.search.spans;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.ToStringUtils;
 
 import java.io.IOException;
@@ -83,7 +83,7 @@ public class SpanTermQuery extends SpanQuery {
   public Spans getSpans(final IndexReader reader) throws IOException {
     return new TermSpans(reader.termDocsEnum(reader.getDeletedDocs(),
                                              term.field(),
-                                             new TermRef(term.text())), term);
+                                             new BytesRef(term.text())), term);
   }
 
 }

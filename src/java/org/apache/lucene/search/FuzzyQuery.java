@@ -19,7 +19,6 @@ package org.apache.lucene.search;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.ToStringUtils;
 

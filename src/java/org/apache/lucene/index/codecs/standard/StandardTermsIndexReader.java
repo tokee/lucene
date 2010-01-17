@@ -18,7 +18,7 @@ package org.apache.lucene.index.codecs.standard;
  */
 
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -41,7 +41,7 @@ public abstract class StandardTermsIndexReader {
 
   static class TermsIndexResult {
     long position;
-    final TermRef term = new TermRef();
+    final BytesRef term = new BytesRef();
     long offset;
   };
 
@@ -52,7 +52,7 @@ public abstract class StandardTermsIndexReader {
      *  expects that you'll then scan the file and
      *  sequentially call isIndexTerm for each term
      *  encountered. */
-    public abstract void getIndexOffset(TermRef term, TermsIndexResult result) throws IOException;
+    public abstract void getIndexOffset(BytesRef term, TermsIndexResult result) throws IOException;
 
     public abstract void getIndexOffset(long ord, TermsIndexResult result) throws IOException;
 

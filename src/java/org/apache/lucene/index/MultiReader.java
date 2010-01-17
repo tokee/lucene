@@ -33,6 +33,7 @@ import org.apache.lucene.index.DirectoryReader.MultiTermPositions;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
+import org.apache.lucene.util.BytesRef;
 
 /** An IndexReader which reads multiple indexes, appending
  * their content. */
@@ -405,7 +406,7 @@ public class MultiReader extends IndexReader implements Cloneable {
   }
   
   @Override
-  public int docFreq(String field, TermRef t) throws IOException {
+  public int docFreq(String field, BytesRef t) throws IOException {
     ensureOpen();
     int total = 0;          // sum freqs in segments
     for (int i = 0; i < subReaders.length; i++) {

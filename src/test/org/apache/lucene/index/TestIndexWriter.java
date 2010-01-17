@@ -72,6 +72,7 @@ import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.util._TestUtil;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.util.ThreadInterruptedException;
+import org.apache.lucene.util.BytesRef;
 
 public class TestIndexWriter extends LuceneTestCase {
     public TestIndexWriter(String name) {
@@ -4691,7 +4692,7 @@ public class TestIndexWriter extends LuceneTestCase {
 
     UnicodeUtil.UTF16Result utf16 = new UnicodeUtil.UTF16Result();
     while(true) {
-      final TermRef term = terms.next();
+      final BytesRef term = terms.next();
       if (term == null) {
         break;
       }
@@ -4725,7 +4726,7 @@ public class TestIndexWriter extends LuceneTestCase {
     // Test seeking:
     Iterator<String> it = seenTerms.iterator();
     while(it.hasNext()) {
-      TermRef tr = new TermRef(it.next());
+      BytesRef tr = new BytesRef(it.next());
       assertEquals("seek failed for term=" + termDesc(tr.toString()), 
                    TermsEnum.SeekStatus.FOUND,
                    terms.seek(tr));

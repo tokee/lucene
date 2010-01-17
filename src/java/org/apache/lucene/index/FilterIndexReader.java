@@ -22,6 +22,7 @@ import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -224,7 +225,7 @@ public class FilterIndexReader extends IndexReader {
   }
 
   @Override
-  public int docFreq(String field, TermRef t) throws IOException {
+  public int docFreq(String field, BytesRef t) throws IOException {
     ensureOpen();
     return in.docFreq(field, t);
   }

@@ -18,6 +18,7 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
+import org.apache.lucene.util.BytesRef;
 
 // TODO FI: some of this is "generic" to TermsHash* so we
 // should factor it out so other consumers don't have to
@@ -33,7 +34,7 @@ final class FreqProxFieldMergeState {
   final RawPostingList[] postings;
 
   private FreqProxTermsWriter.PostingList p;
-  final TermRef text = new TermRef();
+  final BytesRef text = new BytesRef();
 
   private int postingUpto = -1;
 
@@ -43,7 +44,7 @@ final class FreqProxFieldMergeState {
   int docID;
   int termFreq;
 
-  public FreqProxFieldMergeState(FreqProxTermsWriterPerField field, TermRef.Comparator termComp) {
+  public FreqProxFieldMergeState(FreqProxTermsWriterPerField field, BytesRef.Comparator termComp) {
     this.field = field;
     this.numPostings = field.termsHashPerField.numPostings;
     this.postings = field.termsHashPerField.sortPostings(termComp);
@@ -59,8 +60,8 @@ final class FreqProxFieldMergeState {
     p = (FreqProxTermsWriter.PostingList) postings[postingUpto];
     docID = 0;
 
-    // Get TermRef
-    bytePool.setTermRef(text, p.textStart);
+    // Get BytesRef
+    bytePool.setBytesRef(text, p.textStart);
 
     field.termsHashPerField.initReader(freq, p, 0);
     if (!field.fieldInfo.omitTermFreqAndPositions) {

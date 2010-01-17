@@ -24,10 +24,8 @@ import org.apache.lucene.analysis.NumericTokenStream; // for javadocs
 import org.apache.lucene.document.NumericField; // for javadocs
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.ToStringUtils;
-import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
 
 /**
@@ -381,10 +379,10 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
    */
   private final class NumericRangeTermsEnum extends FilteredTermsEnum {
 
-    private final TermRef currentLowerBound = new TermRef(), currentUpperBound = new TermRef();
+    private final BytesRef currentLowerBound = new BytesRef(), currentUpperBound = new BytesRef();
 
     private final LinkedList<String> rangeBounds = new LinkedList<String>();
-    private final TermRef.Comparator termComp;
+    private final BytesRef.Comparator termComp;
 
     NumericRangeTermsEnum(final IndexReader reader) throws IOException {
       super(reader, getField());
@@ -464,11 +462,11 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
           throw new IllegalArgumentException("valSize must be 32 or 64");
       }
 
-      termComp = getTermComparator();
+      termComp = getComparator();
     }
     
     @Override
-    protected final TermRef nextSeekTerm(TermRef term) throws IOException {
+    protected final BytesRef nextSeekTerm(BytesRef term) throws IOException {
       if (rangeBounds.size() >= 2) {
         assert rangeBounds.size() % 2 == 0;
 
@@ -486,7 +484,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     }
     
     @Override
-    protected AcceptStatus accept(TermRef term) {
+    protected AcceptStatus accept(BytesRef term) {
       return (currentUpperBound != null && termComp.compare(term, currentUpperBound) <= 0) ?
         AcceptStatus.YES : AcceptStatus.NO_AND_SEEK;
     }

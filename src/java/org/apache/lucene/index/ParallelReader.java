@@ -23,6 +23,7 @@ import org.apache.lucene.document.FieldSelectorResult;
 import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 import java.util.*;
@@ -471,7 +472,7 @@ public class ParallelReader extends IndexReader {
   }
 
   @Override
-  public int docFreq(String field, TermRef term) throws IOException {
+  public int docFreq(String field, BytesRef term) throws IOException {
     ensureOpen();
     IndexReader reader = ((IndexReader)fieldToReader.get(field));
     return reader == null? 0 : reader.docFreq(field, term);
@@ -575,6 +576,7 @@ public class ParallelReader extends IndexReader {
     return fieldSet;
   }
 
+  @Deprecated
   private class ParallelTermEnum extends TermEnum {
     private String field;
     private Iterator<String> fieldIterator;

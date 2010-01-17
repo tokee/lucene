@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * Subclass of FilteredTermEnum for enumerating all terms that match the
@@ -32,15 +32,15 @@ import org.apache.lucene.index.TermRef;
  */
 public class PrefixTermsEnum extends FilteredTermsEnum {
 
-  private final TermRef prefixRef;
+  private final BytesRef prefixRef;
 
   public PrefixTermsEnum(IndexReader reader, Term prefix) throws IOException {
     super(reader, prefix.field());
-    setInitialSeekTerm(prefixRef = new TermRef(prefix.text()));
+    setInitialSeekTerm(prefixRef = new BytesRef(prefix.text()));
   }
 
   @Override
-  protected AcceptStatus accept(TermRef term) {
+  protected AcceptStatus accept(BytesRef term) {
     if (term.startsWith(prefixRef)) {
       return AcceptStatus.YES;
     } else {

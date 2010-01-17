@@ -25,7 +25,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentWriteState;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.DocsConsumer;
@@ -59,12 +59,12 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   FieldInfo currentField;
   private final StandardTermsIndexWriter indexWriter;
   private final List<TermsConsumer> fields = new ArrayList<TermsConsumer>();
-  private final TermRef.Comparator termComp;
+  private final BytesRef.Comparator termComp;
 
   // nocommit
   private String segment;
 
-  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardDocsConsumer consumer, TermRef.Comparator termComp) throws IOException {
+  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardDocsConsumer consumer, BytesRef.Comparator termComp) throws IOException {
     final String termsFileName = IndexFileNames.segmentFileName(state.segmentName, StandardCodec.TERMS_EXTENSION);
     this.indexWriter = indexWriter;
     this.termComp = termComp;
@@ -167,12 +167,12 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     }
     
     @Override
-    public TermRef.Comparator getTermComparator() {
+    public BytesRef.Comparator getComparator() {
       return termComp;
     }
 
     @Override
-    public DocsConsumer startTerm(TermRef text) throws IOException {
+    public DocsConsumer startTerm(BytesRef text) throws IOException {
       consumer.startTerm();
       if (Codec.DEBUG) {
         consumer.desc = fieldInfo.name + ":" + text;
@@ -182,7 +182,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     }
 
     @Override
-    public void finishTerm(TermRef text, int numDocs) throws IOException {
+    public void finishTerm(BytesRef text, int numDocs) throws IOException {
 
       // mxx
       if (Codec.DEBUG) {

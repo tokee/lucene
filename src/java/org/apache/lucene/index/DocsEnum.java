@@ -45,8 +45,11 @@ public abstract class DocsEnum extends DocIdSetIterator {
   // (defined?) after this?
   // nocommit -- fix this API so that intblock codecs are
   // able to return their own int arrays, to save a copy
-  /** Bulk read: returns number of docs read.  Subclass may
-   * do this more efficiently. */
+  /** Bulk read: returns number of docs read.
+   * 
+   *  <p>NOTE: the default impl simply delegates to {@link
+   *  #nextDoc}, but subclasses may do this more
+   *  efficiently. */
   public int read(int[] docs, int[] freqs) throws IOException {
     int count = 0;
     while(count < docs.length) {

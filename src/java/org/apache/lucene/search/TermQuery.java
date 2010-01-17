@@ -22,7 +22,7 @@ import java.util.Set;
 
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.Explanation.IDFExplanation;
 import org.apache.lucene.util.ToStringUtils;
@@ -72,7 +72,7 @@ public class TermQuery extends Query {
 
     @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder, boolean topScorer) throws IOException {
-      DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field(), new TermRef(term.text()));
+      DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field(), new BytesRef(term.text()));
       if (docs == null) {
         return null;
       }
@@ -115,7 +115,7 @@ public class TermQuery extends Query {
 
       Explanation tfExplanation = new Explanation();
       int tf = 0;
-      DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field(), new TermRef(term.text()));
+      DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field(), new BytesRef(term.text()));
       if (docs != null) {
           int newDoc = docs.advance(doc);
           if (newDoc == doc) {

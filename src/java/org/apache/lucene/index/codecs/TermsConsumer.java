@@ -19,10 +19,10 @@ package org.apache.lucene.index.codecs;
 
 import java.io.IOException;
 
-import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.util.PriorityQueue;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * NOTE: this API is experimental and will likely change
@@ -31,30 +31,30 @@ import org.apache.lucene.util.PriorityQueue;
 public abstract class TermsConsumer {
 
   /** Starts a new term in this field. */
-  public abstract DocsConsumer startTerm(TermRef text) throws IOException;
+  public abstract DocsConsumer startTerm(BytesRef text) throws IOException;
 
   /** Finishes the current term */
-  public abstract void finishTerm(TermRef text, int numDocs) throws IOException;
+  public abstract void finishTerm(BytesRef text, int numDocs) throws IOException;
 
   /** Called when we are done adding terms to this field */
   public abstract void finish() throws IOException;
 
-  /** Return the TermRef Comparator used to sort terms
+  /** Return the BytesRef Comparator used to sort terms
    *  before feeding to this API. */
-  public abstract TermRef.Comparator getTermComparator() throws IOException;
+  public abstract BytesRef.Comparator getComparator() throws IOException;
 
   // For default merge impl
   public static class TermMergeState {
-    TermRef current;
+    BytesRef current;
     TermsEnum termsEnum;
     int readerIndex;
   }
 
   private final static class MergeQueue extends PriorityQueue<TermMergeState> {
 
-    final TermRef.Comparator termComp;
+    final BytesRef.Comparator termComp;
 
-    public MergeQueue(int size, TermRef.Comparator termComp) {
+    public MergeQueue(int size, BytesRef.Comparator termComp) {
       initialize(size);
       this.termComp = termComp;
     }
@@ -77,7 +77,7 @@ public abstract class TermsConsumer {
   /** Default merge impl */
   public void merge(MergeState mergeState, TermMergeState[] termsStates, int count) throws IOException {
 
-    final TermRef.Comparator termComp = getTermComparator();
+    final BytesRef.Comparator termComp = getComparator();
 
     //System.out.println("merge terms field=" + mergeState.fieldInfo.name + " comp=" + termComp);
 
@@ -119,14 +119,14 @@ public abstract class TermsConsumer {
           matchCount++;
         }
         TermMergeState top = queue.top();
-        if (top == null || !top.current.termEquals(pending[0].current)) {
+        if (top == null || !top.current.bytesEquals(pending[0].current)) {
           break;
         }
       }
 
       if (matchCount > 0) {
         // Merge one term
-        final TermRef term = pending[0].current;
+        final BytesRef term = pending[0].current;
         //System.out.println("  merge term=" + term);
         final DocsConsumer docsConsumer = startTerm(term);
         final int numDocs = docsConsumer.merge(mergeState, match, matchCount);

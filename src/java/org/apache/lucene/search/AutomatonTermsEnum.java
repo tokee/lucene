@@ -22,7 +22,7 @@ import java.util.BitSet;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.RunAutomaton;
@@ -68,19 +68,19 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
   // true if this enum will not seek around
   private final boolean linearMode;
   // common suffix of the automaton
-  private final TermRef commonSuffixRef;
+  private final BytesRef commonSuffixRef;
   // true if the automaton accepts a finite language
   private final boolean finite;
   // array of sorted transitions for each state, indexed by state number
   private final Transition[][] allTransitions;
   // for path tracking: each bit is a numbered state
   private final BitSet visited;
-  // used for unicode conversion from TermRef byte[] to char[]
+  // used for unicode conversion from BytesRef byte[] to char[]
   private final UnicodeUtil.UTF16Result utf16 = new UnicodeUtil.UTF16Result();
-  // used for unicode conversion from char[] to TermRef byte[]
+  // used for unicode conversion from char[] to BytesRef byte[]
   private final UnicodeUtil.UTF8Result utf8 = new UnicodeUtil.UTF8Result();
   // the reference used for seeking forwards through the term dictionary
-  private final TermRef seekTermRef = new TermRef();
+  private final BytesRef seekBytesRef = new BytesRef();
   
   // this accept stati will be returned by accept() dependent on internal mode
   private final AcceptStatus NO_MATCH, YES_MATCH;
@@ -109,7 +109,7 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
       this.finite = false;
       allTransitions = null;
       visited = null;
-      commonSuffixRef = new TermRef(getValidUTF16Suffix(SpecialOperations
+      commonSuffixRef = new BytesRef(getValidUTF16Suffix(SpecialOperations
           .getCommonSuffix(automaton)));
       NO_MATCH = AcceptStatus.NO;
       YES_MATCH = AcceptStatus.YES;
@@ -120,7 +120,7 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
       // we will seek each time anyway (and take the unicode conversion hit).
       // its also currently expensive to calculate, because getCommonSuffix is 
       // a bit expensive.
-      commonSuffixRef = new TermRef("");
+      commonSuffixRef = new BytesRef("");
       // build a cache of sorted transitions for every state
       allTransitions = new Transition[runAutomaton.getSize()][];
       for (State state : this.automaton.getStates())
@@ -189,7 +189,7 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
    * In smart mode, it will never do this.   
    */
   @Override
-  protected AcceptStatus accept(final TermRef term) {
+  protected AcceptStatus accept(final BytesRef term) {
     if (term.endsWith(commonSuffixRef)) {
       UnicodeUtil.UTF8toUTF16(term.bytes, term.offset, term.length, utf16);
       return runAutomaton.run(utf16.result, 0, utf16.length) ? YES_MATCH : NO_MATCH;
@@ -199,22 +199,22 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
   }
   
   @Override
-  protected TermRef nextSeekTerm(final TermRef term) throws IOException {
+  protected BytesRef nextSeekTerm(final BytesRef term) throws IOException {
     if (term == null) {
       // return the first seek term
       if (linearMode) {
-        seekTermRef.copy("");
+        seekBytesRef.copy("");
       } else {
         utf16.copyText("");
         if (!nextString())
           return null;
         UnicodeUtil.nextValidUTF16String(utf16);
         UnicodeUtil.UTF16toUTF8(utf16.result, 0, utf16.length, utf8);
-        seekTermRef.bytes = utf8.result;
-        seekTermRef.offset = 0;
-        seekTermRef.length = utf8.length;
+        seekBytesRef.bytes = utf8.result;
+        seekBytesRef.offset = 0;
+        seekBytesRef.length = utf8.length;
       }
-      return seekTermRef;
+      return seekBytesRef;
     } else if (!linearMode) {
       // seek to the next possible string
       UnicodeUtil.UTF8toUTF16(term.bytes, term.offset, term.length, utf16);
@@ -222,10 +222,10 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
         // reposition
         UnicodeUtil.nextValidUTF16String(utf16);
         UnicodeUtil.UTF16toUTF8(utf16.result, 0, utf16.length, utf8);
-        seekTermRef.bytes = utf8.result;
-        seekTermRef.offset = 0;
-        seekTermRef.length = utf8.length;
-        return seekTermRef;
+        seekBytesRef.bytes = utf8.result;
+        seekBytesRef.offset = 0;
+        seekBytesRef.length = utf8.length;
+        return seekBytesRef;
       }
     }
     // no more possible strings can match

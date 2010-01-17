@@ -18,13 +18,13 @@ package org.apache.lucene.index.codecs.standard;
  */
 
 import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 
 // Handles reading incremental UTF8 encoded terms
 final class DeltaBytesReader {
-  final TermRef term = new TermRef();
+  final BytesRef term = new BytesRef();
   final IndexInput in;
 
   DeltaBytesReader(IndexInput in) {
@@ -32,7 +32,7 @@ final class DeltaBytesReader {
     term.bytes = new byte[10];
   }
 
-  void reset(TermRef text) {
+  void reset(BytesRef text) {
     term.copy(text);
   }
 

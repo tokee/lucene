@@ -28,7 +28,6 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.FieldsEnum;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.codecs.Codec;
@@ -40,6 +39,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.CloseableThreadLocal;
 import org.apache.lucene.util.cache.Cache;
 import org.apache.lucene.util.cache.DoubleBarrelLRUCache;
+import org.apache.lucene.util.BytesRef;
 
 /** Handles a terms dict, but defers all details of postings
  *  reading to an instance of {@TermsDictDocsReader}. This
@@ -57,10 +57,10 @@ public class StandardTermsDictReader extends FieldsProducer {
   private final String segment;
   private StandardTermsIndexReader indexReader;
 
-  private final TermRef.Comparator termComp;
+  private final BytesRef.Comparator termComp;
   
   public StandardTermsDictReader(StandardTermsIndexReader indexReader, Directory dir, FieldInfos fieldInfos, String segment, StandardDocsProducer docs, int readBufferSize,
-                                 TermRef.Comparator termComp)
+                                 BytesRef.Comparator termComp)
     throws IOException {
     
     this.segment = segment;
@@ -138,17 +138,19 @@ public class StandardTermsDictReader extends FieldsProducer {
   public void close() throws IOException {
     try {
       try {
-        if(indexReader != null) {
+        if (indexReader != null) {
           indexReader.close();
         }
       } finally {
-        if(in != null) {
+        // null so if an app hangs on to us we still free most ram
+        indexReader = null;
+        if (in != null) {
           in.close();
         }
       }
     } finally {
       try {
-        if(docs != null) {
+        if (docs != null) {
           docs.close();
         }
       } finally {
@@ -221,7 +223,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     final StandardTermsIndexReader.FieldReader indexReader;
     private final static int DEFAULT_CACHE_SIZE = 1024;
     // Used for caching the least recently looked-up Terms
-    private final Cache<TermRef,CacheEntry> termsCache = new DoubleBarrelLRUCache<TermRef,CacheEntry>(DEFAULT_CACHE_SIZE);
+    private final Cache<BytesRef,CacheEntry> termsCache = new DoubleBarrelLRUCache<BytesRef,CacheEntry>(DEFAULT_CACHE_SIZE);
 
     FieldReader(StandardTermsIndexReader.FieldReader fieldIndexReader, FieldInfo fieldInfo, long numTerms, long termsStartPointer) {
       assert numTerms > 0;
@@ -232,7 +234,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     }
 
     @Override
-    public int docFreq(TermRef text) throws IOException {
+    public int docFreq(BytesRef text) throws IOException {
       ThreadResources resources = getThreadResources();
       if (resources.termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
         return resources.termsEnum.docFreq();
@@ -242,7 +244,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     }
 
     @Override
-    public TermRef.Comparator getTermComparator() {
+    public BytesRef.Comparator getComparator() {
       return termComp;
     }
 
@@ -254,7 +256,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     // own terms enum and use its seek...)
     /*
     @Override
-    public DocsEnum docs(Bits skipDocs, TermRef text) throws IOException {
+    public DocsEnum docs(Bits skipDocs, BytesRef text) throws IOException {
       ThreadResources resources = getThreadResources();
       if (resources.termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
         return resources.termsEnum.docs(skipDocs);
@@ -312,7 +314,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       }
 
       @Override
-      public TermRef.Comparator getTermComparator() {
+      public BytesRef.Comparator getComparator() {
         return termComp;
       }
 
@@ -321,10 +323,10 @@ public class StandardTermsDictReader extends FieldsProducer {
        *  is found, SeekStatus.NOT_FOUND if a different term
        *  was found, SeekStatus.END if we hit EOF */
       @Override
-      public SeekStatus seek(TermRef term) throws IOException {
+      public SeekStatus seek(BytesRef term) throws IOException {
 
         CacheEntry entry = null;
-        TermRef entryKey = null;
+        BytesRef entryKey = null;
 
         if (docs.canCaptureState()) {
           entry = termsCache.get(term);
@@ -437,7 +439,7 @@ public class StandardTermsDictReader extends FieldsProducer {
             if (docs.canCaptureState() && doSeek) {
               // Store in cache
               entry = docs.captureState();
-              entryKey = (TermRef) bytesReader.term.clone();
+              entryKey = (BytesRef) bytesReader.term.clone();
               entry.freq = docFreq;
               entry.termUpTo = termUpto;
               entry.filePointer = in.getFilePointer();
@@ -492,7 +494,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         // Now, scan:
         int left = (int) (pos - termUpto);
         while(left > 0) {
-          TermRef term = next();
+          BytesRef term = next();
           assert term != null;
           left--;
         }
@@ -502,7 +504,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       }
 
       @Override
-      public TermRef term() {
+      public BytesRef term() {
         return bytesReader.term;
       }
 
@@ -512,7 +514,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       }
 
       @Override
-      public TermRef next() throws IOException {
+      public BytesRef next() throws IOException {
         if (termUpto >= numTerms-1) {
           return null;
         }

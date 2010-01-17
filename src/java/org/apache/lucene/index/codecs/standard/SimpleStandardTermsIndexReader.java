@@ -22,7 +22,7 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.util.ArrayUtil;
 
@@ -64,11 +64,11 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
   final private IndexInput in;
   private volatile boolean indexLoaded;
-  private final TermRef.Comparator termComp;
+  private final BytesRef.Comparator termComp;
 
   final HashMap<FieldInfo,FieldIndexReader> fields = new HashMap<FieldInfo,FieldIndexReader>();
 
-  public SimpleStandardTermsIndexReader(Directory dir, FieldInfos fieldInfos, String segment, int indexDivisor, TermRef.Comparator termComp)
+  public SimpleStandardTermsIndexReader(Directory dir, FieldInfos fieldInfos, String segment, int indexDivisor, BytesRef.Comparator termComp)
     throws IOException {
 
     this.termComp = termComp;
@@ -246,7 +246,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     }
 
     @Override
-    public final void getIndexOffset(TermRef term, TermsIndexResult result) throws IOException {
+    public final void getIndexOffset(BytesRef term, TermsIndexResult result) throws IOException {
       // You must call loadTermsIndex if you had specified -1 for indexDivisor
       if (coreIndex == null) {
         throw new IllegalStateException("terms index was not loaded");
@@ -381,7 +381,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
             blockPointer[upto] = blockUpto * BYTE_BLOCK_SIZE + blockOffset;
 
             /*
-            TermRef tr = new TermRef();
+            BytesRef tr = new BytesRef();
             tr.bytes = blocks[blockUpto];
             tr.offset = blockOffset;
             tr.length = thisTermLength;
@@ -441,7 +441,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         result.offset = fileOffset[idx];
       }
 
-      public final void getIndexOffset(TermRef term, TermsIndexResult result) throws IOException {
+      public final void getIndexOffset(BytesRef term, TermsIndexResult result) throws IOException {
 
         if (Codec.DEBUG) {
           System.out.println("getIndexOffset field=" + fieldInfo.name + " term=" + term + " indexLen = " + blockPointer.length + " numIndexTerms=" + fileOffset.length + " this=" + this + " numIndexedTerms=" + fileOffset.length);

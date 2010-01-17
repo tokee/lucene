@@ -37,9 +37,9 @@ public class TestExternalCodecs extends LuceneTestCase {
   // For fun, test that we can override how terms are
   // sorted, and basic things still work -- this comparator
   // sorts in reversed unicode code point order:
-  private static final TermRef.Comparator reverseUnicodeComparator = new TermRef.Comparator() {
+  private static final BytesRef.Comparator reverseUnicodeComparator = new BytesRef.Comparator() {
       @Override
-      public int compare(TermRef t1, TermRef t2) {
+      public int compare(BytesRef t1, BytesRef t2) {
         byte[] b1 = t1.bytes;
         byte[] b2 = t2.bytes;
         int b1Stop;
@@ -110,7 +110,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public TermRef.Comparator getTermComparator() {
+      public BytesRef.Comparator getComparator() {
         return reverseUnicodeComparator;
       }
     }
@@ -166,7 +166,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
       
       @Override
-      public DocsConsumer startTerm(TermRef text) {
+      public DocsConsumer startTerm(BytesRef text) {
         final String term = text.toString();
         current = new RAMTerm(term);
         docsConsumer.reset(current);
@@ -175,12 +175,12 @@ public class TestExternalCodecs extends LuceneTestCase {
 
       
       @Override
-      public TermRef.Comparator getTermComparator() {
-        return TermRef.getUTF8SortedAsUTF16Comparator();
+      public BytesRef.Comparator getComparator() {
+        return BytesRef.getUTF8SortedAsUTF16Comparator();
       }
 
       @Override
-      public void finishTerm(TermRef text, int numDocs) {
+      public void finishTerm(BytesRef text, int numDocs) {
         // nocommit -- are we even called when numDocs == 0?
         if (numDocs > 0) {
           assert numDocs == current.docs.size();
@@ -270,12 +270,12 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
       
       @Override
-      public TermRef.Comparator getTermComparator() {
-        return TermRef.getUTF8SortedAsUTF16Comparator();
+      public BytesRef.Comparator getComparator() {
+        return BytesRef.getUTF8SortedAsUTF16Comparator();
       }
 
       @Override
-      public TermRef next() {
+      public BytesRef next() {
         if (it == null) {
           if (current == null) {
             it = ramField.termToDocs.keySet().iterator();
@@ -285,14 +285,14 @@ public class TestExternalCodecs extends LuceneTestCase {
         }
         if (it.hasNext()) {
           current = it.next();
-          return new TermRef(current);
+          return new BytesRef(current);
         } else {
           return null;
         }
       }
 
       @Override
-      public SeekStatus seek(TermRef term) {
+      public SeekStatus seek(BytesRef term) {
         current = term.toString();
         if (ramField.termToDocs.containsKey(current)) {
           return SeekStatus.FOUND;
@@ -317,9 +317,9 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public TermRef term() {
-        // TODO: reuse TermRef
-        return new TermRef(current);
+      public BytesRef term() {
+        // TODO: reuse BytesRef
+        return new BytesRef(current);
       }
 
       @Override
@@ -824,20 +824,20 @@ public class TestExternalCodecs extends LuceneTestCase {
   private void testTermsOrder(IndexReader r) throws Exception {
 
     // Verify sort order matches what my comparator said:
-    TermRef lastTermRef = null;
+    BytesRef lastBytesRef = null;
     TermsEnum terms = r.fields().terms("id").iterator();
     //System.out.println("id terms:");
     while(true) {
-      TermRef t = terms.next();
+      BytesRef t = terms.next();
       if (t == null) {
         break;
       }
       //System.out.println("  " + t);
-      if (lastTermRef == null) {
-        lastTermRef = new TermRef(t);
+      if (lastBytesRef == null) {
+        lastBytesRef = new BytesRef(t);
       } else {
-        assertTrue("terms in wrong order last=" + lastTermRef + " current=" + t, reverseUnicodeComparator.compare(lastTermRef, t) < 0);
-        lastTermRef.copy(t);
+        assertTrue("terms in wrong order last=" + lastBytesRef + " current=" + t, reverseUnicodeComparator.compare(lastBytesRef, t) < 0);
+        lastBytesRef.copy(t);
       }
     }
   }

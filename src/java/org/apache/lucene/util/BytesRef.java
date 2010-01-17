@@ -1,4 +1,4 @@
-package org.apache.lucene.index;
+package org.apache.lucene.util;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -17,36 +17,39 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import org.apache.lucene.util.ArrayUtil;
 import java.io.UnsupportedEncodingException;
 
-/** Represents the UTF8 bytes[] for a term's text.  This is
- *  used when reading with the flex API, to avoid having to
- *  materialize full char[]. */
-public final class TermRef {
+/** Represents byte[], as a slice (offset + length) into an
+ *  existing byte[]. */
+public final class BytesRef {
 
   public byte[] bytes;
   public int offset;
   public int length;
 
-  public TermRef() {
+  public BytesRef() {
   }
 
   /**
-   * @param text Well-formed unicode text, with no unpaired surrogates or U+FFFF.
+   * @param text Initialize the byte[] from the UTF8 bytes
+   * for the provided Sring.  This must be well-formed
+   * unicode text, with no unpaired surrogates or U+FFFF.
    */
-  public TermRef(String text) {
+  public BytesRef(String text) {
     copy(text);
   }
 
-  public TermRef(TermRef other) {
+  public BytesRef(BytesRef other) {
     copy(other);
   }
 
   // nocommit: we could do this w/ UnicodeUtil w/o requiring
   // allocation of new bytes[]?
   /**
-   * @param text Well-formed unicode text, with no unpaired surrogates or U+FFFF.
+   * Copies the UTF8 bytes for this string.
+   * 
+   * @param text Must be well-formed unicode text, with no
+   * unpaired surrogates or U+FFFF.
    */
   public void copy(String text) {
     // nocommit -- assert text has no unpaired surrogates??
@@ -60,7 +63,7 @@ public final class TermRef {
     length = bytes.length;
   }
 
-  public boolean termEquals(TermRef other) {
+  public boolean bytesEquals(BytesRef other) {
     if (length == other.length) {
       int upto = offset;
       int otherUpto = other.offset;
@@ -78,14 +81,14 @@ public final class TermRef {
 
   @Override
   public Object clone() {
-    TermRef other = new TermRef();
+    BytesRef other = new BytesRef();
     other.bytes = new byte[length];
     System.arraycopy(bytes, offset, other.bytes, 0, length);
     other.length = length;
     return other;
   }
 
-  public boolean startsWith(TermRef other, int pos) {
+  public boolean startsWith(BytesRef other, int pos) {
     // nocommit: maybe this one shouldn't be public...
     if (pos < 0 || length - pos < other.length) {
       return false;
@@ -101,11 +104,11 @@ public final class TermRef {
     return true;
   }
   
-  public boolean startsWith(TermRef other) {
+  public boolean startsWith(BytesRef other) {
     return startsWith(other, 0);
   }
 
-  public boolean endsWith(TermRef other) {
+  public boolean endsWith(BytesRef other) {
     return startsWith(other, length - other.length);   
   }
   
@@ -131,7 +134,7 @@ public final class TermRef {
 
   @Override
   public boolean equals(Object other) {
-    return this.termEquals((TermRef) other);
+    return this.bytesEquals((BytesRef) other);
   }
 
   @Override
@@ -177,7 +180,7 @@ public final class TermRef {
     return sb.toString();
   }
 
-  public void copy(TermRef other) {
+  public void copy(BytesRef other) {
     if (bytes == null) {
       bytes = new byte[other.length];
     } else {
@@ -193,7 +196,7 @@ public final class TermRef {
   }
 
   public abstract static class Comparator {
-    abstract public int compare(TermRef a, TermRef b);
+    abstract public int compare(BytesRef a, BytesRef b);
   }
 
   private final static Comparator utf8SortedAsUTF16SortOrder = new UTF8SortedAsUTF16Comparator();
@@ -203,7 +206,7 @@ public final class TermRef {
   }
 
   public static class UTF8SortedAsUTF16Comparator extends Comparator {
-    public int compare(TermRef a, TermRef b) {
+    public int compare(BytesRef a, BytesRef b) {
 
       final byte[] aBytes = a.bytes;
       int aUpto = a.offset;

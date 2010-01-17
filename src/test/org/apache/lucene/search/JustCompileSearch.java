@@ -25,7 +25,7 @@ import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.DocsEnum;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.PriorityQueue;
 
 /**
@@ -203,7 +203,7 @@ final class JustCompileSearch {
   
   static final class JustCompileExtendedFieldCacheLongParser implements FieldCache.LongParser {
 
-    public long parseLong(TermRef string) {
+    public long parseLong(BytesRef string) {
       throw new UnsupportedOperationException(UNSUPPORTED_MSG);
     }
     
@@ -211,7 +211,7 @@ final class JustCompileSearch {
   
   static final class JustCompileExtendedFieldCacheDoubleParser implements FieldCache.DoubleParser {
     
-    public double parseDouble(TermRef term) {
+    public double parseDouble(BytesRef term) {
       throw new UnsupportedOperationException(UNSUPPORTED_MSG);
     }
     

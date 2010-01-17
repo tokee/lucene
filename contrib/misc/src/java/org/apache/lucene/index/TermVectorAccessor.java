@@ -17,12 +17,11 @@ package org.apache.lucene.index;
 
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Collection;
-import java.util.Iterator;
 
 
 /**
@@ -108,7 +107,7 @@ public class TermVectorAccessor {
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();
       while(true) {
-        TermRef text = termsEnum.next();
+        BytesRef text = termsEnum.next();
         if (text != null) {
           anyTerms = true;
           DocsEnum docs = termsEnum.docs(delDocs);

@@ -21,8 +21,7 @@ import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
-import org.apache.lucene.index.Terms;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * Subclass of FilteredTermsEnum for enumerating a single term.
@@ -32,7 +31,7 @@ import org.apache.lucene.index.Terms;
  * {@link MultiTermQuery#rewriteMethod}.
  */
 public final class SingleTermsEnum extends FilteredTermsEnum {
-  private final TermRef singleRef;
+  private final BytesRef singleRef;
   
   /**
    * Creates a new <code>SingleTermsEnum</code>.
@@ -42,12 +41,12 @@ public final class SingleTermsEnum extends FilteredTermsEnum {
    */
   public SingleTermsEnum(IndexReader reader, Term singleTerm) throws IOException {
     super(reader, singleTerm.field());
-    singleRef = new TermRef(singleTerm.text());
+    singleRef = new BytesRef(singleTerm.text());
     setInitialSeekTerm(singleRef);
   }
 
   @Override
-  protected AcceptStatus accept(TermRef term) {
+  protected AcceptStatus accept(BytesRef term) {
     return term.equals(singleRef) ? AcceptStatus.YES : AcceptStatus.END;
   }
   

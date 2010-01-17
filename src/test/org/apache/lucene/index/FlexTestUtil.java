@@ -133,7 +133,7 @@ public class FlexTestUtil {
       TermsEnum terms = fields.terms();
       final TermPositions termPos = r.termPositions();
       while(true) {
-        final TermRef termRef = terms.next();
+        final BytesRef termRef = terms.next();
         if (termRef == null) {
           break;
         } else {
@@ -206,7 +206,7 @@ public class FlexTestUtil {
         final TermPositions termPos = r.termPositions();
         final TermDocs termDocs = r.termDocs();
         while(true) {
-          final TermRef termRef = terms.next();
+          final BytesRef termRef = terms.next();
           //System.out.println("TEST:   enum term=" + termRef);
           if (termRef == null) {
             break;
@@ -362,7 +362,7 @@ public class FlexTestUtil {
       String text = getRandomText(rand, 1, 3, false);
       final TermsEnum termsEnum = r.fields().terms(f).iterator();
 
-      final TermsEnum.SeekStatus seekStatus = termsEnum.seek(new TermRef(text));
+      final TermsEnum.SeekStatus seekStatus = termsEnum.seek(new BytesRef(text));
       Term t = new Term(f, text);
       //System.out.println("seek to " + t);
 

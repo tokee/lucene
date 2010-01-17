@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * NOTE: this API is experimental and will likely change
@@ -60,23 +61,23 @@ public abstract class TermsEnum {
    *  indicate whether exact term was found, a different
    *  term was found, or EOF was hit.  The target term may
    *  be befor or after the current term. */
-  public abstract SeekStatus seek(TermRef text) throws IOException;
+  public abstract SeekStatus seek(BytesRef text) throws IOException;
 
   /** Seeks to the specified term by ordinal (position) as
    *  previously returned by {@link #ord}.  The target ord
    *  may be befor or after the current ord.  See {@link
-   *  #seek(TermRef). */
+   *  #seek(BytesRef). */
   public abstract SeekStatus seek(long ord) throws IOException;
   
   /** Increments the enumeration to the next element.
-   *  Returns the resulting TermRef, or null if the end was
-   *  hit.  The returned TermRef may be re-used across calls
+   *  Returns the resulting term, or null if the end was
+   *  hit.  The returned BytesRef may be re-used across calls
    *  to next. */
-  public abstract TermRef next() throws IOException;
+  public abstract BytesRef next() throws IOException;
 
   /** Returns current term.  This is undefined after next()
    *  returns null or seek returns {@link SeekStatus#END}. */
-  public abstract TermRef term() throws IOException;
+  public abstract BytesRef term() throws IOException;
 
   /** Returns ordinal position for current term.  Not all
    *  codecs implement this, so be prepared to catch an
@@ -98,10 +99,10 @@ public abstract class TermsEnum {
    *  are done using the DocsEnum. */
   public abstract DocsEnum docs(Bits skipDocs) throws IOException;
 
-  /** Return the {@link TermRef} Comparator used to sort
+  /** Return the {@link BytesRef} Comparator used to sort
    *  terms provided by the iterator.  NOTE: this may return
    *  null if there are no terms.  Callers may invoke this
    *  method many times, so it's best to cache a single
    *  instance & reuse it. */
-  public abstract TermRef.Comparator getTermComparator() throws IOException;
+  public abstract BytesRef.Comparator getComparator() throws IOException;
 }

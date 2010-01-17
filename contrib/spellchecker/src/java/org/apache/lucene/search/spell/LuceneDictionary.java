@@ -22,9 +22,8 @@ import org.apache.lucene.index.IndexReader;
 import java.util.Iterator;
 
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.Term;
 import org.apache.lucene.util.StringHelper;
 
 import java.io.*;
@@ -55,8 +54,7 @@ public class LuceneDictionary implements Dictionary {
 
   final class LuceneIterator implements Iterator {
     private TermsEnum termsEnum;
-    private TermRef pendingTerm;
-    private boolean hasNextCalled;
+    private BytesRef pendingTerm;
 
     LuceneIterator() {
       try {

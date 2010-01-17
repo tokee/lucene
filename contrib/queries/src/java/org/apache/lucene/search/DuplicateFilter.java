@@ -16,11 +16,9 @@ package org.apache.lucene.search;
  * limitations under the License.
  */
 import java.io.IOException;
-import java.util.BitSet;
 
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.TermsEnum;
@@ -90,7 +88,7 @@ public class DuplicateFilter extends Filter
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();
       while(true) {
-        TermRef currTerm = termsEnum.next();
+        BytesRef currTerm = termsEnum.next();
         if (currTerm == null) {
           break;
         } else {
@@ -127,7 +125,7 @@ public class DuplicateFilter extends Filter
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();
       while(true) {
-        TermRef currTerm = termsEnum.next();
+        BytesRef currTerm = termsEnum.next();
         if (currTerm == null) {
           break;
         } else {

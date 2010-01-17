@@ -24,9 +24,8 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.NumericField;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.IndexWriter.MaxFieldLength;
-import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
@@ -446,7 +445,7 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
     TermsEnum termEnum = q.getTermsEnum(searcher.getIndexReader());
     int count = 0;
     while (termEnum.next() != null) {
-      final TermRef t = termEnum.term();
+      final BytesRef t = termEnum.term();
       if (t != null) {
         final int val = NumericUtils.prefixCodedToInt(t.toString());
         assertTrue("value not in bounds " + val + " >= " + lower + " && "

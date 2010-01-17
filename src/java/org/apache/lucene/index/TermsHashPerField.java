@@ -23,6 +23,7 @@ import java.util.Arrays;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.util.UnicodeUtil;
+import org.apache.lucene.util.BytesRef;
 
 final class TermsHashPerField extends InvertedDocConsumerPerField {
 
@@ -51,12 +52,12 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   private RawPostingList[] postingsHash = new RawPostingList[postingsHashSize];
   private RawPostingList p;
   private final UnicodeUtil.UTF8Result utf8;
-  private TermRef.Comparator termComp;
+  private BytesRef.Comparator termComp;
 
   // nocommit -- move to thread level
   // Used when comparing postings via termRefComp
-  private final TermRef tr1 = new TermRef();
-  private final TermRef tr2 = new TermRef();
+  private final BytesRef tr1 = new BytesRef();
+  private final BytesRef tr2 = new BytesRef();
 
   public TermsHashPerField(DocInverterPerField docInverterPerField, final TermsHashPerThread perThread, final TermsHashPerThread nextPerThread, final FieldInfo fieldInfo) {
     this.perThread = perThread;
@@ -145,7 +146,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   }
 
   /** Collapse the hash table & sort in-place. */
-  public RawPostingList[] sortPostings(TermRef.Comparator termComp) {
+  public RawPostingList[] sortPostings(BytesRef.Comparator termComp) {
     this.termComp = termComp;
     compactPostings();
     quickSort(postingsHash, 0, numPostings-1);
@@ -222,8 +223,8 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
       return 0;
     }
 
-    termBytePool.setTermRef(tr1, p1.textStart);
-    termBytePool.setTermRef(tr2, p2.textStart);
+    termBytePool.setBytesRef(tr1, p1.textStart);
+    termBytePool.setBytesRef(tr2, p2.textStart);
 
     return termComp.compare(tr1, tr2);
   }
@@ -564,7 +565,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
             len = (text[start]&0x7f) + ((text[start+1]&0xff)<<7);
             pos = start+2;
           }
-          //System.out.println("    term=" + bytePool.setTermRef(new TermRef(), p0.textStart).toBytesString());
+          //System.out.println("    term=" + bytePool.setBytesRef(new BytesRef(), p0.textStart).toBytesString());
 
           final int endPos = pos+len;
           while(pos < endPos) {

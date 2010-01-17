@@ -21,7 +21,6 @@ import org.apache.lucene.analysis.NumericTokenStream; // for javadocs
 import org.apache.lucene.document.NumericField; // for javadocs
 import org.apache.lucene.search.NumericRangeQuery; // for javadocs
 import org.apache.lucene.search.NumericRangeFilter; // for javadocs
-import org.apache.lucene.index.TermRef;
 
 /**
  * This is a helper class to generate prefix-encoded representations for numerical values
@@ -220,7 +219,7 @@ public final class NumericUtils {
     return (sortableBits << shift) ^ 0x8000000000000000L;
   }
 
-  public static long prefixCodedToLong(final TermRef term) {
+  public static long prefixCodedToLong(final BytesRef term) {
     final int shift = term.bytes[term.offset]-SHIFT_START_LONG;
     if (shift>63 || shift<0)
       throw new NumberFormatException("Invalid shift value in prefixCoded string (is encoded value really an INT?)");
@@ -267,7 +266,7 @@ public final class NumericUtils {
     return (sortableBits << shift) ^ 0x80000000;
   }
 
-  public static int prefixCodedToInt(final TermRef term) {
+  public static int prefixCodedToInt(final BytesRef term) {
     final int shift = term.bytes[term.offset]-SHIFT_START_INT;
     if (shift>31 || shift<0)
       throw new NumberFormatException("Invalid shift value in prefixCoded string (is encoded value really an INT?)");

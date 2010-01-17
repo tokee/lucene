@@ -22,7 +22,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 
  
 public class SrndTermQuery extends SimpleTerm {
@@ -52,7 +52,7 @@ public class SrndTermQuery extends SimpleTerm {
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();
 
-      TermsEnum.SeekStatus status = termsEnum.seek(new TermRef(getTermText()));
+      TermsEnum.SeekStatus status = termsEnum.seek(new BytesRef(getTermText()));
       if (status == TermsEnum.SeekStatus.FOUND) {
         mtv.visitMatchingTerm(getLuceneTerm(fieldName));
       } else {

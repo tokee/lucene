@@ -19,7 +19,7 @@ package org.apache.lucene.index.codecs.standard;
 
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 
@@ -37,7 +37,7 @@ final class DeltaBytesWriter {
     lastLength = 0;
   }
 
-  void write(TermRef text) throws IOException {
+  void write(BytesRef text) throws IOException {
     int start = 0;
     int upto = text.offset;
     final int length = text.length;

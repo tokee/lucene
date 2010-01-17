@@ -47,6 +47,7 @@ import org.apache.lucene.index.codecs.preflex.SegmentTermDocs;
 import org.apache.lucene.index.codecs.preflex.SegmentTermPositions;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
+import org.apache.lucene.util.BytesRef;
 
 /** @version $Id */
 /**
@@ -936,14 +937,14 @@ public class SegmentReader extends IndexReader implements Cloneable {
     ensureOpen();
     Terms terms = core.fields.terms(t.field);
     if (terms != null) {
-      return terms.docFreq(new TermRef(t.text));
+      return terms.docFreq(new BytesRef(t.text));
     } else {
       return 0;
     }
   }
 
   @Override
-  public int docFreq(String field, TermRef term) throws IOException {
+  public int docFreq(String field, BytesRef term) throws IOException {
     ensureOpen();
 
     Terms terms = core.fields.terms(field);
@@ -1342,12 +1343,13 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
   
   // Back compat: pre-flex TermEnum API over flex API
+  @Deprecated
   final private class LegacyTermEnum extends TermEnum {
     FieldsEnum fields;
     TermsEnum terms;
     boolean done;
     String currentField;
-    TermRef currentTerm;
+    BytesRef currentTerm;
 
     public LegacyTermEnum(Term t) throws IOException {
       fields = core.fields.iterator();
@@ -1385,7 +1387,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
             // and it would return the next Term.
             // if someone does this, tack on the lowest possible trail surrogate.
             // this emulates the old behavior, and forms "valid UTF-8" unicode.
-            TermRef tr = new TermRef(UnicodeUtil.nextValidUTF16String(text));
+            BytesRef tr = new BytesRef(UnicodeUtil.nextValidUTF16String(text));
             TermsEnum.SeekStatus status = terms.seek(tr);
 
             if (status == TermsEnum.SeekStatus.END) {
@@ -1526,7 +1528,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         }
       }
 
-      if (terms.seek(new TermRef(term.text)) == TermsEnum.SeekStatus.FOUND) {
+      if (terms.seek(new BytesRef(term.text)) == TermsEnum.SeekStatus.FOUND) {
         // Term exists
         docs = terms.docs(deletedDocs);
         if (Codec.DEBUG) {

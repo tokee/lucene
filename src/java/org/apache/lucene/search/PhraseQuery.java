@@ -22,7 +22,7 @@ import java.util.Set;
 import java.util.ArrayList;
 
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.Explanation.IDFExplanation;
@@ -158,7 +158,7 @@ public class PhraseQuery extends Query {
         final Term t = terms.get(i);
         DocsEnum docsEnum = reader.termDocsEnum(delDocs,
                                                 t.field(),
-                                                new TermRef(t.text()));
+                                                new BytesRef(t.text()));
         if (docsEnum == null) {
           return null;
         }

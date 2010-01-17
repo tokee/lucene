@@ -19,7 +19,7 @@ package org.apache.lucene.search;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 
@@ -121,22 +121,22 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
 
     this.text = searchTerm.text().substring(realPrefixLength);
     this.prefix = searchTerm.text().substring(0, realPrefixLength);
-    prefixTermRef = new TermRef(prefix);
+    prefixBytesRef = new BytesRef(prefix);
     initializeMaxDistances();
     this.d = initDistanceArray();
 
-    setInitialSeekTerm(prefixTermRef);
+    setInitialSeekTerm(prefixBytesRef);
   }
 
-  private final TermRef prefixTermRef;
+  private final BytesRef prefixBytesRef;
 
   /**
    * The termCompare method in FuzzyTermEnum uses Levenshtein distance to 
    * calculate the distance between the given term and the comparing term. 
    */
   @Override
-  protected final AcceptStatus accept(TermRef term) {
-    if (term.startsWith(prefixTermRef)) {
+  protected final AcceptStatus accept(BytesRef term) {
+    if (term.startsWith(prefixBytesRef)) {
       // TODO: costly that we create intermediate String:
       final String target = term.toString().substring(prefix.length());
       final float similarity = similarity(target);

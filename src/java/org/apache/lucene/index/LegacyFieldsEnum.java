@@ -19,6 +19,7 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 /** Implements flex API (FieldsEnum/TermsEnum) on top of
  *  pre-flex API.  Used only for IndexReader impls outside
@@ -72,8 +73,8 @@ class LegacyFieldsEnum extends FieldsEnum {
     private final IndexReader r;
     private final String field;
     private TermEnum terms;
-    private TermRef current;
-    private final TermRef tr = new TermRef();
+    private BytesRef current;
+    private final BytesRef tr = new BytesRef();
     private final LegacyDocsEnum docsEnum;
 
     LegacyTermsEnum(IndexReader r, String field) throws IOException {
@@ -83,13 +84,13 @@ class LegacyFieldsEnum extends FieldsEnum {
     }
 
     @Override
-    public TermRef.Comparator getTermComparator() {
+    public BytesRef.Comparator getComparator() {
       // Pre-flex indexes always sorted in UTF16 order
-      return TermRef.getUTF8SortedAsUTF16Comparator();
+      return BytesRef.getUTF8SortedAsUTF16Comparator();
     }
 
     @Override
-    public SeekStatus seek(TermRef text) throws IOException {
+    public SeekStatus seek(BytesRef text) throws IOException {
       if (terms != null) {
         terms.close();
       }
@@ -102,7 +103,7 @@ class LegacyFieldsEnum extends FieldsEnum {
       } else if (t.field() == field) {
         tr.copy(t.text());
         current = tr;
-        if (text.termEquals(tr)) {
+        if (text.bytesEquals(tr)) {
           return SeekStatus.FOUND;
         } else {
           return SeekStatus.NOT_FOUND;
@@ -123,7 +124,7 @@ class LegacyFieldsEnum extends FieldsEnum {
     }
 
     @Override
-    public TermRef next() throws IOException {
+    public BytesRef next() throws IOException {
       if (terms == null) {
         // first next -- seek to start of field
         terms = r.terms(new Term(field, ""));
@@ -146,7 +147,7 @@ class LegacyFieldsEnum extends FieldsEnum {
     }
 
     @Override
-    public TermRef term() {
+    public BytesRef term() {
       return current;
     }
 

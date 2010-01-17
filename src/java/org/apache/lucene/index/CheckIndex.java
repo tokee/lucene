@@ -24,6 +24,7 @@ import org.apache.lucene.document.AbstractField;  // for javadocs
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 import java.text.NumberFormat;
 import java.io.PrintStream;
@@ -599,7 +600,7 @@ public class CheckIndex {
         final TermsEnum terms = fields.terms();
         while(true) {
 
-          final TermRef term = terms.next();
+          final BytesRef term = terms.next();
           if (term == null) {
             break;
           }

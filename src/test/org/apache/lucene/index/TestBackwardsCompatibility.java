@@ -47,6 +47,7 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.ReaderUtil;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util._TestUtil;
+import org.apache.lucene.util.BytesRef;
 
 /*
   Verify we can read the pre-2.1 file format, do searches
@@ -111,13 +112,13 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     zipFile.close();
   }
 
-  public void xxxtestCreateCFS() throws IOException {
+  public void testCreateCFS() throws IOException {
     String dirName = "testindex.cfs";
     createIndex(dirName, true);
     rmDir(dirName);
   }
 
-  public void xxxtestCreateNoCFS() throws IOException {
+  public void testCreateNoCFS() throws IOException {
     String dirName = "testindex.nocfs";
     createIndex(dirName, true);
     rmDir(dirName);
@@ -242,7 +243,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     assertEquals("test for compressed field should have run 4 times", 4, hasTested29);
   }
 
-  public void xxxtestSearchOldIndex() throws IOException {
+  public void testSearchOldIndex() throws IOException {
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);
@@ -251,7 +252,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     }
   }
 
-  public void xxxtestIndexOldIndexNoAdds() throws IOException {
+  public void testIndexOldIndexNoAdds() throws IOException {
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);
@@ -260,7 +261,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     }
   }
 
-  public void xxxtestIndexOldIndex() throws IOException {
+  public void testIndexOldIndex() throws IOException {
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);
@@ -510,7 +511,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
 
   /* Verifies that the expected file names were produced */
 
-  public void xxxtestExactFileNames() throws IOException {
+  public void testExactFileNames() throws IOException {
 
     String outputDir = "lucene.backwardscompat0.index";
     rmDir(outputDir);
@@ -662,7 +663,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
   }
 
   // flex: test basics of TermsEnum api on non-flex index
-  public void xxxtestNextIntoWrongField() throws Exception {
+  public void testNextIntoWrongField() throws Exception {
     for(int i=0;i<oldNames.length;i++) {
       String dirName = "src/test/org/apache/lucene/index/index." + oldNames[i];
       unzip(dirName, oldNames[i]);
@@ -670,14 +671,14 @@ public class TestBackwardsCompatibility extends LuceneTestCase
       Directory dir = FSDirectory.open(new File(fullPath));
       IndexReader r = IndexReader.open(dir);
       TermsEnum terms = r.fields().terms("content").iterator();
-      TermRef t = terms.next();
+      BytesRef t = terms.next();
       assertNotNull(t);
 
       // content field only has term aaa:
       assertEquals("aaa", t.toString());
       assertNull(terms.next());
 
-      TermRef aaaTerm = new TermRef("aaa");
+      BytesRef aaaTerm = new BytesRef("aaa");
 
       // should be found exactly
       assertEquals(TermsEnum.SeekStatus.FOUND,
@@ -687,13 +688,13 @@ public class TestBackwardsCompatibility extends LuceneTestCase
 
       // should hit end of field
       assertEquals(TermsEnum.SeekStatus.END,
-                   terms.seek(new TermRef("bbb")));
+                   terms.seek(new BytesRef("bbb")));
       assertNull(terms.next());
 
       // should seek to aaa
       assertEquals(TermsEnum.SeekStatus.NOT_FOUND,
-                   terms.seek(new TermRef("a")));
-      assertTrue(terms.term().termEquals(aaaTerm));
+                   terms.seek(new BytesRef("a")));
+      assertTrue(terms.term().bytesEquals(aaaTerm));
       assertEquals(35, countDocs(terms.docs(null)));
       assertNull(terms.next());
 

@@ -19,7 +19,7 @@ package org.apache.lucene.queryParser.surround.query;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.IndexReader;
 
 import java.io.IOException;
@@ -42,7 +42,7 @@ public class SrndTruncQuery extends SimpleTerm {
   private final char mask;
   
   private String prefix;
-  private TermRef prefixRef;
+  private BytesRef prefixRef;
   private Pattern pattern;
   
   
@@ -71,7 +71,7 @@ public class SrndTruncQuery extends SimpleTerm {
       i++;
     }
     prefix = truncated.substring(0, i);
-    prefixRef = new TermRef(prefix);
+    prefixRef = new BytesRef(prefix);
     
     StringBuilder re = new StringBuilder();
     while (i < truncated.length()) {
@@ -96,7 +96,7 @@ public class SrndTruncQuery extends SimpleTerm {
         TermsEnum termsEnum = terms.iterator();
 
         TermsEnum.SeekStatus status = termsEnum.seek(prefixRef);
-        TermRef text;
+        BytesRef text;
         if (status == TermsEnum.SeekStatus.FOUND) {
           text = prefixRef;
         } else if (status == TermsEnum.SeekStatus.NOT_FOUND) {

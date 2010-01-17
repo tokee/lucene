@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.util.BytesRef;
 
 final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
 
@@ -95,7 +96,7 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
   public void abort() {}
 
   // nocommit -- should be @ thread level not field
-  private final TermRef flushTerm = new TermRef();
+  private final BytesRef flushTerm = new BytesRef();
 
   /** Called once per field per document if term vectors
    *  are enabled, to write the vectors to
@@ -129,7 +130,7 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
 
     // nocommit -- should I sort by whatever terms dict is
     // sorting by?
-    final RawPostingList[] postings = termsHashPerField.sortPostings(TermRef.getUTF8SortedAsUTF16Comparator());
+    final RawPostingList[] postings = termsHashPerField.sortPostings(BytesRef.getUTF8SortedAsUTF16Comparator());
 
     tvf.writeVInt(numPostings);
     byte bits = 0x0;
@@ -150,8 +151,8 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
       final TermVectorsTermsWriter.PostingList posting = (TermVectorsTermsWriter.PostingList) postings[j];
       final int freq = posting.freq;
 
-      // Get TermRef
-      termBytePool.setTermRef(flushTerm, posting.textStart);
+      // Get BytesRef
+      termBytePool.setBytesRef(flushTerm, posting.textStart);
 
       // Compute common byte prefix between last term and
       // this term

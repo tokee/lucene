@@ -19,7 +19,7 @@ package org.apache.lucene.index.codecs.standard;
 
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import java.io.IOException;
 
 public abstract class StandardTermsIndexWriter {
@@ -27,7 +27,7 @@ public abstract class StandardTermsIndexWriter {
   public abstract void setTermsOutput(IndexOutput out);
 
   public abstract class FieldWriter {
-    public abstract boolean checkIndexTerm(TermRef text, int docFreq) throws IOException;
+    public abstract boolean checkIndexTerm(BytesRef text, int docFreq) throws IOException;
   }
 
   public abstract FieldWriter addField(FieldInfo fieldInfo);

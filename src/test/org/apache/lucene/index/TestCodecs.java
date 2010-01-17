@@ -140,13 +140,13 @@ public class TestCodecs extends LuceneTestCase {
 
   class TermData implements Comparable {
     String text2;
-    final TermRef text;
+    final BytesRef text;
     int[] docs;
     PositionData[][] positions;
     FieldData field;
     
     public TermData(String text, int[] docs, PositionData[][] positions) {
-      this.text = new TermRef(text);
+      this.text = new BytesRef(text);
       this.text2 = text;
       this.docs = docs;
       this.positions = positions;
@@ -272,14 +272,14 @@ public class TestCodecs extends LuceneTestCase {
     assertNotNull(fieldsEnum.next());
     TermsEnum termsEnum = fieldsEnum.terms();
     for(int i=0;i<NUM_TERMS;i++) {
-      TermRef term = termsEnum.next();
+      BytesRef term = termsEnum.next();
       assertNotNull(term);
       assertEquals(terms[i].text2, term.toString());
     }
     assertNull(termsEnum.next());
 
     for(int i=0;i<NUM_TERMS;i++) {
-      assertEquals(termsEnum.seek(new TermRef(terms[i].text2)), TermsEnum.SeekStatus.FOUND);
+      assertEquals(termsEnum.seek(new BytesRef(terms[i].text2)), TermsEnum.SeekStatus.FOUND);
     }
 
     assertNull(fieldsEnum.next());
@@ -416,14 +416,14 @@ public class TestCodecs extends LuceneTestCase {
 
         int upto = 0;
         while(true) {
-          TermRef term = termsEnum.next();
+          BytesRef term = termsEnum.next();
           if (term == null) {
             break;
           }
           if (Codec.DEBUG) {
             System.out.println("check " + upto + ": " + field.terms[upto].text2);
           }
-          assertTrue(new TermRef(field.terms[upto++].text2).termEquals(term));
+          assertTrue(new BytesRef(field.terms[upto++].text2).bytesEquals(term));
         }
         assertEquals(upto, field.terms.length);
 
@@ -432,7 +432,7 @@ public class TestCodecs extends LuceneTestCase {
           System.out.println("\nTEST: random seek");
         }
         TermData term = field.terms[nextInt(field.terms.length)];
-        TermsEnum.SeekStatus status = termsEnum.seek(new TermRef(term.text2));
+        TermsEnum.SeekStatus status = termsEnum.seek(new BytesRef(term.text2));
         assertEquals(status, TermsEnum.SeekStatus.FOUND);
         assertEquals(term.docs.length, termsEnum.docFreq());
         verifyDocs(term.docs, term.positions, termsEnum.docs(null), !field.omitTF);
@@ -442,7 +442,7 @@ public class TestCodecs extends LuceneTestCase {
         term = field.terms[idx];
         status = termsEnum.seek(idx);
         assertEquals(status, TermsEnum.SeekStatus.FOUND);
-        assertTrue(termsEnum.term().termEquals(new TermRef(term.text2)));
+        assertTrue(termsEnum.term().bytesEquals(new BytesRef(term.text2)));
         assertEquals(term.docs.length, termsEnum.docFreq());
         verifyDocs(term.docs, term.positions, termsEnum.docs(null), !field.omitTF);
 
@@ -452,7 +452,7 @@ public class TestCodecs extends LuceneTestCase {
         for(int i=0;i<100;i++) {
           char[] text = getRandomText();
           String text2 = new String(text, 0, text.length-1) + ".";
-          status = termsEnum.seek(new TermRef(text2));
+          status = termsEnum.seek(new BytesRef(text2));
           assertTrue(status == TermsEnum.SeekStatus.NOT_FOUND ||
                      status == TermsEnum.SeekStatus.END);
         }
@@ -465,7 +465,7 @@ public class TestCodecs extends LuceneTestCase {
           if (Codec.DEBUG) {
             System.out.println(Thread.currentThread().getName() + ": TEST: term=" + field.terms[i].text2 + " has docFreq=" + field.terms[i].docs.length);
           }
-          assertEquals(Thread.currentThread().getName() + ": field=" + field.fieldInfo.name + " term=" + field.terms[i].text2, TermsEnum.SeekStatus.FOUND, termsEnum.seek(new TermRef(field.terms[i].text2)));
+          assertEquals(Thread.currentThread().getName() + ": field=" + field.fieldInfo.name + " term=" + field.terms[i].text2, TermsEnum.SeekStatus.FOUND, termsEnum.seek(new BytesRef(field.terms[i].text2)));
           assertEquals(field.terms[i].docs.length, termsEnum.docFreq());
         }
 
@@ -479,22 +479,22 @@ public class TestCodecs extends LuceneTestCase {
           }
           assertEquals(Thread.currentThread().getName() + ": field=" + field.fieldInfo.name + " term=" + field.terms[i].text2, TermsEnum.SeekStatus.FOUND, termsEnum.seek(i));
           assertEquals(field.terms[i].docs.length, termsEnum.docFreq());
-          assertTrue(termsEnum.term().termEquals(new TermRef(field.terms[i].text2)));
+          assertTrue(termsEnum.term().bytesEquals(new BytesRef(field.terms[i].text2)));
         }
 
         // Seek to non-existent empty-string term
-        status = termsEnum.seek(new TermRef(""));
+        status = termsEnum.seek(new BytesRef(""));
         assertNotNull(status);
         assertEquals(status, TermsEnum.SeekStatus.NOT_FOUND);
 
         // Make sure we're now pointing to first term
-        assertTrue(termsEnum.term().termEquals(new TermRef(field.terms[0].text2)));
+        assertTrue(termsEnum.term().bytesEquals(new BytesRef(field.terms[0].text2)));
 
         // Test docs enum
         if (Codec.DEBUG) {
           System.out.println("\nTEST: docs/positions");
         }
-        termsEnum.seek(new TermRef(""));
+        termsEnum.seek(new BytesRef(""));
         upto = 0;
         do {
           term = field.terms[upto];

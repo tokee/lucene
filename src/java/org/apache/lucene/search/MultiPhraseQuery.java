@@ -24,7 +24,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.PositionsEnum;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.ToStringUtils;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.lucene.util.Bits;
@@ -180,7 +180,7 @@ public class MultiPhraseQuery extends Query {
         } else {
           docsEnum = reader.termDocsEnum(reader.getDeletedDocs(),
                                          terms[0].field(),
-                                         new TermRef(terms[0].text()));
+                                         new BytesRef(terms[0].text()));
         }
 
         if (docsEnum == null) {
@@ -461,7 +461,7 @@ class UnionDocsEnum extends DocsEnum {
     for (int i = 0; i < terms.length; i++) {
       DocsEnum docs = indexReader.termDocsEnum(delDocs,
                                                terms[i].field(),
-                                               new TermRef(terms[i].text()));
+                                               new BytesRef(terms[i].text()));
       if (docs != null) {
         docsEnums.add(docs);
       }

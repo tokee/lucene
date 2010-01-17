@@ -30,7 +30,6 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.CompoundFileReader;
@@ -39,6 +38,7 @@ import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 /** Exposes flex API on a pre-flex index, as a codec. */
 public class PreFlexFields extends FieldsProducer {
@@ -220,9 +220,9 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public TermRef.Comparator getTermComparator() {
+    public BytesRef.Comparator getComparator() {
       // Pre-flex indexes always sorted in UTF16 order
-      return TermRef.getUTF8SortedAsUTF16Comparator();
+      return BytesRef.getUTF8SortedAsUTF16Comparator();
     }
   }
 
@@ -231,8 +231,8 @@ public class PreFlexFields extends FieldsProducer {
     private FieldInfo fieldInfo;
     private final PreDocsEnum docsEnum;
     private boolean skipNext;
-    private TermRef current;
-    private final TermRef scratchTermRef = new TermRef();
+    private BytesRef current;
+    private final BytesRef scratchBytesRef = new BytesRef();
 
     public PreTermsEnum() throws IOException {
       docsEnum = new PreDocsEnum();
@@ -263,9 +263,9 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public TermRef.Comparator getTermComparator() {
+    public BytesRef.Comparator getComparator() {
       // Pre-flex indexes always sorted in UTF16 order
-      return TermRef.getUTF8SortedAsUTF16Comparator();
+      return BytesRef.getUTF8SortedAsUTF16Comparator();
     }
 
     @Override
@@ -279,7 +279,7 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public SeekStatus seek(TermRef term) throws IOException {
+    public SeekStatus seek(BytesRef term) throws IOException {
       if (Codec.DEBUG) {
         System.out.println("pff.seek term=" + term);
       }
@@ -287,15 +287,15 @@ public class PreFlexFields extends FieldsProducer {
       termEnum = getTermsDict().terms(new Term(fieldInfo.name, term.toString()));
       final Term t = termEnum.term();
 
-      final TermRef tr;
+      final BytesRef tr;
       if (t != null) {
-        tr = scratchTermRef;
-        scratchTermRef.copy(t.text());
+        tr = scratchBytesRef;
+        scratchBytesRef.copy(t.text());
       } else {
         tr = null;
       }
 
-      if (t != null && t.field() == fieldInfo.name && term.termEquals(tr)) {
+      if (t != null && t.field() == fieldInfo.name && term.bytesEquals(tr)) {
         current = tr;
         return SeekStatus.FOUND;
       } else if (t == null || t.field() != fieldInfo.name) {
@@ -308,14 +308,14 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public TermRef next() throws IOException {
+    public BytesRef next() throws IOException {
       if (skipNext) {
         skipNext = false;
         if (termEnum.term() == null) {
           return null;
         } else {
-          scratchTermRef.copy(termEnum.term().text());
-          return current = scratchTermRef;
+          scratchBytesRef.copy(termEnum.term().text());
+          return current = scratchBytesRef;
         }
       }
       if (termEnum.next()) {
@@ -327,8 +327,8 @@ public class PreFlexFields extends FieldsProducer {
           if (Codec.DEBUG) {
             System.out.println("  ok");
           }
-          scratchTermRef.copy(t.text());
-          current = scratchTermRef;
+          scratchBytesRef.copy(t.text());
+          current = scratchBytesRef;
           return current;
         } else {
           assert !t.field().equals(fieldInfo.name);  // make sure field name is interned
@@ -344,7 +344,7 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public TermRef term() {
+    public BytesRef term() {
       return current;
     }
 
@@ -355,6 +355,8 @@ public class PreFlexFields extends FieldsProducer {
 
     @Override
     public DocsEnum docs(Bits skipDocs) throws IOException {
+      // nocommit -- must assert that skipDocs "matches" the
+      // underlying deletedDocs?
       docsEnum.reset(termEnum, skipDocs);        
       return docsEnum;
     }

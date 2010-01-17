@@ -35,7 +35,7 @@ import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.store.LockObtainFailedException;
@@ -334,7 +334,7 @@ public class TestSort extends LuceneTestCase implements Serializable {
 
 
     sort.setSort (new SortField[] { new SortField ("parser", new FieldCache.IntParser(){
-      public final int parseInt(final TermRef term) {
+      public final int parseInt(final BytesRef term) {
         return (term.bytes[term.offset]-'A') * 123456;
       }
     }), SortField.FIELD_DOC });
@@ -343,7 +343,7 @@ public class TestSort extends LuceneTestCase implements Serializable {
     fc.purgeAllCaches();
 
     sort.setSort (new SortField[] { new SortField ("parser", new FieldCache.FloatParser(){
-      public final float parseFloat(final TermRef term) {
+      public final float parseFloat(final BytesRef term) {
         return (float) Math.sqrt( term.bytes[term.offset] );
       }
     }), SortField.FIELD_DOC });
@@ -352,7 +352,7 @@ public class TestSort extends LuceneTestCase implements Serializable {
     fc.purgeAllCaches();
 
     sort.setSort (new SortField[] { new SortField ("parser", new FieldCache.LongParser(){
-      public final long parseLong(final TermRef term) {
+      public final long parseLong(final BytesRef term) {
         return (term.bytes[term.offset]-'A') * 1234567890L;
       }
     }), SortField.FIELD_DOC });
@@ -361,7 +361,7 @@ public class TestSort extends LuceneTestCase implements Serializable {
     fc.purgeAllCaches();
 
     sort.setSort (new SortField[] { new SortField ("parser", new FieldCache.DoubleParser(){
-      public final double parseDouble(final TermRef term) {
+      public final double parseDouble(final BytesRef term) {
         return Math.pow( term.bytes[term.offset], (term.bytes[term.offset]-'A') );
       }
     }), SortField.FIELD_DOC });
@@ -370,7 +370,7 @@ public class TestSort extends LuceneTestCase implements Serializable {
     fc.purgeAllCaches();
 
     sort.setSort (new SortField[] { new SortField ("parser", new FieldCache.ByteParser(){
-      public final byte parseByte(final TermRef term) {
+      public final byte parseByte(final BytesRef term) {
         return (byte) (term.bytes[term.offset]-'A');
       }
     }), SortField.FIELD_DOC });
@@ -379,7 +379,7 @@ public class TestSort extends LuceneTestCase implements Serializable {
     fc.purgeAllCaches();
 
     sort.setSort (new SortField[] { new SortField ("parser", new FieldCache.ShortParser(){
-      public final short parseShort(final TermRef term) {
+      public final short parseShort(final BytesRef term) {
         return (short) (term.bytes[term.offset]-'A');
       }
     }), SortField.FIELD_DOC });
@@ -440,7 +440,7 @@ public class TestSort extends LuceneTestCase implements Serializable {
     @Override
     public void setNextReader(IndexReader reader, int docBase) throws IOException {
       docValues = FieldCache.DEFAULT.getInts(reader, "parser", new FieldCache.IntParser() {
-          public final int parseInt(final TermRef term) {
+          public final int parseInt(final BytesRef term) {
             return (term.bytes[term.offset]-'A') * 123456;
           }
         });

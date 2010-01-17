@@ -20,12 +20,11 @@ package org.apache.lucene.search;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.PriorityQueue;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.queryParser.QueryParser; // for javadoc
 import org.apache.lucene.util.Attribute;
@@ -183,7 +182,7 @@ public abstract class MultiTermQuery extends Query {
           throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
         collector.boostAtt = boostAtt;
         int count = 0;
-        TermRef term;
+        BytesRef term;
         final Term placeholderTerm = new Term(query.field);
         while ((term = termsEnum.next()) != null) {
           if (collector.collect(placeholderTerm.createTerm(term.toString()), boostAtt.getBoost())) {
@@ -464,7 +463,7 @@ public abstract class MultiTermQuery extends Query {
         // should not be costly, because 1) the
         // query/filter will load the TermInfo when it
         // runs, and 2) the terms dict has a cache:
-        // @deprecated: in 4.0 use TermRef for collectTerms()
+        // @deprecated: in 4.0 use BytesRef for collectTerms()
         docVisitCount += reader.docFreq(t);
         return true;
       }

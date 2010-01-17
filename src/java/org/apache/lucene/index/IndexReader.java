@@ -24,6 +24,7 @@ import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -899,7 +900,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
 
   /** Returns the number of documents containing the term <code>t</code>.
    * @throws IOException if there is a low-level IO error
-   * @deprecated Use {@link #docFreq(String,TermRef)} instead.
+   * @deprecated Use {@link #docFreq(String,BytesRef)} instead.
    */
   @Deprecated
   public abstract int docFreq(Term t) throws IOException;
@@ -908,7 +909,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * <code>t</code>.  This method does not take into
    * account deleted documents that have not yet been
    * merged away. */
-  public int docFreq(String field, TermRef term) throws IOException {
+  public int docFreq(String field, BytesRef term) throws IOException {
     final Terms terms = fields().terms(field);
     if (terms != null) {
       return terms.docFreq(term);
@@ -970,7 +971,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
   // nocommit -- tap into per-thread cache, here?
   // nocommit -- should we return null or NullDocsEnum?
   /** Returns DocsEnum for the specified field & term. */
-  public DocsEnum termDocsEnum(Bits skipDocs, String field, TermRef term) throws IOException {
+  public DocsEnum termDocsEnum(Bits skipDocs, String field, BytesRef term) throws IOException {
 
     assert field != null;
     assert term != null;

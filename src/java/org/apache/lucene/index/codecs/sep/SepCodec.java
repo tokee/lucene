@@ -23,7 +23,6 @@ import java.util.Collection;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
-import org.apache.lucene.index.TermRef;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
@@ -36,6 +35,7 @@ import org.apache.lucene.index.codecs.standard.StandardTermsDictWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexWriter;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.BytesRef;
 
 public class SepCodec extends Codec {
 
@@ -61,7 +61,7 @@ public class SepCodec extends Codec {
 
     success = false;
     try {
-      FieldsConsumer ret = new StandardTermsDictWriter(indexWriter, state, docsWriter, TermRef.getUTF8SortedAsUTF16Comparator());
+      FieldsConsumer ret = new StandardTermsDictWriter(indexWriter, state, docsWriter, BytesRef.getUTF8SortedAsUTF16Comparator());
       success = true;
       return ret;
     } finally {
@@ -93,7 +93,7 @@ public class SepCodec extends Codec {
                                                        fieldInfos,
                                                        si.name,
                                                        indexDivisor,
-                                                       TermRef.getUTF8SortedAsUTF16Comparator());
+                                                       BytesRef.getUTF8SortedAsUTF16Comparator());
       success = true;
     } finally {
       if (!success) {
@@ -107,7 +107,7 @@ public class SepCodec extends Codec {
                                                        dir, fieldInfos, si.name,
                                                        docsReader,
                                                        readBufferSize,
-                                                       TermRef.getUTF8SortedAsUTF16Comparator());
+                                                       BytesRef.getUTF8SortedAsUTF16Comparator());
       success = true;
       return ret;
     } finally {

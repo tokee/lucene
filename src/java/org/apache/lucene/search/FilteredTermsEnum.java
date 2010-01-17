@@ -20,7 +20,7 @@ package org.apache.lucene.search;
 import java.io.IOException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.util.AttributeSource;
@@ -39,23 +39,23 @@ import org.apache.lucene.util.Bits;
  */
 public abstract class FilteredTermsEnum extends TermsEnum {
 
-  private TermRef initialSeekTerm = null;
+  private BytesRef initialSeekTerm = null;
   private boolean doSeek = true;        
-  private TermRef actualTerm = null;
+  private BytesRef actualTerm = null;
 
   private final TermsEnum tenum;
 
   /** Return value, if term should be accepted or the iteration should
    * {@code END}. The {@code *_SEEK} values denote, that after handling the current term
    * the enum should call {@link nextSeekTerm()} and step forward.
-   * @see #accept(TermRef)
+   * @see #accept(BytesRef)
    */
   protected static enum AcceptStatus {YES, YES_AND_SEEK, NO, NO_AND_SEEK, END};
   
   /** Return if term is accepted, not accepted or the iteration should ended
    * (and possibly seek).
    */
-  protected abstract AcceptStatus accept(TermRef term) throws IOException;
+  protected abstract AcceptStatus accept(BytesRef term) throws IOException;
 
   /**
    * Creates a filtered {@link TermsEnum} for the given field name and reader.
@@ -75,7 +75,7 @@ public abstract class FilteredTermsEnum extends TermsEnum {
   }
 
   /**
-   * Use this method to set the initial {@link TermRef}
+   * Use this method to set the initial {@link BytesRef}
    * to seek before iterating. This is a convenience method for
    * subclasses that do not override {@link #nextSeekTerm}.
    * If the initial seek term is {@code null} (default),
@@ -83,7 +83,7 @@ public abstract class FilteredTermsEnum extends TermsEnum {
    * <P>You can only use this method, if you keep the default
    * implementation of {@link #nextSeekTerm}.
    */
-  protected final void setInitialSeekTerm(TermRef term) throws IOException {
+  protected final void setInitialSeekTerm(BytesRef term) throws IOException {
     this.initialSeekTerm = term;
   }
   
@@ -102,8 +102,8 @@ public abstract class FilteredTermsEnum extends TermsEnum {
    * than the last enumerated term, else the behaviour of this enum
    * violates the contract for TermsEnums.
    */
-  protected TermRef nextSeekTerm(final TermRef currentTerm) throws IOException {
-    final TermRef t = initialSeekTerm;
+  protected BytesRef nextSeekTerm(final BytesRef currentTerm) throws IOException {
+    final BytesRef t = initialSeekTerm;
     initialSeekTerm = null;
     return t;
   }
@@ -121,13 +121,13 @@ public abstract class FilteredTermsEnum extends TermsEnum {
   }
   
   @Override
-  public TermRef term() throws IOException {
+  public BytesRef term() throws IOException {
     return (tenum == null) ? null : tenum.term();
   }
 
   @Override
-  public TermRef.Comparator getTermComparator() throws IOException {
-    return (tenum == null) ? null : tenum.getTermComparator();
+  public BytesRef.Comparator getComparator() throws IOException {
+    return (tenum == null) ? null : tenum.getComparator();
   }
     
   @Override
@@ -139,7 +139,7 @@ public abstract class FilteredTermsEnum extends TermsEnum {
    * @throws UnsupportedOperationException
    */
   @Override
-  public SeekStatus seek(TermRef term) throws IOException {
+  public SeekStatus seek(BytesRef term) throws IOException {
     throw new UnsupportedOperationException(getClass().getName()+" does not support seeking");
   }
 
@@ -162,14 +162,14 @@ public abstract class FilteredTermsEnum extends TermsEnum {
   }
     
   @Override
-  public TermRef next() throws IOException {
+  public BytesRef next() throws IOException {
     if (tenum == null)
       return null;
     for (;;) {
       // Seek or forward the iterator
       if (doSeek) {
         doSeek = false;
-        final TermRef t = nextSeekTerm(actualTerm);
+        final BytesRef t = nextSeekTerm(actualTerm);
         if (t == null || tenum.seek(t) == SeekStatus.END) {
           // no more terms to seek to or enum exhausted
           return null;

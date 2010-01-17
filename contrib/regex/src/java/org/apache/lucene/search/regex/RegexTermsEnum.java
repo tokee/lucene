@@ -20,8 +20,7 @@ package org.apache.lucene.search.regex;
 import org.apache.lucene.search.FilteredTermsEnum;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 
@@ -38,7 +37,7 @@ import java.io.IOException;
 public class RegexTermsEnum extends FilteredTermsEnum {
   private String pre = "";
   private RegexCapabilities regexImpl;
-  private final TermRef prefixRef;
+  private final BytesRef prefixRef;
 
   public RegexTermsEnum(IndexReader reader, Term term, RegexCapabilities regexImpl) throws IOException {
     super(reader, term.field());
@@ -50,12 +49,12 @@ public class RegexTermsEnum extends FilteredTermsEnum {
     pre = regexImpl.prefix();
     if (pre == null) pre = "";
 
-    prefixRef = new TermRef(pre);
+    prefixRef = new BytesRef(pre);
     setInitialSeekTerm(prefixRef);
   }
 
   @Override
-  protected final AcceptStatus accept(TermRef term) {
+  protected final AcceptStatus accept(BytesRef term) {
     if (term.startsWith(prefixRef)) {
       return regexImpl.match(term.toString()) ? AcceptStatus.YES : AcceptStatus.NO;
     } else {

@@ -29,9 +29,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.index.TermEnum;
-import org.apache.lucene.index.TermDocs;          // deprecated
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.FieldCacheSanityChecker;
@@ -288,7 +286,7 @@ class FieldCacheImpl implements FieldCache {
         final Bits delDocs = reader.getDeletedDocs();
         try {
           while(true) {
-            final TermRef term = termsEnum.next();
+            final BytesRef term = termsEnum.next();
             if (term == null) {
               break;
             }
@@ -341,7 +339,7 @@ class FieldCacheImpl implements FieldCache {
         final Bits delDocs = reader.getDeletedDocs();
         try {
           while(true) {
-            final TermRef term = termsEnum.next();
+            final BytesRef term = termsEnum.next();
             if (term == null) {
               break;
             }
@@ -399,7 +397,7 @@ class FieldCacheImpl implements FieldCache {
         final Bits delDocs = reader.getDeletedDocs();
         try {
           while(true) {
-            final TermRef term = termsEnum.next();
+            final BytesRef term = termsEnum.next();
             if (term == null) {
               break;
             }
@@ -470,7 +468,7 @@ class FieldCacheImpl implements FieldCache {
         final Bits delDocs = reader.getDeletedDocs();
         try {
           while(true) {
-            final TermRef term = termsEnum.next();
+            final BytesRef term = termsEnum.next();
             if (term == null) {
               break;
             }
@@ -536,7 +534,7 @@ class FieldCacheImpl implements FieldCache {
         final Bits delDocs = reader.getDeletedDocs();
         try {
           while(true) {
-            final TermRef term = termsEnum.next();
+            final BytesRef term = termsEnum.next();
             if (term == null) {
               break;
             }
@@ -604,7 +602,7 @@ class FieldCacheImpl implements FieldCache {
         final Bits delDocs = reader.getDeletedDocs();
         try {
           while(true) {
-            final TermRef term = termsEnum.next();
+            final BytesRef term = termsEnum.next();
             if (term == null) {
               break;
             }
@@ -654,7 +652,7 @@ class FieldCacheImpl implements FieldCache {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
         while(true) {
-          final TermRef term = termsEnum.next();
+          final BytesRef term = termsEnum.next();
           if (term == null) {
             break;
           }
@@ -705,7 +703,7 @@ class FieldCacheImpl implements FieldCache {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
         while(true) {
-          final TermRef term = termsEnum.next();
+          final BytesRef term = termsEnum.next();
           if (term == null) {
             break;
           }
@@ -754,7 +752,7 @@ class FieldCacheImpl implements FieldCache {
   
   // Directly parses a numeric value from UTF8 bytes
   // nocommit -- whitespace?  +e syntax?
-  final static long parseLong(TermRef term) {
+  final static long parseLong(BytesRef term) {
     int upto = term.offset;
     final int negMul;
     if (term.bytes[upto] == '-') {

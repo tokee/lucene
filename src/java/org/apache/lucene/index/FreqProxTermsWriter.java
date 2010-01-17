@@ -30,6 +30,7 @@ import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.util.UnicodeUtil;
+import org.apache.lucene.util.BytesRef;
 
 final class FreqProxTermsWriter extends TermsHashConsumer {
 
@@ -154,12 +155,12 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
     int numFields = fields.length;
 
-    final TermRef text = new TermRef();
+    final BytesRef text = new BytesRef();
 
     final FreqProxFieldMergeState[] mergeStates = new FreqProxFieldMergeState[numFields];
 
     final TermsConsumer termsConsumer = consumer.addField(fields[0].fieldInfo);
-    final TermRef.Comparator termComp = termsConsumer.getTermComparator();
+    final BytesRef.Comparator termComp = termsConsumer.getComparator();
 
     for(int i=0;i<numFields;i++) {
       FreqProxFieldMergeState fms = mergeStates[i] = new FreqProxFieldMergeState(fields[i], termComp);

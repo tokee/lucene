@@ -20,6 +20,7 @@ package org.apache.lucene.index;
 import java.io.IOException;
 
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.util.BytesRef;
 
 final class SegmentMergeInfo {
   int base;
@@ -27,7 +28,7 @@ final class SegmentMergeInfo {
   final FieldsEnum fields;
   TermsEnum terms;
   String field;
-  TermRef term;
+  BytesRef term;
 
   IndexReader reader;
   int delCount;

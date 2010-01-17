@@ -17,7 +17,7 @@ package org.apache.lucene.search;
  * limitations under the License.
  */
 
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
 
 /**
@@ -38,13 +38,13 @@ public final class EmptyTermsEnum extends FilteredTermsEnum {
 
   @Override
   /** Always returns {@link AcceptStatus#END}. */
-  protected AcceptStatus accept(TermRef term) {
+  protected AcceptStatus accept(BytesRef term) {
     return AcceptStatus.END;
   }
 
   /** Always returns {@link SeekStatus#END}. */
   @Override
-  public SeekStatus seek(TermRef term) {
+  public SeekStatus seek(BytesRef term) {
     return SeekStatus.END;
   }
 

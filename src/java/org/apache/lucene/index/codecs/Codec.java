@@ -85,7 +85,6 @@ public abstract class Codec {
 
     // So we can easily compute headerSize (below)
     if (out.getFilePointer()-start != codec.length() + 9) {
-      System.out.println(out.getFilePointer()-start + " vs " + (codec.length() + 8));
       throw new IllegalArgumentException("codec must be simple ASCII, less than 128 characters in length [got " + codec + "]");
     }
   }

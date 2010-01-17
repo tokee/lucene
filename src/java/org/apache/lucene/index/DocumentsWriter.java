@@ -41,6 +41,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.ThreadInterruptedException;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * This class accepts multiple added documents and directly
@@ -1001,7 +1002,7 @@ final class DocumentsWriter {
       TermsEnum termsEnum = null;
 
       String currentField = null;
-      TermRef termRef = new TermRef();
+      BytesRef termRef = new BytesRef();
       for (Entry<Term, BufferedDeletes.Num> entry: deletesFlushed.terms.entrySet()) {
         Term term = entry.getKey();
         // Since we visit terms sorted, we gain performance

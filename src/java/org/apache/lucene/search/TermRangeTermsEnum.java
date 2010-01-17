@@ -21,8 +21,7 @@ import java.io.IOException;
 import java.text.Collator;
 
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.TermRef;
-import org.apache.lucene.util.StringHelper;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * Subclass of FilteredTermEnum for enumerating all terms that match the
@@ -38,9 +37,9 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
   private String lowerTermText;
   private boolean includeLower;
   private boolean includeUpper;
-  final private TermRef lowerTermRef;
-  final private TermRef upperTermRef;
-  private final TermRef.Comparator termComp;
+  final private BytesRef lowerBytesRef;
+  final private BytesRef upperBytesRef;
+  private final BytesRef.Comparator termComp;
 
   /**
    * Enumerates all terms greater/equal than <code>lowerTerm</code>
@@ -84,28 +83,28 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
       this.lowerTermText = "";
       this.includeLower = true;
     }
-    lowerTermRef = new TermRef(this.lowerTermText);
+    lowerBytesRef = new BytesRef(this.lowerTermText);
 
     if (this.upperTermText == null) {
       this.includeUpper = true;
-      upperTermRef = null;
+      upperBytesRef = null;
     } else {
-      upperTermRef = new TermRef(upperTermText);
+      upperBytesRef = new BytesRef(upperTermText);
     }
 
-    TermRef startTermRef = (collator == null) ? lowerTermRef : new TermRef("");
-    setInitialSeekTerm(startTermRef);
-    termComp = getTermComparator();
+    BytesRef startBytesRef = (collator == null) ? lowerBytesRef : new BytesRef("");
+    setInitialSeekTerm(startBytesRef);
+    termComp = getComparator();
   }
 
   @Override
-  protected AcceptStatus accept(TermRef term) {
+  protected AcceptStatus accept(BytesRef term) {
     if (collator == null) {
-      if (!this.includeLower && term.equals(lowerTermRef))
+      if (!this.includeLower && term.equals(lowerBytesRef))
         return AcceptStatus.NO;
       // Use this field's default sort ordering
-      if (upperTermRef != null) {
-        final int cmp = termComp.compare(upperTermRef, term);
+      if (upperBytesRef != null) {
+        final int cmp = termComp.compare(upperBytesRef, term);
         /*
          * if beyond the upper term, or is exclusive and this is equal to
          * the upper term, break out

@@ -18,10 +18,9 @@ package org.apache.lucene.misc;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.FieldsEnum;
-import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.PriorityQueue;
@@ -60,7 +59,7 @@ public class HighFreqTerms {
       if (terms != null) {
         TermsEnum termsEnum = terms.iterator();
         while(true) {
-          TermRef term = termsEnum.next();
+          BytesRef term = termsEnum.next();
           if (term != null) {
             tiq.insertWithOverflow(new TermInfo(new Term(field, term.toString()), termsEnum.docFreq()));
           } else {
@@ -75,7 +74,7 @@ public class HighFreqTerms {
         if (field != null) {
           TermsEnum terms = fields.terms();
           while(true) {
-            TermRef term = terms.next();
+            BytesRef term = terms.next();
             if (term != null) {
               tiq.insertWithOverflow(new TermInfo(new Term(field, term.toString()), terms.docFreq()));
             } else {

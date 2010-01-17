@@ -18,7 +18,7 @@ package org.apache.lucene.queryParser.surround.query;
 
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermRef;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.IndexReader;
 
@@ -26,11 +26,11 @@ import java.io.IOException;
 
 
 public class SrndPrefixQuery extends SimpleTerm {
-  private final TermRef prefixRef;
+  private final BytesRef prefixRef;
   public SrndPrefixQuery(String prefix, boolean quoted, char truncator) {
     super(quoted);
     this.prefix = prefix;
-    prefixRef = new TermRef(prefix);
+    prefixRef = new BytesRef(prefix);
     this.truncator = truncator;
   }
 
@@ -63,7 +63,7 @@ public class SrndPrefixQuery extends SimpleTerm {
       TermsEnum termsEnum = terms.iterator();
 
       boolean skip = false;
-      TermsEnum.SeekStatus status = termsEnum.seek(new TermRef(getPrefix()));
+      TermsEnum.SeekStatus status = termsEnum.seek(new BytesRef(getPrefix()));
       if (status == TermsEnum.SeekStatus.FOUND) {
         mtv.visitMatchingTerm(getLucenePrefixTerm(fieldName));
         expanded = true;
@@ -81,7 +81,7 @@ public class SrndPrefixQuery extends SimpleTerm {
 
       if (!skip) {
         while(true) {
-          TermRef text = termsEnum.next();
+          BytesRef text = termsEnum.next();
           if (text != null && text.startsWith(prefixRef)) {
             mtv.visitMatchingTerm(new Term(fieldName, text.toString()));
             expanded = true;

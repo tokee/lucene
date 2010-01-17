@@ -19,6 +19,7 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * NOTE: this API is experimental and will likely change
@@ -29,15 +30,15 @@ public abstract class Terms {
   /** Returns an iterator that will step through all terms */
   public abstract TermsEnum iterator() throws IOException;
   
-  /** Return the TermRef Comparator used to sort terms
+  /** Return the BytesRef Comparator used to sort terms
    *  provided by the iterator.  NOTE: this may return null
    *  if there are no terms.  This method may be invoked
    *  many times; it's best to cache a single instance &
    *  reuse it. */
-  public abstract TermRef.Comparator getTermComparator() throws IOException;
+  public abstract BytesRef.Comparator getComparator() throws IOException;
 
   /** Returns the docFreq of the specified term text. */
-  public int docFreq(TermRef text) throws IOException {
+  public int docFreq(BytesRef text) throws IOException {
     // nocommit -- make thread private cache so we share
     // single enum
     // NOTE: subclasses may have more efficient impl
@@ -50,7 +51,7 @@ public abstract class Terms {
   }
 
   /** Get DocsEnum for the specified term. */
-  public DocsEnum docs(Bits skipDocs, TermRef text) throws IOException {
+  public DocsEnum docs(Bits skipDocs, BytesRef text) throws IOException {
     // NOTE: subclasses may have more efficient impl
     final TermsEnum terms = iterator();
     if (terms.seek(text) == TermsEnum.SeekStatus.FOUND) {
