@@ -24,7 +24,12 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 
 /** Reads IndexInputs written with {@link
- * SingleIntIndexoutput} */
+ *  SingleIntIndexoutput}.  NOTE: this class is just for
+ *  demonstration puprposes (it is a very slow way to read a
+ *  block of ints).
+ *
+ * @lucene.experimental
+ */
 public class SingleIntIndexInput extends IntIndexInput {
   private final IndexInput in;
 
@@ -48,28 +53,14 @@ public class SingleIntIndexInput extends IntIndexInput {
     // clone:
     private final IndexInput in;
 
-    private final BulkReadResult result = new BulkReadResult();
-
     public Reader(IndexInput in) {
       this.in = in;
-      result.offset = 0;
     }
 
     /** Reads next single int */
     @Override
     public int next() throws IOException {
       return in.readVInt();
-    }
-
-    /** Reads next chunk of ints */
-    @Override
-    public BulkReadResult read(int[] buffer, int count) throws IOException {
-      result.buffer = buffer;
-      for(int i=0;i<count;i++) {
-        buffer[i] = in.readVInt();
-      }
-      result.len = count;
-      return result;
     }
 
     @Override

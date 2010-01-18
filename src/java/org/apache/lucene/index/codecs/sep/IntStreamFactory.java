@@ -22,6 +22,7 @@ import org.apache.lucene.store.BufferedIndexInput;
 
 import java.io.IOException;
 
+/** @lucene.experimental */
 public abstract class IntStreamFactory {
   public IntIndexInput openInput(Directory dir, String fileName) throws IOException {
     return openInput(dir, fileName, BufferedIndexInput.BUFFER_SIZE);

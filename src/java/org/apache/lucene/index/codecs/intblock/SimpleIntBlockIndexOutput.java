@@ -27,8 +27,12 @@ import org.apache.lucene.store.IndexOutput;
 
 import java.io.IOException;
 
-/** Don't use this class!!  It naively encodes ints one vInt
- *  at a time.  Use it only for testing.  */
+/**
+ * Don't use this class!!  It naively encodes ints one vInt
+ * at a time.  Use it only for testing.
+ *
+ * @lucene.experimental
+ */
 public class SimpleIntBlockIndexOutput extends FixedIntBlockIndexOutput {
 
   public final static String CODEC = "SIMPLE_INT_BLOCKS";

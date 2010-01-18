@@ -30,6 +30,8 @@ import org.apache.lucene.index.codecs.MultiLevelSkipListWriter;
 /**
  * Implements the skip list writer for the default posting list format
  * that stores positions and payloads.
+ *
+ * @lucene.experimental
  */
 class SepSkipListWriter extends MultiLevelSkipListWriter {
   private int[] lastSkipDoc;

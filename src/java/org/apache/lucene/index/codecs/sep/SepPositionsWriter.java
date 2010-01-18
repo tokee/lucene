@@ -26,6 +26,7 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.index.codecs.Codec;
 
+/** @lucene.experimental */
 public final class SepPositionsWriter extends PositionsConsumer {
 
   final static String CODEC = "SepPositionsPayloads";

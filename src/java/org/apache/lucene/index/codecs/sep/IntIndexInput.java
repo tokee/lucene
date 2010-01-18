@@ -18,13 +18,17 @@ package org.apache.lucene.index.codecs.sep;
  */
 
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.util.IntsRef;
 
 import java.io.IOException;
+import java.io.Closeable;
 
 /** Defines basic API for writing ints to an IndexOutput.
  *  IntBlockCodec interacts with this API. @see
- *  IntBlockReader */
-public abstract class IntIndexInput {
+ *  IntBlockReader
+ *
+ * @lucene.experimental */
+public abstract class IntIndexInput implements Closeable {
 
   public abstract Reader reader() throws IOException;
 
@@ -53,20 +57,30 @@ public abstract class IntIndexInput {
     public abstract void setState(IndexState state);
   }
 
-  public static final class BulkReadResult {
-    public int[] buffer;
-    public int offset;
-    public int len;
-  };
-
   public abstract static class Reader {
 
     /** Reads next single int */
     public abstract int next() throws IOException;
 
     /** Reads next chunk of ints */
-    public abstract BulkReadResult read(int[] buffer, int count) throws IOException;
+    private IntsRef bulkResult;
 
+    /** Read up to count ints. */
+    public IntsRef read(int count) throws IOException {
+      if (bulkResult == null) {
+        bulkResult = new IntsRef();
+        bulkResult.ints = new int[count];
+      } else {
+        bulkResult.grow(count);
+      }
+      for(int i=0;i<count;i++) {
+        bulkResult.ints[i] = next();
+      }
+      bulkResult.length = count;
+      return bulkResult;
+    }
+
+    // nocommit
     public abstract String descFilePointer() throws IOException;
   }
 }

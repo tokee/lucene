@@ -40,6 +40,9 @@ import org.apache.lucene.index.codecs.standard.StandardTermsIndexWriter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 
+/**
+ * @lucene.experimental
+ */
 public class IntBlockCodec extends Codec {
 
   public IntBlockCodec() {
@@ -76,14 +79,6 @@ public class IntBlockCodec extends Codec {
       }
     }
   }
-
-  /*
-  final static String DOC_EXTENSION = "doc";
-  final static String SKIP_EXTENSION = "skp";
-  final static String FREQ_EXTENSION = "frq";
-  final static String PROX_EXTENSION = "prx";
-  final static String PAYLOAD_EXTENSION = "pyl";
-  */
 
   @Override
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {

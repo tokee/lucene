@@ -34,7 +34,10 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 
 /** Concrete class that reads the current doc/freq/skip
- *  postings format */
+ *  postings format.    
+ *
+ * @lucene.experimental
+ */
 
 // nocommit -- should we switch "hasProx" higher up?  and
 // create two separate docs readers, one that also reads

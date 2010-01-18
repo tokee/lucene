@@ -24,15 +24,15 @@ import org.apache.lucene.index.codecs.Codec;
 import java.io.IOException;
 
 /** Writes ints directly to the file (not in blocks) as
- *  vInt */
-
+ *  vInt
+ * 
+ * @lucene.experimental
+*/
 public class SingleIntIndexOutput extends IntIndexOutput {
   private final IndexOutput out;
   final static String CODEC = "SINGLE_INTS";
   final static int VERSION_START = 0;
   final static int VERSION_CURRENT = VERSION_START;
-  private long markPosition;
-  private long lastSavePosition;
 
   public SingleIntIndexOutput(Directory dir, String fileName) throws IOException {
     out = dir.createOutput(fileName);

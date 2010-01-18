@@ -27,8 +27,12 @@ import org.apache.lucene.store.IndexInput;
 
 import java.io.IOException;
 
-/** Don't use this class!!  It naively encodes ints one vInt
- *  at a time.  Use it only for testing.  */
+/**
+ * Don't use this class!!  It naively encodes ints one vInt
+ * at a time.  Use it only for testing.
+ *
+ * @lucene.experimental
+ */
 public class SimpleIntBlockIndexInput extends FixedIntBlockIndexInput {
 
   public SimpleIntBlockIndexInput(Directory dir, String fileName, int readBufferSize) throws IOException {

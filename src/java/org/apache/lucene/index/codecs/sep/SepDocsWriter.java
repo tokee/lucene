@@ -29,8 +29,9 @@ import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.store.IndexOutput;
 
 /** Writes frq to .frq, docs to .doc, pos to .pos, payloads
- *  to .pyl, skip data to .skp */
-
+ *  to .pyl, skip data to .skp
+ *
+ * @lucene.experimental */
 public final class SepDocsWriter extends StandardDocsConsumer {
   final static String CODEC = "SepDocFreqSkip";
 

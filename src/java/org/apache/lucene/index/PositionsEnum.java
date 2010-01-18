@@ -43,6 +43,7 @@ public abstract class PositionsEnum {
 
   public abstract int getPayloadLength();
 
+  // nocommit -- how to use BytesRef here?
   // nocommit -- improve this so that readers that do their
   // own buffering can save a copy
   public abstract byte[] getPayload(byte[] data, int offset) throws IOException;

@@ -25,6 +25,7 @@ import java.io.IOException;
 
 import org.apache.lucene.index.codecs.sep.IntIndexInput;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.util.IntsRef;
 
 /** Abstract base class that reads fixed-size blocks of ints
  *  from an IndexInput.  While this is a simple approach, a
@@ -80,15 +81,14 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     private long lastBlockFP;
     private final BlockReader blockReader;
     private final int blockSize;
-
-    private final BulkReadResult result = new BulkReadResult();
+    private final IntsRef bulkResult = new IntsRef();
 
     public Reader(final IndexInput in, final int[] pending, final BlockReader blockReader)
     throws IOException {
       this.in = in;
       this.pending = pending;
       this.blockSize = pending.length;
-      result.buffer = pending;
+      bulkResult.ints = pending;
       this.blockReader = blockReader;
       upto = blockSize;
     }
@@ -125,22 +125,22 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     }
 
     @Override
-    public BulkReadResult read(final int[] buffer, final int count) throws IOException {
+    public IntsRef read(final int count) throws IOException {
       this.maybeSeek();
       if (upto == blockSize) {
         blockReader.readBlock();
         upto = 0;
       }
-      result.offset = upto;
+      bulkResult.offset = upto;
       if (upto + count < blockSize) {
-        result.len = count;
+        bulkResult.length = count;
         upto += count;
       } else {
-        result.len = blockSize - upto;
+        bulkResult.length = blockSize - upto;
         upto = blockSize;
       }
 
-      return result;
+      return bulkResult;
     }
 
     @Override
@@ -204,7 +204,6 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
       final State iState = (State) state;
       this.fp = iState.fp;
       this.upto = iState.upto;
-
     }
   }
 }

@@ -20,6 +20,7 @@ package org.apache.lucene.index.codecs.sep;
 import org.apache.lucene.store.Directory;
 import java.io.IOException;
 
+/** @lucene.experimental */
 public class SingleIntFactory extends IntStreamFactory {
   @Override
   public IntIndexInput openInput(Directory dir, String fileName, int readBufferSize) throws IOException {

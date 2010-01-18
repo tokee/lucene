@@ -27,6 +27,8 @@ import org.apache.lucene.index.codecs.MultiLevelSkipListReader;
 /**
  * Implements the skip list reader for the default posting list format
  * that stores positions and payloads.
+ *
+ * @lucene.experimental
  */
 
 // TODO: rewrite this as recursive classes?

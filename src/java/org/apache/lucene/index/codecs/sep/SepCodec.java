@@ -37,6 +37,7 @@ import org.apache.lucene.index.codecs.standard.StandardTermsIndexWriter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 
+/** @lucene.experimental */
 public class SepCodec extends Codec {
 
   public SepCodec() {

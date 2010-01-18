@@ -23,13 +23,16 @@ package org.apache.lucene.index.codecs.sep;
 import org.apache.lucene.store.IndexOutput;
 
 import java.io.IOException;
+import java.io.Closeable;
 
 /** Defines basic API for writing ints to an IndexOutput.
  *  IntBlockCodec interacts with this API. @see
  *  IntBlockReader.
  *
- * <p>NOTE: block sizes could be variable */
-public abstract class IntIndexOutput {
+ * <p>NOTE: block sizes could be variable
+ *
+ * @lucene.experimental */
+public abstract class IntIndexOutput implements Closeable {
   /** Write an int to the primary file */
   public abstract void write(int v) throws IOException;
 
@@ -55,5 +58,6 @@ public abstract class IntIndexOutput {
 
   public abstract void close() throws IOException;
 
+  // nocommit
   public abstract String descFilePointer() throws IOException;
 }

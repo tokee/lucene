@@ -29,6 +29,7 @@ import org.apache.lucene.index.codecs.standard.StandardPositionsProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 
+/** @lucene.experimental */
 public class SepPositionsReader extends StandardPositionsProducer {
   
   final IntIndexInput posIn;

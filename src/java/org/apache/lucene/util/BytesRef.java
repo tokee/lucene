@@ -20,7 +20,9 @@ package org.apache.lucene.util;
 import java.io.UnsupportedEncodingException;
 
 /** Represents byte[], as a slice (offset + length) into an
- *  existing byte[]. */
+ *  existing byte[].
+ *
+ *  @lucene.internal */
 public final class BytesRef {
 
   public byte[] bytes;
@@ -66,11 +68,11 @@ public final class BytesRef {
 
   public boolean bytesEquals(BytesRef other) {
     if (length == other.length) {
-      int upto = offset;
       int otherUpto = other.offset;
       final byte[] otherBytes = other.bytes;
-      for(int i=0;i<length;i++) {
-        if (bytes[upto++] != otherBytes[otherUpto++]) {
+      final int end = offset + length;
+      for(int upto=offset;upto<end;upto++,otherUpto++) {
+        if (bytes[upto] != otherBytes[otherUpto]) {
           return false;
         }
       }
@@ -82,11 +84,7 @@ public final class BytesRef {
 
   @Override
   public Object clone() {
-    BytesRef other = new BytesRef();
-    other.bytes = new byte[length];
-    System.arraycopy(bytes, offset, other.bytes, 0, length);
-    other.length = length;
-    return other;
+    return new BytesRef(this);
   }
 
   public boolean startsWith(BytesRef other, int pos) {
@@ -110,25 +108,16 @@ public final class BytesRef {
   }
 
   public boolean endsWith(BytesRef other) {
-    return startsWith(other, length - other.length);   
+    return startsWith(other, length - other.length);
   }
   
   @Override
   public int hashCode() {
     final int prime = 31;
-    int result = 1;
-    result = prime * result + hash(bytes);
-    return result;
-  }
-  
-  private int hash(byte a[]) {
-    if (a == null) {
-      return 0;
-    }
-    int result = 1;
-    int upTo = offset;
-    for(int i = 0; i < length; i++) {
-      result = 31 * result + bytes[upTo++];
+    int result = 0;
+    final int end = offset + length;
+    for(int i=offset;i<end;i++) {
+      result = prime * result + bytes[i];
     }
     return result;
   }
