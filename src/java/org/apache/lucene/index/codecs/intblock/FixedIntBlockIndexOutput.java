@@ -26,6 +26,14 @@ import java.io.IOException;
 import org.apache.lucene.index.codecs.sep.IntIndexOutput;
 import org.apache.lucene.store.IndexOutput;
 
+/** Abstract base class that writes fixed-size blocks of ints
+ *  to an IndexOutput.  While this is a simple approach, a
+ *  more performant approach would directly create an impl
+ *  of IntIndexOutput inside Directory.  Wrapping a generic
+ *  IndexInput will likely cost performance.
+ *
+ * @lucene.experimental
+ */
 public abstract class FixedIntBlockIndexOutput extends IntIndexOutput {
 
   private IndexOutput out;
@@ -102,11 +110,12 @@ public abstract class FixedIntBlockIndexOutput extends IntIndexOutput {
 
   @Override
   public void close() throws IOException {
-    // NOTE: entries in the block after current upto are
-    // invalid
-    // nocommit -- zero fill?
     try {
-      flushBlock(pending, out);
+      if (upto > 0) {
+      // NOTE: entries in the block after current upto are
+      // invalid
+        flushBlock(pending, out);
+      }
     } finally {
       out.close();
     }

@@ -30,23 +30,26 @@ import org.apache.lucene.store.IndexInput;
  *  from an IndexInput.  While this is a simple approach, a
  *  more performant approach would directly create an impl
  *  of IntIndexInput inside Directory.  Wrapping a generic
- *  IndexInput will likely cost performance.  */
+ *  IndexInput will likely cost performance.
+ *
+ * @lucene.experimental
+ */
 public abstract class FixedIntBlockIndexInput extends IntIndexInput {
 
   private IndexInput in;
   protected int blockSize;
 
-  protected void init(IndexInput in) throws IOException {
+  protected void init(final IndexInput in) throws IOException {
     this.in = in;
     blockSize = in.readVInt();
   }
 
   @Override
   public Reader reader() throws IOException {
-    int[] buffer = new int[blockSize];
-    IndexInput clone = (IndexInput) in.clone();
+    final int[] buffer = new int[blockSize];
+    final IndexInput clone = (IndexInput) in.clone();
     // nocommit -- awkward
-    return new Reader(clone, buffer, getBlockReader(clone, buffer));
+    return new Reader(clone, buffer, this.getBlockReader(clone, buffer));
   }
 
   @Override
@@ -80,15 +83,17 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
 
     private final BulkReadResult result = new BulkReadResult();
 
-    public Reader(IndexInput in, int[] pending, BlockReader blockReader) {
+    public Reader(final IndexInput in, final int[] pending, final BlockReader blockReader)
+    throws IOException {
       this.in = in;
       this.pending = pending;
       this.blockSize = pending.length;
       result.buffer = pending;
       this.blockReader = blockReader;
+      upto = blockSize;
     }
 
-    void seek(long fp, int upto) {
+    void seek(final long fp, final int upto) {
       pendingFP = fp;
       pendingUpto = upto;
       seekPending = true;
@@ -109,7 +114,7 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
 
     @Override
     public int next() throws IOException {
-      maybeSeek();
+      this.maybeSeek();
       if (upto == blockSize) {
         lastBlockFP = in.getFilePointer();
         blockReader.readBlock();
@@ -120,8 +125,8 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     }
 
     @Override
-    public BulkReadResult read(int[] buffer, int count) throws IOException {
-      maybeSeek();
+    public BulkReadResult read(final int[] buffer, final int count) throws IOException {
+      this.maybeSeek();
       if (upto == blockSize) {
         blockReader.readBlock();
         upto = 0;
@@ -149,7 +154,7 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     private int upto;
 
     @Override
-    public void read(IndexInput indexIn, boolean absolute) throws IOException {
+    public void read(final IndexInput indexIn, final boolean absolute) throws IOException {
       if (absolute) {
         fp = indexIn.readVLong();
         upto = indexIn.readVInt();
@@ -168,17 +173,17 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     }
 
     @Override
-    public void seek(IntIndexInput.Reader other) throws IOException {
+    public void seek(final IntIndexInput.Reader other) throws IOException {
       ((Reader) other).seek(fp, upto);
     }
 
     @Override
-    public void set(IntIndexInput.Index other) {
-      Index idx = (Index) other;
+    public void set(final IntIndexInput.Index other) {
+      final Index idx = (Index) other;
       fp = idx.fp;
       upto = idx.upto;
     }
-    
+
     public class State extends IndexState {
       long fp;
       int upto;
@@ -187,7 +192,7 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
     // nocommit handle with set and/or clone?
     @Override
     public IndexState captureState() {
-      State state = new State();
+      final State state = new State();
       state.fp = fp;
       state.upto = upto;
       return state;
@@ -195,11 +200,11 @@ public abstract class FixedIntBlockIndexInput extends IntIndexInput {
 
     // nocommit handle with set and/or clone?
     @Override
-    public void setState(IndexState state) {
-      State iState = (State) state;
+    public void setState(final IndexState state) {
+      final State iState = (State) state;
       this.fp = iState.fp;
       this.upto = iState.upto;
-      
+
     }
   }
 }

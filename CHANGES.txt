@@ -1,6 +1,11 @@
 Lucene Change Log
 $Id$
 
+Bug fixes
+
+ * LUCENE-2222: FixedIntBlockIndexInput incorrectly read one block of
+   0s before the actual data.  (Renaud Delbru via Mike McCandless)
+
 ======================= Trunk (not yet released) =======================
 Changes in backwards compatibility policy
 
