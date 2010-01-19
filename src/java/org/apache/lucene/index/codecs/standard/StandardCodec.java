@@ -29,7 +29,7 @@ import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.store.Directory;
 
-/** Current index file format */
+/** Default codec. */
 public class StandardCodec extends Codec {
 
   public StandardCodec() {

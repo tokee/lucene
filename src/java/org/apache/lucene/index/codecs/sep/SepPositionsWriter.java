@@ -25,6 +25,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.util.BytesRef;
 
 /** @lucene.experimental */
 public final class SepPositionsWriter extends PositionsConsumer {
@@ -113,12 +114,12 @@ public final class SepPositionsWriter extends PositionsConsumer {
 
   /** Add a new position & payload */
   @Override
-  public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) throws IOException {
+  public void add(int position, BytesRef payload) throws IOException {
     assert !omitTF: "omitTF is true";
     assert posOut != null;
     if (Codec.DEBUG) {
-      if (payload != null) {
-        System.out.println("pw.addPos [" + desc + "]: pos=" + position + " posFP=" + posOut.descFilePointer() + " payloadFP=" + payloadOut.getFilePointer() + " payload=" + payloadLength + " bytes");
+      if (payload != null && payload.length > 0) {
+        System.out.println("pw.addPos [" + desc + "]: pos=" + position + " posFP=" + posOut.descFilePointer() + " payloadFP=" + payloadOut.getFilePointer() + " payload=" + payload.length + " bytes");
       } else {
         System.out.println("pw.addPos [" + desc + "]: pos=" + position + " posFP=" + posOut.descFilePointer() + " payloadFP=" + payloadOut.getFilePointer());
       }
@@ -128,6 +129,7 @@ public final class SepPositionsWriter extends PositionsConsumer {
     lastPosition = position;
 
     if (storePayloads) {
+      int payloadLength = payload == null ? 0 : payload.length;
       if (Codec.DEBUG) {
         System.out.println("  store payload len=" + payloadLength);
       }
@@ -148,7 +150,7 @@ public final class SepPositionsWriter extends PositionsConsumer {
         if (Codec.DEBUG) {
           System.out.println("  write @ payloadFP=" + payloadOut.getFilePointer());
         }
-        payloadOut.writeBytes(payload, payloadLength);
+        payloadOut.writeBytes(payload.bytes, payload.offset, payloadLength);
       }
     } else {
       posOut.write(delta);

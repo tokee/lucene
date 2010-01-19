@@ -439,9 +439,23 @@ public class PreFlexFields extends FieldsProducer {
       return pos.isPayloadAvailable();
     }
 
+    private BytesRef payload;
+
     @Override
-    public byte[] getPayload(byte[] data, int offset) throws IOException {
-      return pos.getPayload(data, offset);
+    public BytesRef getPayload() throws IOException {
+      final int len = pos.getPayloadLength();
+      if (payload == null) {
+        payload = new BytesRef();
+        payload.bytes = new byte[len];
+      } else {
+        if (payload.bytes.length < len) {
+          payload.grow(len);
+        }
+      }
+      
+      payload.bytes = pos.getPayload(payload.bytes, 0);
+      payload.length = len;
+      return payload;
     }
   }
 }

@@ -42,11 +42,11 @@ final class ExactPhraseScorer extends PhraseScorer {
     int freq = 0;
     do {					  // find position w/ all terms
       while (first.position < last.position) {	  // scan forward in first
-	    do {
-	      if (!first.nextPosition())
-	        return freq;
-	    } while (first.position < last.position);
-	      firstToLast();
+        do {
+          if (!first.nextPosition())
+            return freq;
+        } while (first.position < last.position);
+        firstToLast();
       }
       freq++;					  // all equal: a match
     } while (last.nextPosition());

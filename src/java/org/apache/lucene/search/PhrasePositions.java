@@ -44,10 +44,6 @@ final class PhrasePositions {
       return false;
     }
     positions = docs.positions();
-
-    // nocommit -- really needed?
-    //position = 0;
-
     return true;
   }
 
@@ -56,8 +52,6 @@ final class PhrasePositions {
     if (doc == docs.NO_MORE_DOCS) {
       return false;
     }
-    // nocommit -- really needed?
-    // position = 0;
     return true;
   }
 
@@ -65,6 +59,9 @@ final class PhrasePositions {
   final void firstPosition() throws IOException {
     count = docs.freq();				  // read first pos
     positions = docs.positions();
+    if (positions == null) {
+      throw new IllegalStateException("no positions are stored for this field (Field.omitTermFreqAndPositions was used)");
+    }
     nextPosition();
   }
 

@@ -526,7 +526,7 @@ class UnionDocsEnum extends DocsEnum {
     }
 
     @Override
-    public byte[] getPayload(byte[] data, int offset) {
+    public BytesRef getPayload() {
       throw new UnsupportedOperationException();
     }
 

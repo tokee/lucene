@@ -31,6 +31,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 /** Concrete class that reads the current doc/freq/skip
  *  postings format */
@@ -151,19 +152,26 @@ public class PulsingDocsReader extends StandardDocsProducer {
               final int code2 = termsIn.readVInt();
               if (storePayloads) {
                 position += code2 >>> 1;
-                if ((code2 & 1) != 0)
+                if ((code2 & 1) != 0) {
                   payloadLength = termsIn.readVInt();
+                }
+
                 if (payloadLength > 0) {
-                  if (pos.payload == null || payloadLength > pos.payload.length) {
-                    pos.payload = new byte[ArrayUtil.getNextSize(payloadLength)];
+                  if (pos.payload == null) {
+                    pos.payload = new BytesRef();
+                    pos.payload.bytes = new byte[payloadLength];
+                  } else if (payloadLength > pos.payload.bytes.length) {
+                    pos.payload.grow(payloadLength);
                   }
-                  termsIn.readBytes(pos.payload, 0, payloadLength);
+                  pos.payload.length = payloadLength;
+                  termsIn.readBytes(pos.payload.bytes, 0, payloadLength);
+                } else if (pos.payload != null) {
+                  pos.payload.length = 0;
                 }
               } else {
                 position += code2;
               }
               pos.pos = position;
-              pos.payloadLength = payloadLength;
             }
           }
           doc.docID = docID;
@@ -273,25 +281,17 @@ public class PulsingDocsReader extends StandardDocsProducer {
 
         @Override
         public int getPayloadLength() {
-          return pos.payloadLength;
+          return pos.payload == null ? 0 : pos.payload.length;
         }
 
         @Override
         public boolean hasPayload() {
-          // nocommit -- maybe don't do the payloadRetrieved check?
-          return !payloadRetrieved && pos.payloadLength > 0;
+          return pos.payload != null && pos.payload.length > 0;
         }
 
         @Override
-        public byte[] getPayload(byte[] data, int offset) {
-          // nocommit -- inefficient
-          if (!payloadRetrieved) {
-            payloadRetrieved = true;
-            System.arraycopy(pos.payload, 0, data, offset, pos.payloadLength);
-            return data;
-          } else {
-            return null;
-          }
+        public BytesRef getPayload() {
+          return pos.payload;
         }
       }
       

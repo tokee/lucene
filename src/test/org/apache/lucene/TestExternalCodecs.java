@@ -219,7 +219,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) {
+      public void add(int position, BytesRef payload) {
         if (payload != null) {
           throw new UnsupportedOperationException("can't handle payloads");
         }
@@ -413,7 +413,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public byte[] getPayload(byte[] data, int offset) {
+      public BytesRef getPayload() {
         return null;
       }
     }

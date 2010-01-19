@@ -328,6 +328,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         CacheEntry entry = null;
         BytesRef entryKey = null;
 
+        // Consult terms cache first:
         if (docs.canCaptureState()) {
           entry = termsCache.get(term);
           if (entry != null) {
@@ -350,6 +351,7 @@ public class StandardTermsDictReader extends FieldsProducer {
 
         if (termUpto != -1 && termUpto < numTerms) {
 
+          // See if we are already positioned at the requested term
           final int cmp = termComp.compare(bytesReader.term, term);
 
           if (cmp == 0) {

@@ -28,6 +28,7 @@ import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.standard.StandardPositionsProducer;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.util.BytesRef;
 
 /** @lucene.experimental */
 public class SepPositionsReader extends StandardPositionsProducer {
@@ -281,32 +282,35 @@ public class SepPositionsReader extends StandardPositionsProducer {
         return payloadLength;
       }
 
+      private BytesRef payload;
+
       @Override
-      public byte[] getPayload(byte[] data, int offset) throws IOException {
+      public BytesRef getPayload() throws IOException {
 
         if (!payloadPending) {
           throw new IOException("Either no payload exists at this term position or an attempt was made to load it more than once.");
+        }
+
+        if (payloadLength == 0) {
+          return null;
         }
 
         if (Codec.DEBUG) {
           System.out.println("   getPayload payloadFP=" + payloadIn.getFilePointer() + " len=" + payloadLength);
         }
 
-        final byte[] retArray;
-        final int retOffset;
-        if (data == null || data.length-offset < payloadLength) {
-          // the array is too small to store the payload data,
-          // so we allocate a new one
-          retArray = new byte[payloadLength];
-          retOffset = 0;
-        } else {
-          retArray = data;
-          retOffset = offset;
+        if (payload == null) {
+          payload = new BytesRef();
+          payload.bytes = new byte[payloadLength];
+        } else if (payload.bytes.length < payloadLength) {
+          payload.grow(payloadLength);
         }
 
-        payloadIn.readBytes(retArray, retOffset, payloadLength);
+        payloadIn.readBytes(payload.bytes, 0, payloadLength);
         payloadPending = false;
-        return retArray;
+        payload.length = payloadLength;
+
+        return payload;
       }
       
       @Override

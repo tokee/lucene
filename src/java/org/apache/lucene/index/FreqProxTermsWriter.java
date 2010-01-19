@@ -145,6 +145,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
   }
 
   private byte[] payloadBuffer;
+  BytesRef payload;
 
   /* Walk through all unique text tokens (Posting
    * instances) found in this field and serialize them
@@ -244,19 +245,29 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
             //System.out.println("    pos=" + position);
 
             final int payloadLength;
+            final BytesRef thisPayload;
+
             if ((code & 1) != 0) {
               // This position has a payload
-              payloadLength = prox.readVInt();
+              payloadLength = prox.readVInt();  
+              
+              if (payload == null) {
+                payload = new BytesRef();
+                payload.bytes = new byte[payloadLength];
+              } else if (payload.bytes.length < payloadLength) {
+                payload.grow(payloadLength);
+              }
 
-              if (payloadBuffer == null || payloadBuffer.length < payloadLength)
-                payloadBuffer = new byte[payloadLength];
+              prox.readBytes(payload.bytes, 0, payloadLength);
+              payload.length = payloadLength;
+              thisPayload = payload;
 
-              prox.readBytes(payloadBuffer, 0, payloadLength);
-
-            } else
+            } else {
               payloadLength = 0;
+              thisPayload = null;
+            }
 
-            posConsumer.addPosition(position, payloadBuffer, 0, payloadLength);
+            posConsumer.add(position, thisPayload);
           } //End for
 
           posConsumer.finishDoc();

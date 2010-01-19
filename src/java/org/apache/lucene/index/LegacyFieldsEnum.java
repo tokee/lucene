@@ -259,9 +259,23 @@ class LegacyFieldsEnum extends FieldsEnum {
       return tp.getPayloadLength();
     }
 
+    private BytesRef payload;
+
     @Override
-    public byte[] getPayload(byte[] data, int offset) throws IOException {
-      return tp.getPayload(data, offset);
+    public BytesRef getPayload() throws IOException {
+      final int len = tp.getPayloadLength();
+      if (payload == null) {
+        payload = new BytesRef();
+        payload.bytes = new byte[len];
+      } else {
+        if (payload.bytes.length < len) {
+          payload.grow(len);
+        }
+      }
+      
+      payload.bytes = tp.getPayload(payload.bytes, 0);
+      payload.length = len;
+      return payload;
     }
 
     @Override

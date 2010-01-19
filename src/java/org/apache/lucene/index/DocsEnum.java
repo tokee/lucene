@@ -65,12 +65,11 @@ public abstract class DocsEnum extends DocIdSetIterator {
     return count;
   }
 
-  // nocommit -- maybe move this up to TermsEnum?  that
-  // would disallow changing positions format/reader of each
-  // doc, though
-  // nocommit - doc whether this returns null if there are
-  // no positions, or a faker
   /** Don't call next() or skipTo() or read() until you're
-   *  done consuming the positions */
+   *  done consuming the positions.  NOTE: this method may
+   *  return null, if the index contains no positional
+   *  information for this document.  The standard codec
+   *  (default) does this today when the field was indexed
+   *  with {@link Field#setOmitTermFreqAndPositions}. */
   public abstract PositionsEnum positions() throws IOException;
 }

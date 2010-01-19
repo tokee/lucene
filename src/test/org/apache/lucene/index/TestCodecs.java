@@ -130,9 +130,9 @@ public class TestCodecs extends LuceneTestCase {
 
   class PositionData {
     int pos;
-    byte[] payload;
+    BytesRef payload;
 
-    PositionData(int pos, byte[] payload) {
+    PositionData(int pos, BytesRef payload) {
       this.pos = pos;
       this.payload = payload;
     }
@@ -170,14 +170,12 @@ public class TestCodecs extends LuceneTestCase {
         if (!field.omitTF) {
           for(int j=0;j<positions[i].length;j++) {
             PositionData pos = positions[i][j];
-            if (pos.payload != null)
-              posConsumer.addPosition(pos.pos, pos.payload, 0, pos.payload.length);
-            else
-              posConsumer.addPosition(pos.pos, null, 0, 0);
+            posConsumer.add(pos.pos, pos.payload);
           }
           posConsumer.finishDoc();
-        } else
+        } else {
           assert posConsumer==null;
+        }
       }
       termsConsumer.finishTerm(text, docs.length);
     }
@@ -227,13 +225,16 @@ public class TestCodecs extends LuceneTestCase {
           for(int k=0;k<termFreq;k++) {
             position += nextInt(1, 10);
 
-            byte[] payload;
+            final BytesRef payload;
             if (storePayloads && nextInt(4) == 0) {
-              payload = new byte[1+nextInt(5)];
-              for(int l=0;l<payload.length;l++)
-                payload[l] = (byte) nextInt(255);
-            } else
+              byte[] bytes = new byte[1+nextInt(5)];
+              for(int l=0;l<bytes.length;l++) {
+                bytes[l] = (byte) nextInt(255);
+              }
+              payload = new BytesRef(bytes);
+            } else {
               payload = null;
+            }
 
             positions[j][k] = new PositionData(position, payload);
           }
@@ -377,17 +378,13 @@ public class TestCodecs extends LuceneTestCase {
         assertEquals(positions[i].pos, pos);
         if (positions[i].payload != null) {
           assertTrue(posEnum.hasPayload());
-          assertEquals(positions[i].payload.length, posEnum.getPayloadLength());
           if (nextInt(3) < 2) {
             if (Codec.DEBUG) {
               System.out.println("TEST do check payload len=" + posEnum.getPayloadLength());
             }
 
             // Verify the payload bytes
-            posEnum.getPayload(data, 0);
-            for(int j=0;j<positions[i].payload.length;j++) {
-              assertEquals(data[j], positions[i].payload[j]);
-            }
+            assertTrue(positions[i].payload.equals(posEnum.getPayload()));
           } else {
             if (Codec.DEBUG) {
               System.out.println("TEST skip check payload len=" + posEnum.getPayloadLength());

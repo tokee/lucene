@@ -398,19 +398,12 @@ public class SepDocsReader extends StandardDocsProducer {
           // Lazy init
           if (posReader == null) {
 
-            // nocommit -- should we return null?
-
             // TermFreq was omitted from this field during
             // indexing, which means we pretend termFreq is
             // always 1 with that 1 occurrence having
             // position 0
-            if (fakePositions == null) {
-              fakePositions = new FakePositionsEnum();
-            }
-            if (Codec.DEBUG) {
-              System.out.println("  return fake");
-            }
-            return fakePositions;
+            return null;
+
           } else {
 
             // nocommit: abstraction violation
@@ -607,26 +600,5 @@ public class SepDocsReader extends StandardDocsProducer {
     public boolean canCaptureState() {
       return true;
     }
-  }
-}
-
-/** Returned when someone asks for positions() enum on field
- *  with omitTf true */
-class FakePositionsEnum extends PositionsEnum {
-  @Override
-  public int next() {
-    return 0;
-  }
-  @Override
-  public int getPayloadLength() {
-    return 0;
-  }
-  @Override
-  public boolean hasPayload() {
-    return false;
-  }
-  @Override
-  public byte[] getPayload(byte[] data, int offset) {
-    return null;
   }
 }

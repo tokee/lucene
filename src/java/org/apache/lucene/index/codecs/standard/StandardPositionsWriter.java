@@ -24,6 +24,7 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.util.BytesRef;
 
 final class StandardPositionsWriter extends StandardPositionsConsumer {
   final static String CODEC = "SingleFilePositionsPayloads";
@@ -79,13 +80,13 @@ final class StandardPositionsWriter extends StandardPositionsConsumer {
 
   /** Add a new position & payload */
   @Override
-  public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) throws IOException {
+  public void add(int position, BytesRef payload) throws IOException {
     assert !omitTermFreqAndPositions: "omitTermFreqAndPositions is true";
     assert out != null;
 
     if (Codec.DEBUG) {
       if (payload != null)
-        System.out.println("pw.addPos [" + desc + "]: pos=" + position + " fp=" + out.getFilePointer() + " payload=" + payloadLength + " bytes");
+        System.out.println("pw.addPos [" + desc + "]: pos=" + position + " fp=" + out.getFilePointer() + " payload=" + payload.length + " bytes");
       else
         System.out.println("pw.addPos [" + desc + "]: pos=" + position + " fp=" + out.getFilePointer());
     }
@@ -100,6 +101,7 @@ final class StandardPositionsWriter extends StandardPositionsConsumer {
       if (Codec.DEBUG) {
         System.out.println("  store payloads");
       }
+      final int payloadLength = payload == null ? 0 : payload.length;
 
       if (payloadLength != lastPayloadLength) {
         if (Codec.DEBUG) {
@@ -109,12 +111,16 @@ final class StandardPositionsWriter extends StandardPositionsConsumer {
         lastPayloadLength = payloadLength;
         out.writeVInt((delta<<1)|1);
         out.writeVInt(payloadLength);
-      } else
+      } else {
         out.writeVInt(delta << 1);
-      if (payloadLength > 0)
-        out.writeBytes(payload, payloadLength);
-    } else
+      }
+
+      if (payloadLength > 0) {
+        out.writeBytes(payload.bytes, payload.offset, payloadLength);
+      }
+    } else {
       out.writeVInt(delta);
+    }
   }
 
   void setField(FieldInfo fieldInfo) {

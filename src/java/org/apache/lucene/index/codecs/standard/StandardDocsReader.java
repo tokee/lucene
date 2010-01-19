@@ -86,8 +86,9 @@ public class StandardDocsReader extends StandardDocsProducer {
 
     skipInterval = termsIn.readInt();
     maxSkipLevels = termsIn.readInt();
-    if (posReader != null)
+    if (posReader != null) {
       posReader.start(termsIn);
+    }
   }
 
   @Override
@@ -405,10 +406,7 @@ public class StandardDocsReader extends StandardDocsProducer {
             // indexing, which means we pretend termFreq is
             // always 1 with that 1 occurrence having
             // position 0
-            if (fakePositions == null) {
-              fakePositions = new FormatPostingsFakePositionsEnum();
-            }
-            return fakePositions;
+            return null;
           } else {
             // TODO: abstraction violation
             positions = (StandardPositionsReader.TermsDictReader.SegmentPositionsEnum) posReader.positions();
@@ -505,26 +503,5 @@ public class StandardDocsReader extends StandardDocsProducer {
         return doc;
       }
     }
-  }
-}
-
-/** Returned when someone asks for positions() enum on field
- *  with omitTf true */
-class FormatPostingsFakePositionsEnum extends PositionsEnum {
-  @Override
-  public int next() {
-    return 0;
-  }
-  @Override
-  public int getPayloadLength() {
-    return 0;
-  }
-  @Override
-  public boolean hasPayload() {
-    return false;
-  }
-  @Override
-  public byte[] getPayload(byte[] data, int offset) {
-    return null;
   }
 }

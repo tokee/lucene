@@ -27,6 +27,7 @@ import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
 import org.apache.lucene.index.codecs.standard.StandardPositionsConsumer;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.BytesRef;
 
 // TODO: we now pulse entirely according to docFreq of the
 // term; it might be better to eg pulse by "net bytes used"
@@ -96,18 +97,15 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
   boolean pulsed;                                 // false if we've seen > maxPulsingDocFreq docs
 
   static class Position {
-    byte[] payload;
+    BytesRef payload;
     int pos;
-    int payloadLength;
     
     @Override
     public Object clone() {
       Position position = new Position();
       position.pos = pos;
-      position.payloadLength = payloadLength;
-      if(payload != null) {
-        position.payload = new byte[payload.length];
-        System.arraycopy(payload, 0, position.payload, 0, payloadLength);
+      if (payload != null) {
+        position.payload = new BytesRef(payload);
       }
       return position;
     }
@@ -164,27 +162,33 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
   class PositionsWriter extends StandardPositionsConsumer {
     @Override
     public void start(IndexOutput termsOut) {}
+
     @Override
     public void startTerm() {}
+
     @Override
-    public void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) {
+    public void add(int position, BytesRef payload) {
       Position pos = currentDoc.positions[currentDoc.numPositions++];
       pos.pos = position;
-      if (payload != null && payloadLength > 0) {
-        if (pos.payload == null || payloadLength > pos.payload.length) {
-          pos.payload = new byte[ArrayUtil.getNextSize(payloadLength)];
+      if (payload != null && payload.length > 0) {
+        if (pos.payload == null) {
+          pos.payload = new BytesRef(payload);
+        } else {
+          pos.payload.copy(payload);
         }
-        System.arraycopy(payload, payloadOffset, pos.payload, 0, payloadLength);
-        pos.payloadLength = payloadLength;
-      } else
-        pos.payloadLength = 0;
+      } else if (pos.payload != null) {
+        pos.payload.length = 0;
+      }
     }
+
     @Override
     public void finishDoc() {
       assert currentDoc.numPositions == currentDoc.termDocFreq;
     }
+
     @Override
     public void finishTerm(boolean isIndexTerm) {}
+
     @Override
     public void close() {}
   }
@@ -219,11 +223,12 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
           assert doc.termDocFreq == doc.numPositions;
           for(int j=0;j<doc.termDocFreq;j++) {
             final Position pos = doc.positions[j];
-            if (pos.payload != null && pos.payloadLength > 0) {
+            if (pos.payload != null && pos.payload.length > 0) {
               assert storePayloads;
-              posConsumer.addPosition(pos.pos, pos.payload, 0, pos.payloadLength);
-            } else
-              posConsumer.addPosition(pos.pos, null, 0, 0);
+              posConsumer.add(pos.pos, pos.payload);
+            } else {
+              posConsumer.add(pos.pos, null);
+            }
           }
           posConsumer.finishDoc();
         }
@@ -305,16 +310,21 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
             final int delta2 = pos.pos - lastPosition;
             lastPosition = pos.pos;
             if (storePayloads) {
-              if (pos.payloadLength != lastPayloadLength) {
+              final int payloadLength = pos.payload == null ? 0 : pos.payload.length;
+              if (payloadLength != lastPayloadLength) {
                 termsOut.writeVInt((delta2 << 1)|1);
-                termsOut.writeVInt(pos.payloadLength);
-                lastPayloadLength = pos.payloadLength;
-              } else
+                termsOut.writeVInt(payloadLength);
+                lastPayloadLength = payloadLength;
+              } else {
                 termsOut.writeVInt(delta2 << 1);
-              if (pos.payloadLength > 0)
-                termsOut.writeBytes(pos.payload, 0, pos.payloadLength);
-            } else
+              }
+
+              if (payloadLength > 0) {
+                termsOut.writeBytes(pos.payload.bytes, 0, pos.payload.length);
+              }
+            } else {
               termsOut.writeVInt(delta2);
+            }
           }
         }
       }

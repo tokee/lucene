@@ -30,6 +30,7 @@ import org.apache.lucene.search.spans.TermSpans;
 import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.search.spans.SpanWeight;
 import org.apache.lucene.search.spans.SpanScorer;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 
@@ -80,8 +81,7 @@ public class PayloadTermQuery extends SpanTermQuery {
     }
 
     protected class PayloadTermSpanScorer extends SpanScorer {
-      // TODO: is this the best way to allocate this?
-      protected byte[] payload = new byte[256];
+      protected BytesRef payload;
       protected float payloadScore;
       protected int payloadsSeen;
       private final TermSpans termSpans;
@@ -117,11 +117,22 @@ public class PayloadTermQuery extends SpanTermQuery {
       protected void processPayload(Similarity similarity) throws IOException {
         final PositionsEnum positions = termSpans.getPositions();
         if (positions.hasPayload()) {
-          payload = positions.getPayload(payload, 0);
-          payloadScore = function.currentScore(doc, term.field(),
-              spans.start(), spans.end(), payloadsSeen, payloadScore,
-              similarity.scorePayload(doc, term.field(), spans.start(), spans
-                  .end(), payload, 0, positions.getPayloadLength()));
+          payload = positions.getPayload();
+          if (payload != null) {
+            payloadScore = function.currentScore(doc, term.field(),
+                                                 spans.start(), spans.end(), payloadsSeen, payloadScore,
+                                                 similarity.scorePayload(doc, term.field(), spans.start(),
+                                                                         spans.end(), payload.bytes,
+                                                                         payload.offset,
+                                                                         payload.length));
+          } else {
+            payloadScore = function.currentScore(doc, term.field(),
+                                                 spans.start(), spans.end(), payloadsSeen, payloadScore,
+                                                 similarity.scorePayload(doc, term.field(), spans.start(),
+                                                                         spans.end(), null,
+                                                                         0,
+                                                                         0));
+          }
           payloadsSeen++;
 
         } else {

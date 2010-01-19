@@ -27,9 +27,8 @@ import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.util.BytesRef;
 
-// nocommit -- base class should not be named terms dict:
-// this class interacts w/ a docsreader
 public class StandardPositionsReader extends StandardPositionsProducer {
   
   IndexInput proxIn;
@@ -120,8 +119,6 @@ public class StandardPositionsReader extends StandardPositionsProducer {
       return positions;
     }
 
-      // nocommit -- should we have different reader for
-      // payload vs no payload?
     class SegmentPositionsEnum extends PositionsEnum {
 
       // nocommit
@@ -241,27 +238,24 @@ public class StandardPositionsReader extends StandardPositionsProducer {
         return payloadLength;
       }
 
+      private BytesRef payload;
+
       @Override
-      public byte[] getPayload(byte[] data, int offset) throws IOException {
-
-        if (!payloadPending)
+      public BytesRef getPayload() throws IOException {
+        if (!payloadPending) {
           throw new IOException("Either no payload exists at this term position or an attempt was made to load it more than once.");
-
-        final byte[] retArray;
-        final int retOffset;
-        if (data == null || data.length-offset < payloadLength) {
-          // the array is too small to store the payload data,
-          // so we allocate a new one
-          retArray = new byte[payloadLength];
-          retOffset = 0;
-        } else {
-          retArray = data;
-          retOffset = offset;
         }
-
-        proxIn.readBytes(retArray, retOffset, payloadLength);
+        if (payload == null) {
+          payload = new BytesRef();
+          payload.bytes = new byte[payloadLength];
+        } else if (payloadLength > payload.bytes.length) {
+          payload.grow(payloadLength);
+        }
+        proxIn.readBytes(payload.bytes, 0, payloadLength);
+        payload.length = payloadLength;
         payloadPending = false;
-        return retArray;
+
+        return payload;
       }
       
       @Override

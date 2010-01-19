@@ -158,18 +158,24 @@ public class FlexTestUtil {
               //System.out.println("TEST:     doc=" + doc + " freq=" + docs.freq());
               final int freq = docs.freq();
               PositionsEnum pos = docs.positions();
-              for(int i=0;i<freq;i++) {
-                final int position = pos.next();
-                //System.out.println("TEST:       pos=" + position);
-                assertEquals(position, termPos.nextPosition());
-                assertEquals(pos.hasPayload(), termPos.isPayloadAvailable());
-                if (pos.hasPayload()) {
-                  assertEquals(pos.getPayloadLength(), termPos.getPayloadLength());
-                  byte[] b1 = pos.getPayload(null, 0);
-                  byte[] b2 = termPos.getPayload(null, 0);
-                  assertNotNull(b1);
-                  assertNotNull(b2);
-                  assertTrue(Arrays.equals(b1, b2));
+              if (pos == null) {
+                assertEquals(1, freq);
+                assertEquals(0, termPos.nextPosition());
+                assertEquals(false, termPos.isPayloadAvailable());
+              } else {
+                for(int i=0;i<freq;i++) {
+                  final int position = pos.next();
+                  //System.out.println("TEST:       pos=" + position);
+                  assertEquals(position, termPos.nextPosition());
+                  assertEquals(pos.hasPayload(), termPos.isPayloadAvailable());
+                  if (pos.hasPayload()) {
+                    assertEquals(pos.getPayloadLength(), termPos.getPayloadLength());
+                    BytesRef payload = pos.getPayload();
+                    byte[] b2 = termPos.getPayload(null, 0);
+                    assertNotNull(payload);
+                    assertNotNull(b2);
+                    assertTrue(equals(payload, b2));
+                  }
                 }
               }
             }
@@ -257,19 +263,25 @@ public class FlexTestUtil {
                       // enum the positions
                       final int freq = docs.freq();
                       PositionsEnum pos = docs.positions();
-                      for(int i=0;i<freq;i++) {
-                        final int position = pos.next();
-                        //System.out.println("TEST:       pos=" + position);
-                        assertEquals(position, termPos.nextPosition());
-                        assertEquals(pos.hasPayload(), termPos.isPayloadAvailable());
-                        if (pos.hasPayload()) {
-                          assertEquals(pos.getPayloadLength(), termPos.getPayloadLength());
-                          if (rand.nextInt(3) <= 1) {
-                            byte[] b1 = pos.getPayload(null, 0);
-                            byte[] b2 = termPos.getPayload(null, 0);
-                            assertNotNull(b1);
-                            assertNotNull(b2);
-                            assertTrue(Arrays.equals(b1, b2));
+                      if (pos == null) {
+                        assertEquals(1, termPos.freq());
+                        assertEquals(0, termPos.nextPosition());
+                        assertFalse(termPos.isPayloadAvailable());
+                      } else {
+                        for(int i=0;i<freq;i++) {
+                          final int position = pos.next();
+                          //System.out.println("TEST:       pos=" + position);
+                          assertEquals(position, termPos.nextPosition());
+                          assertEquals(pos.hasPayload(), termPos.isPayloadAvailable());
+                          if (pos.hasPayload()) {
+                            assertEquals(pos.getPayloadLength(), termPos.getPayloadLength());
+                            if (rand.nextInt(3) <= 1) {
+                              BytesRef payload = pos.getPayload();
+                              byte[] b2 = termPos.getPayload(null, 0);
+                              assertNotNull(payload);
+                              assertNotNull(b2);
+                              assertTrue(equals(payload, b2));
+                            }
                           }
                         }
                       }
@@ -295,6 +307,20 @@ public class FlexTestUtil {
     // seek to random terms
     // enum docs, sometimes skipping
     // enum positions, sometimes skipping payloads
+  }
+
+  private static boolean equals(BytesRef b1, byte[] b2) {
+    if (b1.length == b2.length) {
+      final int end = b1.offset + b1.length;
+      for(int i=b1.offset;i<end;i++) {
+        if (b1.bytes[i] != b2[i-b1.offset]) {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      return false;
+    }
   }
 
   public static int nextInt(Random rand, int min, int max) {
@@ -406,18 +432,24 @@ public class FlexTestUtil {
         doc = newDoc1;
 
         PositionsEnum posEnum = docs.positions();
-        for(int k=0;k<docs.freq();k++) {
-          int pos1 = posEnum.next();
-          int pos2 = termPositions.nextPosition();
-          assertEquals(pos1, pos2);
-          assertEquals(posEnum.hasPayload(), termPositions.isPayloadAvailable());
-          if (posEnum.hasPayload()) {
-            assertEquals(posEnum.getPayloadLength(), termPositions.getPayloadLength());
-            byte[] b1 = posEnum.getPayload(null, 0);
-            byte[] b2 = termPositions.getPayload(null, 0);
-            assertNotNull(b1);
-            assertNotNull(b2);
-            assertTrue(Arrays.equals(b1, b2));
+        if (posEnum == null) {
+          assertEquals(1, termPositions.freq());
+          assertEquals(0, termPositions.nextPosition());
+          assertFalse(termPositions.isPayloadAvailable());
+        } else {
+          for(int k=0;k<docs.freq();k++) {
+            int pos1 = posEnum.next();
+            int pos2 = termPositions.nextPosition();
+            assertEquals(pos1, pos2);
+            assertEquals(posEnum.hasPayload(), termPositions.isPayloadAvailable());
+            if (posEnum.hasPayload()) {
+              assertEquals(posEnum.getPayloadLength(), termPositions.getPayloadLength());
+              BytesRef b1 = posEnum.getPayload();
+              byte[] b2 = termPositions.getPayload(null, 0);
+              assertNotNull(b1);
+              assertNotNull(b2);
+              assertTrue(equals(b1, b2));
+            }
           }
         }
       }

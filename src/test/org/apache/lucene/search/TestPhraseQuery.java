@@ -566,5 +566,5 @@ public class TestPhraseQuery extends LuceneTestCase {
     q2.add(new PhraseQuery(), BooleanClause.Occur.MUST);
     q2.toString();
   }
-  
+
 }

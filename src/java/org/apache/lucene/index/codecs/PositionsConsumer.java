@@ -20,20 +20,22 @@ package org.apache.lucene.index.codecs;
 import java.io.IOException;
 
 import org.apache.lucene.index.PositionsEnum;
+import org.apache.lucene.util.BytesRef;
 
 public abstract class PositionsConsumer {
 
-  /** Add a new position & payload.  If payloadLength > 0
-   *  you must read those bytes from the IndexInput.  NOTE:
-   *  you must fully consume the byte[] payload, since
-   *  caller is free to reuse it on subsequent calls. */
-  public abstract void addPosition(int position, byte[] payload, int payloadOffset, int payloadLength) throws IOException;
+  /** Add a new position & payload.  A null payload means no
+   *  payload; a non-null payload with zero length also
+   *  means no payload.  Caller may reuse the {@link
+   *  BytesRef} for the payload between calls (method must
+   *  fully consume the payload). */
+  public abstract void add(int position, BytesRef payload) throws IOException;
 
   /** Called when we are done adding positions & payloads
    * for each doc */
   public abstract void finishDoc() throws IOException;
 
-  private byte[] payloadBuffer;
+  private BytesRef payload;
 
   /** Default merge impl, just copies positions & payloads
    *  from the input. */
@@ -41,13 +43,14 @@ public abstract class PositionsConsumer {
     for(int i=0;i<freq;i++) {
       final int position = positions.next();
       final int payloadLength = positions.getPayloadLength();
+
+      final BytesRef payload;
       if (payloadLength > 0) {
-        if (payloadBuffer == null || payloadBuffer.length < payloadLength) {
-          payloadBuffer = new byte[payloadLength];
-        }
-        positions.getPayload(payloadBuffer, 0);
+        payload = positions.getPayload();
+      } else {
+        payload = null;
       }
-      addPosition(position, payloadBuffer, 0, payloadLength);
+      add(position, payload);
     }
     finishDoc();
   }

@@ -927,9 +927,10 @@ public class SegmentReader extends IndexReader implements Cloneable {
       SegmentTermPositions stp = new SegmentTermPositions(pre.freqStream, pre.proxStream, pre.tis, core.fieldInfos);
       stp.setSkipDocs(deletedDocs);
       return stp;
-    } else
+    } else {
       // Emulate old API
       return new LegacyTermPositions();
+    }
   }
 
   @Override
@@ -1564,6 +1565,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   final private class LegacyTermPositions extends LegacyTermDocs implements TermPositions {
 
     PositionsEnum positions;
+    boolean didGetPositions;
 
     LegacyTermPositions() throws IOException {
       super();
@@ -1572,14 +1574,18 @@ public class SegmentReader extends IndexReader implements Cloneable {
     @Override
     public void seek(TermEnum termEnum) throws IOException {
       super.seek(termEnum);
-      if (docs != null)
+      if (docs != null) {
         positions = docs.positions();
+        didGetPositions = true;
+      } else {
+        didGetPositions = false;
+      }
     }
 
     @Override
     public boolean skipTo(int target) throws IOException {
       boolean result = super.skipTo(target);
-      positions = null;
+      didGetPositions = false;
       return result;
     }
 
@@ -1591,32 +1597,58 @@ public class SegmentReader extends IndexReader implements Cloneable {
     @Override
     public void seek(Term term) throws IOException {
       super.seek(term);
-      positions = null;
+      didGetPositions = false;
     }
 
     @Override
     public boolean next() throws IOException {
       boolean result = super.next();
-      positions = null;
+      didGetPositions = false;
       return result;
     }
 
     public int nextPosition() throws IOException {     
-      if (positions == null) {
+      if (!didGetPositions) {
         positions = docs.positions();
+        didGetPositions = true;
       }
-      return positions.next();
+        
+      if (positions == null) {
+        // With omitTFAP, pre-flex API pretended there was
+        // one occurrence of the term, at position 0:
+        return 0;
+      } else {
+        return positions.next();
+      }
     }
 
     public int getPayloadLength() {
+      if (positions == null) {
+        return 0;
+      }
       return positions.getPayloadLength();
     }
 
-    public byte[] getPayload(byte[] data, int offset) throws IOException {
-      return positions.getPayload(data, offset);
+    public byte[] getPayload(byte[] bytes, int offset) throws IOException {
+      final BytesRef payload = positions.getPayload();
+      // old API would always used passed in bytes if it
+      // "fits", else allocate new:
+      if (bytes != null && payload.length <= bytes.length - offset) {
+        System.arraycopy(payload.bytes, payload.offset, bytes, offset, payload.length);
+        return bytes;
+      } else if (payload.offset == 0 && payload.length == payload.bytes.length) {
+        return payload.bytes;
+      } else {
+        final byte[] retBytes = new byte[payload.length];
+        System.arraycopy(payload.bytes, payload.offset, retBytes, 0, payload.length);
+        return retBytes;
+      }
     }
 
     public boolean isPayloadAvailable() {
+      if (positions == null) {
+        return false;
+      }
       return positions.hasPayload();
     }
   }

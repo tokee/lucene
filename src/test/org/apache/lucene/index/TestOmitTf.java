@@ -27,13 +27,7 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Collector;
-import org.apache.lucene.search.Scorer;
-import org.apache.lucene.search.Searcher;
-import org.apache.lucene.search.Similarity;
-import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.*;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.MockRAMDirectory;
@@ -298,6 +292,15 @@ public class TestOmitTf extends LuceneTestCase {
     TermQuery q3 = new TermQuery(c);
     TermQuery q4 = new TermQuery(d);
 
+    PhraseQuery pq = new PhraseQuery();
+    pq.add(a);
+    pq.add(c);
+    try {
+      searcher.search(pq, 10);
+      fail("did not hit expected exception");
+    } catch (IllegalStateException ise) {
+      // expected
+    }
         
     searcher.search(q1,
                     new CountingHitCollector() {

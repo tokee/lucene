@@ -32,6 +32,18 @@ public final class BytesRef {
   public BytesRef() {
   }
 
+  public BytesRef(byte[] bytes, int offset, int length) {
+    this.bytes = bytes;
+    this.offset = offset;
+    this.length = length;
+  }
+
+  public BytesRef(byte[] bytes) {
+    this.bytes = bytes;
+    this.offset = 0;
+    this.length = bytes.length;
+  }
+
   /**
    * @param text Initialize the byte[] from the UTF8 bytes
    * for the provided Sring.  This must be well-formed
