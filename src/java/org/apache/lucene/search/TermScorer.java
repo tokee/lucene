@@ -69,11 +69,9 @@ final class TermScorer extends Scorer {
   // firstDocID is ignored since nextDoc() sets 'doc'
   @Override
   protected boolean score(Collector c, int end, int firstDocID) throws IOException {
-    //System.out.println("top score " + firstDocID + " max=" + pointerMax);
     c.setScorer(this);
     while (doc < end) {                           // for docs in window
       c.collect(doc);                      // collect score
-      //System.out.println("done collect");
       if (++pointer >= pointerMax) {
         pointerMax = docsEnum.read(docs, freqs);  // refill buffers
         if (pointerMax != 0) {
@@ -100,15 +98,12 @@ final class TermScorer extends Scorer {
    */
   @Override
   public int nextDoc() throws IOException {
-    //System.out.println("ts.nextDoc pointer=" + pointer + " max=" + pointerMax + " this=" + this + " docsEnum=" + docsEnum);
     pointer++;
     if (pointer >= pointerMax) {
       pointerMax = docsEnum.read(docs, freqs);    // refill buffer
-      //System.out.println("ts set max=" + pointerMax);
       if (pointerMax != 0) {
         pointer = 0;
       } else {
-        //System.out.println("ts no more docs");
         return doc = NO_MORE_DOCS;
       }
     } 

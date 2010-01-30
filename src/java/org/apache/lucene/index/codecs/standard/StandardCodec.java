@@ -38,7 +38,7 @@ public class StandardCodec extends Codec {
 
   @Override
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
-    StandardDocsConsumer docs = new StandardDocsWriter(state);
+    StandardPostingsWriter docs = new StandardPostingsWriterImpl(state);
 
     StandardTermsIndexWriter indexWriter;
     boolean success = false;
@@ -67,9 +67,11 @@ public class StandardCodec extends Codec {
     }
   }
 
+  public final static int TERMS_CACHE_SIZE = 1024;
+
   @Override
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
-    StandardDocsReader docs = new StandardDocsReader(dir, si, readBufferSize);
+    StandardPostingsReader postings = new StandardPostingsReaderImpl(dir, si, readBufferSize);
     StandardTermsIndexReader indexReader;
 
     // nocommit -- not clean that every codec must deal w/
@@ -84,7 +86,7 @@ public class StandardCodec extends Codec {
       success = true;
     } finally {
       if (!success) {
-        docs.close();
+        postings.close();
       }
     }
 
@@ -92,15 +94,16 @@ public class StandardCodec extends Codec {
     try {
       FieldsProducer ret = new StandardTermsDictReader(indexReader,
                                                        dir, fieldInfos, si.name,
-                                                       docs,
+                                                       postings,
                                                        readBufferSize,
-                                                       BytesRef.getUTF8SortedAsUTF16Comparator());
+                                                       BytesRef.getUTF8SortedAsUTF16Comparator(),
+                                                       TERMS_CACHE_SIZE);
       success = true;
       return ret;
     } finally {
       if (!success) {
         try {
-          docs.close();
+          postings.close();
         } finally {
           indexReader.close();
         }
@@ -122,7 +125,7 @@ public class StandardCodec extends Codec {
 
   @Override
   public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
-    StandardDocsReader.files(dir, segmentInfo, files);
+    StandardPostingsReaderImpl.files(dir, segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }

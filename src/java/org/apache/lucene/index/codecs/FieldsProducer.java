@@ -20,6 +20,7 @@ package org.apache.lucene.index.codecs;
 import org.apache.lucene.index.Fields;
 
 import java.io.IOException;
+import java.io.Closeable;
 
 /** Abstract API that consumes terms, doc, freq, prox and
  *  payloads postings.  Concrete implementations of this
@@ -28,7 +29,8 @@ import java.io.IOException;
  *
  * NOTE: this API is experimental and will likely change
  */
-public abstract class FieldsProducer extends Fields {
+
+public abstract class FieldsProducer extends Fields implements Closeable {
   public abstract void close() throws IOException;
   public abstract void loadTermsIndex(int indexDivisor) throws IOException;
 }

@@ -593,6 +593,7 @@ final class DocumentsWriter {
 
       if (infoStream != null) {
         SegmentInfo si = new SegmentInfo(flushState.segmentName, flushState.numDocs, directory, flushState.codec);
+        si.setHasProx(hasProx());
         final long newSegmentSize = si.sizeInBytes();
         String message = "  oldRAMSize=" + numBytesUsed +
           " newFlushedSize=" + newSegmentSize +
@@ -623,8 +624,9 @@ final class DocumentsWriter {
     
     CompoundFileWriter cfsWriter = new CompoundFileWriter(directory, segment + "." + IndexFileNames.COMPOUND_FILE_EXTENSION);
     for(String fileName : flushState.flushedFiles) {
-      if (Codec.DEBUG)
+      if (Codec.DEBUG) {
         System.out.println("make cfs " + fileName);
+      }
       cfsWriter.addFile(fileName);
     }
       
@@ -1003,6 +1005,8 @@ final class DocumentsWriter {
 
       String currentField = null;
       BytesRef termRef = new BytesRef();
+      DocsEnum docs = null;
+
       for (Entry<Term, BufferedDeletes.Num> entry: deletesFlushed.terms.entrySet()) {
         Term term = entry.getKey();
         // Since we visit terms sorted, we gain performance
@@ -1026,9 +1030,10 @@ final class DocumentsWriter {
 
         termRef.copy(term.text());
         if (termsEnum.seek(termRef) == TermsEnum.SeekStatus.FOUND) {
-          DocsEnum docs = termsEnum.docs(reader.getDeletedDocs());
+          DocsEnum docsEnum = termsEnum.docs(reader.getDeletedDocs(), docs);
 
-          if (docs != null) {
+          if (docsEnum != null) {
+            docs = docsEnum;
             int limit = entry.getValue().getNum();
             while (true) {
               final int docID = docs.nextDoc();

@@ -23,7 +23,7 @@ import java.util.ArrayList;
 
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.Explanation.IDFExplanation;
 import org.apache.lucene.util.ToStringUtils;
@@ -152,25 +152,32 @@ public class PhraseQuery extends Query {
       if (terms.size() == 0)			  // optimize zero-term case
         return null;
 
-      DocsEnum[] docs = new DocsEnum[terms.size()];
+      DocsAndPositionsEnum[] postings = new DocsAndPositionsEnum[terms.size()];
       final Bits delDocs = reader.getDeletedDocs();
       for (int i = 0; i < terms.size(); i++) {
         final Term t = terms.get(i);
-        DocsEnum docsEnum = reader.termDocsEnum(delDocs,
-                                                t.field(),
-                                                new BytesRef(t.text()));
-        if (docsEnum == null) {
-          return null;
+        final BytesRef text = new BytesRef(t.text());
+        DocsAndPositionsEnum postingsEnum = reader.termPositionsEnum(delDocs,
+                                                                     t.field(),
+                                                                     text);
+        if (postingsEnum == null) {
+          if (reader.termDocsEnum(delDocs, t.field(), text) != null) { 
+            // term does exist, but has no positions
+            throw new IllegalStateException("field \"" + t.field() + "\" was indexed with Field.omitTermFreqAndPositions=true; cannot run PhraseQuery (term=" + text + ")");
+          } else {
+            // term does not exist
+            return null;
+          }
         }
-        docs[i] = docsEnum;
+        postings[i] = postingsEnum;
       }
 
       if (slop == 0)				  // optimize exact case
-        return new ExactPhraseScorer(this, docs, getPositions(), similarity,
+        return new ExactPhraseScorer(this, postings, getPositions(), similarity,
                                      reader.norms(field));
       else
         return
-          new SloppyPhraseScorer(this, docs, getPositions(), similarity, slop,
+          new SloppyPhraseScorer(this, postings, getPositions(), similarity, slop,
                                  reader.norms(field));
 
     }

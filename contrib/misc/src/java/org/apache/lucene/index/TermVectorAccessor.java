@@ -106,11 +106,18 @@ public class TermVectorAccessor {
     boolean anyTerms = false;
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();
+      DocsEnum docs = null;
+      DocsAndPositionsEnum postings = null;
       while(true) {
         BytesRef text = termsEnum.next();
         if (text != null) {
           anyTerms = true;
-          DocsEnum docs = termsEnum.docs(delDocs);
+          if (!mapper.isIgnoringPositions()) {
+            docs = postings = termsEnum.docsAndPositions(delDocs, postings);
+          } else {
+            docs = termsEnum.docs(delDocs, docs);
+          }
+
           int docID = docs.advance(documentNumber);
           if (docID == documentNumber) {
 
@@ -119,9 +126,8 @@ public class TermVectorAccessor {
 
             if (!mapper.isIgnoringPositions()) {
               int[] positions = new int[docs.freq()];
-              PositionsEnum posEnum = docs.positions();
               for (int i = 0; i < positions.length; i++) {
-                positions[i] = posEnum.next();
+                positions[i] = postings.nextPosition();
               }
               this.positions.add(positions);
             } else {

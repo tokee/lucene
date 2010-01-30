@@ -18,8 +18,8 @@ package org.apache.lucene.search.payloads;
  */
 
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.search.Searcher;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Weight;
@@ -115,9 +115,9 @@ public class PayloadTermQuery extends SpanTermQuery {
       }
 
       protected void processPayload(Similarity similarity) throws IOException {
-        final PositionsEnum positions = termSpans.getPositions();
-        if (positions.hasPayload()) {
-          payload = positions.getPayload();
+        final DocsAndPositionsEnum postings = termSpans.getPostings();
+        if (postings.hasPayload()) {
+          payload = postings.getPayload();
           if (payload != null) {
             payloadScore = function.currentScore(doc, term.field(),
                                                  spans.start(), spans.end(), payloadsSeen, payloadScore,

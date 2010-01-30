@@ -24,19 +24,19 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
+import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
+import org.apache.lucene.index.codecs.standard.StandardPostingsWriterImpl;
+import org.apache.lucene.index.codecs.standard.StandardPostingsReader;
+import org.apache.lucene.index.codecs.standard.StandardPostingsReaderImpl;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexWriter;
-import org.apache.lucene.index.codecs.standard.StandardCodec;
-import org.apache.lucene.index.codecs.standard.StandardDocsReader;
-import org.apache.lucene.index.codecs.standard.StandardDocsWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexWriter;
+import org.apache.lucene.index.codecs.standard.StandardCodec;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 
@@ -55,14 +55,14 @@ public class PulsingCodec extends Codec {
 
   @Override
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
-    // We wrap StandardDocsWriter, but any DocsConsumer
+    // We wrap StandardPostingsWriterImpl, but any StandardPostingsWriter
     // will work:
-    StandardDocsConsumer docsWriter = new StandardDocsWriter(state);
+    StandardPostingsWriter docsWriter = new StandardPostingsWriterImpl(state);
 
     // Terms that have <= freqCutoff number of docs are
     // "pulsed" (inlined):
     final int freqCutoff = 1;
-    StandardDocsConsumer pulsingWriter = new PulsingDocsWriter(state, freqCutoff, docsWriter);
+    StandardPostingsWriter pulsingWriter = new PulsingPostingsWriterImpl(freqCutoff, docsWriter);
 
     // Terms dict index
     StandardTermsIndexWriter indexWriter;
@@ -96,10 +96,10 @@ public class PulsingCodec extends Codec {
   @Override
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
 
-    // We wrap StandardDocsReader, but any DocsProducer
+    // We wrap StandardPostingsReaderImpl, but any StandardPostingsReader
     // will work:
-    StandardDocsProducer docs = new StandardDocsReader(dir, si, readBufferSize);
-    StandardDocsProducer docsReader = new PulsingDocsReader(dir, si, readBufferSize, docs);
+    StandardPostingsReader docsReader = new StandardPostingsReaderImpl(dir, si, readBufferSize);
+    StandardPostingsReader pulsingReader = new PulsingPostingsReaderImpl(docsReader);
 
     // Terms dict index reader
     StandardTermsIndexReader indexReader;
@@ -114,7 +114,7 @@ public class PulsingCodec extends Codec {
       success = true;
     } finally {
       if (!success) {
-        docs.close();
+        pulsingReader.close();
       }
     }
 
@@ -123,15 +123,16 @@ public class PulsingCodec extends Codec {
     try {
       FieldsProducer ret = new StandardTermsDictReader(indexReader,
                                                        dir, fieldInfos, si.name,
-                                                       docsReader,
+                                                       pulsingReader,
                                                        readBufferSize,
-                                                       BytesRef.getUTF8SortedAsUTF16Comparator());
+                                                       BytesRef.getUTF8SortedAsUTF16Comparator(),
+                                                       StandardCodec.TERMS_CACHE_SIZE);
       success = true;
       return ret;
     } finally {
       if (!success) {
         try {
-          docs.close();
+          pulsingReader.close();
         } finally {
           indexReader.close();
         }
@@ -141,7 +142,7 @@ public class PulsingCodec extends Codec {
 
   @Override
   public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
-    StandardDocsReader.files(dir, segmentInfo, files);
+    StandardPostingsReaderImpl.files(dir, segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }

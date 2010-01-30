@@ -28,7 +28,7 @@ import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.FieldsConsumer;
-import org.apache.lucene.index.codecs.DocsConsumer;
+import org.apache.lucene.index.codecs.PostingsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.store.IndexOutput;
 
@@ -54,7 +54,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   private final DeltaBytesWriter termWriter;
 
   final IndexOutput out;
-  final StandardDocsConsumer consumer;
+  final StandardPostingsWriter postingsWriter;
   final FieldInfos fieldInfos;
   FieldInfo currentField;
   private final StandardTermsIndexWriter indexWriter;
@@ -64,7 +64,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   // nocommit
   private String segment;
 
-  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardDocsConsumer consumer, BytesRef.Comparator termComp) throws IOException {
+  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardPostingsWriter postingsWriter, BytesRef.Comparator termComp) throws IOException {
     final String termsFileName = IndexFileNames.segmentFileName(state.segmentName, StandardCodec.TERMS_EXTENSION);
     this.indexWriter = indexWriter;
     this.termComp = termComp;
@@ -86,9 +86,9 @@ public class StandardTermsDictWriter extends FieldsConsumer {
 
     termWriter = new DeltaBytesWriter(out);
     currentField = null;
-    this.consumer = consumer;
+    this.postingsWriter = postingsWriter;
 
-    consumer.start(out);                          // have consumer write its format/header
+    postingsWriter.start(out);                          // have consumer write its format/header
   }
 
   @Override
@@ -99,7 +99,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     assert currentField == null || currentField.name.compareTo(field.name) < 0;
     currentField = field;
     StandardTermsIndexWriter.FieldWriter fieldIndexWriter = indexWriter.addField(field);
-    TermsConsumer terms = new TermsWriter(fieldIndexWriter, field, consumer);
+    TermsConsumer terms = new TermsWriter(fieldIndexWriter, field, postingsWriter);
     fields.add(terms);
     return terms;
   }
@@ -134,7 +134,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
         out.close();
       } finally {
         try {
-          consumer.close();
+          postingsWriter.close();
         } finally {
           indexWriter.close();
         }
@@ -146,20 +146,20 @@ public class StandardTermsDictWriter extends FieldsConsumer {
 
   class TermsWriter extends TermsConsumer {
     final FieldInfo fieldInfo;
-    final StandardDocsConsumer consumer;
+    final StandardPostingsWriter postingsWriter;
     final long termsStartPointer;
     int numTerms;
     final StandardTermsIndexWriter.FieldWriter fieldIndexWriter;
 
-    TermsWriter(StandardTermsIndexWriter.FieldWriter fieldIndexWriter, FieldInfo fieldInfo, StandardDocsConsumer consumer) {
+    TermsWriter(StandardTermsIndexWriter.FieldWriter fieldIndexWriter, FieldInfo fieldInfo, StandardPostingsWriter postingsWriter) {
       this.fieldInfo = fieldInfo;
-      this.consumer = consumer;
       this.fieldIndexWriter = fieldIndexWriter;
 
       termWriter.reset();
       termsStartPointer = out.getFilePointer();
-      consumer.setField(fieldInfo);
+      postingsWriter.setField(fieldInfo);
       lastIndexPointer = termsStartPointer;
+      this.postingsWriter = postingsWriter;
 
       if (Codec.DEBUG) {
         System.out.println("stdw: now write field=" + fieldInfo.name);
@@ -172,13 +172,13 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     }
 
     @Override
-    public DocsConsumer startTerm(BytesRef text) throws IOException {
-      consumer.startTerm();
+    public PostingsConsumer startTerm(BytesRef text) throws IOException {
+      postingsWriter.startTerm();
       if (Codec.DEBUG) {
-        consumer.desc = fieldInfo.name + ":" + text;
-        System.out.println("stdw.startTerm term=" + fieldInfo.name + ":" + text + " seg=" + segment);
+        postingsWriter.desc = fieldInfo.name + ":" + text.toBytesString();
+        System.out.println("stdw.startTerm term=" + fieldInfo.name + ":" + text.toBytesString() + " seg=" + segment);
       }
-      return consumer;
+      return postingsWriter;
     }
 
     @Override
@@ -186,8 +186,8 @@ public class StandardTermsDictWriter extends FieldsConsumer {
 
       // mxx
       if (Codec.DEBUG) {
-        // nocommit
-        System.out.println(Thread.currentThread().getName() + ": stdw.finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + text + " numDocs=" + numDocs + " numTerms=" + numTerms);
+        // nocommit     
+        Codec.debug("finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + text.toBytesString() + " numDocs=" + numDocs + " numTerms=" + numTerms);
       }
 
       if (numDocs > 0) {
@@ -195,13 +195,13 @@ public class StandardTermsDictWriter extends FieldsConsumer {
 
         // mxx
         if (Codec.DEBUG) {
-          System.out.println(Thread.currentThread().getName() + ":  filePointer=" + out.getFilePointer() + " isIndexTerm?=" + isIndexTerm);
+          Codec.debug("  tis.fp=" + out.getFilePointer() + " isIndexTerm?=" + isIndexTerm);
           System.out.println("  term bytes=" + text.toBytesString());
         }
         termWriter.write(text);
         out.writeVInt(numDocs);
 
-        consumer.finishTerm(numDocs, isIndexTerm);
+        postingsWriter.finishTerm(numDocs, isIndexTerm);
         numTerms++;
       }
     }

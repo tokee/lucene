@@ -940,37 +940,9 @@ public abstract class IndexReader implements Cloneable,Closeable {
     return termDocs;
   }
 
-  private static class NullDocsEnum extends DocsEnum {
-    @Override
-    public int advance(int target) {
-      return NO_MORE_DOCS;
-    }
-    @Override
-    public int nextDoc() {
-      return NO_MORE_DOCS;
-    }
-    @Override
-    public int docID() {
-      return -1;
-    }
-    @Override
-    public int freq() {
-      return 1;
-    }
-    @Override
-    public int read(int[] docs, int[] freqs) {
-      return 0;
-    }
-    @Override
-    public PositionsEnum positions() {
-      return null;
-    }
-  }
-  private static final NullDocsEnum nullDocsEnum = new NullDocsEnum();
-
-  // nocommit -- tap into per-thread cache, here?
-  // nocommit -- should we return null or NullDocsEnum?
-  /** Returns DocsEnum for the specified field & term. */
+  /** Returns {@link DocsEnum} for the specified field &
+   *  term.  This may return null, for example if either the
+   *  field or term does not exist. */
   public DocsEnum termDocsEnum(Bits skipDocs, String field, BytesRef term) throws IOException {
 
     assert field != null;
@@ -979,19 +951,42 @@ public abstract class IndexReader implements Cloneable,Closeable {
     final Terms terms = fields().terms(field);
     if (terms != null) {
       if (Codec.DEBUG) {
-        System.out.println("ir.termDocsEnum field=" + field + " terms=" + terms + " this=" + this);
+        System.out.println("ir.termDocsEnum field=" + field + " term=" + term + " terms=" + terms + " this=" + this);
       }
-      final DocsEnum docs = terms.docs(skipDocs, term);
+      final DocsEnum docs = terms.docs(skipDocs, term, null);
       if (Codec.DEBUG) {
         System.out.println("ir.termDocsEnum field=" + field + " docs=" +docs);
       }
       if (docs != null) {
         return docs;
       } else {
-        return nullDocsEnum;
+        return null;
       }
     } else {
-      return nullDocsEnum;
+      return null;
+    }
+  }
+
+  /** Returns {@link DocsAndPositionsEnum} for the specified
+   *  field & term.  This may return null, for example if
+   *  either the field or term does not exist. */
+  public DocsAndPositionsEnum termPositionsEnum(Bits skipDocs, String field, BytesRef term) throws IOException {
+
+    assert field != null;
+    assert term != null;
+
+    final Terms terms = fields().terms(field);
+    if (terms != null) {
+      if (Codec.DEBUG) {
+        System.out.println("ir.termPositionsEnum field=" + field + " term=" + term + " terms=" + terms + " this=" + this);
+      }
+      final DocsAndPositionsEnum postings = terms.docsAndPositions(skipDocs, term, null);
+      if (Codec.DEBUG) {
+        System.out.println("ir.termPositionsEnum field=" + field + " postings=" +postings);
+      }
+      return postings;
+    } else {
+      return null;
     }
   }
 
@@ -1368,6 +1363,12 @@ public abstract class IndexReader implements Cloneable,Closeable {
    *  through {@link #open}. Use the parent reader directly. */
   public IndexReader[] getSequentialSubReaders() {
     return null;
+  }
+
+
+  /** Expert: returns the docID base for this subReader. */
+  public int getSubReaderDocBase(IndexReader subReader) {
+    throw new UnsupportedOperationException();
   }
 
   /** Expert */

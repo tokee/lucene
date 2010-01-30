@@ -247,7 +247,7 @@ public class IndexSearcher extends Searcher {
     }
     int filterDoc = filterIter.nextDoc();
     int scorerDoc = scorer.advance(filterDoc);
-    
+
     collector.setScorer(scorer);
     while (true) {
       if (scorerDoc == filterDoc) {

@@ -117,8 +117,9 @@ public class FieldNormModifier {
         Terms terms = reader.fields().terms(field);
         if (terms != null) {
           TermsEnum termsEnum = terms.iterator();
+          DocsEnum docs = null;
           while(termsEnum.next() != null) {
-            DocsEnum docs = termsEnum.docs(delDocs);
+            docs = termsEnum.docs(delDocs, docs);
             while(true) {
               int docID = docs.nextDoc();
               if (docID != docs.NO_MORE_DOCS) {

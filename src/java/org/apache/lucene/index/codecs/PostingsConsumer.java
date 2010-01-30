@@ -19,13 +19,15 @@ package org.apache.lucene.index.codecs;
 
 import java.io.IOException;
 
+import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * NOTE: this API is experimental and will likely change
  */
 
-public abstract class DocsConsumer {
+public abstract class PostingsConsumer {
 
   // nocommit
   public String desc;
@@ -36,31 +38,52 @@ public abstract class DocsConsumer {
   }
   */
 
+  // nocommit -- rename to startDoc?
   /** Adds a new doc in this term.  Return null if this
    *  consumer doesn't need to see the positions for this
    *  doc. */
-  public abstract PositionsConsumer addDoc(int docID, int termDocFreq) throws IOException;
+  public abstract void addDoc(int docID, int termDocFreq) throws IOException;
 
-  public static class DocsMergeState {
+  public static class PostingsMergeState {
     DocsEnum docsEnum;
     int[] docMap;
     int docBase;
   }
 
+  /** Add a new position & payload.  A null payload means no
+   *  payload; a non-null payload with zero length also
+   *  means no payload.  Caller may reuse the {@link
+   *  BytesRef} for the payload between calls (method must
+   *  fully consume the payload). */
+  public abstract void addPosition(int position, BytesRef payload) throws IOException;
+
+  /** Called when we are done adding positions & payloads
+   * for each doc */
+  public abstract void finishDoc() throws IOException;
+
   /** Default merge impl: append documents, mapping around
    *  deletes */
-  public int merge(MergeState mergeState, DocsMergeState[] toMerge, int count) throws IOException {
+  public int merge(MergeState mergeState, PostingsMergeState[] toMerge, int count) throws IOException {
 
     int df = 0;
+
     // Append docs in order:
     for(int i=0;i<count;i++) {
-      final DocsEnum docs = toMerge[i].docsEnum;
+      final DocsEnum docsEnum = toMerge[i].docsEnum;
       final int[] docMap = toMerge[i].docMap;
       final int base = toMerge[i].docBase;
 
+      final DocsAndPositionsEnum postingsEnum;
+
+      if (!mergeState.omitTermFreqAndPositions) {
+        postingsEnum = (DocsAndPositionsEnum) docsEnum;
+      } else {
+        postingsEnum = null;
+      }
+
       while(true) {
-        final int startDoc = docs.nextDoc();
-        if (startDoc == DocsEnum.NO_MORE_DOCS) {
+        final int startDoc = docsEnum.nextDoc();
+        if (startDoc == DocsAndPositionsEnum.NO_MORE_DOCS) {
           break;
         }
         df++;
@@ -69,7 +92,7 @@ public abstract class DocsConsumer {
         if (docMap != null) {
           // map around deletions
           doc = docMap[startDoc];
-          assert doc != -1: "docs enum returned deleted docID " + startDoc + " freq=" + docs.freq() + " df=" + df + " de=" + docs;
+          assert doc != -1: "docs enum returned deleted docID " + startDoc + " freq=" + docsEnum.freq() + " df=" + df + " de=" + docsEnum;
         } else {
           doc = startDoc;
         }
@@ -77,14 +100,26 @@ public abstract class DocsConsumer {
         doc += base;                              // convert to merged space
         assert doc < mergeState.mergedDocCount: "doc=" + doc + " maxDoc=" + mergeState.mergedDocCount;
 
-        final int freq = docs.freq();
-        final PositionsConsumer posConsumer = addDoc(doc, freq);
+        final int freq = docsEnum.freq();
+
+        addDoc(doc, freq);
 
         // nocommit -- omitTF should be "private", and this
         // code (and FreqProxTermsWriter) should instead
         // check if posConsumer is null?
         if (!mergeState.omitTermFreqAndPositions) {
-          posConsumer.merge(mergeState, docs.positions(), freq);
+          for(int j=0;j<freq;j++) {
+            final int position = postingsEnum.nextPosition();
+            final int payloadLength = postingsEnum.getPayloadLength();
+            final BytesRef payload;
+            if (payloadLength > 0) {
+              payload = postingsEnum.getPayload();
+            } else {
+              payload = null;
+            }
+            addPosition(position, payload);
+          }
+          finishDoc();
         }
       }
     }

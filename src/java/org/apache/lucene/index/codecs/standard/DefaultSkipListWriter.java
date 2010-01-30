@@ -60,14 +60,14 @@ public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
   }
 
   // nocommit -- made public
-  public void setFreqOutput(IndexOutput freqOutput) {
-    this.freqOutput = freqOutput;
-  }
+  //public void setFreqOutput(IndexOutput freqOutput) {
+  //this.freqOutput = freqOutput;
+  //}
 
   // nocommit -- made public
-  public void setProxOutput(IndexOutput proxOutput) {
-    this.proxOutput = proxOutput;
-  }
+  //public void setProxOutput(IndexOutput proxOutput) {
+  //this.proxOutput = proxOutput;
+  //}
 
   /**
    * Sets the values for the current skip data. 

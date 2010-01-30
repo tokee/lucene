@@ -93,10 +93,8 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
       if (0 == (numTerms++ % termIndexInterval)) {
         final long termsPointer = termsOut.getFilePointer();
         if (Codec.DEBUG) {
-          System.out.println("sstiw.checkIndexTerm write index field=" + fieldInfo.name + " term=" + text + " termsFP=" + termsPointer + " numIndexTerms=" + numIndexTerms + " outFP=" + out.getFilePointer());
+          Codec.debug("sstiw.checkIndexTerm write index field=" + fieldInfo.name + " term=" + text + " termsFP=" + termsPointer + " numIndexTerms=" + numIndexTerms + " outFP=" + out.getFilePointer());
         }
-        // mxx
-        //System.out.println(Thread.currentThread().getName() + ": ii seg=" + segment + " term=" + fieldInfo.name + ":" + new String(term, 0, termLength, "UTF-8") + " numTerms=" + (numTerms-1) + " termFP=" + termsPointer);
         termWriter.write(text);
         out.writeVLong(termsPointer - lastTermsPointer);
         lastTermsPointer = termsPointer;

@@ -73,16 +73,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
     this.termComp = termComp;
 
-    // nocommit -- why was this needed?
-    String file = IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_INDEX_EXTENSION);
-    if (!dir.fileExists(file)) {
-      indexInterval = 0;
-      totalIndexInterval = 0;
-      this.indexDivisor = indexDivisor;
-      in = null;
-      return;
-    }
-    IndexInput in = dir.openInput(file);
+    IndexInput in = dir.openInput(IndexFileNames.segmentFileName(segment, StandardCodec.TERMS_INDEX_EXTENSION));
     
     boolean success = false;
 
@@ -90,7 +81,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       Codec.checkHeader(in, SimpleStandardTermsIndexWriter.CODEC_NAME, SimpleStandardTermsIndexWriter.VERSION_START);
 
       if (Codec.DEBUG) {
-        System.out.println(" readDirStart @ " + in.getFilePointer());
+        Codec.debug("  sstir init: header tii.fp=" + in.getFilePointer());
       }
 
       final long dirOffset = in.readLong();
@@ -444,7 +435,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       public final void getIndexOffset(BytesRef term, TermsIndexResult result) throws IOException {
 
         if (Codec.DEBUG) {
-          System.out.println("getIndexOffset field=" + fieldInfo.name + " term=" + term + " indexLen = " + blockPointer.length + " numIndexTerms=" + fileOffset.length + " this=" + this + " numIndexedTerms=" + fileOffset.length);
+          System.out.println("getIndexOffset field=" + fieldInfo.name + " term=" + term + " indexLen = " + blockPointer.length + " numIndexTerms=" + fileOffset.length + " numIndexedTerms=" + fileOffset.length);
         }
 
         int lo = 0;					  // binary search

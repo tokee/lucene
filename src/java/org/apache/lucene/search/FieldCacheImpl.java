@@ -284,6 +284,7 @@ class FieldCacheImpl implements FieldCache {
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docs = null;
         try {
           while(true) {
             final BytesRef term = termsEnum.next();
@@ -291,7 +292,7 @@ class FieldCacheImpl implements FieldCache {
               break;
             }
             final byte termval = parser.parseByte(term);
-            final DocsEnum docs = termsEnum.docs(delDocs);
+            docs = termsEnum.docs(delDocs, docs);
             while (true) {
               final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
@@ -337,6 +338,7 @@ class FieldCacheImpl implements FieldCache {
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docs = null;
         try {
           while(true) {
             final BytesRef term = termsEnum.next();
@@ -344,7 +346,7 @@ class FieldCacheImpl implements FieldCache {
               break;
             }
             final short termval = parser.parseShort(term);
-            final DocsEnum docs = termsEnum.docs(delDocs);
+            docs = termsEnum.docs(delDocs, docs);
             while (true) {
               final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
@@ -395,6 +397,7 @@ class FieldCacheImpl implements FieldCache {
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docs = null;
         try {
           while(true) {
             final BytesRef term = termsEnum.next();
@@ -407,7 +410,7 @@ class FieldCacheImpl implements FieldCache {
               retArray = new int[reader.maxDoc()];
             }
 
-            final DocsEnum docs = termsEnum.docs(delDocs);
+            docs = termsEnum.docs(delDocs, docs);
             while (true) {
               final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
@@ -466,6 +469,7 @@ class FieldCacheImpl implements FieldCache {
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docs = null;
         try {
           while(true) {
             final BytesRef term = termsEnum.next();
@@ -477,8 +481,8 @@ class FieldCacheImpl implements FieldCache {
               // late init so numeric fields don't double allocate
               retArray = new float[reader.maxDoc()];
             }
-
-            final DocsEnum docs = termsEnum.docs(delDocs);
+            
+            docs = termsEnum.docs(delDocs, docs);
             while (true) {
               final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
@@ -532,6 +536,7 @@ class FieldCacheImpl implements FieldCache {
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docs = null;
         try {
           while(true) {
             final BytesRef term = termsEnum.next();
@@ -544,7 +549,7 @@ class FieldCacheImpl implements FieldCache {
               retArray = new long[reader.maxDoc()];
             }
 
-            final DocsEnum docs = termsEnum.docs(delDocs);
+            docs = termsEnum.docs(delDocs, docs);
             while (true) {
               final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
@@ -600,6 +605,7 @@ class FieldCacheImpl implements FieldCache {
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docs = null;
         try {
           while(true) {
             final BytesRef term = termsEnum.next();
@@ -612,7 +618,7 @@ class FieldCacheImpl implements FieldCache {
               retArray = new double[reader.maxDoc()];
             }
 
-            final DocsEnum docs = termsEnum.docs(delDocs);
+            docs = termsEnum.docs(delDocs, docs);
             while (true) {
               final int docID = docs.nextDoc();
               if (docID == DocsEnum.NO_MORE_DOCS) {
@@ -651,12 +657,13 @@ class FieldCacheImpl implements FieldCache {
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docs = null;
         while(true) {
           final BytesRef term = termsEnum.next();
           if (term == null) {
             break;
           }
-          final DocsEnum docs = termsEnum.docs(delDocs);
+          docs = termsEnum.docs(delDocs, docs);
           final String termval = term.toString();
           while (true) {
             final int docID = docs.nextDoc();
@@ -689,6 +696,7 @@ class FieldCacheImpl implements FieldCache {
       final int[] retArray = new int[reader.maxDoc()];
       String[] mterms = new String[reader.maxDoc()+1];
 
+      //System.out.println("FC: getStringIndex field=" + field);
       Terms terms = reader.fields().terms(field);
 
       int t = 0;  // current term number
@@ -702,6 +710,7 @@ class FieldCacheImpl implements FieldCache {
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docs = null;
         while(true) {
           final BytesRef term = termsEnum.next();
           if (term == null) {
@@ -710,13 +719,15 @@ class FieldCacheImpl implements FieldCache {
 
           // store term text
           mterms[t] = term.toString();
+          //System.out.println("FC:  ord=" + t + " term=" + term.toBytesString());
 
-          final DocsEnum docs = termsEnum.docs(delDocs);
+          docs = termsEnum.docs(delDocs, docs);
           while (true) {
             final int docID = docs.nextDoc();
             if (docID == DocsEnum.NO_MORE_DOCS) {
               break;
             }
+            //System.out.println("FC:    docID=" + docID);
             retArray[docID] = t;
           }
           t++;
@@ -736,6 +747,7 @@ class FieldCacheImpl implements FieldCache {
       }
 
       StringIndex value = new StringIndex (retArray, mterms);
+      //System.out.println("FC: done\n");
       return value;
     }
   };

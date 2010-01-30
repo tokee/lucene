@@ -1474,8 +1474,8 @@ public class SegmentReader extends IndexReader implements Cloneable {
     String currentField;
     final Fields fields;
     TermsEnum terms;
-    DocsEnum docs;
-    int doc;
+    DocsEnum docsEnum;
+    boolean any;
 
     LegacyTermDocs() throws IOException {
       fields = core.fields;
@@ -1489,16 +1489,11 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
 
     public boolean skipTo(int target) throws IOException {
-      if (docs == null) return false;
-      doc = docs.advance(target);
-      return doc != docs.NO_MORE_DOCS;
-    }
-
-    public int read(int[] docs, int[] freqs) throws IOException {
-      if (this.docs == null) {
-        return 0;
+      if (!any) {
+        return false;
+      } else {
+        return docsEnum.advance(target) != docsEnum.NO_MORE_DOCS;
       }
-      return this.docs.read(docs, freqs);
     }
 
     public void seek(Term term) throws IOException {
@@ -1507,20 +1502,19 @@ public class SegmentReader extends IndexReader implements Cloneable {
         System.out.println("\nwrapper termdocs.seek term=" + term);
       }
 
-      docs = null;
+      any = false;
 
       if (terms != null && !term.field.equals(currentField)) {
+        // new field
         if (Codec.DEBUG) {
           System.out.println("  switch field");
         }
-        if (terms != null) {
-          terms = null;
-        }
+        terms = null;
       }
 
       if (terms == null) {
         currentField = term.field;
-        Terms terms1 = fields.terms(term.field);
+        Terms terms1 = fields.terms(currentField);
         if (terms1 == null) {
           // no such field
           return;
@@ -1531,12 +1525,12 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
       if (terms.seek(new BytesRef(term.text)) == TermsEnum.SeekStatus.FOUND) {
         // Term exists
-        docs = terms.docs(deletedDocs);
+        any = true;
+        docsEnum = terms.docs(deletedDocs, docsEnum);
         if (Codec.DEBUG) {
           System.out.println("  init docs enum");
         }
       } else {
-        docs = null;
         if (Codec.DEBUG) {
           System.out.println("  clear docs enum");
         }
@@ -1544,49 +1538,136 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
 
     public int doc() {
-      if (docs == null) return 0;
-      else return doc;
+      if (!any) {
+        return 0;
+      } else {
+        return docsEnum.docID();
+      }
+    }
+
+    public int read(int[] docs, int[] freqs) throws IOException {
+      if (!any) {
+        return 0;
+      } else {
+        return docsEnum.read(docs, freqs);
+      }
     }
 
     public int freq() {
-      if (docs == null) return 0;
-      return docs.freq();
+      if (!any) {
+        return 0;
+      } else {
+        return docsEnum.freq();
+      }
     }
 
     public boolean next() throws IOException {
-      if (docs == null) return false;
-      doc = docs.nextDoc();
-      return doc != DocsEnum.NO_MORE_DOCS;
+      if (!any) {
+        return false;
+      } else {
+        return docsEnum.nextDoc() != DocsEnum.NO_MORE_DOCS;
+      }
     }
   }
 
   // Back compat: implements legacy TermPositions API on top
   // of flex API
-  final private class LegacyTermPositions extends LegacyTermDocs implements TermPositions {
+  final private class LegacyTermPositions implements TermPositions {
 
-    PositionsEnum positions;
-    boolean didGetPositions;
+    String currentField;
+    final Fields fields;
+    TermsEnum terms;
+    DocsAndPositionsEnum postingsEnum;
+    DocsEnum docsEnum;
+    boolean any;
 
     LegacyTermPositions() throws IOException {
-      super();
+      fields = core.fields;
     }
 
-    @Override
+    public void close() {}
+
     public void seek(TermEnum termEnum) throws IOException {
-      super.seek(termEnum);
-      if (docs != null) {
-        positions = docs.positions();
-        didGetPositions = true;
+      // nocommit -- optimize for the special cases here
+      seek(termEnum.term());
+    }
+
+    public boolean skipTo(int target) throws IOException {
+      if (!any) {
+        return false;
       } else {
-        didGetPositions = false;
+        return docsEnum.advance(target) != docsEnum.NO_MORE_DOCS;
       }
     }
 
-    @Override
-    public boolean skipTo(int target) throws IOException {
-      boolean result = super.skipTo(target);
-      didGetPositions = false;
-      return result;
+    public void seek(Term term) throws IOException {
+
+      if (Codec.DEBUG) {
+        System.out.println("\nwrapper termdocs.seek term=" + term);
+      }
+
+      any = false;
+
+      if (terms != null && !term.field.equals(currentField)) {
+        // new field
+        if (Codec.DEBUG) {
+          System.out.println("  switch field");
+        }
+        terms = null;
+      }
+
+      if (terms == null) {
+        currentField = term.field;
+        Terms terms1 = fields.terms(currentField);
+        if (terms1 == null) {
+          // no such field
+          return;
+        } else {
+          terms = terms1.iterator();
+        }
+      }
+
+      if (terms.seek(new BytesRef(term.text)) == TermsEnum.SeekStatus.FOUND) {
+        // Term exists
+        any = true;
+        postingsEnum = terms.docsAndPositions(deletedDocs, postingsEnum);
+        if (postingsEnum == null) {
+          docsEnum = terms.docs(deletedDocs, postingsEnum);
+        } else {
+          docsEnum = postingsEnum;
+        }
+        if (Codec.DEBUG) {
+          System.out.println("  init docs enum");
+        }
+      } else {
+        if (Codec.DEBUG) {
+          System.out.println("  clear docs enum");
+        }
+      }
+    }
+
+    public int doc() {
+      if (!any) {
+        return 0;
+      } else {
+        return docsEnum.docID();
+      }
+    }
+
+    public int freq() {
+      if (!any) {
+        return 0;
+      } else {
+        return docsEnum.freq();
+      }
+    }
+
+    public boolean next() throws IOException {
+      if (!any) {
+        return false;
+      } else {
+        return docsEnum.nextDoc() != DocsEnum.NO_MORE_DOCS;
+      }
     }
 
     @Override
@@ -1594,43 +1675,27 @@ public class SegmentReader extends IndexReader implements Cloneable {
       throw new UnsupportedOperationException("TermPositions does not support processing multiple documents in one call. Use TermDocs instead.");
     }
 
-    @Override
-    public void seek(Term term) throws IOException {
-      super.seek(term);
-      didGetPositions = false;
-    }
-
-    @Override
-    public boolean next() throws IOException {
-      boolean result = super.next();
-      didGetPositions = false;
-      return result;
-    }
-
     public int nextPosition() throws IOException {     
-      if (!didGetPositions) {
-        positions = docs.positions();
-        didGetPositions = true;
-      }
-        
-      if (positions == null) {
-        // With omitTFAP, pre-flex API pretended there was
-        // one occurrence of the term, at position 0:
+      if (!any || postingsEnum == null) {
         return 0;
       } else {
-        return positions.next();
+        return postingsEnum.nextPosition();
       }
     }
 
     public int getPayloadLength() {
-      if (positions == null) {
+      if (!any || postingsEnum == null) {
         return 0;
+      } else {
+        return postingsEnum.getPayloadLength();
       }
-      return positions.getPayloadLength();
     }
 
     public byte[] getPayload(byte[] bytes, int offset) throws IOException {
-      final BytesRef payload = positions.getPayload();
+      if (!any || postingsEnum == null) {
+        return null;
+      }
+      final BytesRef payload = postingsEnum.getPayload();
       // old API would always used passed in bytes if it
       // "fits", else allocate new:
       if (bytes != null && payload.length <= bytes.length - offset) {
@@ -1646,10 +1711,11 @@ public class SegmentReader extends IndexReader implements Cloneable {
     }
 
     public boolean isPayloadAvailable() {
-      if (positions == null) {
+      if (!any || postingsEnum == null) {
         return false;
+      } else {
+        return postingsEnum.hasPayload();
       }
-      return positions.hasPayload();
     }
   }
 }

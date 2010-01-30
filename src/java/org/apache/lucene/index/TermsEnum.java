@@ -23,10 +23,6 @@ import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
-/**
- * NOTE: this API is experimental and will likely change
- */
-
 /** Iterator to seek ({@link #seek}) or step through ({@link
  * #next} terms, obtain frequency information ({@link
  * #docFreq}), and obtain a {@link DocsEnum} for the current
@@ -37,14 +33,14 @@ import org.apache.lucene.util.BytesRef;
  * greater than all that precede it.</p>
  *
  * <p>On obtaining a TermsEnum, you must first call
- * {@link #next} or {@link #seek}. */
+ * {@link #next} or {@link #seek}.
+ *
+ * @lucene.experimental */
 public abstract class TermsEnum {
 
   private AttributeSource atts = null;
 
-  /**
-   * Returns the related attributes.
-   */
+  /** Returns the related attributes. */
   public AttributeSource attributes() {
     if (atts == null) atts = new AttributeSource();
     return atts;
@@ -75,29 +71,39 @@ public abstract class TermsEnum {
    *  to next. */
   public abstract BytesRef next() throws IOException;
 
-  /** Returns current term.  This is undefined after next()
-   *  returns null or seek returns {@link SeekStatus#END}. */
+  /** Returns current term. Do not call this before calling
+   *  next() for the first time, after next() returns null
+   *  or seek returns {@link SeekStatus#END}.*/
   public abstract BytesRef term() throws IOException;
 
-  /** Returns ordinal position for current term.  Not all
-   *  codecs implement this, so be prepared to catch an
-   *  {@link UnsupportedOperationException}.  This is
-   *  undefined after next() returns null or seek returns
-   *  {@link SeekStatus#END}. */
+  /** Returns ordinal position for current term.  This is an
+   *  optional method (the codec may throw {@link
+   *  UnsupportedOperationException}).  Do not call this
+   *  before calling next() for the first time, after next()
+   *  returns null or seek returns {@link
+   *  SeekStatus#END}. */
   public abstract long ord() throws IOException;
 
-  /** Returns the docFreq of the current term.  This is
-   *  undefined after next() returns null or seek returns
+  /** Returns the number of documents containing the current
+   *  term.  Do not call this before calling next() for the
+   *  first time, after next() returns null or seek returns
    *  {@link SeekStatus#END}.*/
   public abstract int docFreq();
 
   // nocommit -- clarify if this may return null
-  /** Get {@link DocsEnum} for the current term.  The
-   *  returned {@link DocsEnum} may share state with this
-   *  TermsEnum instance, so you should not call this
-   *  TermsEnum's {@link #seek} or {@link #next} until you
-   *  are done using the DocsEnum. */
-  public abstract DocsEnum docs(Bits skipDocs) throws IOException;
+  // nocommit -- maybe require up front boolean doPositions?
+  // nocommit -- or maybe make a separate positions(...) method?
+  /** Get {@link DocsEnum} for the current term.  Do not
+   *  call this before calling next() for the first time,
+   *  after next() returns null or seek returns {@link
+   *  SeekStatus#END}.
+   *  
+   * @param skipDocs set bits are documents that should not
+   * be returned
+   * @param reuse pass a prior DocsEnum for possible reuse */
+  public abstract DocsEnum docs(Bits skipDocs, DocsEnum reuse) throws IOException;
+
+  public abstract DocsAndPositionsEnum docsAndPositions(Bits skipDocs, DocsAndPositionsEnum reuse) throws IOException;
 
   /** Return the {@link BytesRef} Comparator used to sort
    *  terms provided by the iterator.  NOTE: this may return

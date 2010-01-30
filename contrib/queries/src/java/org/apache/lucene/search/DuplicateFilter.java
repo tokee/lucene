@@ -87,12 +87,13 @@ public class DuplicateFilter extends Filter
     Terms terms = reader.fields().terms(fieldName);
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();
+      DocsEnum docs = null;
       while(true) {
         BytesRef currTerm = termsEnum.next();
         if (currTerm == null) {
           break;
         } else {
-          DocsEnum docs = termsEnum.docs(delDocs);
+          docs = termsEnum.docs(delDocs, docs);
           int doc = docs.nextDoc();
           if (doc != docs.NO_MORE_DOCS) {
             if (keepMode == KM_USE_FIRST_OCCURRENCE) {
@@ -124,6 +125,7 @@ public class DuplicateFilter extends Filter
     Terms terms = reader.fields().terms(fieldName);
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();
+      DocsEnum docs = null;
       while(true) {
         BytesRef currTerm = termsEnum.next();
         if (currTerm == null) {
@@ -131,7 +133,7 @@ public class DuplicateFilter extends Filter
         } else {
           if (termsEnum.docFreq() > 1) {
             // unset potential duplicates
-            DocsEnum docs = termsEnum.docs(delDocs);
+            docs = termsEnum.docs(delDocs, docs);
             int doc = docs.nextDoc();
             if (doc != docs.NO_MORE_DOCS) {
               if (keepMode == KM_USE_FIRST_OCCURRENCE) {

@@ -22,9 +22,7 @@ import java.io.IOException;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.PositionsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardPositionsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
@@ -36,7 +34,7 @@ import org.apache.lucene.util.BytesRef;
 // presumably rare in practice...
 
 //nocommit: public 
-public final class PulsingDocsWriter extends StandardDocsConsumer {
+public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
 
   final static String CODEC = "PulsedPostings";
 
@@ -76,7 +74,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
       doc.numPositions = numPositions;
       doc.positions = new Position[positions.length];
       for(int i = 0; i < positions.length; i++) {
-        doc.positions[i] = (Position)positions[i].clone();
+        doc.positions[i] = (Position) positions[i].clone();
       }
 
       return doc;
@@ -85,8 +83,9 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
     void reallocPositions(int minSize) {
       final Position[] newArray = new Position[ArrayUtil.getNextSize(minSize)];
       System.arraycopy(positions, 0, newArray, 0, positions.length);
-      for(int i=positions.length;i<newArray.length;i++)
+      for(int i=positions.length;i<newArray.length;i++) {
         newArray[i] = new Position();
+      }
       positions = newArray;
     }
   }
@@ -114,11 +113,11 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
   // nocommit -- lazy init this?  ie, if every single term
   // was pulsed then we never need to use this fallback?
   // Fallback writer for non-pulsed terms:
-  final StandardDocsConsumer wrappedDocsWriter;
+  final StandardPostingsWriter wrappedPostingsWriter;
 
   /** If docFreq <= maxPulsingDocFreq, its postings are
    *  inlined into terms dict */
-  public PulsingDocsWriter(SegmentWriteState state, int maxPulsingDocFreq, StandardDocsConsumer wrappedDocsWriter) throws IOException {
+  public PulsingPostingsWriterImpl(int maxPulsingDocFreq, StandardPostingsWriter wrappedPostingsWriter) throws IOException {
     super();
 
     pendingDocs = new Document[maxPulsingDocFreq];
@@ -126,9 +125,9 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
       pendingDocs[i] = new Document();
     }
 
-    // We simply wrap another DocsConsumer, but only call on
-    // it when doc freq is higher than our cutoff
-    this.wrappedDocsWriter = wrappedDocsWriter;
+    // We simply wrap another postings writer, but only call
+    // on it when doc freq is higher than our cutoff
+    this.wrappedPostingsWriter = wrappedPostingsWriter;
   }
 
   @Override
@@ -136,7 +135,7 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
     this.termsOut = termsOut;
     Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
     termsOut.writeVInt(pendingDocs.length);
-    wrappedDocsWriter.start(termsOut);
+    wrappedPostingsWriter.start(termsOut);
   }
 
   @Override
@@ -155,19 +154,78 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
     this.fieldInfo = fieldInfo;
     omitTF = fieldInfo.omitTermFreqAndPositions;
     storePayloads = fieldInfo.storePayloads;
-    wrappedDocsWriter.setField(fieldInfo);
+    wrappedPostingsWriter.setField(fieldInfo);
   }
 
-  /** Simply buffers up positions */
-  class PositionsWriter extends StandardPositionsConsumer {
-    @Override
-    public void start(IndexOutput termsOut) {}
+  @Override
+  public void addDoc(int docID, int termDocFreq) throws IOException {
 
-    @Override
-    public void startTerm() {}
+    assert docID >= 0: "got docID=" + docID;
+        
+    if (Codec.DEBUG) {
+      System.out.println("PW.addDoc: docID=" + docID + " pendingDocCount=" + pendingDocCount + " vs " + pendingDocs.length + " pulsed=" + pulsed);
+    }
 
-    @Override
-    public void add(int position, BytesRef payload) {
+    if (!pulsed && pendingDocCount == pendingDocs.length) {
+      
+      // OK we just crossed the threshold, this term should
+      // now be written with our wrapped codec:
+      wrappedPostingsWriter.startTerm();
+      
+      if (Codec.DEBUG) {
+        System.out.println("  now flush buffer");
+      }
+
+      // Flush all buffered docs
+      for(int i=0;i<pendingDocCount;i++) {
+        final Document doc = pendingDocs[i];
+        if (Codec.DEBUG)
+          System.out.println("  docID=" + doc.docID);
+
+        wrappedPostingsWriter.addDoc(doc.docID, doc.termDocFreq);
+
+        if (!omitTF) {
+          assert doc.termDocFreq == doc.numPositions;
+          for(int j=0;j<doc.termDocFreq;j++) {
+            final Position pos = doc.positions[j];
+            if (pos.payload != null && pos.payload.length > 0) {
+              assert storePayloads;
+              wrappedPostingsWriter.addPosition(pos.pos, pos.payload);
+            } else {
+              wrappedPostingsWriter.addPosition(pos.pos, null);
+            }
+          }
+          wrappedPostingsWriter.finishDoc();
+        }
+      }
+
+      pendingDocCount = 0;
+
+      pulsed = true;
+    }
+
+    if (pulsed) {
+      // We've already seen too many docs for this term --
+      // just forward to our fallback writer
+      wrappedPostingsWriter.addDoc(docID, termDocFreq);
+    } else {
+      currentDoc = pendingDocs[pendingDocCount++];
+      currentDoc.docID = docID;
+      // nocommit -- need not store in doc?  only used for alloc & assert
+      currentDoc.termDocFreq = termDocFreq;
+      if (termDocFreq > currentDoc.positions.length) {
+        currentDoc.reallocPositions(termDocFreq);
+      }
+      currentDoc.numPositions = 0;
+    }
+  }
+
+  @Override
+  public void addPosition(int position, BytesRef payload) throws IOException {
+    if (pulsed) {
+      wrappedPostingsWriter.addPosition(position, payload);
+    } else {
+      // just buffer up
       Position pos = currentDoc.positions[currentDoc.numPositions++];
       pos.pos = position;
       if (payload != null && payload.length > 0) {
@@ -180,84 +238,11 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
         pos.payload.length = 0;
       }
     }
-
-    @Override
-    public void finishDoc() {
-      assert currentDoc.numPositions == currentDoc.termDocFreq;
-    }
-
-    @Override
-    public void finishTerm(boolean isIndexTerm) {}
-
-    @Override
-    public void close() {}
   }
 
-  final PositionsWriter posWriter = new PositionsWriter();
-
   @Override
-  public PositionsConsumer addDoc(int docID, int termDocFreq) throws IOException {
-
-    assert docID >= 0: "got docID=" + docID;
-        
-    if (Codec.DEBUG)
-      System.out.println("PW.addDoc: docID=" + docID + " pendingDocCount=" + pendingDocCount + " vs " + pendingDocs.length + " pulsed=" + pulsed);
-
-    if (!pulsed && pendingDocCount == pendingDocs.length) {
-      
-      // OK we just crossed the threshold, this term should
-      // now be written with our wrapped codec:
-      wrappedDocsWriter.startTerm();
-      
-      if (Codec.DEBUG)
-        System.out.println("  now flush buffer");
-
-      // Flush all buffered docs
-      for(int i=0;i<pendingDocCount;i++) {
-        final Document doc = pendingDocs[i];
-        if (Codec.DEBUG)
-          System.out.println("  docID=" + doc.docID);
-
-        PositionsConsumer posConsumer = wrappedDocsWriter.addDoc(doc.docID, doc.termDocFreq);
-        if (!omitTF && posConsumer != null) {
-          assert doc.termDocFreq == doc.numPositions;
-          for(int j=0;j<doc.termDocFreq;j++) {
-            final Position pos = doc.positions[j];
-            if (pos.payload != null && pos.payload.length > 0) {
-              assert storePayloads;
-              posConsumer.add(pos.pos, pos.payload);
-            } else {
-              posConsumer.add(pos.pos, null);
-            }
-          }
-          posConsumer.finishDoc();
-        }
-      }
-
-      pendingDocCount = 0;
-
-      pulsed = true;
-    }
-
-    if (pulsed) {
-      // We've already seen too many docs for this term --
-      // just forward to our fallback writer
-      return wrappedDocsWriter.addDoc(docID, termDocFreq);
-    } else {
-      currentDoc = pendingDocs[pendingDocCount++];
-      currentDoc.docID = docID;
-      // nocommit -- need not store in doc?  only used for alloc & assert
-      currentDoc.termDocFreq = termDocFreq;
-      if (termDocFreq > currentDoc.positions.length) {
-        currentDoc.reallocPositions(termDocFreq);
-      }
-      currentDoc.numPositions = 0;
-      if (omitTF) {
-        return null;
-      } else {
-        return posWriter;
-      }
-    }
+  public void finishDoc() {
+    assert currentDoc.numPositions == currentDoc.termDocFreq;
   }
 
   boolean pendingIsIndexTerm;
@@ -269,20 +254,21 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
   @Override
   public void finishTerm(int docCount, boolean isIndexTerm) throws IOException {
 
-    if (Codec.DEBUG)
+    if (Codec.DEBUG) {
       System.out.println("PW: finishTerm pendingDocCount=" + pendingDocCount);
+    }
 
     pendingIsIndexTerm |= isIndexTerm;
 
     if (pulsed) {
-      wrappedDocsWriter.finishTerm(docCount, pendingIsIndexTerm);
+      wrappedPostingsWriter.finishTerm(docCount, pendingIsIndexTerm);
       pendingIsIndexTerm = false;
       pulsedCount++;
     } else {
       nonPulsedCount++;
       // OK, there were few enough occurrences for this
       // term, so we fully inline our postings data into
-      // terms dict:
+      // terms dict, now:
       int lastDocID = 0;
       for(int i=0;i<pendingDocCount;i++) {
         final Document doc = pendingDocs[i];
@@ -335,6 +321,6 @@ public final class PulsingDocsWriter extends StandardDocsConsumer {
 
   @Override
   public void close() throws IOException {
-    wrappedDocsWriter.close();
+    wrappedPostingsWriter.close();
   }
 }

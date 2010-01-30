@@ -19,28 +19,15 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 
-import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
 
-public abstract class PositionsEnum {
-
-  private AttributeSource atts = null;
-
-  /**
-   * Returns the related attributes.
-   */
-  public AttributeSource attributes() {
-    if (atts == null) atts = new AttributeSource();
-    return atts;
-  }
-  
-  // nocommit
-  public String desc;
+/** Also iterates through positions. */
+public abstract class DocsAndPositionsEnum extends DocsEnum {
 
   /** Returns the next position.  You should only call this
    *  up to {@link FormatPostingsDocsEnum#freq()} times else
    *  the behavior is not defined. */
-  public abstract int next() throws IOException;
+  public abstract int nextPosition() throws IOException;
 
   /** Returns length of payload at current position */
   public abstract int getPayloadLength();
@@ -50,4 +37,8 @@ public abstract class PositionsEnum {
   public abstract BytesRef getPayload() throws IOException;
 
   public abstract boolean hasPayload();
+
+  public final int read(int[] docs, int[] freqs) {
+    throw new UnsupportedOperationException();
+  }
 }

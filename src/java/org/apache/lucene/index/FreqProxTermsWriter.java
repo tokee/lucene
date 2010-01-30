@@ -25,9 +25,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.lucene.index.codecs.DocsConsumer;
+import org.apache.lucene.index.codecs.PostingsConsumer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
-import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.util.BytesRef;
@@ -144,7 +143,6 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
     consumer.close();
   }
 
-  private byte[] payloadBuffer;
   BytesRef payload;
 
   /* Walk through all unique text tokens (Posting
@@ -189,6 +187,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       termStates[0] = mergeStates[0];
       int numToMerge = 1;
 
+      // TODO: pqueue
       for(int i=1;i<numFields;i++) {
         final int cmp = termComp.compare(mergeStates[i].text, termStates[0].text);
         if (cmp < 0) {
@@ -208,7 +207,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
       //System.out.println("  term=" + text.toUnicodeString());
       //System.out.println("  term=" + text.toString());
 
-      final DocsConsumer docConsumer = termsConsumer.startTerm(text);
+      final PostingsConsumer postingsConsumer = termsConsumer.startTerm(text);
 
       // Now termStates has numToMerge FieldMergeStates
       // which all share the same term.  Now we must
@@ -228,7 +227,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
         assert minState.docID < flushedDocCount: "doc=" + minState.docID + " maxDoc=" + flushedDocCount;
 
-        final PositionsConsumer posConsumer = docConsumer.addDoc(minState.docID, termDocFreq);
+        postingsConsumer.addDoc(minState.docID, termDocFreq);
 
         final ByteSliceReader prox = minState.prox;
 
@@ -267,10 +266,10 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
               thisPayload = null;
             }
 
-            posConsumer.add(position, thisPayload);
+            postingsConsumer.addPosition(position, thisPayload);
           } //End for
 
-          posConsumer.finishDoc();
+          postingsConsumer.finishDoc();
         }
 
         if (!minState.nextDoc()) {

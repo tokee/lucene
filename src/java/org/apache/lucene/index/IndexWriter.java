@@ -613,6 +613,8 @@ public class IndexWriter implements Closeable {
         // Returns a ref, which we xfer to readerMap:
         // nocommit: old api
         sr = SegmentReader.get(false, info.dir, info, readBufferSize, doOpenStores, termsIndexDivisor, null);
+        // nocommit -- if info is from external dir DO NOT
+        // cache it!
         readerMap.put(info, sr);
       } else {
         if (doOpenStores) {
@@ -3932,7 +3934,7 @@ public class IndexWriter implements Closeable {
           mergeInit(merge);
 
           if (infoStream != null)
-            message("now merge\n  merge=" + merge.segString(directory) + "\n  merge=" + merge + "\n  index=" + segString());
+            message("now merge\n  merge=" + merge.segString(directory) + "\n  index=" + segString());
 
           mergeMiddle(merge);
           mergeSuccess(merge);

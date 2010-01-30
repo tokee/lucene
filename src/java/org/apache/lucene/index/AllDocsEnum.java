@@ -74,9 +74,4 @@ class AllDocsEnum extends DocsEnum {
     doc = NO_MORE_DOCS;
     return doc;
   }
-
-  @Override
-  public PositionsEnum positions() {
-    throw new UnsupportedOperationException();
-  }
 }

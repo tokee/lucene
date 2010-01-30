@@ -23,11 +23,11 @@ import java.util.Iterator;
 import java.util.TreeMap;
 
 import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.FieldsEnum;
 import org.apache.lucene.index.IndexFileNames;
-import org.apache.lucene.index.PositionsEnum;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
@@ -229,14 +229,9 @@ public class PreFlexFields extends FieldsProducer {
   private class PreTermsEnum extends TermsEnum {
     private SegmentTermEnum termEnum;
     private FieldInfo fieldInfo;
-    private final PreDocsEnum docsEnum;
     private boolean skipNext;
     private BytesRef current;
     private final BytesRef scratchBytesRef = new BytesRef();
-
-    public PreTermsEnum() throws IOException {
-      docsEnum = new PreDocsEnum();
-    }
 
     void reset(FieldInfo fieldInfo, boolean isFirstField) throws IOException {
       this.fieldInfo = fieldInfo;
@@ -354,27 +349,89 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public DocsEnum docs(Bits skipDocs) throws IOException {
+    public DocsEnum docs(Bits skipDocs, DocsEnum reuse) throws IOException {
       // nocommit -- must assert that skipDocs "matches" the
       // underlying deletedDocs?
-      docsEnum.reset(termEnum, skipDocs);        
-      return docsEnum;
+      if (reuse != null) {
+        return ((PreDocsEnum) reuse).reset(termEnum, skipDocs);        
+      } else {
+        return (new PreDocsEnum()).reset(termEnum, skipDocs);
+      }
+    }
+
+    @Override
+    public DocsAndPositionsEnum docsAndPositions(Bits skipDocs, DocsAndPositionsEnum reuse) throws IOException {
+      // nocommit -- must assert that skipDocs "matches" the
+      // underlying deletedDocs?
+      if (reuse != null) {
+        return ((PreDocsAndPositionsEnum) reuse).reset(termEnum, skipDocs);        
+      } else {
+        return (new PreDocsAndPositionsEnum()).reset(termEnum, skipDocs);
+      }
     }
   }
 
   private final class PreDocsEnum extends DocsEnum {
-    final private SegmentTermPositions pos;
-    final private PrePositionsEnum prePos;
-    private Bits skipDocs;
+    final private SegmentTermDocs docs;
 
     PreDocsEnum() throws IOException {
-      pos = new SegmentTermPositions(freqStream, proxStream, getTermsDict(), fieldInfos);
-      prePos = new PrePositionsEnum(pos);
+      docs = new SegmentTermDocs(freqStream, getTermsDict(), fieldInfos);
     }
 
-    public void reset(SegmentTermEnum termEnum, Bits skipDocs) throws IOException {
+    public PreDocsEnum reset(SegmentTermEnum termEnum, Bits skipDocs) throws IOException {
+      docs.setSkipDocs(skipDocs);
+      docs.seek(termEnum);
+      return this;
+    }
+
+    @Override
+    public int nextDoc() throws IOException {
+      if (Codec.DEBUG) {
+        System.out.println("pff.docs.next");
+      }
+      if (docs.next()) {
+        return docs.doc();
+      } else {
+        return NO_MORE_DOCS;
+      }
+    }
+
+    @Override
+    public int advance(int target) throws IOException {
+      if (docs.skipTo(target)) {
+        return docs.doc();
+      } else {
+        return NO_MORE_DOCS;
+      }
+    }
+
+    @Override
+    public int freq() {
+      return docs.freq();
+    }
+
+    @Override
+    public int docID() {
+      return docs.doc();
+    }
+
+    @Override
+    public int read(int[] docs, int[] freqs) throws IOException {
+      return this.docs.read(docs, freqs);
+    }
+  }
+
+  private final class PreDocsAndPositionsEnum extends DocsAndPositionsEnum {
+    final private SegmentTermPositions pos;
+
+    PreDocsAndPositionsEnum() throws IOException {
+      pos = new SegmentTermPositions(freqStream, proxStream, getTermsDict(), fieldInfos);
+    }
+
+    public DocsAndPositionsEnum reset(SegmentTermEnum termEnum, Bits skipDocs) throws IOException {
       pos.setSkipDocs(skipDocs);
       pos.seek(termEnum);
+      return this;
     }
 
     @Override
@@ -409,23 +466,7 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public PositionsEnum positions() throws IOException {
-      return prePos;
-    }
-
-    // NOTE: we don't override bulk-read (docs & freqs) API
-    // -- leave it to base class, because TermPositions
-    // can't do bulk read
-  }
-
-  private final class PrePositionsEnum extends PositionsEnum {
-    final private SegmentTermPositions pos;
-    PrePositionsEnum(SegmentTermPositions pos) {
-      this.pos = pos;
-    }
-
-    @Override
-    public int next() throws IOException {
+    public int nextPosition() throws IOException {
       return pos.nextPosition();
     }
 

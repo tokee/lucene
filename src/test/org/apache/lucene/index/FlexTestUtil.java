@@ -131,6 +131,8 @@ public class FlexTestUtil {
         break;
       }
       TermsEnum terms = fields.terms();
+      DocsAndPositionsEnum postings = null;
+      DocsEnum docsEnum = null;
       final TermPositions termPos = r.termPositions();
       while(true) {
         final BytesRef termRef = terms.next();
@@ -144,7 +146,16 @@ public class FlexTestUtil {
           assertEquals(termEnum.docFreq(), terms.docFreq());
           //allTerms.add(t);
 
-          DocsEnum docs = terms.docs(r.getDeletedDocs());
+          postings = terms.docsAndPositions(r.getDeletedDocs(), postings);
+          docsEnum = terms.docs(r.getDeletedDocs(), docsEnum);
+
+          final DocsEnum docs;
+          if (postings != null) {
+            docs = postings;
+          } else {
+            docs = docsEnum;
+          }
+
           termPos.seek(t);
           while(true) {
             final int doc = docs.nextDoc();
@@ -157,20 +168,19 @@ public class FlexTestUtil {
               assertEquals(termPos.freq(), docs.freq());
               //System.out.println("TEST:     doc=" + doc + " freq=" + docs.freq());
               final int freq = docs.freq();
-              PositionsEnum pos = docs.positions();
-              if (pos == null) {
+              if (postings == null) {
                 assertEquals(1, freq);
                 assertEquals(0, termPos.nextPosition());
                 assertEquals(false, termPos.isPayloadAvailable());
               } else {
                 for(int i=0;i<freq;i++) {
-                  final int position = pos.next();
+                  final int position = postings.nextPosition();
                   //System.out.println("TEST:       pos=" + position);
                   assertEquals(position, termPos.nextPosition());
-                  assertEquals(pos.hasPayload(), termPos.isPayloadAvailable());
-                  if (pos.hasPayload()) {
-                    assertEquals(pos.getPayloadLength(), termPos.getPayloadLength());
-                    BytesRef payload = pos.getPayload();
+                  assertEquals(postings.hasPayload(), termPos.isPayloadAvailable());
+                  if (postings.hasPayload()) {
+                    assertEquals(postings.getPayloadLength(), termPos.getPayloadLength());
+                    BytesRef payload = postings.getPayload();
                     byte[] b2 = termPos.getPayload(null, 0);
                     assertNotNull(payload);
                     assertNotNull(b2);
@@ -211,6 +221,8 @@ public class FlexTestUtil {
         TermsEnum terms = fields.terms();
         final TermPositions termPos = r.termPositions();
         final TermDocs termDocs = r.termDocs();
+        DocsEnum docs = null;
+        DocsAndPositionsEnum postings = null;
         while(true) {
           final BytesRef termRef = terms.next();
           //System.out.println("TEST:   enum term=" + termRef);
@@ -229,7 +241,15 @@ public class FlexTestUtil {
             //allTerms.add(t);
 
             if (rand.nextInt(3) <= 1) {
-              DocsEnum docs = terms.docs(r.getDeletedDocs());
+              docs = terms.docs(r.getDeletedDocs(), docs);
+              assert !(docs instanceof DocsAndPositionsEnum): "docs=" + docs;
+              postings = terms.docsAndPositions(r.getDeletedDocs(), postings);
+              final DocsEnum docsEnum;
+              if (postings == null) {
+                docsEnum = docs;
+              } else {
+                docsEnum = postings;
+              }
               if (rand.nextBoolean()) {
                 // use bulk read API
                 termDocs.seek(t);
@@ -250,33 +270,33 @@ public class FlexTestUtil {
                 //System.out.println("TEST:      get docs");
                 termPos.seek(t);
                 while(true) {
-                  final int doc = docs.nextDoc();
+                  final int doc = docsEnum.nextDoc();
                   if (doc == DocsEnum.NO_MORE_DOCS) {
                     assertFalse(termPos.next());
                     break;
                   } else {
                     assertTrue(termPos.next());
                     assertEquals(termPos.doc(), doc);
-                    assertEquals(termPos.freq(), docs.freq());
+                    assertEquals(termPos.freq(), docsEnum.freq());
                     //System.out.println("TEST:     doc=" + doc + " freq=" + docs.freq());
                     if (rand.nextInt(3) <= 1) {
                       // enum the positions
-                      final int freq = docs.freq();
-                      PositionsEnum pos = docs.positions();
-                      if (pos == null) {
+                      final int freq = docsEnum.freq();
+                      if (postings == null) {
                         assertEquals(1, termPos.freq());
                         assertEquals(0, termPos.nextPosition());
                         assertFalse(termPos.isPayloadAvailable());
                       } else {
+                        // we have positions
                         for(int i=0;i<freq;i++) {
-                          final int position = pos.next();
+                          final int position = postings.nextPosition();
                           //System.out.println("TEST:       pos=" + position);
                           assertEquals(position, termPos.nextPosition());
-                          assertEquals(pos.hasPayload(), termPos.isPayloadAvailable());
-                          if (pos.hasPayload()) {
-                            assertEquals(pos.getPayloadLength(), termPos.getPayloadLength());
+                          assertEquals(postings.hasPayload(), termPos.isPayloadAvailable());
+                          if (postings.hasPayload()) {
+                            assertEquals(postings.getPayloadLength(), termPos.getPayloadLength());
                             if (rand.nextInt(3) <= 1) {
-                              BytesRef payload = pos.getPayload();
+                              BytesRef payload = postings.getPayload();
                               byte[] b2 = termPos.getPayload(null, 0);
                               assertNotNull(payload);
                               assertNotNull(b2);
@@ -381,6 +401,9 @@ public class FlexTestUtil {
     }
     
     final TermPositions termPositions = r.termPositions();
+    DocsEnum docs = null;
+    DocsAndPositionsEnum postings = null;
+
     for(int i=0;i<ITER;i++) {
       // Random field:
       String f = allFields.get(rand.nextInt(fieldCount));
@@ -408,13 +431,22 @@ public class FlexTestUtil {
 
       assertEquals(termsEnum.docFreq(), termEnum.docFreq());
 
-      final DocsEnum docs = termsEnum.docs(r.getDeletedDocs());
+      docs = termsEnum.docs(r.getDeletedDocs(), docs);
+      postings = termsEnum.docsAndPositions(r.getDeletedDocs(), postings);
+
       termPositions.seek(termEnum.term());
 
       int doc = 0;
+
+      final DocsEnum docsEnum;
+      if (postings != null) {
+        docsEnum = postings;
+      } else {
+        docsEnum = docs;
+      }
       for(int j=0;j<20;j++) {
         final int inc = nextInt(rand, 1, Math.max(10, r.maxDoc()/15));
-        int newDoc1 = docs.advance(doc+inc);
+        int newDoc1 = docsEnum.advance(doc+inc);
         boolean found = termPositions.skipTo(doc+inc);
         int newDoc2;
 
@@ -427,24 +459,23 @@ public class FlexTestUtil {
         }
         
         assertEquals(newDoc1, newDoc2);
-        assertEquals(docs.freq(), termPositions.freq());
+        assertEquals(docsEnum.freq(), termPositions.freq());
 
         doc = newDoc1;
 
-        PositionsEnum posEnum = docs.positions();
-        if (posEnum == null) {
+        if (postings == null) {
           assertEquals(1, termPositions.freq());
           assertEquals(0, termPositions.nextPosition());
           assertFalse(termPositions.isPayloadAvailable());
         } else {
-          for(int k=0;k<docs.freq();k++) {
-            int pos1 = posEnum.next();
+          for(int k=0;k<docsEnum.freq();k++) {
+            int pos1 = postings.nextPosition();
             int pos2 = termPositions.nextPosition();
             assertEquals(pos1, pos2);
-            assertEquals(posEnum.hasPayload(), termPositions.isPayloadAvailable());
-            if (posEnum.hasPayload()) {
-              assertEquals(posEnum.getPayloadLength(), termPositions.getPayloadLength());
-              BytesRef b1 = posEnum.getPayload();
+            assertEquals(postings.hasPayload(), termPositions.isPayloadAvailable());
+            if (postings.hasPayload()) {
+              assertEquals(postings.getPayloadLength(), termPositions.getPayloadLength());
+              BytesRef b1 = postings.getPayload();
               byte[] b2 = termPositions.getPayload(null, 0);
               assertNotNull(b1);
               assertNotNull(b2);

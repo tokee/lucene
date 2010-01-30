@@ -38,7 +38,6 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.util.IndexableBinaryStringTools;
-import org.apache.lucene.util.Version;
 
 import java.io.IOException;
 import java.nio.CharBuffer;
@@ -230,7 +229,7 @@ public class CollationTestBase extends TestCase {
     Sort sort = new Sort();
     Query queryX = new TermQuery(new Term ("contents", "x"));
     Query queryY = new TermQuery(new Term ("contents", "y"));
-    
+
     sort.setSort(new SortField("US", SortField.STRING));
     assertMatches(searcher, queryY, sort, usResult);
 

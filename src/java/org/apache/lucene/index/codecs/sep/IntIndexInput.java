@@ -36,8 +36,7 @@ public abstract class IntIndexInput implements Closeable {
 
   public abstract Index index() throws IOException;
   
-  public class IndexState {};
-
+  // nocommit -- can we simplify this?
   public abstract static class Index {
 
     // nocommit
@@ -50,11 +49,7 @@ public abstract class IntIndexInput implements Closeable {
 
     public abstract void set(Index other);
     
-    // nocommit handle with set and/or clone?
-    public abstract IndexState captureState();
-    
-    // nocommit handle with set and/or clone?
-    public abstract void setState(IndexState state);
+    public abstract Object clone();
   }
 
   public abstract static class Reader {

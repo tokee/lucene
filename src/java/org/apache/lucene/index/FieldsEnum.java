@@ -22,9 +22,9 @@ import java.io.IOException;
 import org.apache.lucene.util.AttributeSource;
 
 /** Enumerates indexed fields.  You must first call {@link
- * #next} before calling {@link #terms}.
+ *  #next} before calling {@link #terms}.
  *
- * NOTE: this API is experimental and will likely change */
+ * @lucene.experimental */
 
 public abstract class FieldsEnum {
 

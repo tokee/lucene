@@ -18,17 +18,26 @@ package org.apache.lucene.index.codecs.standard;
  */
 
 import java.io.IOException;
+import java.io.Closeable;
 
 import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.index.codecs.PositionsConsumer;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.codecs.PostingsConsumer;
 
-public abstract class StandardPositionsConsumer extends PositionsConsumer{
+/**
+ * NOTE: this API is experimental and will likely change
+ */
+
+public abstract class StandardPostingsWriter extends PostingsConsumer implements Closeable {
 
   public abstract void start(IndexOutput termsOut) throws IOException;
 
   public abstract void startTerm() throws IOException;
 
-  public abstract void finishTerm(boolean isIndexTerm) throws IOException;
-  
+  /** Finishes the current term */
+  public abstract void finishTerm(int numDocs, boolean isIndexTerm) throws IOException;
+
+  public abstract void setField(FieldInfo fieldInfo);
+
   public abstract void close() throws IOException;
 }

@@ -23,22 +23,22 @@ package org.apache.lucene.index.codecs.standard;
 import java.io.IOException;
 
 import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.index.codecs.PositionsConsumer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.util.BytesRef;
 
-public final class StandardDocsWriter extends StandardDocsConsumer {
-  final static String CODEC = "SingleFileDocFreqSkip";
+public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
+  final static String CODEC = "StandardPostingsWriterImpl";
   
   // Increment version to change it:
   final static int VERSION_START = 0;
   final static int VERSION_CURRENT = VERSION_START;
 
-  final IndexOutput out;
-  final StandardPositionsWriter posWriter;
+  final IndexOutput freqOut;
+  final IndexOutput proxOut;
   final DefaultSkipListWriter skipListWriter;
   final int skipInterval;
   final int maxSkipLevels;
@@ -50,26 +50,39 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
   // Starts a new term
   long lastFreqStart;
   long freqStart;
+  long lastProxStart;
+  long proxStart;
   FieldInfo fieldInfo;
+  int lastPayloadLength;
+  int lastPosition;
 
-  public StandardDocsWriter(SegmentWriteState state) throws IOException {
+  public StandardPostingsWriterImpl(SegmentWriteState state) throws IOException {
     super();
-    final String fileName = IndexFileNames.segmentFileName(state.segmentName, StandardCodec.FREQ_EXTENSION);
+    String fileName = IndexFileNames.segmentFileName(state.segmentName, StandardCodec.FREQ_EXTENSION);
     state.flushedFiles.add(fileName);
-    out = state.directory.createOutput(fileName);
+    freqOut = state.directory.createOutput(fileName);
+
+    if (state.fieldInfos.hasProx()) {
+      // At least one field does not omit TF, so create the
+      // prox file
+      fileName = IndexFileNames.segmentFileName(state.segmentName, StandardCodec.PROX_EXTENSION);
+      state.flushedFiles.add(fileName);
+      proxOut = state.directory.createOutput(fileName);
+    } else {
+      // Every field omits TF so we will write no prox file
+      proxOut = null;
+    }
+
     totalNumDocs = state.numDocs;
 
-    // nocommit -- abstraction violation
     skipListWriter = new DefaultSkipListWriter(state.skipInterval,
                                                state.maxSkipLevels,
                                                state.numDocs,
-                                               out,
-                                               null);
+                                               freqOut,
+                                               proxOut);
      
     skipInterval = state.skipInterval;
     maxSkipLevels = state.maxSkipLevels;
-
-    posWriter = new StandardPositionsWriter(state, this);
   }
 
   @Override
@@ -78,14 +91,15 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
     Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
     termsOut.writeInt(skipInterval);                // write skipInterval
     termsOut.writeInt(maxSkipLevels);               // write maxSkipLevels
-    posWriter.start(termsOut);
   }
 
   @Override
   public void startTerm() {
-    freqStart = out.getFilePointer();
-    if (!omitTermFreqAndPositions) {
-      posWriter.startTerm();
+    freqStart = freqOut.getFilePointer();
+    if (proxOut != null) {
+      proxStart = proxOut.getFilePointer();
+      // force first payload to write its length
+      lastPayloadLength = -1;
     }
     skipListWriter.resetSkip();
   }
@@ -100,7 +114,6 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
     this.fieldInfo = fieldInfo;
     omitTermFreqAndPositions = fieldInfo.omitTermFreqAndPositions;
     storePayloads = fieldInfo.storePayloads;
-    posWriter.setField(fieldInfo);
   }
 
   int lastDocID;
@@ -111,12 +124,12 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
   /** Adds a new doc in this term.  If this returns null
    *  then we just skip consuming positions/payloads. */
   @Override
-  public PositionsConsumer addDoc(int docID, int termDocFreq) throws IOException {
+  public void addDoc(int docID, int termDocFreq) throws IOException {
 
     final int delta = docID - lastDocID;
     
     if (Codec.DEBUG) {
-      System.out.println("  dw.addDoc [" + desc + "] count=" + (count++) + " docID=" + docID + " lastDocID=" + lastDocID + " delta=" + delta + " omitTF=" + omitTermFreqAndPositions + " freq=" + termDocFreq + " freqPointer=" + out.getFilePointer());
+      Codec.debug("  addDoc [" + desc + "] count=" + (count++) + " docID=" + docID + " lastDocID=" + lastDocID + " delta=" + delta + " omitTF=" + omitTermFreqAndPositions + " freq=" + termDocFreq + " freq.fp=" + freqOut.getFilePointer());
     }
 
     if (docID < 0 || (df > 0 && delta <= 0)) {
@@ -124,38 +137,75 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
     }
 
     if ((++df % skipInterval) == 0) {
-      // TODO: abstraction violation
-      skipListWriter.setSkipData(lastDocID, storePayloads, posWriter.lastPayloadLength);
+      skipListWriter.setSkipData(lastDocID, storePayloads, lastPayloadLength);
       skipListWriter.bufferSkip(df);
       if (Codec.DEBUG) {
-        System.out.println("    bufferSkip lastDocID=" + lastDocID + " df=" + df + " freqFP=" + out.getFilePointer() + " proxFP=" + skipListWriter.proxOutput.getFilePointer());
+        System.out.println("    bufferSkip lastDocID=" + lastDocID + " df=" + df + " freqFP=" + freqOut.getFilePointer() + " proxFP=" + skipListWriter.proxOutput.getFilePointer());
       }
     }
 
-    // nocommit -- move this assert up above; every consumer
-    // shouldn't have to check for this bug:
     assert docID < totalNumDocs: "docID=" + docID + " totalNumDocs=" + totalNumDocs;
 
     lastDocID = docID;
     if (omitTermFreqAndPositions) {
-      out.writeVInt(delta);
+      freqOut.writeVInt(delta);
     } else if (1 == termDocFreq) {
-      out.writeVInt((delta<<1) | 1);
+      freqOut.writeVInt((delta<<1) | 1);
     } else {
-      out.writeVInt(delta<<1);
-      out.writeVInt(termDocFreq);
+      freqOut.writeVInt(delta<<1);
+      freqOut.writeVInt(termDocFreq);
     }
 
-    // nocommit
+    lastPosition = 0;
+  }
+
+  /** Add a new position & payload */
+  @Override
+  public void addPosition(int position, BytesRef payload) throws IOException {
+    assert !omitTermFreqAndPositions: "omitTermFreqAndPositions is true";
+    assert proxOut != null;
+
     if (Codec.DEBUG) {
-      ((StandardPositionsWriter) posWriter).desc = desc + ":" + docID;
+      if (payload != null) {
+        Codec.debug("    addPos [" + desc + "]: pos=" + position + " prox.fp=" + proxOut.getFilePointer() + " payload=" + payload.length + " bytes");
+      } else {
+        Codec.debug("    addPos [" + desc + "]: pos=" + position + " prox.fp=" + proxOut.getFilePointer());
+      }
     }
+    
+    final int delta = position - lastPosition;
+    
+    assert delta > 0 || position == 0 || position == -1: "position=" + position + " lastPosition=" + lastPosition;            // not quite right (if pos=0 is repeated twice we don't catch it)
 
-    if (omitTermFreqAndPositions) {
-      return null;
+    lastPosition = position;
+
+    if (storePayloads) {
+      if (Codec.DEBUG) {
+        System.out.println("  store payloads");
+      }
+      final int payloadLength = payload == null ? 0 : payload.length;
+
+      if (payloadLength != lastPayloadLength) {
+        if (Codec.DEBUG) {
+          System.out.println("  payload len change old=" + lastPayloadLength + " new=" + payloadLength);
+        }
+        lastPayloadLength = payloadLength;
+        proxOut.writeVInt((delta<<1)|1);
+        proxOut.writeVInt(payloadLength);
+      } else {
+        proxOut.writeVInt(delta << 1);
+      }
+
+      if (payloadLength > 0) {
+        proxOut.writeBytes(payload.bytes, payload.offset, payloadLength);
+      }
     } else {
-      return posWriter;
+      proxOut.writeVInt(delta);
     }
+  }
+
+  @Override
+  public void finishDoc() {
   }
 
   /** Called when we are done adding docs to this term */
@@ -165,7 +215,7 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
     assert docCount == df;
     // mxx
     if (Codec.DEBUG) {
-      System.out.println(Thread.currentThread().getName() + ": dw.finishTerm termsOut pointer=" + termsOut.getFilePointer() + " freqStart=" + freqStart + " df=" + df + " isIndex?=" + isIndexTerm);
+      Codec.debug("dw.finishTerm termsOut.fp=" + termsOut.getFilePointer() + " freqStart=" + freqStart + " df=" + df + " isIndex?=" + isIndexTerm);
     }
 
     if (isIndexTerm) {
@@ -181,15 +231,21 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
     if (df >= skipInterval) {
       // mxx
       if (Codec.DEBUG) {
-        System.out.println(Thread.currentThread().getName() + ":  writeSkip @ freqFP=" + out.getFilePointer() + " freqStartFP=" + freqStart);
+        System.out.println(Thread.currentThread().getName() + ":  writeSkip @ freqFP=" + freqOut.getFilePointer() + " freqStartFP=" + freqStart);
       }
-      termsOut.writeVInt((int) (skipListWriter.writeSkip(out)-freqStart));
+      termsOut.writeVInt((int) (skipListWriter.writeSkip(freqOut)-freqStart));
     }
      
     if (!omitTermFreqAndPositions) {
-      posWriter.finishTerm(isIndexTerm);
+      if (isIndexTerm) {
+        // Write absolute at seek points
+        termsOut.writeVLong(proxStart);
+      } else {
+        // Write delta between seek points
+        termsOut.writeVLong(proxStart - lastProxStart);
+      }
+      lastProxStart = proxStart;
     }
-
 
     lastDocID = 0;
     df = 0;
@@ -200,13 +256,12 @@ public final class StandardDocsWriter extends StandardDocsConsumer {
 
   @Override
   public void close() throws IOException {
-    if (Codec.DEBUG) {
-      System.out.println("docs writer close pointer=" + out.getFilePointer());
-    }
     try {
-      out.close();
+      freqOut.close();
     } finally {
-      posWriter.close();
+      if (proxOut != null) {
+        proxOut.close();
+      }
     }
   }
 }

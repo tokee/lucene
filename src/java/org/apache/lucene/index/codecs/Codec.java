@@ -41,6 +41,17 @@ public abstract class Codec {
   /** Writes a new segment */
   public abstract FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException;
 
+  public static void debug(String s, String desc) {
+    if (desc != null) {
+      System.out.println(Thread.currentThread().getName()+ " [" + desc + "]:" + s);
+    } else {
+      System.out.println(Thread.currentThread().getName() + ": " + s);
+    }
+  }
+  public static void debug(String s) {
+    debug(s, null);
+  }
+
   /** Reads a segment.  NOTE: by the time this call
    *  returns, it must hold open any files it will need to
    *  use; else, those files may be deleted. */

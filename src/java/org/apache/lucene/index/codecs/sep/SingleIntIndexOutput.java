@@ -24,7 +24,7 @@ import org.apache.lucene.index.codecs.Codec;
 import java.io.IOException;
 
 /** Writes ints directly to the file (not in blocks) as
- *  vInt
+ *  vInt.
  * 
  * @lucene.experimental
 */

@@ -69,13 +69,9 @@ public class SingleIntIndexInput extends IntIndexInput {
     }
   }
   
-  class State extends IndexState {
-    long fp;
-    boolean first;
-  }
-  
   class Index extends IntIndexInput.Index {
     private long fp;
+    // nocmmit: only for asserts
     boolean first = true;
 
     @Override
@@ -110,24 +106,13 @@ public class SingleIntIndexInput extends IntIndexInput {
       return Long.toString(fp);
     }
 
-    // nocommit handle with set and/or clone?
     @Override
-    public IndexState captureState() {
-      State state = SingleIntIndexInput.this.new State();
-      state.fp = fp;
-      state.first = first;
-      return state;
+    public Object clone() {
+      Index other = new Index();
+      other.first = first;
+      other.fp = fp;
+      return other;
     }
-
-    // nocommit handle with set and/or clone?
-    @Override
-    public void setState(IndexState state) {
-      State iState = (State) state;
-      this.fp = iState.fp;
-      this.first = iState.first;
-      
-    }
-    
   }
 
   @Override

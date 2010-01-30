@@ -77,9 +77,11 @@ class SepSkipListWriter extends MultiLevelSkipListWriter {
     posIndex = new IntIndexOutput.Index[numberOfSkipLevels];
 
     for(int i=0;i<numberOfSkipLevels;i++) {
-      freqIndex[i] = freqOutput.index();
-      if (Codec.DEBUG) {
-        freqIndex[i].desc = "sslw.freq.level" + i;
+      if (freqOutput != null) {
+        freqIndex[i] = freqOutput.index();
+        if (Codec.DEBUG) {
+          freqIndex[i].desc = "sslw.freq.level" + i;
+        }
       }
       docIndex[i] = docOutput.index();
       if (Codec.DEBUG) {
@@ -142,7 +144,9 @@ class SepSkipListWriter extends MultiLevelSkipListWriter {
     Arrays.fill(lastSkipPayloadLength, -1);  // we don't have to write the first length in the skip list
     for(int i=0;i<numberOfSkipLevels;i++) {
       docIndex[i].set(topDocIndex);
-      freqIndex[i].set(topFreqIndex);
+      if (freqOutput != null) {
+        freqIndex[i].set(topFreqIndex);
+      }
       if (posOutput != null) {
         posIndex[i].set(topPosIndex);
       }

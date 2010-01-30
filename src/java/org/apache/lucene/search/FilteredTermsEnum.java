@@ -23,6 +23,7 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.Bits;
 
@@ -157,8 +158,13 @@ public abstract class FilteredTermsEnum extends TermsEnum {
   }
 
   @Override
-  public DocsEnum docs(Bits bits) throws IOException {
-    return (tenum == null) ? null : tenum.docs(bits);
+  public DocsEnum docs(Bits bits, DocsEnum reuse) throws IOException {
+    return (tenum == null) ? null : tenum.docs(bits, reuse);
+  }
+    
+  @Override
+  public DocsAndPositionsEnum docsAndPositions(Bits bits, DocsAndPositionsEnum reuse) throws IOException {
+    return (tenum == null) ? null : tenum.docsAndPositions(bits, reuse);
   }
     
   @Override

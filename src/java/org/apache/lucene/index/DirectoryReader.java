@@ -66,6 +66,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   private SegmentReader[] subReaders;
   private int[] starts;                           // 1st docno for each segment
+  private final Map<SegmentReader,Integer> subReaderToDocBase = new HashMap<SegmentReader,Integer>();
   private Map<String,byte[]> normsCache = new HashMap<String,byte[]>();
   private int maxDoc = 0;
   private int numDocs = -1;
@@ -370,6 +371,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
         hasDeletions = true;
       }
       subs[i] = subReaders[i].getDeletedDocs();
+      subReaderToDocBase.put(subReaders[i], Integer.valueOf(starts[i]));
     }
     starts[subReaders.length] = maxDoc;
 
@@ -1047,6 +1049,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return subReaders;
   }
 
+  @Override
+  public int getSubReaderDocBase(IndexReader subReader) {
+    return subReaderToDocBase.get(subReader).intValue();
+  }
+
   /** Returns the directory this index resides in. */
   @Override
   public Directory directory() {
@@ -1237,8 +1244,8 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
 
-  private final static class DocsEnumWithBase {
-    DocsEnum docs;
+  private final static class PostingsEnumWithBase {
+    DocsAndPositionsEnum postings;
     int base;
   }
 
@@ -1433,14 +1440,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
     int numTop;
     int numSubs;
     private BytesRef current;
-    private final MultiDocsEnum docs;
     private BytesRef.Comparator termComp;
 
     MultiTermsEnum(int size) {
       queue = new TermMergeQueue(size);
       top = new TermsEnumWithBase[size];
       subs = new TermsEnumWithBase[size];
-      docs = new MultiDocsEnum(size);
     }
 
     @Override
@@ -1604,25 +1609,34 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
-    public DocsEnum docs(Bits skipDocs) throws IOException {
-      return docs.reset(top, numTop, skipDocs);
+    public DocsEnum docs(Bits skipDocs, DocsEnum reuse) throws IOException {
+      return docsAndPositions(skipDocs, (DocsAndPositionsEnum) reuse);
+    }
+
+    @Override
+    public DocsAndPositionsEnum docsAndPositions(Bits skipDocs, DocsAndPositionsEnum reuse) throws IOException {
+      if (reuse != null) {
+        return ((MultiDocsAndPositionsEnum) reuse).reset(top, numTop, skipDocs);
+      } else {
+        return new MultiDocsAndPositionsEnum(subs.length).reset(top, numTop, skipDocs);
+      }
     }
   }
 
-  private static final class MultiDocsEnum extends DocsEnum {
-    final DocsEnumWithBase[] subs;
+  private static final class MultiDocsAndPositionsEnum extends DocsAndPositionsEnum {
+    final PostingsEnumWithBase[] subs;
     int numSubs;
     int upto;
-    DocsEnum currentDocs;
+    DocsAndPositionsEnum currentDocs;
     int currentBase;
     Bits skipDocs;
     int doc = -1;
 
-    MultiDocsEnum(int count) {
-      subs = new DocsEnumWithBase[count];
+    MultiDocsAndPositionsEnum(int count) {
+      subs = new PostingsEnumWithBase[count];
     }
 
-    MultiDocsEnum reset(TermsEnumWithBase[] subs, final int numSubs, final Bits skipDocs) throws IOException {
+    MultiDocsAndPositionsEnum reset(TermsEnumWithBase[] subs, final int numSubs, final Bits skipDocs) throws IOException {
       this.numSubs = 0;
       this.skipDocs = skipDocs;
       for(int i=0;i<numSubs;i++) {
@@ -1653,10 +1667,10 @@ class DirectoryReader extends IndexReader implements Cloneable {
           bits = new SubBits(skipDocs, subs[i].base, subs[i].length);
         }
 
-        final DocsEnum docs = subs[i].terms.docs(bits);
-        if (docs != null) {
-          this.subs[this.numSubs] = new DocsEnumWithBase();
-          this.subs[this.numSubs].docs = docs;
+        final DocsAndPositionsEnum postings = subs[i].terms.docsAndPositions(bits, null);
+        if (postings != null) {
+          this.subs[this.numSubs] = new PostingsEnumWithBase();
+          this.subs[this.numSubs].postings = postings;
           this.subs[this.numSubs].base = subs[i].base;
           this.numSubs++;
         }
@@ -1677,30 +1691,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
-    public int read(final int docs[], final int freqs[]) throws IOException {
-      while (true) {
-        while (currentDocs == null) {
-          if (upto == numSubs-1) {
-            return 0;
-          } else {
-            upto++;
-            currentDocs = subs[upto].docs;
-            currentBase = subs[upto].base;
-          }
-        }
-        final int end = currentDocs.read(docs, freqs);
-        if (end == 0) {          // none left in segment
-          currentDocs = null;
-        } else {            // got some
-          for (int i = 0; i < end; i++) {
-            docs[i] += currentBase;
-          }
-          return end;
-        }
-      }
-    }
-
-    @Override
     public int advance(int target) throws IOException {
       while(true) {
         if (currentDocs != null) {
@@ -1714,7 +1704,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
           return this.doc = NO_MORE_DOCS;
         } else {
           upto++;
-          currentDocs = subs[upto].docs;
+          currentDocs = subs[upto].postings;
           currentBase = subs[upto].base;
         }
       }
@@ -1728,7 +1718,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
             return this.doc = NO_MORE_DOCS;
           } else {
             upto++;
-            currentDocs = subs[upto].docs;
+            currentDocs = subs[upto].postings;
             currentBase = subs[upto].base;
           }
         }
@@ -1743,8 +1733,23 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
 
     @Override
-    public PositionsEnum positions() throws IOException {
-      return currentDocs.positions();
+    public int nextPosition() throws IOException {
+      return currentDocs.nextPosition();
+    }
+
+    @Override
+    public int getPayloadLength() {
+      return currentDocs.getPayloadLength();
+    }
+
+    @Override
+    public BytesRef getPayload() throws IOException {
+      return currentDocs.getPayload();
+    }
+
+    @Override
+    public boolean hasPayload() {
+      return currentDocs.hasPayload();
     }
   }
 

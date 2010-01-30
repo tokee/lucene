@@ -392,7 +392,7 @@ public class TestOmitTf extends LuceneTestCase {
                         super.collect(doc);
                       }
                     });
-    assertTrue(15 == CountingHitCollector.getCount());
+    assertEquals(15, CountingHitCollector.getCount());
         
     searcher.close();     
     dir.close();

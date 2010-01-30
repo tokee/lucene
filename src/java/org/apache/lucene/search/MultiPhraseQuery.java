@@ -23,7 +23,7 @@ import java.util.*;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.DocsEnum;
-import org.apache.lucene.index.PositionsEnum;
+import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.ToStringUtils;
 import org.apache.lucene.util.PriorityQueue;
@@ -170,31 +170,31 @@ public class MultiPhraseQuery extends Query {
       if (termArrays.size() == 0)                  // optimize zero-term case
         return null;
 
-      DocsEnum[] docs = new DocsEnum[termArrays.size()];
-      for (int i=0; i<docs.length; i++) {
+      DocsAndPositionsEnum[] postings = new DocsAndPositionsEnum[termArrays.size()];
+      for (int i=0; i<postings.length; i++) {
         Term[] terms = termArrays.get(i);
 
-        final DocsEnum docsEnum;
+        final DocsAndPositionsEnum postingsEnum;
         if (terms.length > 1) {
-          docsEnum = new UnionDocsEnum(reader, terms);
+          postingsEnum = new UnionDocsAndPositionsEnum(reader, terms);
         } else {
-          docsEnum = reader.termDocsEnum(reader.getDeletedDocs(),
-                                         terms[0].field(),
-                                         new BytesRef(terms[0].text()));
+          postingsEnum = reader.termPositionsEnum(reader.getDeletedDocs(),
+                                                  terms[0].field(),
+                                                  new BytesRef(terms[0].text()));
         }
 
-        if (docsEnum == null) {
+        if (postingsEnum == null) {
           return null;
         }
 
-        docs[i] = docsEnum;
+        postings[i] = postingsEnum;
       }
 
       if (slop == 0)
-        return new ExactPhraseScorer(this, docs, getPositions(), similarity,
+        return new ExactPhraseScorer(this, postings, getPositions(), similarity,
                                      reader.norms(field));
       else
-        return new SloppyPhraseScorer(this, docs, getPositions(), similarity,
+        return new SloppyPhraseScorer(this, postings, getPositions(), similarity,
                                       slop, reader.norms(field));
     }
 
@@ -384,17 +384,17 @@ public class MultiPhraseQuery extends Query {
 
 // nocommit -- this must carefully take union of attr source
 // as well -- this is tricky
-class UnionDocsEnum extends DocsEnum {
+class UnionDocsAndPositionsEnum extends DocsAndPositionsEnum {
 
-  private static final class DocsQueue extends PriorityQueue<DocsEnum> {
-    DocsQueue(List<DocsEnum> docsEnums) throws IOException {
+  private static final class DocsQueue extends PriorityQueue<DocsAndPositionsEnum> {
+    DocsQueue(List<DocsAndPositionsEnum> docsEnums) throws IOException {
       initialize(docsEnums.size());
 
-      Iterator<DocsEnum> i = docsEnums.iterator();
+      Iterator<DocsAndPositionsEnum> i = docsEnums.iterator();
       while (i.hasNext()) {
-        DocsEnum docs = (DocsEnum) i.next();
-        if (docs.nextDoc() != DocsEnum.NO_MORE_DOCS) {
-          add(docs);
+        DocsAndPositionsEnum postings = (DocsAndPositionsEnum) i.next();
+        if (postings.nextDoc() != DocsAndPositionsEnum.NO_MORE_DOCS) {
+          add(postings);
         }
       }
     }
@@ -404,7 +404,7 @@ class UnionDocsEnum extends DocsEnum {
     }
 
     @Override
-    public final boolean lessThan(DocsEnum a, DocsEnum b) {
+    public final boolean lessThan(DocsAndPositionsEnum a, DocsAndPositionsEnum b) {
       return a.docID() < b.docID();
     }
   }
@@ -452,29 +452,20 @@ class UnionDocsEnum extends DocsEnum {
   private DocsQueue _queue;
   private IntQueue _posList;
 
-  private final UnionPositionsEnum unionPositionsEnum;
-
-  public UnionDocsEnum(IndexReader indexReader, Term[] terms) throws IOException {
-    List<DocsEnum> docsEnums = new LinkedList<DocsEnum>();
+  public UnionDocsAndPositionsEnum(IndexReader indexReader, Term[] terms) throws IOException {
+    List<DocsAndPositionsEnum> docsEnums = new LinkedList<DocsAndPositionsEnum>();
     final Bits delDocs = indexReader.getDeletedDocs();
-
     for (int i = 0; i < terms.length; i++) {
-      DocsEnum docs = indexReader.termDocsEnum(delDocs,
-                                               terms[i].field(),
-                                               new BytesRef(terms[i].text()));
-      if (docs != null) {
-        docsEnums.add(docs);
+      DocsAndPositionsEnum postings = indexReader.termPositionsEnum(delDocs,
+                                                                    terms[i].field(),
+                                                                    new BytesRef(terms[i].text()));
+      if (postings != null) {
+        docsEnums.add(postings);
       }
     }
 
     _queue = new DocsQueue(docsEnums);
     _posList = new IntQueue();
-    unionPositionsEnum = new UnionPositionsEnum();
-  }
-
-  @Override
-  public PositionsEnum positions() {
-    return unionPositionsEnum;
   }
 
   @Override
@@ -490,17 +481,16 @@ class UnionDocsEnum extends DocsEnum {
     _doc = _queue.top().docID();
 
     // merge sort all positions together
-    DocsEnum docs;
+    DocsAndPositionsEnum postings;
     do {
-      docs = _queue.top();
-      final PositionsEnum positions = docs.positions();
+      postings = _queue.top();
 
-      final int freq = docs.freq();
+      final int freq = postings.freq();
       for (int i = 0; i < freq; i++) {
-        _posList.add(positions.next());
+        _posList.add(postings.nextPosition());
       }
 
-      if (docs.nextDoc() != NO_MORE_DOCS) {
+      if (postings.nextDoc() != NO_MORE_DOCS) {
         _queue.updateTop();
       } else {
         _queue.pop();
@@ -513,35 +503,32 @@ class UnionDocsEnum extends DocsEnum {
     return _doc;
   }
 
-  private class UnionPositionsEnum extends PositionsEnum {
+  @Override
+  public int nextPosition() {
+    return _posList.next();
+  }
 
-    @Override
-    public int next() {
-      return _posList.next();
-    }
+  @Override
+  public int getPayloadLength() {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public int getPayloadLength() {
-      throw new UnsupportedOperationException();
-    }
+  @Override
+  public BytesRef getPayload() {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public BytesRef getPayload() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean hasPayload() {
-      throw new UnsupportedOperationException();
-    }
+  @Override
+  public boolean hasPayload() {
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public final int advance(int target) throws IOException {
     while (_queue.top() != null && target > _queue.top().docID()) {
-      DocsEnum docs = _queue.pop();
-      if (docs.advance(target) != NO_MORE_DOCS) {
-        _queue.add(docs);
+      DocsAndPositionsEnum postings = _queue.pop();
+      if (postings.advance(target) != NO_MORE_DOCS) {
+        _queue.add(postings);
       }
     }
     return nextDoc();
@@ -555,14 +542,5 @@ class UnionDocsEnum extends DocsEnum {
   @Override
   public final int docID() {
     return _doc;
-  }
-
-  /**
-   * Not implemented.
-   * @throws UnsupportedOperationException
-   */
-  @Override
-  public int read(int[] arg0, int[] arg1) throws IOException {
-    throw new UnsupportedOperationException();
   }
 }

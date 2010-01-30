@@ -158,7 +158,7 @@ public class TestExternalCodecs extends LuceneTestCase {
 
     private static class RAMTermsConsumer extends TermsConsumer {
       private RAMField field;
-      private final RAMDocsConsumer docsConsumer = new RAMDocsConsumer();
+      private final RAMPostingsWriterImpl postingsWriter = new RAMPostingsWriterImpl();
       RAMTerm current;
       
       void reset(RAMField field) {
@@ -166,11 +166,11 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
       
       @Override
-      public DocsConsumer startTerm(BytesRef text) {
+      public PostingsConsumer startTerm(BytesRef text) {
         final String term = text.toString();
         current = new RAMTerm(term);
-        docsConsumer.reset(current);
-        return docsConsumer;
+        postingsWriter.reset(current);
+        return postingsWriter;
       }
 
       
@@ -193,42 +193,33 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
     }
 
-    public static class RAMDocsConsumer extends DocsConsumer {
+    public static class RAMPostingsWriterImpl extends PostingsConsumer {
       private RAMTerm term;
       private RAMDoc current;
-      private final RAMPositionsConsumer positions = new RAMPositionsConsumer();
+      private int posUpto = 0;
 
       public void reset(RAMTerm term) {
         this.term = term;
       }
+
       @Override
-      public PositionsConsumer addDoc(int docID, int freq) {
+      public void addDoc(int docID, int freq) {
         current = new RAMDoc(docID, freq);
         term.docs.add(current);
-        positions.reset(current);
-        return positions;
-      }
-    }
-
-    public static class RAMPositionsConsumer extends PositionsConsumer {
-      private RAMDoc current;
-      int upto = 0;
-      public void reset(RAMDoc doc) {
-        current = doc;
-        upto = 0;
+        posUpto = 0;
       }
 
       @Override
-      public void add(int position, BytesRef payload) {
+      public void addPosition(int position, BytesRef payload) {
         if (payload != null) {
           throw new UnsupportedOperationException("can't handle payloads");
         }
-        current.positions[upto++] = position;
+        current.positions[posUpto++] = position;
       }
 
       @Override
       public void finishDoc() {
-        assert upto == current.positions.length;
+        assert posUpto == current.positions.length;
       }
     }
 
@@ -328,17 +319,22 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public DocsEnum docs(Bits skipDocs) {
+      public DocsEnum docs(Bits skipDocs, DocsEnum reuse) {
         return new RAMDocsEnum(ramField.termToDocs.get(current), skipDocs);
+      }
+
+      @Override
+      public DocsAndPositionsEnum docsAndPositions(Bits skipDocs, DocsAndPositionsEnum reuse) {
+        return new RAMDocsAndPositionsEnum(ramField.termToDocs.get(current), skipDocs);
       }
     }
 
     private static class RAMDocsEnum extends DocsEnum {
       private final RAMTerm ramTerm;
       private final Bits skipDocs;
-      private final RAMPositionsEnum positions = new RAMPositionsEnum();
       private RAMDoc current;
       int upto = -1;
+      int posUpto = 0;
 
       public RAMDocsEnum(RAMTerm ramTerm, Bits skipDocs) {
         this.ramTerm = ramTerm;
@@ -346,7 +342,6 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      // nocommit: Is this ok? it always return NO_MORE_DOCS
       public int advance(int targetDocID) {
         do {
           nextDoc();
@@ -355,7 +350,6 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       // TODO: override bulk read, for better perf
-
       @Override
       public int nextDoc() {
         while(true) {
@@ -363,6 +357,55 @@ public class TestExternalCodecs extends LuceneTestCase {
           if (upto < ramTerm.docs.size()) {
             current = ramTerm.docs.get(upto);
             if (skipDocs == null || !skipDocs.get(current.docID)) {
+              posUpto = 0;
+              return current.docID;
+            }
+          } else {
+            return NO_MORE_DOCS;
+          }
+        }
+      }
+
+      @Override
+      public int freq() {
+        return current.positions.length;
+      }
+
+      @Override
+      public int docID() {
+        return current.docID;
+      }
+    }
+
+    private static class RAMDocsAndPositionsEnum extends DocsAndPositionsEnum {
+      private final RAMTerm ramTerm;
+      private final Bits skipDocs;
+      private RAMDoc current;
+      int upto = -1;
+      int posUpto = 0;
+
+      public RAMDocsAndPositionsEnum(RAMTerm ramTerm, Bits skipDocs) {
+        this.ramTerm = ramTerm;
+        this.skipDocs = skipDocs;
+      }
+
+      @Override
+      public int advance(int targetDocID) {
+        do {
+          nextDoc();
+        } while (upto < ramTerm.docs.size() && current.docID < targetDocID);
+        return NO_MORE_DOCS;
+      }
+
+      // TODO: override bulk read, for better perf
+      @Override
+      public int nextDoc() {
+        while(true) {
+          upto++;
+          if (upto < ramTerm.docs.size()) {
+            current = ramTerm.docs.get(upto);
+            if (skipDocs == null || !skipDocs.get(current.docID)) {
+              posUpto = 0;
               return current.docID;
             }
           } else {
@@ -382,24 +425,8 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public PositionsEnum positions() {
-        positions.reset(current);
-        return positions;
-      }
-    }
-
-    private static final class RAMPositionsEnum extends PositionsEnum {
-      private RAMDoc ramDoc;
-      int upto;
-
-      public void reset(RAMDoc ramDoc) {
-        this.ramDoc = ramDoc;
-        upto = 0;
-      }
-
-      @Override
-      public int next() {
-        return ramDoc.positions[upto++];
+      public int nextPosition() {
+        return current.positions[posUpto++];
       }
 
       @Override
@@ -653,14 +680,12 @@ public class TestExternalCodecs extends LuceneTestCase {
 
     @Override
     public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
-      // We wrap StandardDocsWriter, but any DocsConsumer
-      // will work:
-      StandardDocsConsumer docsWriter = new StandardDocsWriter(state);
+      StandardPostingsWriter docsWriter = new StandardPostingsWriterImpl(state);
 
       // Terms that have <= freqCutoff number of docs are
       // "pulsed" (inlined):
       final int freqCutoff = 1;
-      StandardDocsConsumer pulsingWriter = new PulsingDocsWriter(state, freqCutoff, docsWriter);
+      StandardPostingsWriter pulsingWriter = new PulsingPostingsWriterImpl(freqCutoff, docsWriter);
 
       // Terms dict index
       StandardTermsIndexWriter indexWriter;
@@ -694,10 +719,8 @@ public class TestExternalCodecs extends LuceneTestCase {
     @Override
     public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
 
-      // We wrap StandardDocsReader, but any DocsProducer
-      // will work:
-      StandardDocsProducer docs = new StandardDocsReader(dir, si, readBufferSize);
-      StandardDocsProducer docsReader = new PulsingDocsReader(dir, si, readBufferSize, docs);
+      StandardPostingsReader docsReader = new StandardPostingsReaderImpl(dir, si, readBufferSize);
+      StandardPostingsReader pulsingReader = new PulsingPostingsReaderImpl(docsReader);
 
       // Terms dict index reader
       StandardTermsIndexReader indexReader;
@@ -712,7 +735,7 @@ public class TestExternalCodecs extends LuceneTestCase {
         success = true;
       } finally {
         if (!success) {
-          docs.close();
+          pulsingReader.close();
         }
       }
 
@@ -721,15 +744,16 @@ public class TestExternalCodecs extends LuceneTestCase {
       try {
         FieldsProducer ret = new StandardTermsDictReader(indexReader,
                                                          dir, fieldInfos, si.name,
-                                                         docsReader,
+                                                         pulsingReader,
                                                          readBufferSize,
-                                                         reverseUnicodeComparator);
+                                                         reverseUnicodeComparator,
+                                                         StandardCodec.TERMS_CACHE_SIZE);
         success = true;
         return ret;
       } finally {
         if (!success) {
           try {
-            docs.close();
+            pulsingReader.close();
           } finally {
             indexReader.close();
           }
@@ -739,7 +763,7 @@ public class TestExternalCodecs extends LuceneTestCase {
 
     @Override
     public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
-      StandardDocsReader.files(dir, segmentInfo, files);
+      StandardPostingsReaderImpl.files(dir, segmentInfo, files);
       StandardTermsDictReader.files(dir, segmentInfo, files);
       SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
     }
@@ -751,11 +775,9 @@ public class TestExternalCodecs extends LuceneTestCase {
   }
 
 
-  /*
-    tests storing "id" and "field2" fields as pulsing codec,
-    whose term sort is backwards unicode code point, and
-    storing "field1" as a custom entirely-in-RAM codec
-   */
+  // tests storing "id" and "field2" fields as pulsing codec,
+  // whose term sort is backwards unicode code point, and
+  // storing "field1" as a custom entirely-in-RAM codec
   public void testPerFieldCodec() throws Exception {
     
     final int NUM_DOCS = 173;
@@ -820,7 +842,6 @@ public class TestExternalCodecs extends LuceneTestCase {
 
     dir.close();
   }
-
   private void testTermsOrder(IndexReader r) throws Exception {
 
     // Verify sort order matches what my comparator said:

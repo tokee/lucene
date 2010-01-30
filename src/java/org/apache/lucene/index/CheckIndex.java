@@ -598,6 +598,10 @@ public class CheckIndex {
         }
         
         final TermsEnum terms = fields.terms();
+
+        DocsEnum docs = null;
+        DocsAndPositionsEnum postings = null;
+
         while(true) {
 
           final BytesRef term = terms.next();
@@ -607,16 +611,25 @@ public class CheckIndex {
           final int docFreq = terms.docFreq();
           status.totFreq += docFreq;
 
-          final DocsEnum docs = terms.docs(delDocs);
+          docs = terms.docs(delDocs, docs);
+          postings = terms.docsAndPositions(delDocs, postings);
+
+          final DocsEnum docs2;
+          if (postings != null) {
+            docs2 = postings;
+          } else {
+            docs2 = docs;
+          }
+
           status.termCount++;
 
           int lastDoc = -1;
           while(true) {
-            final int doc = docs.nextDoc();
+            final int doc = docs2.nextDoc();
             if (doc == DocsEnum.NO_MORE_DOCS) {
               break;
             }
-            final int freq = docs.freq();
+            final int freq = docs2.freq();
             status.totPos += freq;
 
             if (doc <= lastDoc) {
@@ -632,10 +645,9 @@ public class CheckIndex {
             }
             
             int lastPos = -1;
-            final PositionsEnum positions = docs.positions();
-            if (positions != null) {
+            if (postings != null) {
               for(int j=0;j<freq;j++) {
-                final int pos = positions.next();
+                final int pos = postings.nextPosition();
                 if (pos < -1) {
                   throw new RuntimeException("term " + term + ": doc " + doc + ": pos " + pos + " is out of bounds");
                 }
@@ -643,6 +655,9 @@ public class CheckIndex {
                   throw new RuntimeException("term " + term + ": doc " + doc + ": pos " + pos + " < lastPos " + lastPos);
                 }
                 lastPos = pos;
+                if (postings.getPayloadLength() != 0) {
+                  postings.getPayload();
+                }
               }
             }
           }
@@ -651,7 +666,7 @@ public class CheckIndex {
           // this term:
 
           if (reader.hasDeletions()) {
-            final DocsEnum docsNoDel = terms.docs(null);
+            final DocsEnum docsNoDel = terms.docs(null, docs);
             int count = 0;
             while(docsNoDel.nextDoc() != DocsEnum.NO_MORE_DOCS) {
               count++;

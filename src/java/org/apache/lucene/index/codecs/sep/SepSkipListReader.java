@@ -97,6 +97,12 @@ class SepSkipListReader extends MultiLevelSkipListReader {
     }
   }
   
+  boolean omitTF;
+
+  void setOmitTF(boolean v) {
+    omitTF = v;
+  }
+
   void init(long skipPointer,
             IntIndexInput.Index docBaseIndex,
             IntIndexInput.Index freqBaseIndex,
@@ -199,14 +205,11 @@ class SepSkipListReader extends MultiLevelSkipListReader {
     } else {
       delta = skipStream.readVInt();
     }
-    //System.out.println("  delta=" + delta + " level=" +
-    //level);
-    if (freqIndex != null) {
+    if (!omitTF) {
       freqIndex[level].read(skipStream, false);
     }
     docIndex[level].read(skipStream, false);
-    // nocommit -- make this explicit w/ omitTF, matching SepSkipListWriter
-    if (posIndex != null) {
+    if (!omitTF) {
       posIndex[level].read(skipStream, false);
       payloadPointer[level] += skipStream.readVInt();
     }

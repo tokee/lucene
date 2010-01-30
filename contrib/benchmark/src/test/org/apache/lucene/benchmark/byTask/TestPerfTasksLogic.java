@@ -23,7 +23,6 @@ import java.io.FileReader;
 import java.io.BufferedReader;
 import java.text.Collator;
 import java.util.List;
-import java.util.Iterator;
 import java.util.Locale;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -476,8 +475,9 @@ public class TestPerfTasksLogic extends LuceneTestCase {
       if (fieldName == DocMaker.ID_FIELD)
         continue;
       TermsEnum terms = fields.terms();
+      DocsEnum docs = null;
       while(terms.next() != null) {
-        DocsEnum docs = terms.docs(reader.getDeletedDocs());
+        docs = terms.docs(reader.getDeletedDocs(), docs);
         while(docs.nextDoc() != docs.NO_MORE_DOCS) {
           totalTokenCount2 += docs.freq();
         }

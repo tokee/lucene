@@ -20,12 +20,18 @@ package org.apache.lucene.index;
 import java.io.IOException;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CloseableThreadLocal;
 
 /**
- * NOTE: this API is experimental and will likely change
+ * Access to the terms in a specific field.  See {@link #Fields}.
+ * @lucene.experimental
  */
 
 public abstract class Terms {
+
+  // Privately cache a TermsEnum per-thread for looking up
+  // docFreq and getting a private DocsEnum
+  private final CloseableThreadLocal<TermsEnum> threadEnums = new CloseableThreadLocal<TermsEnum>();
 
   /** Returns an iterator that will step through all terms */
   public abstract TermsEnum iterator() throws IOException;
@@ -37,25 +43,36 @@ public abstract class Terms {
    *  reuse it. */
   public abstract BytesRef.Comparator getComparator() throws IOException;
 
-  /** Returns the docFreq of the specified term text. */
+  /** Returns the number of documents containing the
+   *  specified term text.  Returns 0 if the term does not
+   *  exist. */
   public int docFreq(BytesRef text) throws IOException {
-    // nocommit -- make thread private cache so we share
-    // single enum
-    // NOTE: subclasses may have more efficient impl
-    final TermsEnum terms = iterator();
-    if (terms.seek(text) == TermsEnum.SeekStatus.FOUND) {
-      return terms.docFreq();
+    final TermsEnum termsEnum = getThreadTermsEnum();
+    if (termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
+      return termsEnum.docFreq();
     } else {
       return 0;
     }
   }
 
-  /** Get DocsEnum for the specified term. */
-  public DocsEnum docs(Bits skipDocs, BytesRef text) throws IOException {
-    // NOTE: subclasses may have more efficient impl
-    final TermsEnum terms = iterator();
-    if (terms.seek(text) == TermsEnum.SeekStatus.FOUND) {
-      return terms.docs(skipDocs);
+  // nocommit -- or maybe make a separate positions(...) method?
+  /** Get DocsEnum for the specified term.  Returns null if
+   *  the term does not exist. */
+  public DocsEnum docs(Bits skipDocs, BytesRef text, DocsEnum reuse) throws IOException {
+    final TermsEnum termsEnum = getThreadTermsEnum();
+    if (termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
+      return termsEnum.docs(skipDocs, reuse);
+    } else {
+      return null;
+    }
+  }
+
+  /** Get DocsEnum for the specified term.  Returns null if
+   *  the term does not exist. */
+  public DocsAndPositionsEnum docsAndPositions(Bits skipDocs, BytesRef text, DocsAndPositionsEnum reuse) throws IOException {
+    final TermsEnum termsEnum = getThreadTermsEnum();
+    if (termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
+      return termsEnum.docsAndPositions(skipDocs, reuse);
     } else {
       return null;
     }
@@ -63,5 +80,19 @@ public abstract class Terms {
 
   public long getUniqueTermCount() throws IOException {
     throw new UnsupportedOperationException("this reader does not implement getUniqueTermCount()");
+  }
+
+  protected TermsEnum getThreadTermsEnum() throws IOException {
+    TermsEnum termsEnum = (TermsEnum) threadEnums.get();
+    if (termsEnum == null) {
+      termsEnum = iterator();
+      threadEnums.set(termsEnum);
+    }
+    return termsEnum;
+  }
+
+  // subclass must close when done:
+  protected void close() {
+    threadEnums.close();
   }
 }

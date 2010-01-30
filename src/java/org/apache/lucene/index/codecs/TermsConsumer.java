@@ -31,7 +31,7 @@ import org.apache.lucene.util.BytesRef;
 public abstract class TermsConsumer {
 
   /** Starts a new term in this field. */
-  public abstract DocsConsumer startTerm(BytesRef text) throws IOException;
+  public abstract PostingsConsumer startTerm(BytesRef text) throws IOException;
 
   /** Finishes the current term */
   public abstract void finishTerm(BytesRef text, int numDocs) throws IOException;
@@ -71,7 +71,7 @@ public abstract class TermsConsumer {
   }
 
   private MergeQueue queue;
-  private DocsConsumer.DocsMergeState[] match;
+  private PostingsConsumer.PostingsMergeState[] match;
   private TermMergeState[] pending;
 
   /** Default merge impl */
@@ -83,9 +83,9 @@ public abstract class TermsConsumer {
 
     if (queue == null) {
       queue = new MergeQueue(mergeState.readerCount, termComp);
-      match = new DocsConsumer.DocsMergeState[mergeState.readerCount];
+      match = new PostingsConsumer.PostingsMergeState[mergeState.readerCount];
       for(int i=0;i<mergeState.readerCount;i++) {
-        match[i] = new DocsConsumer.DocsMergeState();
+        match[i] = new PostingsConsumer.PostingsMergeState();
       }
       pending = new TermMergeState[mergeState.readerCount];
     } else if (!queue.termComp.equals(termComp)) {
@@ -111,7 +111,10 @@ public abstract class TermsConsumer {
       while(true) {
         TermMergeState state = pending[pendingCount++] = queue.pop();
         
-        DocsEnum docsEnum = state.termsEnum.docs(mergeState.readers.get(state.readerIndex).getDeletedDocs());
+        DocsEnum docsEnum = state.termsEnum.docsAndPositions(mergeState.readers.get(state.readerIndex).getDeletedDocs(), null);
+        if (docsEnum == null) {
+          docsEnum = state.termsEnum.docs(mergeState.readers.get(state.readerIndex).getDeletedDocs(), null);
+        }
         if (docsEnum != null) {
           match[matchCount].docsEnum = docsEnum;
           match[matchCount].docMap = mergeState.docMaps[state.readerIndex];
@@ -128,8 +131,8 @@ public abstract class TermsConsumer {
         // Merge one term
         final BytesRef term = pending[0].current;
         //System.out.println("  merge term=" + term);
-        final DocsConsumer docsConsumer = startTerm(term);
-        final int numDocs = docsConsumer.merge(mergeState, match, matchCount);
+        final PostingsConsumer postingsConsumer = startTerm(term);
+        final int numDocs = postingsConsumer.merge(mergeState, match, matchCount);
         finishTerm(term, numDocs);
       }
 

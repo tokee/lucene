@@ -115,11 +115,12 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
         final int[] freqs = new int[32];
         int termCount = 0;
         final Bits delDocs = reader.getDeletedDocs();
+        DocsEnum docsEnum = null;
         do {
           termCount++;
           // System.out.println("  iter termCount=" + termCount + " term=" +
           // enumerator.term().toBytesString());
-          DocsEnum docsEnum = termsEnum.docs(delDocs);
+          docsEnum = termsEnum.docs(delDocs, docsEnum);
           while (true) {
             final int count = docsEnum.read(docs, freqs);
             if (count != 0) {

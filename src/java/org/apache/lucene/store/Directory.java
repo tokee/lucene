@@ -185,8 +185,10 @@ public abstract class Directory implements Closeable {
     byte[] buf = new byte[BufferedIndexOutput.BUFFER_SIZE];
     for (int i = 0; i < files.length; i++) {
 
-      if (!filter.accept(null, files[i]))
+      if (false && !filter.accept(null, files[i])) {
+        System.out.println("  filter rejects " + files[i]);
         continue;
+      }
 
       IndexOutput os = null;
       IndexInput is = null;

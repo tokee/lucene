@@ -17,8 +17,7 @@ package org.apache.lucene.search.spans;
 
 
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.DocsEnum;
-import org.apache.lucene.index.PositionsEnum;
+import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
@@ -30,16 +29,15 @@ import java.util.Collection;
  * Public for extension only
  */
 public class TermSpans extends Spans {
-  protected final DocsEnum docs;
-  protected PositionsEnum positions;
+  protected final DocsAndPositionsEnum postings;
   protected final Term term;
   protected int doc;
   protected int freq;
   protected int count;
   protected int position;
 
-  public TermSpans(DocsEnum docs, Term term) throws IOException {
-    this.docs = docs;
+  public TermSpans(DocsAndPositionsEnum postings, Term term) throws IOException {
+    this.postings = postings;
     this.term = term;
     doc = -1;
   }
@@ -47,37 +45,31 @@ public class TermSpans extends Spans {
   @Override
   public boolean next() throws IOException {
     if (count == freq) {
-      doc = docs.nextDoc();
-      if (doc == DocsEnum.NO_MORE_DOCS) {
+      if (postings == null) {
         return false;
       }
-      freq = docs.freq();
-      positions = docs.positions();
-      if (positions == null) {
-        throw new IllegalStateException("no positions are stored for this field (Field.omitTermFreqAndPositions was used)");
+      doc = postings.nextDoc();
+      if (doc == DocsAndPositionsEnum.NO_MORE_DOCS) {
+        return false;
       }
+      freq = postings.freq();
       count = 0;
     }
-    position = positions.next();
+    position = postings.nextPosition();
     count++;
     return true;
   }
 
   @Override
   public boolean skipTo(int target) throws IOException {
-    doc = docs.advance(target);
-    if (doc == DocsEnum.NO_MORE_DOCS) {
+    doc = postings.advance(target);
+    if (doc == DocsAndPositionsEnum.NO_MORE_DOCS) {
       return false;
     }
 
-    freq = docs.freq();
+    freq = postings.freq();
     count = 0;
-    positions = docs.positions();
-    if (positions == null) {
-      throw new IllegalStateException("no positions are stored for this field (Field.omitTermFreqAndPositions was used)");
-    }
-
-    position = positions.next();
+    position = postings.nextPosition();
     count++;
 
     return true;
@@ -101,7 +93,7 @@ public class TermSpans extends Spans {
   // TODO: Remove warning after API has been finalized
   @Override
   public Collection<byte[]> getPayload() throws IOException {
-    final BytesRef payload = positions.getPayload();
+    final BytesRef payload = postings.getPayload();
     final byte[] bytes;
     if (payload != null) {
       bytes = new byte[payload.length];
@@ -115,7 +107,7 @@ public class TermSpans extends Spans {
   // TODO: Remove warning after API has been finalized
   @Override
   public boolean isPayloadAvailable() {
-    return positions.hasPayload();
+    return postings.hasPayload();
   }
 
   @Override
@@ -124,7 +116,7 @@ public class TermSpans extends Spans {
             (doc == -1 ? "START" : (doc == Integer.MAX_VALUE) ? "END" : doc + "-" + position);
   }
 
-  public PositionsEnum getPositions() {
-    return positions;
+  public DocsAndPositionsEnum getPostings() {
+    return postings;
   }
 }

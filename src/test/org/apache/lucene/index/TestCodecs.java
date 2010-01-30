@@ -50,7 +50,7 @@ public class TestCodecs extends LuceneTestCase {
   private final static int NUM_TEST_ITER = 4000;
   // nocommit
   //private final static int NUM_TEST_THREADS = 3;
-  private final static int NUM_TEST_THREADS = 2;
+  private final static int NUM_TEST_THREADS = 1;
   private final static int NUM_FIELDS = 4;
   private final static int NUM_TERMS_RAND = 50; // must be > 16 to test skipping
   private final static int DOC_FREQ_RAND = 500; // must be > 16 to test skipping
@@ -159,22 +159,21 @@ public class TestCodecs extends LuceneTestCase {
     public void write(TermsConsumer termsConsumer) throws Throwable {
       if (Codec.DEBUG)
         System.out.println("  term=" + text2);
-      final DocsConsumer docsConsumer = termsConsumer.startTerm(text);
+      final PostingsConsumer postingsConsumer = termsConsumer.startTerm(text);
       for(int i=0;i<docs.length;i++) {
         final int termDocFreq;
-        if (field.omitTF)
+        if (field.omitTF) {
           termDocFreq = 0;
-        else
+        } else {
           termDocFreq = positions[i].length;
-        final PositionsConsumer posConsumer = docsConsumer.addDoc(docs[i], termDocFreq);
+        }
+        postingsConsumer.addDoc(docs[i], termDocFreq);
         if (!field.omitTF) {
           for(int j=0;j<positions[i].length;j++) {
             PositionData pos = positions[i][j];
-            posConsumer.add(pos.pos, pos.payload);
+            postingsConsumer.addPosition(pos.pos, pos.payload);
           }
-          posConsumer.finishDoc();
-        } else {
-          assert posConsumer==null;
+          postingsConsumer.finishDoc();
         }
       }
       termsConsumer.finishTerm(text, docs.length);
@@ -361,7 +360,7 @@ public class TestCodecs extends LuceneTestCase {
         assertTrue(doc != DocsEnum.NO_MORE_DOCS);
         assertEquals(docs[i], doc);
         if (doPos) {
-          verifyPositions(positions[i], docsEnum.positions());
+          verifyPositions(positions[i], ((DocsAndPositionsEnum) docsEnum));
         }
       }
       assertEquals(DocsEnum.NO_MORE_DOCS, docsEnum.nextDoc());
@@ -369,9 +368,9 @@ public class TestCodecs extends LuceneTestCase {
 
     byte[] data = new byte[10];
 
-    private void verifyPositions(PositionData[] positions, PositionsEnum posEnum) throws Throwable {
+    private void verifyPositions(PositionData[] positions, DocsAndPositionsEnum posEnum) throws Throwable {
       for(int i=0;i<positions.length;i++) {
-        int pos = posEnum.next();
+        int pos = posEnum.nextPosition();
         if (Codec.DEBUG) {
           System.out.println("TEST pos " + (1+i) + " of " + positions.length + " pos=" + pos);
         }
@@ -379,12 +378,13 @@ public class TestCodecs extends LuceneTestCase {
         if (positions[i].payload != null) {
           assertTrue(posEnum.hasPayload());
           if (nextInt(3) < 2) {
+            // Verify the payload bytes
+            final BytesRef otherPayload = posEnum.getPayload();
             if (Codec.DEBUG) {
-              System.out.println("TEST do check payload len=" + posEnum.getPayloadLength());
+              System.out.println("TEST do check payload len=" + posEnum.getPayloadLength() + " vs " + (otherPayload == null ? "null" : otherPayload.length));
             }
 
-            // Verify the payload bytes
-            assertTrue(positions[i].payload.equals(posEnum.getPayload()));
+            assertTrue("expected=" + positions[i].payload.toBytesString() + " got=" + otherPayload.toBytesString(), positions[i].payload.equals(otherPayload));
           } else {
             if (Codec.DEBUG) {
               System.out.println("TEST skip check payload len=" + posEnum.getPayloadLength());
@@ -432,7 +432,11 @@ public class TestCodecs extends LuceneTestCase {
         TermsEnum.SeekStatus status = termsEnum.seek(new BytesRef(term.text2));
         assertEquals(status, TermsEnum.SeekStatus.FOUND);
         assertEquals(term.docs.length, termsEnum.docFreq());
-        verifyDocs(term.docs, term.positions, termsEnum.docs(null), !field.omitTF);
+        if (field.omitTF) {
+          verifyDocs(term.docs, term.positions, termsEnum.docs(null, null), false);
+        } else {
+          verifyDocs(term.docs, term.positions, termsEnum.docsAndPositions(null, null), true);
+        }
 
         // Test random seek by ord:
         int idx = nextInt(field.terms.length);
@@ -441,7 +445,11 @@ public class TestCodecs extends LuceneTestCase {
         assertEquals(status, TermsEnum.SeekStatus.FOUND);
         assertTrue(termsEnum.term().bytesEquals(new BytesRef(term.text2)));
         assertEquals(term.docs.length, termsEnum.docFreq());
-        verifyDocs(term.docs, term.positions, termsEnum.docs(null), !field.omitTF);
+        if (field.omitTF) {
+          verifyDocs(term.docs, term.positions, termsEnum.docs(null, null), false);
+        } else {
+          verifyDocs(term.docs, term.positions, termsEnum.docsAndPositions(null, null), true);
+        }
 
         // Test seek to non-existent terms:
         if (Codec.DEBUG)
@@ -499,7 +507,15 @@ public class TestCodecs extends LuceneTestCase {
             if (Codec.DEBUG) {
               System.out.println("\nTEST [" + getDesc(field, term) + "]: iterate docs...");
             }
-            DocsEnum docs = termsEnum.docs(null);
+            DocsEnum docs = termsEnum.docs(null, null);
+            DocsAndPositionsEnum postings = termsEnum.docsAndPositions(null, null);
+
+            final DocsEnum docsEnum;
+            if (postings != null) {
+              docsEnum = postings;
+            } else {
+              docsEnum = docs;
+            }
             int upto2 = -1;
             while(upto2 < term.docs.length-1) {
               // Maybe skip:
@@ -512,11 +528,11 @@ public class TestCodecs extends LuceneTestCase {
                   System.out.println("TEST [" + getDesc(field, term) + "]: skip: " + left + " docs left; skip to doc=" + term.docs[upto2] + " [" + upto2 + " of " + term.docs.length + "]");
                 }
 
-                doc = docs.advance(term.docs[upto2]);
+                doc = docsEnum.advance(term.docs[upto2]);
                 // nocommit -- test skipping to non-existent doc
                 assertEquals(term.docs[upto2], doc);
               } else {
-                doc = docs.nextDoc();
+                doc = docsEnum.nextDoc();
                 assertTrue(doc != -1);
                 if (Codec.DEBUG) {
                   System.out.println("TEST [" + getDesc(field, term) + "]: got next doc...");
@@ -525,12 +541,12 @@ public class TestCodecs extends LuceneTestCase {
               }
               assertEquals(term.docs[upto2], doc);
               if (!field.omitTF) {
-                assertEquals(term.positions[upto2].length, docs.freq());
+                assertEquals(term.positions[upto2].length, docsEnum.freq());
                 if (nextInt(2) == 1) {
                   if (Codec.DEBUG) {
                     System.out.println("TEST [" + getDesc(field, term, term.docs[upto2]) + "]: check positions for doc " + term.docs[upto2] + "...");
                   }
-                  verifyPositions(term.positions[upto2], docs.positions());
+                  verifyPositions(term.positions[upto2], postings);
                 } else if (Codec.DEBUG) {
                   System.out.println("TEST: skip positions...");
                 }
@@ -539,7 +555,7 @@ public class TestCodecs extends LuceneTestCase {
               }
             }
 
-            assertEquals(DocsEnum.NO_MORE_DOCS, docs.nextDoc());
+            assertEquals(DocsEnum.NO_MORE_DOCS, docsEnum.nextDoc());
 
           } else if (Codec.DEBUG) {
             System.out.println("\nTEST [" + getDesc(field, term) + "]: skip docs");

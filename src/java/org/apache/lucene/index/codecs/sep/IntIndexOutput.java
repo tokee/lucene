@@ -33,6 +33,7 @@ import java.io.Closeable;
  *
  * @lucene.experimental */
 public abstract class IntIndexOutput implements Closeable {
+
   /** Write an int to the primary file */
   public abstract void write(int v) throws IOException;
 

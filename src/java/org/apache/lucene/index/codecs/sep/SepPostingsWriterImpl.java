@@ -24,15 +24,15 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.PositionsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
+import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.util.BytesRef;
 
 /** Writes frq to .frq, docs to .doc, pos to .pos, payloads
  *  to .pyl, skip data to .skp
  *
  * @lucene.experimental */
-public final class SepDocsWriter extends StandardDocsConsumer {
+public final class SepPostingsWriterImpl extends StandardPostingsWriter {
   final static String CODEC = "SepDocFreqSkip";
 
   // Increment version to change it:
@@ -42,13 +42,17 @@ public final class SepDocsWriter extends StandardDocsConsumer {
   final IntIndexOutput freqOut;
   final IntIndexOutput.Index freqIndex;
 
+  final IntIndexOutput posOut;
+  final IntIndexOutput.Index posIndex;
+
   final IntIndexOutput docOut;
   final IntIndexOutput.Index docIndex;
+
+  final IndexOutput payloadOut;
 
   final IndexOutput skipOut;
   IndexOutput termsOut;
 
-  final SepPositionsWriter posWriter;
   final SepSkipListWriter skipListWriter;
   final int skipInterval;
   final int maxSkipLevels;
@@ -62,26 +66,49 @@ public final class SepDocsWriter extends StandardDocsConsumer {
 
   FieldInfo fieldInfo;
 
-  public SepDocsWriter(SegmentWriteState state, IntStreamFactory factory) throws IOException {
-    super();
+  int lastPayloadLength;
+  int lastPosition;
+  long payloadStart;
+  long lastPayloadStart;
+  int lastDocID;
+  int df;
+  int count;
 
-    final String frqFileName = IndexFileNames.segmentFileName(state.segmentName, SepCodec.FREQ_EXTENSION);
-    state.flushedFiles.add(frqFileName);
-    freqOut = factory.createOutput(state.directory, frqFileName);
-    freqIndex = freqOut.index();
+  public SepPostingsWriterImpl(SegmentWriteState state, IntStreamFactory factory) throws IOException {
+    super();
 
     final String docFileName = IndexFileNames.segmentFileName(state.segmentName, SepCodec.DOC_EXTENSION);
     state.flushedFiles.add(docFileName);
     docOut = factory.createOutput(state.directory, docFileName);
     docIndex = docOut.index();
 
+    if (state.fieldInfos.hasProx()) {
+      final String frqFileName = IndexFileNames.segmentFileName(state.segmentName, SepCodec.FREQ_EXTENSION);
+      state.flushedFiles.add(frqFileName);
+      freqOut = factory.createOutput(state.directory, frqFileName);
+      freqIndex = freqOut.index();
+
+      final String posFileName = IndexFileNames.segmentFileName(state.segmentName, SepCodec.POS_EXTENSION);
+      posOut = factory.createOutput(state.directory, posFileName);
+      state.flushedFiles.add(posFileName);
+      posIndex = posOut.index();
+
+      // nocommit -- only if at least one field stores payloads?
+      final String payloadFileName = IndexFileNames.segmentFileName(state.segmentName, SepCodec.PAYLOAD_EXTENSION);
+      state.flushedFiles.add(payloadFileName);
+      payloadOut = state.directory.createOutput(payloadFileName);
+
+    } else {
+      freqOut = null;
+      freqIndex = null;
+      posOut = null;
+      posIndex = null;
+      payloadOut = null;
+    }
+
     final String skipFileName = IndexFileNames.segmentFileName(state.segmentName, SepCodec.SKIP_EXTENSION);
     state.flushedFiles.add(skipFileName);
     skipOut = state.directory.createOutput(skipFileName);
-
-    if (Codec.DEBUG) {
-      System.out.println("dw.init: create frq=" + frqFileName + " doc=" + docFileName + " skip=" + skipFileName);
-    }
 
     totalNumDocs = state.numDocs;
 
@@ -90,12 +117,10 @@ public final class SepDocsWriter extends StandardDocsConsumer {
                                            state.maxSkipLevels,
                                            state.numDocs,
                                            freqOut, docOut,
-                                           null, null);
+                                           posOut, payloadOut);
 
     skipInterval = state.skipInterval;
     maxSkipLevels = state.maxSkipLevels;
-
-    posWriter = new SepPositionsWriter(state, this, factory);
   }
 
   @Override
@@ -105,17 +130,21 @@ public final class SepDocsWriter extends StandardDocsConsumer {
     // nocommit -- just ask skipper to "start" here
     termsOut.writeInt(skipInterval);                // write skipInterval
     termsOut.writeInt(maxSkipLevels);               // write maxSkipLevels
-    posWriter.start(termsOut);
   }
 
   @Override
   public void startTerm() throws IOException {
+    if (Codec.DEBUG) {
+      Codec.debug("sep.writer.startTerm");
+    }
     docIndex.mark();
     if (!omitTF) {
       freqIndex.mark();
-      posWriter.startTerm();
+      posIndex.mark();
+      payloadStart = payloadOut.getFilePointer();
+      lastPayloadLength = -1;
     }
-    skipListWriter.resetSkip(docIndex, freqIndex, posWriter.posIndex);
+    skipListWriter.resetSkip(docIndex, freqIndex, posIndex);
   }
 
   // nocommit -- should we NOT reuse across fields?  would
@@ -128,19 +157,14 @@ public final class SepDocsWriter extends StandardDocsConsumer {
     this.fieldInfo = fieldInfo;
     omitTF = fieldInfo.omitTermFreqAndPositions;
     skipListWriter.setOmitTF(omitTF);
-    storePayloads = fieldInfo.storePayloads;
-    posWriter.setField(fieldInfo);
+    storePayloads = !omitTF && fieldInfo.storePayloads;
   }
 
-  int lastDocID;
-  int df;
-
-  int count;
 
   /** Adds a new doc in this term.  If this returns null
    *  then we just skip consuming positions/payloads. */
   @Override
-  public PositionsConsumer addDoc(int docID, int termDocFreq) throws IOException {
+  public void addDoc(int docID, int termDocFreq) throws IOException {
 
     final int delta = docID - lastDocID;
 
@@ -153,10 +177,9 @@ public final class SepDocsWriter extends StandardDocsConsumer {
     }
 
     if ((++df % skipInterval) == 0) {
-      // TODO: abstraction violation
       // nocommit -- awkward we have to make these two
       // separate calls to skipper
-      skipListWriter.setSkipData(lastDocID, storePayloads, posWriter.lastPayloadLength);
+      skipListWriter.setSkipData(lastDocID, storePayloads, lastPayloadLength);
       skipListWriter.bufferSkip(df);
 
       if (Codec.DEBUG) {
@@ -164,9 +187,9 @@ public final class SepDocsWriter extends StandardDocsConsumer {
                            " df=" + df +
                            " docFP=" + docOut.descFilePointer() + 
                            " freqFP=" + freqOut.descFilePointer() + 
-                           " posFP=" + posWriter.posOut.descFilePointer() + 
-                           " payloadFP=" + skipListWriter.payloadOutput.getFilePointer() + 
-                           " payloadLen=" + posWriter.lastPayloadLength);
+                           " posFP=" + posOut.descFilePointer() + 
+                           " payloadFP=" + payloadOut.getFilePointer() + 
+                           " payloadLen=" + lastPayloadLength);
       }
     }
 
@@ -175,17 +198,59 @@ public final class SepDocsWriter extends StandardDocsConsumer {
     if (!omitTF) {
       freqOut.write(termDocFreq);
     }
+  }
 
-    // nocommit
+  /** Add a new position & payload */
+  @Override
+  public void addPosition(int position, BytesRef payload) throws IOException {
+    assert !omitTF;
+
     if (Codec.DEBUG) {
-      ((SepPositionsWriter) posWriter).desc = desc + ":" + docID;
+      if (payload != null && payload.length > 0) {
+        System.out.println("pw.addPos [" + desc + "]: pos=" + position + " posFP=" + posOut.descFilePointer() + " payloadFP=" + payloadOut.getFilePointer() + " payload=" + payload.length + " bytes");
+      } else {
+        System.out.println("pw.addPos [" + desc + "]: pos=" + position + " posFP=" + posOut.descFilePointer() + " payloadFP=" + payloadOut.getFilePointer());
+      }
     }
 
-    if (omitTF) {
-      return null;
+    final int delta = position - lastPosition;
+    lastPosition = position;
+
+    if (storePayloads) {
+      final int payloadLength = payload == null ? 0 : payload.length;
+      if (Codec.DEBUG) {
+        System.out.println("  store payload len=" + payloadLength);
+      }
+      if (payloadLength != lastPayloadLength) {
+        if (Codec.DEBUG) {
+          System.out.println("  payload len change old=" + lastPayloadLength + " new=" + payloadLength);
+        }
+        lastPayloadLength = payloadLength;
+        // TODO: explore whether we get better compression
+        // by not storing payloadLength into prox stream?
+        posOut.write((delta<<1)|1);
+        posOut.write(payloadLength);
+      } else {
+        posOut.write(delta << 1);
+      }
+
+      if (payloadLength > 0) {
+        if (Codec.DEBUG) {
+          System.out.println("  write @ payloadFP=" + payloadOut.getFilePointer());
+        }
+        payloadOut.writeBytes(payload.bytes, payload.offset, payloadLength);
+      }
     } else {
-      return posWriter;
+      posOut.write(delta);
     }
+
+    lastPosition = position;
+  }
+
+  /** Called when we are done adding positions & payloads */
+  @Override
+  public void finishDoc() {       
+    lastPosition = 0;
   }
 
   /** Called when we are done adding docs to this term */
@@ -200,6 +265,8 @@ public final class SepDocsWriter extends StandardDocsConsumer {
       System.out.println("dw.finishTerm termsFP=" + termsOut.getFilePointer() + " df=" + df + " skipPos=" + skipPos);
     }
 
+    // nocommit -- only do this if once (consolidate the
+    // conditional things that are written)
     if (!omitTF) {
       freqIndex.write(termsOut, isIndexTerm);
     }
@@ -222,7 +289,14 @@ public final class SepDocsWriter extends StandardDocsConsumer {
     }
 
     if (!omitTF) {
-      posWriter.finishTerm(isIndexTerm);
+      posIndex.write(termsOut, isIndexTerm);
+      if (isIndexTerm) {
+        // Write absolute at seek points
+        termsOut.writeVLong(payloadStart);
+      } else {
+        termsOut.writeVLong(payloadStart-lastPayloadStart);
+      }
+      lastPayloadStart = payloadStart;
     }
 
     lastDocID = 0;
@@ -234,18 +308,25 @@ public final class SepDocsWriter extends StandardDocsConsumer {
 
   @Override
   public void close() throws IOException {
-    if (Codec.DEBUG)
-      System.out.println("dw.close skipFP=" + skipOut.getFilePointer());
+    if (Codec.DEBUG) {
+      System.out.println("sep.writer.close skipFP=" + skipOut.getFilePointer());
+    }
     try {
-      freqOut.close();
+      docOut.close();
     } finally {
       try {
-        docOut.close();
+        skipOut.close();
       } finally {
-        try {
-          skipOut.close();
-        } finally {
-          posWriter.close();
+        if (freqOut != null) {
+          try {
+            freqOut.close();
+          } finally {
+            try {
+              posOut.close();
+            } finally {
+              payloadOut.close();
+            }
+          }
         }
       }
     }

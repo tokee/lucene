@@ -22,8 +22,10 @@ import java.io.IOException;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.AttributeSource;
 
-/** On obtaining a DocsEnum, you must first call next() */
-
+/** Iterates through the documents, term freq and positions.
+ *  NOTE: you must first call {@link #next}.
+ *
+ *  @lucene.experimental */
 public abstract class DocsEnum extends DocIdSetIterator {
 
   private AttributeSource atts = null;
@@ -31,16 +33,18 @@ public abstract class DocsEnum extends DocIdSetIterator {
   // nocommit
   public String desc;
 
+  /** Returns term frequency in the current document.  Do
+   *  not call this before {@link #next} is first called,
+   *  nor after {@link #next} returns NO_MORE_DOCS. */
   public abstract int freq();
   
-  /**
-   * Returns the related attributes.
-   */
+  /** Returns the related attributes. */
   public AttributeSource attributes() {
     if (atts == null) atts = new AttributeSource();
     return atts;
   }
-  
+
+  // nocommit -- bulk read makes no sense w/ positions enum..
   // nocommit -- state in API that doc/freq are undefined
   // (defined?) after this?
   // nocommit -- fix this API so that intblock codecs are
@@ -64,12 +68,4 @@ public abstract class DocsEnum extends DocIdSetIterator {
     }
     return count;
   }
-
-  /** Don't call next() or skipTo() or read() until you're
-   *  done consuming the positions.  NOTE: this method may
-   *  return null, if the index contains no positional
-   *  information for this document.  The standard codec
-   *  (default) does this today when the field was indexed
-   *  with {@link Field#setOmitTermFreqAndPositions}. */
-  public abstract PositionsEnum positions() throws IOException;
 }

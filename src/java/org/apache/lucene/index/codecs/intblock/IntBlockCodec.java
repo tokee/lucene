@@ -27,16 +27,17 @@ import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.index.codecs.sep.SepCodec;
-import org.apache.lucene.index.codecs.sep.SepDocsReader;
-import org.apache.lucene.index.codecs.sep.SepDocsWriter;
+import org.apache.lucene.index.codecs.sep.SepPostingsReaderImpl;
+import org.apache.lucene.index.codecs.sep.SepPostingsWriterImpl;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.SimpleStandardTermsIndexWriter;
-import org.apache.lucene.index.codecs.standard.StandardDocsConsumer;
-import org.apache.lucene.index.codecs.standard.StandardDocsProducer;
+import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
+import org.apache.lucene.index.codecs.standard.StandardPostingsReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsDictWriter;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexReader;
 import org.apache.lucene.index.codecs.standard.StandardTermsIndexWriter;
+import org.apache.lucene.index.codecs.standard.StandardCodec;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 
@@ -51,7 +52,7 @@ public class IntBlockCodec extends Codec {
 
   @Override
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
-    StandardDocsConsumer docsWriter = new SepDocsWriter(state, new SimpleIntBlockFactory(1024));
+    StandardPostingsWriter postingsWriter = new SepPostingsWriterImpl(state, new SimpleIntBlockFactory(1024));
 
     boolean success = false;
     StandardTermsIndexWriter indexWriter;
@@ -60,19 +61,19 @@ public class IntBlockCodec extends Codec {
       success = true;
     } finally {
       if (!success) {
-        docsWriter.close();
+        postingsWriter.close();
       }
     }
 
     success = false;
     try {
-      FieldsConsumer ret = new StandardTermsDictWriter(indexWriter, state, docsWriter, BytesRef.getUTF8SortedAsUTF16Comparator());
+      FieldsConsumer ret = new StandardTermsDictWriter(indexWriter, state, postingsWriter, BytesRef.getUTF8SortedAsUTF16Comparator());
       success = true;
       return ret;
     } finally {
       if (!success) {
         try {
-          docsWriter.close();
+          postingsWriter.close();
         } finally {
           indexWriter.close();
         }
@@ -82,7 +83,7 @@ public class IntBlockCodec extends Codec {
 
   @Override
   public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
-    StandardDocsProducer docsReader = new SepDocsReader(dir, si, readBufferSize, new SimpleIntBlockFactory(1024));
+    StandardPostingsReader postingsReader = new SepPostingsReaderImpl(dir, si, readBufferSize, new SimpleIntBlockFactory(1024));
 
     StandardTermsIndexReader indexReader;
     boolean success = false;
@@ -95,7 +96,7 @@ public class IntBlockCodec extends Codec {
       success = true;
     } finally {
       if (!success) {
-        docsReader.close();
+        postingsReader.close();
       }
     }
 
@@ -103,15 +104,16 @@ public class IntBlockCodec extends Codec {
     try {
       FieldsProducer ret = new StandardTermsDictReader(indexReader,
                                                        dir, fieldInfos, si.name,
-                                                       docsReader,
+                                                       postingsReader,
                                                        readBufferSize,
-                                                       BytesRef.getUTF8SortedAsUTF16Comparator());
+                                                       BytesRef.getUTF8SortedAsUTF16Comparator(),
+                                                       StandardCodec.TERMS_CACHE_SIZE);
       success = true;
       return ret;
     } finally {
       if (!success) {
         try {
-          docsReader.close();
+          postingsReader.close();
         } finally {
           indexReader.close();
         }
@@ -121,7 +123,7 @@ public class IntBlockCodec extends Codec {
 
   @Override
   public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) {
-    SepDocsReader.files(segmentInfo, files);
+    SepPostingsReaderImpl.files(segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }

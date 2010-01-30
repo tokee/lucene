@@ -81,9 +81,10 @@ public class SpanTermQuery extends SpanQuery {
 
   @Override
   public Spans getSpans(final IndexReader reader) throws IOException {
-    return new TermSpans(reader.termDocsEnum(reader.getDeletedDocs(),
-                                             term.field(),
-                                             new BytesRef(term.text())), term);
+    return new TermSpans(reader.termPositionsEnum(reader.getDeletedDocs(),
+                                                  term.field(),
+                                                  new BytesRef(term.text())),
+                         term);
   }
 
 }

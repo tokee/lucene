@@ -108,7 +108,7 @@ public class TestLazyProxSkipping extends LuceneTestCase {
         
         // check if the number of calls of seek() does not exceed the number of hits
         assertTrue(this.seeksCounter > 0);
-        assertTrue(this.seeksCounter <= numHits + 1);
+        assertTrue("seeksCounter=" + this.seeksCounter + " numHits=" + numHits, this.seeksCounter <= numHits + 1);
     }
     
     public void testLazySkipping() throws IOException {

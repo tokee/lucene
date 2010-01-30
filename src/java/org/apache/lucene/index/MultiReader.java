@@ -40,6 +40,7 @@ import org.apache.lucene.util.BytesRef;
 public class MultiReader extends IndexReader implements Cloneable {
   protected IndexReader[] subReaders;
   private int[] starts;                           // 1st docno for each segment
+  private final Map<IndexReader,Integer> subReaderToDocBase = new HashMap<IndexReader,Integer>();
   private boolean[] decrefOnClose;                // remember which subreaders to decRef on close
   private Map<String,byte[]> normsCache = new HashMap<String,byte[]>();
   private int maxDoc = 0;
@@ -93,6 +94,7 @@ public class MultiReader extends IndexReader implements Cloneable {
         hasDeletions = true;
       }
       subs[i] = subReaders[i].getDeletedDocs();
+      subReaderToDocBase.put(subReaders[i], Integer.valueOf(starts[i]));
     }
 
     starts[subReaders.length] = maxDoc;
@@ -102,6 +104,11 @@ public class MultiReader extends IndexReader implements Cloneable {
       deletedDocs = null;
     }
     fields = new MultiFields(subReaders, starts);
+  }
+
+  @Override
+  public int getSubReaderDocBase(IndexReader subReader) {
+    return subReaderToDocBase.get(subReader).intValue();
   }
 
   @Override
