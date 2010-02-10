@@ -73,15 +73,14 @@ public class AutomatonQuery extends MultiTermQuery {
   protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
     // matches nothing
     if (BasicOperations.isEmpty(automaton)) {
-      // nocommit -- should we just return null?  singleton?
-      return new EmptyTermsEnum();
+      return TermsEnum.EMPTY;
     }
     
     // matches all possible strings
     if (BasicOperations.isTotal(automaton)) {
       final Terms terms = MultiFields.getTerms(reader, getField());
       // nocommit -- should we just return null?  singleton?
-      return (terms != null) ? terms.iterator() : new EmptyTermsEnum();
+      return (terms != null) ? terms.iterator() : TermsEnum.EMPTY;
     }
     
     // matches a fixed string in singleton representation

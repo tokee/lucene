@@ -304,7 +304,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
   protected TermsEnum getTermsEnum(final IndexReader reader) throws IOException {
     // very strange: java.lang.Number itsself is not Comparable, but all subclasses used here are
     return (min != null && max != null && ((Comparable<T>) min).compareTo(max) > 0) ?
-      new EmptyTermsEnum() :
+      TermsEnum.EMPTY :
       new NumericRangeTermsEnum(reader);
   }
 

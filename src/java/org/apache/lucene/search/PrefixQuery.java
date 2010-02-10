@@ -53,7 +53,7 @@ public class PrefixQuery extends MultiTermQuery {
   protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
     if (prefix.text().length() == 0) {
       final Terms terms = MultiFields.getTerms(reader, getField());
-      return (terms != null) ? terms.iterator() : new EmptyTermsEnum();
+      return (terms != null) ? terms.iterator() : TermsEnum.EMPTY;
     }
     return new PrefixTermsEnum(reader, prefix);
   }

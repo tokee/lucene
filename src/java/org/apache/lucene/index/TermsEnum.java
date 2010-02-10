@@ -112,4 +112,40 @@ public abstract class TermsEnum {
    *  method many times, so it's best to cache a single
    *  instance & reuse it. */
   public abstract BytesRef.Comparator getComparator() throws IOException;
+
+  /** An empty TermsEnum for quickly returning an empty instance e.g.
+   * in {@link org.apache.lucene.search.MultiTermQuery} */
+  public static final TermsEnum EMPTY = new TermsEnum() {    
+    @Override
+    public SeekStatus seek(BytesRef term) { return SeekStatus.END; }
+    
+    @Override
+    public SeekStatus seek(long ord) { return SeekStatus.END; }
+    
+    @Override
+    public BytesRef term() { return null; }
+
+    @Override
+    public BytesRef.Comparator getComparator() {
+      // return an unused dummy to prevent NPE
+      return BytesRef.getUTF8SortedAsUTF16Comparator();
+    }
+      
+    @Override
+    public int docFreq() { return -1; }
+      
+    @Override
+    public long ord() { return -1; }
+
+    @Override
+    public DocsEnum docs(Bits bits, DocsEnum reuse) { return null; }
+      
+    @Override
+    public DocsAndPositionsEnum docsAndPositions(Bits bits, DocsAndPositionsEnum reuse) {
+      return null;
+    }
+      
+    @Override
+    public BytesRef next() { return null; }
+  };
 }

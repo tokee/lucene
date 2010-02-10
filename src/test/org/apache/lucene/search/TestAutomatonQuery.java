@@ -25,6 +25,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.Version;
@@ -218,7 +219,7 @@ public class TestAutomatonQuery extends LuceneTestCase {
         .makeEmpty());
     // not yet available: assertTrue(aq.getEnum(searcher.getIndexReader())
     // instanceof EmptyTermEnum);
-    assertTrue(aq.getTermsEnum(searcher.getIndexReader()) instanceof EmptyTermsEnum);
+    assertSame(TermsEnum.EMPTY, aq.getTermsEnum(searcher.getIndexReader()));
     assertEquals(0, automatonQueryNrHits(aq));
   }
 }

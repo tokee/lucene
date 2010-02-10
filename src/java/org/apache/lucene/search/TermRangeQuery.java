@@ -138,13 +138,13 @@ public class TermRangeQuery extends MultiTermQuery {
   @Override
   protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
     if (collator == null && lowerTerm != null && upperTerm != null && lowerTerm.compareTo(upperTerm) > 0) {
-      return new EmptyTermsEnum();
+      return TermsEnum.EMPTY;
     }
     if ((lowerTerm == null || (collator == null && includeLower && "".equals(lowerTerm))) && upperTerm == null) {
       // NOTE: debateably, the caller should never pass in a
       // multi reader...
       final Terms terms = MultiFields.getTerms(reader, field);
-      return (terms != null) ? terms.iterator() : new EmptyTermsEnum();
+      return (terms != null) ? terms.iterator() : TermsEnum.EMPTY;
     }
     return new TermRangeTermsEnum(reader, field,
         lowerTerm, upperTerm, includeLower, includeUpper, collator);
