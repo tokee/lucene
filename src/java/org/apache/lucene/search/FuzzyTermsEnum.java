@@ -20,6 +20,7 @@ package org.apache.lucene.search;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.UnicodeUtil;
 
 import java.io.IOException;
 
@@ -43,9 +44,8 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
    */
   private int[][] d;
 
-  private Term searchTerm;
-  private final String text;
-  private final String prefix;
+  private final char[] text;
+  private final int prefixLen;
 
   private final float minimumSimilarity;
   private final float scale_factor;
@@ -53,39 +53,7 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
   
   private final MultiTermQuery.BoostAttribute boostAtt =
     attributes().addAttribute(MultiTermQuery.BoostAttribute.class);
-
-  // nocommit -- remove some of these ctors:
-  /**
-   * Creates a FuzzyTermEnum with an empty prefix and a minSimilarity of 0.5f.
-   * <p>
-   * After calling the constructor the enumeration is already pointing to the first 
-   * valid term if such a term exists. 
-   * 
-   * @param reader
-   * @param term
-   * @throws IOException
-   * @see #FuzzyTermEnum(IndexReader, Term, float, int)
-   */
-  public FuzzyTermsEnum(IndexReader reader, Term term) throws IOException {
-    this(reader, term, FuzzyQuery.defaultMinSimilarity, FuzzyQuery.defaultPrefixLength);
-  }
-    
-  /**
-   * Creates a FuzzyTermEnum with an empty prefix.
-   * <p>
-   * After calling the constructor the enumeration is already pointing to the first 
-   * valid term if such a term exists. 
-   * 
-   * @param reader
-   * @param term
-   * @param minSimilarity
-   * @throws IOException
-   * @see #FuzzyTermEnum(IndexReader, Term, float, int)
-   */
-  public FuzzyTermsEnum(IndexReader reader, Term term, float minSimilarity) throws IOException {
-    this(reader, term, minSimilarity, FuzzyQuery.defaultPrefixLength);
-  }
-    
+   
   /**
    * Constructor for enumeration of all terms from specified <code>reader</code> which share a prefix of
    * length <code>prefixLength</code> with <code>term</code> and which have a fuzzy similarity &gt;
@@ -112,16 +80,16 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
 
     this.minimumSimilarity = minSimilarity;
     this.scale_factor = 1.0f / (1.0f - minimumSimilarity);
-    this.searchTerm = term;
 
     //The prefix could be longer than the word.
     //It's kind of silly though.  It means we must match the entire word.
-    final int fullSearchTermLength = searchTerm.text().length();
+    final int fullSearchTermLength = term.text().length();
     final int realPrefixLength = prefixLength > fullSearchTermLength ? fullSearchTermLength : prefixLength;
 
-    this.text = searchTerm.text().substring(realPrefixLength);
-    this.prefix = searchTerm.text().substring(0, realPrefixLength);
+    this.text = term.text().substring(realPrefixLength).toCharArray();
+    final String prefix = term.text().substring(0, realPrefixLength);
     prefixBytesRef = new BytesRef(prefix);
+    prefixLen = prefix.length();
     initializeMaxDistances();
     this.d = initDistanceArray();
 
@@ -129,7 +97,9 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
   }
 
   private final BytesRef prefixBytesRef;
-
+  // used for unicode conversion from BytesRef byte[] to char[]
+  private final UnicodeUtil.UTF16Result utf16 = new UnicodeUtil.UTF16Result();
+  
   /**
    * The termCompare method in FuzzyTermEnum uses Levenshtein distance to 
    * calculate the distance between the given term and the comparing term. 
@@ -137,9 +107,8 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
   @Override
   protected final AcceptStatus accept(BytesRef term) {
     if (term.startsWith(prefixBytesRef)) {
-      // TODO: costly that we create intermediate String:
-      final String target = term.toString().substring(prefix.length());
-      final float similarity = similarity(target);
+      UnicodeUtil.UTF8toUTF16(term.bytes, term.offset, term.length, utf16);
+      final float similarity = similarity(utf16.result, prefixLen, utf16.length - prefixLen);
       if (similarity > minimumSimilarity) {
         boostAtt.setBoost((float)((similarity - minimumSimilarity) * scale_factor));
         return AcceptStatus.YES;
@@ -162,7 +131,7 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
   }
 
   private final int[][] initDistanceArray(){
-    return new int[this.text.length() + 1][TYPICAL_LONGEST_WORD_IN_INDEX];
+    return new int[this.text.length + 1][TYPICAL_LONGEST_WORD_IN_INDEX];
   }
 
   /**
@@ -202,16 +171,16 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
    * @return the similarity,  0.0 or less indicates that it matches less than the required
    * threshold and 1.0 indicates that the text and target are identical
    */
-  private synchronized final float similarity(final String target) {
-    final int m = target.length();
-    final int n = text.length();
+  private final float similarity(final char[] target, int offset, int length) {
+    final int m = length;
+    final int n = text.length;
     if (n == 0)  {
       //we don't have anything to compare.  That means if we just add
       //the letters for m we get the new word
-      return prefix.length() == 0 ? 0.0f : 1.0f - ((float) m / prefix.length());
+      return prefixLen == 0 ? 0.0f : 1.0f - ((float) m / prefixLen);
     }
     if (m == 0) {
-      return prefix.length() == 0 ? 0.0f : 1.0f - ((float) n / prefix.length());
+      return prefixLen == 0 ? 0.0f : 1.0f - ((float) n / prefixLen);
     }
 
     final int maxDistance = getMaxDistance(m);
@@ -239,9 +208,9 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
     // start computing edit distance
     for (int i = 1; i <= n; i++) {
       int bestPossibleEditDistance = m;
-      final char s_i = text.charAt(i - 1);
+      final char s_i = text[i - 1];
       for (int j = 1; j <= m; j++) {
-        if (s_i != target.charAt(j-1)) {
+        if (s_i != target[offset+j-1]) {
             d[i][j] = min(d[i-1][j], d[i][j-1], d[i-1][j-1])+1;
         }
         else {
@@ -266,7 +235,7 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
     // but this was the formula that was previously used in FuzzyTermEnum,
     // so it has not been changed (even though minimumSimilarity must be
     // greater than 0.0)
-    return 1.0f - ((float)d[n][m] / (float) (prefix.length() + Math.min(n, m)));
+    return 1.0f - ((float)d[n][m] / (float) (prefixLen + Math.min(n, m)));
   }
 
   /**
@@ -297,6 +266,6 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
   }
   
   private int calculateMaxDistance(int m) {
-    return (int) ((1-minimumSimilarity) * (Math.min(text.length(), m) + prefix.length()));
+    return (int) ((1-minimumSimilarity) * (Math.min(text.length, m) + prefixLen));
   }
 }
