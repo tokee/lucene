@@ -44,7 +44,6 @@ public abstract class DocsEnum extends DocIdSetIterator {
     return atts;
   }
 
-  // nocommit -- bulk read makes no sense w/ positions enum..
   // nocommit -- state in API that doc/freq are undefined
   // (defined?) after this?
   // nocommit -- fix this API so that intblock codecs are
