@@ -1670,7 +1670,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
       }
     }
 
-    @Override
     public int read(int[] docs, int[] freqs) throws IOException {
       throw new UnsupportedOperationException("TermPositions does not support processing multiple documents in one call. Use TermDocs instead.");
     }
