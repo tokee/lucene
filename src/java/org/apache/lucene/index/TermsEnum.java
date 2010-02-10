@@ -114,7 +114,12 @@ public abstract class TermsEnum {
   public abstract BytesRef.Comparator getComparator() throws IOException;
 
   /** An empty TermsEnum for quickly returning an empty instance e.g.
-   * in {@link org.apache.lucene.search.MultiTermQuery} */
+   * in {@link org.apache.lucene.search.MultiTermQuery}
+   * <p><em>Please note:</em> This enum should be unmodifiable,
+   * but it is currently possible to add Attributes to it.
+   * This should not be a problem, as the enum is always empty and
+   * the existence of unused Attributes does not matter.
+   */
   public static final TermsEnum EMPTY = new TermsEnum() {    
     @Override
     public SeekStatus seek(BytesRef term) { return SeekStatus.END; }
@@ -147,5 +152,10 @@ public abstract class TermsEnum {
       
     @Override
     public BytesRef next() { return null; }
+    
+    @Override // make it synchronized here, to prevent double lazy init
+    public synchronized AttributeSource attributes() {
+      return super.attributes();
+    }
   };
 }

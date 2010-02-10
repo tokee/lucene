@@ -176,10 +176,12 @@ public abstract class MultiTermQuery extends Query {
     protected final int collectTerms(IndexReader reader, MultiTermQuery query, TermCollector collector) throws IOException {
       final TermsEnum termsEnum = query.getTermsEnum(reader);
       if (termsEnum != null) {
-        final BoostAttribute boostAtt =
-          termsEnum.attributes().addAttribute(BoostAttribute.class);
         if (query.field == null)
           throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
+        if (termsEnum == TermsEnum.EMPTY)
+          return 0;
+        final BoostAttribute boostAtt =
+          termsEnum.attributes().addAttribute(BoostAttribute.class);
         collector.boostAtt = boostAtt;
         int count = 0;
         BytesRef term;
