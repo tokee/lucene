@@ -21,6 +21,7 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiFields;
 
 import java.io.IOException;
 
@@ -57,7 +58,7 @@ public class SrndPrefixQuery extends SimpleTerm {
     MatchingTermVisitor mtv) throws IOException
   {
     /* inspired by PrefixQuery.rewrite(): */
-    Terms terms = reader.fields().terms(fieldName);
+    Terms terms = MultiFields.getTerms(reader, fieldName);
     boolean expanded = false;
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();

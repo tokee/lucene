@@ -31,12 +31,6 @@ public abstract class PostingsConsumer {
 
   // nocommit
   public String desc;
-  /*
-  public boolean setDesc(String desc) {
-    this.desc = desc;
-    return true;
-  }
-  */
 
   // nocommit -- rename to startDoc?
   /** Adds a new doc in this term.  Return null if this
@@ -63,67 +57,42 @@ public abstract class PostingsConsumer {
 
   /** Default merge impl: append documents, mapping around
    *  deletes */
-  public int merge(MergeState mergeState, PostingsMergeState[] toMerge, int count) throws IOException {
+  public int merge(MergeState mergeState, DocsEnum postings) throws IOException {
 
     int df = 0;
 
-    // Append docs in order:
-    for(int i=0;i<count;i++) {
-      final DocsEnum docsEnum = toMerge[i].docsEnum;
-      final int[] docMap = toMerge[i].docMap;
-      final int base = toMerge[i].docBase;
-
-      final DocsAndPositionsEnum postingsEnum;
-
-      if (!mergeState.omitTermFreqAndPositions) {
-        postingsEnum = (DocsAndPositionsEnum) docsEnum;
-      } else {
-        postingsEnum = null;
-      }
-
+    if (mergeState.fieldInfo.omitTermFreqAndPositions) {
       while(true) {
-        final int startDoc = docsEnum.nextDoc();
-        if (startDoc == DocsAndPositionsEnum.NO_MORE_DOCS) {
+        final int doc = postings.nextDoc();
+        if (doc == DocsAndPositionsEnum.NO_MORE_DOCS) {
           break;
         }
+        addDoc(doc, postings.freq());
         df++;
-
-        int doc;
-        if (docMap != null) {
-          // map around deletions
-          doc = docMap[startDoc];
-          assert doc != -1: "docs enum returned deleted docID " + startDoc + " freq=" + docsEnum.freq() + " df=" + df + " de=" + docsEnum;
-        } else {
-          doc = startDoc;
+      }
+    } else {
+      final DocsAndPositionsEnum postingsEnum = (DocsAndPositionsEnum) postings;
+      while(true) {
+        final int doc = postingsEnum.nextDoc();
+        if (doc == DocsAndPositionsEnum.NO_MORE_DOCS) {
+          break;
         }
-
-        doc += base;                              // convert to merged space
-        assert doc < mergeState.mergedDocCount: "doc=" + doc + " maxDoc=" + mergeState.mergedDocCount;
-
-        final int freq = docsEnum.freq();
-
+        final int freq = postingsEnum.freq();
         addDoc(doc, freq);
-
-        // nocommit -- omitTF should be "private", and this
-        // code (and FreqProxTermsWriter) should instead
-        // check if posConsumer is null?
-        if (!mergeState.omitTermFreqAndPositions) {
-          for(int j=0;j<freq;j++) {
-            final int position = postingsEnum.nextPosition();
-            final int payloadLength = postingsEnum.getPayloadLength();
-            final BytesRef payload;
-            if (payloadLength > 0) {
-              payload = postingsEnum.getPayload();
-            } else {
-              payload = null;
-            }
-            addPosition(position, payload);
+        for(int i=0;i<freq;i++) {
+          final int position = postingsEnum.nextPosition();
+          final int payloadLength = postingsEnum.getPayloadLength();
+          final BytesRef payload;
+          if (payloadLength > 0) {
+            payload = postingsEnum.getPayload();
+          } else {
+            payload = null;
           }
-          finishDoc();
+          addPosition(position, payload);
         }
+        df++;
       }
     }
-
     return df;
   }
 }

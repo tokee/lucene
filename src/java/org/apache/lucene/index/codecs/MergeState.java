@@ -20,6 +20,7 @@ package org.apache.lucene.index.codecs;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.util.Bits;
 import java.util.List;
 
 /** Holds common state used during segment merging
@@ -34,9 +35,9 @@ public class MergeState {
   public int[] delCounts;                         // Deletion count per reader
   public int[] docBase;                           // New docID base per reader
   public int mergedDocCount;                      // Total # merged docs
+  public Bits multiDeletedDocs;
 
   // Updated per field;
   public FieldInfo fieldInfo;
-  public boolean omitTermFreqAndPositions;
 }
 

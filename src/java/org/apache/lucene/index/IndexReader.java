@@ -882,7 +882,17 @@ public abstract class IndexReader implements Cloneable,Closeable {
   @Deprecated
   public abstract TermEnum terms() throws IOException;
 
-  // Default impl emulates new API using old one
+  /** Flex API: returns {@link Fields} for this reader.
+   *  This may return  null if there are no fields.
+   *
+   * <p><b>NOTE</b>: if this is a multi reader ({@link
+   * #getSequentialSubReaders} is not null) then this
+   * method will throw UnsupportedOperationException.  If
+   * you really need a {@link Fields} for such a reader,
+   * use {@link MultiFields#getFields}.  However, for
+   * performance reasons, it's best to get all sub-readers
+   * using {@link ReaderUtil#gatherSubReaders} and iterate
+   * through them yourself. */
   public Fields fields() throws IOException {
     return new LegacyFields(this);
   }
@@ -940,6 +950,15 @@ public abstract class IndexReader implements Cloneable,Closeable {
     return termDocs;
   }
 
+  public Terms terms(String field) throws IOException {
+    final Fields fields = fields();
+    if (fields != null) {
+      return fields.terms(field);
+    } else {
+      return null;
+    }
+  }
+
   /** Returns {@link DocsEnum} for the specified field &
    *  term.  This may return null, for example if either the
    *  field or term does not exist. */
@@ -947,24 +966,22 @@ public abstract class IndexReader implements Cloneable,Closeable {
 
     assert field != null;
     assert term != null;
-
-    final Terms terms = fields().terms(field);
-    if (terms != null) {
-      if (Codec.DEBUG) {
-        System.out.println("ir.termDocsEnum field=" + field + " term=" + term + " terms=" + terms + " this=" + this);
-      }
-      final DocsEnum docs = terms.docs(skipDocs, term, null);
-      if (Codec.DEBUG) {
-        System.out.println("ir.termDocsEnum field=" + field + " docs=" +docs);
-      }
-      if (docs != null) {
+    final Fields fields = fields();
+    if (fields != null) {
+      final Terms terms = fields.terms(field);
+      if (terms != null) {
+        if (Codec.DEBUG) {
+          System.out.println("ir.termDocsEnum field=" + field + " term=" + term + " terms=" + terms + " this=" + this);
+        }
+        final DocsEnum docs = terms.docs(skipDocs, term, null);
+        if (Codec.DEBUG) {
+          System.out.println("ir.termDocsEnum field=" + field + " docs=" +docs);
+        }
         return docs;
-      } else {
-        return null;
       }
-    } else {
-      return null;
     }
+
+    return null;
   }
 
   /** Returns {@link DocsAndPositionsEnum} for the specified
@@ -975,19 +992,22 @@ public abstract class IndexReader implements Cloneable,Closeable {
     assert field != null;
     assert term != null;
 
-    final Terms terms = fields().terms(field);
-    if (terms != null) {
-      if (Codec.DEBUG) {
-        System.out.println("ir.termPositionsEnum field=" + field + " term=" + term + " terms=" + terms + " this=" + this);
+    final Fields fields = fields();
+    if (fields != null) {
+      final Terms terms = fields.terms(field);
+      if (terms != null) {
+        if (Codec.DEBUG) {
+          System.out.println("ir.termPositionsEnum field=" + field + " term=" + term + " terms=" + terms + " this=" + this);
+        }
+        final DocsAndPositionsEnum postings = terms.docsAndPositions(skipDocs, term, null);
+        if (Codec.DEBUG) {
+          System.out.println("ir.termPositionsEnum field=" + field + " postings=" +postings);
+        }
+        return postings;
       }
-      final DocsAndPositionsEnum postings = terms.docsAndPositions(skipDocs, term, null);
-      if (Codec.DEBUG) {
-        System.out.println("ir.termPositionsEnum field=" + field + " postings=" +postings);
-      }
-      return postings;
-    } else {
-      return null;
     }
+
+    return null;
   }
 
   /** Returns an unpositioned {@link TermDocs} enumerator.
@@ -1166,9 +1186,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * @throws IOException if there is a low-level IO error
    */
   public final synchronized void commit(Map<String, String> commitUserData) throws IOException {
-    if (hasChanges) {
-      doCommit(commitUserData);
-    }
+    doCommit(commitUserData);
     hasChanges = false;
   }
 
@@ -1208,6 +1226,9 @@ public abstract class IndexReader implements Cloneable,Closeable {
   private final class DeletedDocsBits implements Bits {
     public boolean get(int docID) {
       return isDeleted(docID);
+    }
+    public int length() {
+      return maxDoc();
     }
   }
 
@@ -1408,5 +1429,18 @@ public abstract class IndexReader implements Cloneable,Closeable {
    */
   public int getTermInfosIndexDivisor() {
     throw new UnsupportedOperationException("This reader does not support this method.");
+  }
+
+
+  private Fields fields;
+
+  /** lucene.experimental */
+  public void storeFields(Fields fields) {
+    this.fields = fields;
+  }
+
+  /** lucene.experimental */
+  public Fields retrieveFields() {
+    return fields;
   }
 }

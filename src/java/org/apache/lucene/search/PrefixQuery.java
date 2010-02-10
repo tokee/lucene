@@ -23,6 +23,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.ToStringUtils;
 
 /** A Query that matches documents containing terms with a specified prefix. A PrefixQuery
@@ -51,7 +52,7 @@ public class PrefixQuery extends MultiTermQuery {
   @Override  
   protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
     if (prefix.text().length() == 0) {
-      final Terms terms = reader.fields().terms(getField());
+      final Terms terms = MultiFields.getTerms(reader, getField());
       return (terms != null) ? terms.iterator() : new EmptyTermsEnum();
     }
     return new PrefixTermsEnum(reader, prefix);

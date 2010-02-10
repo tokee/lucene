@@ -170,6 +170,8 @@ public class MultiPassIndexSplitter {
    * list of deletions.
    */
   public static class FakeDeleteIndexReader extends FilterIndexReader {
+    // nocommit -- implement flex api here
+
     OpenBitSet dels;
     OpenBitSet oldDels = null;
 
@@ -210,6 +212,11 @@ public class MultiPassIndexSplitter {
     @Override
     public boolean hasDeletions() {
       return !dels.isEmpty();
+    }
+
+    @Override
+    public IndexReader[] getSequentialSubReaders() {
+      return null;
     }
 
     @Override

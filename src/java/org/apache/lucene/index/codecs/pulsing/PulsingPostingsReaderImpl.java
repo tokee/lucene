@@ -22,13 +22,11 @@ import java.io.IOException;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.DocsAndPositionsEnum;
-import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.standard.TermState;
 import org.apache.lucene.index.codecs.standard.StandardPostingsReader;
 import org.apache.lucene.index.codecs.pulsing.PulsingPostingsWriterImpl.Document;
 import org.apache.lucene.index.codecs.pulsing.PulsingPostingsWriterImpl.Position;
-import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
@@ -197,7 +195,8 @@ public class PulsingPostingsReaderImpl extends StandardPostingsReader {
     }
   }
 
-  // nocommit -- not great that we can't always reuse
+  // TODO: we could actually reuse, by having TL that
+  // holds the last wrapped reuse, and vice-versa
   @Override
   public DocsEnum docs(FieldInfo field, TermState _termState, Bits skipDocs, DocsEnum reuse) throws IOException {
     PulsingTermState termState = (PulsingTermState) _termState;

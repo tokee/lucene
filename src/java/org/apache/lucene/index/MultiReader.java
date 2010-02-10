@@ -25,29 +25,29 @@ import java.util.Map;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
-import org.apache.lucene.index.DirectoryReader.MultiBits;
-import org.apache.lucene.index.DirectoryReader.MultiFields;
-import org.apache.lucene.index.DirectoryReader.MultiTermDocs;
-import org.apache.lucene.index.DirectoryReader.MultiTermEnum;
-import org.apache.lucene.index.DirectoryReader.MultiTermPositions;
+import org.apache.lucene.index.DirectoryReader.MultiTermDocs;       // deprecated
+import org.apache.lucene.index.DirectoryReader.MultiTermEnum;       // deprecated
+import org.apache.lucene.index.DirectoryReader.MultiTermPositions;  // deprecated
 import org.apache.lucene.search.Similarity;
-import org.apache.lucene.util.Bits;
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
+import org.apache.lucene.util.MultiBits;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.ReaderUtil;
 
 /** An IndexReader which reads multiple indexes, appending
- * their content. */
+ *  their content. */
 public class MultiReader extends IndexReader implements Cloneable {
   protected IndexReader[] subReaders;
   private int[] starts;                           // 1st docno for each segment
-  private final Map<IndexReader,Integer> subReaderToDocBase = new HashMap<IndexReader,Integer>();
+  private final Map<IndexReader,ReaderUtil.Slice> subReaderToSlice = new HashMap<IndexReader,ReaderUtil.Slice>();
   private boolean[] decrefOnClose;                // remember which subreaders to decRef on close
   private Map<String,byte[]> normsCache = new HashMap<String,byte[]>();
   private int maxDoc = 0;
   private int numDocs = -1;
   private boolean hasDeletions = false;
   private MultiBits deletedDocs;
-  private MultiFields fields;
+  //private Fields fields;
   
  /**
   * <p>Construct a MultiReader aggregating the named set of (sub)readers.
@@ -79,6 +79,7 @@ public class MultiReader extends IndexReader implements Cloneable {
     starts = new int[subReaders.length + 1];    // build starts array
     decrefOnClose = new boolean[subReaders.length];
     Bits[] subs = new Bits[subReaders.length];
+
     for (int i = 0; i < subReaders.length; i++) {
       starts[i] = maxDoc;
       maxDoc += subReaders[i].maxDoc();      // compute maxDocs
@@ -94,7 +95,11 @@ public class MultiReader extends IndexReader implements Cloneable {
         hasDeletions = true;
       }
       subs[i] = subReaders[i].getDeletedDocs();
-      subReaderToDocBase.put(subReaders[i], Integer.valueOf(starts[i]));
+
+      final ReaderUtil.Slice slice = new ReaderUtil.Slice(starts[i],
+                                                          subReaders[i].maxDoc(),
+                                                          i);
+      subReaderToSlice.put(subReaders[i], slice);
     }
 
     starts[subReaders.length] = maxDoc;
@@ -103,22 +108,16 @@ public class MultiReader extends IndexReader implements Cloneable {
     } else {
       deletedDocs = null;
     }
-    fields = new MultiFields(subReaders, starts);
   }
 
   @Override
   public int getSubReaderDocBase(IndexReader subReader) {
-    return subReaderToDocBase.get(subReader).intValue();
+    return subReaderToSlice.get(subReader).start;
   }
 
   @Override
   public Fields fields() throws IOException {
-    if (subReaders.length == 1) {
-      // Optimize the single reader case
-      return subReaders[0].fields();
-    } else {
-      return fields;
-    }
+    throw new UnsupportedOperationException("please use MultiFields.getFields if you really need a top level Fields for this reader");
   }
 
   /**

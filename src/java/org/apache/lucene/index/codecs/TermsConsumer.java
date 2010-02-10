@@ -20,8 +20,9 @@ package org.apache.lucene.index.codecs;
 import java.io.IOException;
 
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.index.DocsEnum;
-import org.apache.lucene.util.PriorityQueue;
+import org.apache.lucene.index.MultiDocsEnum;
+import org.apache.lucene.index.MultiDocsAndPositionsEnum;
+
 import org.apache.lucene.util.BytesRef;
 
 /**
@@ -43,109 +44,46 @@ public abstract class TermsConsumer {
    *  before feeding to this API. */
   public abstract BytesRef.Comparator getComparator() throws IOException;
 
-  // For default merge impl
-  public static class TermMergeState {
-    BytesRef current;
-    TermsEnum termsEnum;
-    int readerIndex;
-  }
-
-  private final static class MergeQueue extends PriorityQueue<TermMergeState> {
-
-    final BytesRef.Comparator termComp;
-
-    public MergeQueue(int size, BytesRef.Comparator termComp) {
-      initialize(size);
-      this.termComp = termComp;
-    }
-
-    @Override
-    protected final boolean lessThan(TermMergeState a, TermMergeState b) {
-      final int cmp = termComp.compare(a.current, b.current);
-      if (cmp != 0) {
-        return cmp < 0;
-      } else {
-        return a.readerIndex < b.readerIndex;
-      }
-    }
-  }
-
-  private MergeQueue queue;
-  private PostingsConsumer.PostingsMergeState[] match;
-  private TermMergeState[] pending;
-
   /** Default merge impl */
-  public void merge(MergeState mergeState, TermMergeState[] termsStates, int count) throws IOException {
+  private MappingMultiDocsEnum docsEnum = null;
+  private MappingMultiDocsAndPositionsEnum postingsEnum = null;
 
-    final BytesRef.Comparator termComp = getComparator();
+  public void merge(MergeState mergeState, TermsEnum termsEnum) throws IOException {
 
-    //System.out.println("merge terms field=" + mergeState.fieldInfo.name + " comp=" + termComp);
+    BytesRef term;
 
-    if (queue == null) {
-      queue = new MergeQueue(mergeState.readerCount, termComp);
-      match = new PostingsConsumer.PostingsMergeState[mergeState.readerCount];
-      for(int i=0;i<mergeState.readerCount;i++) {
-        match[i] = new PostingsConsumer.PostingsMergeState();
+    if (mergeState.fieldInfo.omitTermFreqAndPositions) {
+      if (docsEnum == null) {
+        docsEnum = new MappingMultiDocsEnum();
       }
-      pending = new TermMergeState[mergeState.readerCount];
-    } else if (!queue.termComp.equals(termComp)) {
-      queue = new MergeQueue(mergeState.readerCount, termComp);
-    }
+      docsEnum.setMergeState(mergeState);
 
-    // Init queue
-    for(int i=0;i<count;i++) {
-      TermMergeState state = termsStates[i];
-      state.current = state.termsEnum.next();
-      if (state.current != null) {
-        queue.add(state);
-      } else {
-        // no terms at all in this field
-      }
-    }
+      MultiDocsEnum docsEnumIn = null;
 
-    while(queue.size() != 0) {
-
-      int matchCount = 0;
-      int pendingCount = 0;
-
-      while(true) {
-        TermMergeState state = pending[pendingCount++] = queue.pop();
-        
-        DocsEnum docsEnum = state.termsEnum.docsAndPositions(mergeState.readers.get(state.readerIndex).getDeletedDocs(), null);
-        if (docsEnum == null) {
-          docsEnum = state.termsEnum.docs(mergeState.readers.get(state.readerIndex).getDeletedDocs(), null);
-        }
-        if (docsEnum != null) {
-          match[matchCount].docsEnum = docsEnum;
-          match[matchCount].docMap = mergeState.docMaps[state.readerIndex];
-          match[matchCount].docBase = mergeState.docBase[state.readerIndex];
-          matchCount++;
-        }
-        TermMergeState top = queue.top();
-        if (top == null || !top.current.bytesEquals(pending[0].current)) {
-          break;
+      while((term = termsEnum.next()) != null) {
+        MultiDocsEnum docsEnumIn2 = (MultiDocsEnum) termsEnum.docs(mergeState.multiDeletedDocs, docsEnumIn);
+        if (docsEnumIn2 != null) {
+          docsEnumIn = docsEnumIn2;
+          docsEnum.reset(docsEnumIn);
+          final PostingsConsumer postingsConsumer = startTerm(term);
+          final int numDocs = postingsConsumer.merge(mergeState, docsEnum);
+          finishTerm(term, numDocs);
         }
       }
-
-      if (matchCount > 0) {
-        // Merge one term
-        final BytesRef term = pending[0].current;
-        //System.out.println("  merge term=" + term);
-        final PostingsConsumer postingsConsumer = startTerm(term);
-        final int numDocs = postingsConsumer.merge(mergeState, match, matchCount);
-        finishTerm(term, numDocs);
+    } else {
+      if (postingsEnum == null) {
+        postingsEnum = new MappingMultiDocsAndPositionsEnum();
       }
-
-      // Put terms back into queue
-      for(int i=0;i<pendingCount;i++) {
-        TermMergeState state = pending[i];
-        
-        state.current = state.termsEnum.next();
-        if (state.current != null) {
-          // More terms to merge
-          queue.add(state);
-        } else {
-          // Done
+      postingsEnum.setMergeState(mergeState);
+      MultiDocsAndPositionsEnum postingsEnumIn = null;
+      while((term = termsEnum.next()) != null) {
+        MultiDocsAndPositionsEnum postingsEnumIn2 = (MultiDocsAndPositionsEnum) termsEnum.docsAndPositions(mergeState.multiDeletedDocs, postingsEnumIn);
+        if (postingsEnumIn2 != null) {
+          postingsEnumIn = postingsEnumIn2;
+          postingsEnum.reset(postingsEnumIn);
+          final PostingsConsumer postingsConsumer = startTerm(term);
+          final int numDocs = postingsConsumer.merge(mergeState, postingsEnum);
+          finishTerm(term, numDocs);
         }
       }
     }

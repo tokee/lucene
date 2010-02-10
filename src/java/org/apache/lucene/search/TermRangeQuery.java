@@ -23,6 +23,7 @@ import java.text.Collator;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.ToStringUtils;
 
 /**
@@ -140,7 +141,9 @@ public class TermRangeQuery extends MultiTermQuery {
       return new EmptyTermsEnum();
     }
     if ((lowerTerm == null || (collator == null && includeLower && "".equals(lowerTerm))) && upperTerm == null) {
-      final Terms terms = reader.fields().terms(field);
+      // NOTE: debateably, the caller should never pass in a
+      // multi reader...
+      final Terms terms = MultiFields.getTerms(reader, field);
       return (terms != null) ? terms.iterator() : new EmptyTermsEnum();
     }
     return new TermRangeTermsEnum(reader, field,

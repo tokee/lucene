@@ -18,6 +18,7 @@ package org.apache.lucene.search.spans;
 
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.DocsAndPositionsEnum;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
@@ -40,6 +41,12 @@ public class TermSpans extends Spans {
     this.postings = postings;
     this.term = term;
     doc = -1;
+  }
+
+  // only for EmptyTermSpans (below)
+  TermSpans() {
+    term = null;
+    postings = null;
   }
 
   @Override
@@ -119,4 +126,44 @@ public class TermSpans extends Spans {
   public DocsAndPositionsEnum getPostings() {
     return postings;
   }
+
+  private static final class EmptyTermSpans extends TermSpans {
+
+    @Override
+    public boolean next() {
+      return false;
+    }
+
+    @Override
+    public boolean skipTo(int target) {
+      return false;
+    }
+
+    @Override
+    public int doc() {
+      return DocIdSetIterator.NO_MORE_DOCS;
+    }
+    
+    @Override
+    public int start() {
+      return -1;
+    }
+
+    @Override
+    public int end() {
+      return -1;
+    }
+
+    @Override
+    public Collection<byte[]> getPayload() {
+      return null;
+    }
+
+    @Override
+    public boolean isPayloadAvailable() {
+      return false;
+    }
+  }
+
+  public static final TermSpans EMPTY_TERM_SPANS = new EmptyTermSpans();
 }

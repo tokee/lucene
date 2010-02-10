@@ -1,4 +1,4 @@
-package org.apache.lucene.index;
+package org.apache.lucene.util;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -17,20 +17,30 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import java.io.IOException;
+/** Exposes a slice of an existing Bits as a new Bits. */
 
-/** Access to fields and terms
- *  @lucene.experimental */
+public final class BitsSlice implements Bits {
+  private final Bits parent;
+  private final int start;
+  private final int length;
 
-public abstract class Fields {
+  // start is inclusive; end is exclusive (length = end-start)
+  public BitsSlice(Bits parent, ReaderUtil.Slice slice) {
+    this.parent = parent;
+    this.start = slice.start;
+    this.length = slice.length;
+    assert length >= 0: "length=" + length;
+  }
+    
+  public boolean get(int doc) {
+    if (doc >= length) {
+      throw new RuntimeException("doc " + doc + " is out of bounds 0 .. " + (length-1));
+    }
+    assert doc < length: "doc=" + doc + " length=" + length;
+    return parent.get(doc+start);
+  }
 
-  public final static Fields[] EMPTY_ARRAY = new Fields[0];
-
-  /** Returns an iterator that will step through all fields
-   *  names */
-  public abstract FieldsEnum iterator() throws IOException;
-
-  /** Get the {@link Terms} for this field */
-  public abstract Terms terms(String field) throws IOException;
+  public int length() {
+    return length;
+  }
 }
-

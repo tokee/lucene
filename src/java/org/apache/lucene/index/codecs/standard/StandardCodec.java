@@ -40,6 +40,8 @@ public class StandardCodec extends Codec {
   public FieldsConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
     StandardPostingsWriter docs = new StandardPostingsWriterImpl(state);
 
+    // nocommit -- how to gracefully upgrade to a new terms
+    // index impl?  could just make a new named codec...
     StandardTermsIndexWriter indexWriter;
     boolean success = false;
     try {
@@ -74,8 +76,6 @@ public class StandardCodec extends Codec {
     StandardPostingsReader postings = new StandardPostingsReaderImpl(dir, si, readBufferSize);
     StandardTermsIndexReader indexReader;
 
-    // nocommit -- not clean that every codec must deal w/
-    // this... dup'd code
     boolean success = false;
     try {
       indexReader = new SimpleStandardTermsIndexReader(dir,

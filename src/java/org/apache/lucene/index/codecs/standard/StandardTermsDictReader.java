@@ -359,6 +359,9 @@ public class StandardTermsDictReader extends FieldsProducer {
           }
         }
 
+        // Useed only for assert:
+        final int startOrd;
+
         if (doSeek) {
 
           // As index to find biggest index term that's <=
@@ -379,15 +382,20 @@ public class StandardTermsDictReader extends FieldsProducer {
           // scanning over an index term we'd have to
           // special case it:
           bytesReader.reset(indexResult.term);
-
+          
           state.ord = (int) indexResult.position-1;
           assert state.ord >= -1: "ord=" + state.ord;
+
+          startOrd = (int) indexResult.position;
 
           if (Codec.DEBUG) {
             Codec.debug("  set ord=" + state.ord);
           }
-        } else if (Codec.DEBUG) {
-          Codec.debug(": use scanning only (no seek)");
+        } else {
+          startOrd = -1;
+          if (Codec.DEBUG) {
+            Codec.debug(": use scanning only (no seek)");
+          }
         }
 
         // Now scan:
@@ -421,8 +429,12 @@ public class StandardTermsDictReader extends FieldsProducer {
             return SeekStatus.NOT_FOUND;
           }
 
-          // nocommit -- put back assert that we don't cross
-          // another index term while scanning, here
+          // The purpose of the terms dict index is to seek
+          // the enum to the closest index term before the
+          // term we are looking for.  So, we should never
+          // cross another index term (besides the first
+          // one) while we are scanning:
+          assert state.ord == startOrd || !indexReader.isIndexTerm(state.ord, state.docFreq);
         }
 
         if (Codec.DEBUG) {
@@ -509,6 +521,12 @@ public class StandardTermsDictReader extends FieldsProducer {
         // a "how many terms until next index entry" in each
         // index entry, but that'd require some tricky
         // lookahead work when writing the index
+
+        // nocommit -- this call to isIndexTerm is not
+        // right, when indexDivisor > 1?  ie, this will
+        // return false for entries that actually are index
+        // terms, and then the postings impl will read the
+        // wrong offset.  make a test...
         postingsReader.readTerm(in,
                                 fieldInfo, state,
                                 indexReader.isIndexTerm(1+state.ord, state.docFreq));

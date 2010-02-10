@@ -147,7 +147,6 @@ public class ParallelReader extends IndexReader {
     String currentField;
     IndexReader currentReader;
     Iterator<String> keys;
-    private final HashMap<String, IndexReader> readerFields = new HashMap<String, IndexReader>();
 
     ParallelFieldsEnum() {
       keys = fieldToReader.keySet().iterator();
@@ -168,7 +167,7 @@ public class ParallelReader extends IndexReader {
     @Override
     public TermsEnum terms() throws IOException {
       assert currentReader != null;
-      Terms terms = currentReader.fields().terms(currentField);
+      Terms terms = MultiFields.getTerms(currentReader, currentField);
       if (terms != null) {
         return terms.iterator();
       } else {
@@ -182,7 +181,7 @@ public class ParallelReader extends IndexReader {
     final HashMap<String,Terms> fields = new HashMap<String,Terms>();
 
     public void addField(String field, IndexReader r) throws IOException {
-      fields.put(field, r.fields().terms(field));
+      fields.put(field, MultiFields.getFields(r).terms(field));
     }
 
     @Override

@@ -102,7 +102,7 @@ public class TermVectorAccessor {
 
     final Bits delDocs = indexReader.getDeletedDocs();
 
-    Terms terms = indexReader.fields().terms(field);
+    Terms terms = MultiFields.getTerms(indexReader, field);
     boolean anyTerms = false;
     if (terms != null) {
       TermsEnum termsEnum = terms.iterator();

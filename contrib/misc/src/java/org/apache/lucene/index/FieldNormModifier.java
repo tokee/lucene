@@ -19,12 +19,15 @@ package org.apache.lucene.index;
 import java.io.IOException;
 import java.io.File;
 import java.util.Date;
+import java.util.List;
+import java.util.ArrayList;
 
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.ReaderUtil;
 
 /**
  * Given a directory and a list of fields, updates the fieldNorms in place for every document.
@@ -105,43 +108,46 @@ public class FieldNormModifier {
    */
   public void reSetNorms(String field) throws IOException {
     String fieldName = StringHelper.intern(field);
-    int[] termCounts = new int[0];
-    byte[] fakeNorms = new byte[0];
     
     IndexReader reader = null;
     try {
-      reader = IndexReader.open(dir, true);
-      final Bits delDocs = reader.getDeletedDocs();
+      reader = IndexReader.open(dir, false);
 
-        termCounts = new int[reader.maxDoc()];
-        Terms terms = reader.fields().terms(field);
-        if (terms != null) {
-          TermsEnum termsEnum = terms.iterator();
-          DocsEnum docs = null;
-          while(termsEnum.next() != null) {
-            docs = termsEnum.docs(delDocs, docs);
-            while(true) {
-              int docID = docs.nextDoc();
-              if (docID != docs.NO_MORE_DOCS) {
-                termCounts[docID] += docs.freq();
-              } else {
-                break;
+      final List<IndexReader> subReaders = new ArrayList<IndexReader>();
+      ReaderUtil.gatherSubReaders(subReaders, reader);
+
+      for(IndexReader subReader : subReaders) {
+        final Bits delDocs = subReader.getDeletedDocs();
+
+        int[] termCounts = new int[subReader.maxDoc()];
+        Fields fields = subReader.fields();
+        if (fields != null) {
+          Terms terms = fields.terms(field);
+          if (terms != null) {
+            TermsEnum termsEnum = terms.iterator();
+            DocsEnum docs = null;
+            while(termsEnum.next() != null) {
+              docs = termsEnum.docs(delDocs, docs);
+              while(true) {
+                int docID = docs.nextDoc();
+                if (docID != docs.NO_MORE_DOCS) {
+                  termCounts[docID] += docs.freq();
+                } else {
+                  break;
+                }
               }
             }
           }
         }
-    } finally {
-      if (null != reader) reader.close();
-    }
-    
-    try {
-      reader = IndexReader.open(dir, false); 
-      for (int d = 0; d < termCounts.length; d++) {
-        if (! reader.isDeleted(d)) {
-          if (sim == null)
-            reader.setNorm(d, fieldName, fakeNorms[0]);
-          else
-            reader.setNorm(d, fieldName, sim.encodeNormValue(sim.lengthNorm(fieldName, termCounts[d])));
+
+        for (int d = 0; d < termCounts.length; d++) {
+          if (delDocs == null || !delDocs.get(d)) {
+            if (sim == null) {
+              subReader.setNorm(d, fieldName, Similarity.encodeNorm(1.0f));
+            } else {
+              subReader.setNorm(d, fieldName, sim.encodeNormValue(sim.lengthNorm(fieldName, termCounts[d])));
+            }
+          }
         }
       }
       

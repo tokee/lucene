@@ -23,6 +23,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.ToStringUtils;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.BasicAutomata;
@@ -72,12 +73,14 @@ public class AutomatonQuery extends MultiTermQuery {
   protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
     // matches nothing
     if (BasicOperations.isEmpty(automaton)) {
+      // nocommit -- should we just return null?  singleton?
       return new EmptyTermsEnum();
     }
     
     // matches all possible strings
     if (BasicOperations.isTotal(automaton)) {
-      final Terms terms = reader.fields().terms(getField());
+      final Terms terms = MultiFields.getTerms(reader, getField());
+      // nocommit -- should we just return null?  singleton?
       return (terms != null) ? terms.iterator() : new EmptyTermsEnum();
     }
     

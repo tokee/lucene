@@ -19,4 +19,5 @@ package org.apache.lucene.util;
 
 public interface Bits {
   public boolean get(int index);
+  public int length();
 }

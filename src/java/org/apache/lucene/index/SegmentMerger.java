@@ -34,6 +34,8 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.ReaderUtil;
+import org.apache.lucene.util.MultiBits;
 
 /**
  * The SegmentMerger class combines two or more Segments, represented by an IndexReader ({@link #add},
@@ -586,10 +588,22 @@ final class SegmentMerger {
     // the new segment:
     codec = codecs.getWriter(state);
     
+    int docBase = 0;
+
+    final List<Fields> fields = new ArrayList<Fields>();
+    final List<IndexReader> subReaders = new ArrayList<IndexReader>();
+    final List<ReaderUtil.Slice> slices = new ArrayList<ReaderUtil.Slice>();
+
+    final int numReaders = readers.size();
+    for(int i=0;i<numReaders;i++) {
+      docBase = ReaderUtil.gatherSubFields(subReaders, fields, slices, readers.get(i), docBase);
+    }
+
+    // we may gather more readers than mergeState.readerCount
     mergeState = new MergeState();
-    mergeState.readers = readers;
+    mergeState.readers = subReaders;
+    mergeState.readerCount = subReaders.size();
     mergeState.fieldInfos = fieldInfos;
-    mergeState.readerCount = readers.size();
     mergeState.mergedDocCount = mergedDocs;
     
     // Remap docIDs
@@ -597,12 +611,23 @@ final class SegmentMerger {
     mergeState.docMaps = new int[mergeState.readerCount][];
     mergeState.docBase = new int[mergeState.readerCount];
 
-    int docBase = 0;
+    docBase = 0;
+    int inputDocBase = 0;
+
+    final Bits[] subBits = new Bits[mergeState.readerCount];
+    final int[] starts = new int[mergeState.readerCount+1];
+
     for(int i=0;i<mergeState.readerCount;i++) {
-      final IndexReader reader = readers.get(i);
+
+      final IndexReader reader = subReaders.get(i);
+
+      starts[i] = inputDocBase;
+      subBits[i] = reader.getDeletedDocs();
+
       mergeState.delCounts[i] = reader.numDeletedDocs();
       mergeState.docBase[i] = docBase;
       docBase += reader.numDocs();
+      inputDocBase += reader.maxDoc();
       if (mergeState.delCounts[i] != 0) {
         int delCount = 0;
         Bits deletedDocs = reader.getDeletedDocs();
@@ -620,16 +645,16 @@ final class SegmentMerger {
         assert delCount == mergeState.delCounts[i]: "reader delCount=" + mergeState.delCounts[i] + " vs recomputed delCount=" + delCount;
       }
     }
-
-    Fields[] fields = new Fields[mergeState.readerCount];
-    for(int i=0;i<mergeState.readerCount;i++) {
-      fields[i] = readers.get(i).fields();
-    }
+    starts[mergeState.readerCount] = inputDocBase;
 
     final FieldsConsumer consumer = codec.fieldsConsumer(state);
 
+    mergeState.multiDeletedDocs = new MultiBits(subBits, starts);
+    
     try {
-      consumer.merge(mergeState, fields);
+      consumer.merge(mergeState,
+                     new MultiFields(fields.toArray(Fields.EMPTY_ARRAY),
+                                     slices.toArray(ReaderUtil.Slice.EMPTY_ARRAY)));
     } finally {
       consumer.close();
     }

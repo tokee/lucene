@@ -28,6 +28,8 @@ import org.apache.lucene.util.AttributeSource;
 
 public abstract class FieldsEnum {
 
+  public final static FieldsEnum[] EMPTY_ARRAY = new FieldsEnum[0];
+
   private AttributeSource atts = null;
 
   /**

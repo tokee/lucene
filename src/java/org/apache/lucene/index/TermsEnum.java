@@ -57,6 +57,7 @@ public abstract class TermsEnum {
    *  indicate whether exact term was found, a different
    *  term was found, or EOF was hit.  The target term may
    *  be befor or after the current term. */
+  // nocommit -- add boolean doCache?
   public abstract SeekStatus seek(BytesRef text) throws IOException;
 
   /** Seeks to the specified term by ordinal (position) as

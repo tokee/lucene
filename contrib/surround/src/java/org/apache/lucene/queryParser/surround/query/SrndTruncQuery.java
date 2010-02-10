@@ -21,6 +21,7 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiFields;
 
 import java.io.IOException;
 
@@ -89,7 +90,7 @@ public class SrndTruncQuery extends SimpleTerm {
   {
     boolean expanded = false;
     int prefixLength = prefix.length();
-    Terms terms = reader.fields().terms(fieldName);
+    Terms terms = MultiFields.getTerms(reader, fieldName);
     if (terms != null) {
       Matcher matcher = pattern.matcher("");
       try {

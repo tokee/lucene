@@ -116,8 +116,9 @@ final class DocInverterPerField extends DocFieldConsumerPerField {
               reader = readerValue;
             else {
               String stringValue = field.stringValue();
-              if (stringValue == null)
+              if (stringValue == null) {
                 throw new IllegalArgumentException("field must have either TokenStream, String or Reader value");
+              }
               perThread.stringReader.init(stringValue);
               reader = perThread.stringReader;
             }
@@ -132,8 +133,6 @@ final class DocInverterPerField extends DocFieldConsumerPerField {
           final int startLength = fieldState.length;
           
           try {
-            int offsetEnd = fieldState.offset-1;
-            
             boolean hasMoreTokens = stream.incrementToken();
 
             fieldState.attributeSource = stream;
@@ -178,7 +177,6 @@ final class DocInverterPerField extends DocFieldConsumerPerField {
                   docState.docWriter.setAborting();
               }
               fieldState.position++;
-              offsetEnd = fieldState.offset + offsetAttribute.endOffset();
               if (++fieldState.length >= maxFieldLength) {
                 if (docState.infoStream != null)
                   docState.infoStream.println("maxFieldLength " +maxFieldLength+ " reached for field " + fieldInfo.name + ", ignoring following tokens");

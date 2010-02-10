@@ -670,7 +670,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
       String fullPath = fullDir(oldNames[i]);
       Directory dir = FSDirectory.open(new File(fullPath));
       IndexReader r = IndexReader.open(dir);
-      TermsEnum terms = r.fields().terms("content").iterator();
+      TermsEnum terms = MultiFields.getFields(r).terms("content").iterator();
       BytesRef t = terms.next();
       assertNotNull(t);
 

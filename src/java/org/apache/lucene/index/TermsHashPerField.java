@@ -412,7 +412,6 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
           // can be inserted into the analyzer chain if
           // other behavior is wanted (pruning the term
           // to a prefix, throwing an exception, etc).
-
           if (docState.maxTermPrefix == null) {
             docState.maxTermPrefix = new String(tokenText, 0, 30);
           }

@@ -22,6 +22,7 @@ import java.util.Set;
 
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.Explanation.IDFExplanation;
@@ -72,7 +73,9 @@ public class TermQuery extends Query {
 
     @Override
     public Scorer scorer(IndexReader reader, boolean scoreDocsInOrder, boolean topScorer) throws IOException {
-      DocsEnum docs = reader.termDocsEnum(reader.getDeletedDocs(), term.field(), new BytesRef(term.text()));
+      // NOTE: debateably, the caller should never pass in a
+      // multi reader...
+      DocsEnum docs = MultiFields.getTermDocsEnum(reader, reader.getDeletedDocs(), term.field(), new BytesRef(term.text()));
       if (docs == null) {
         return null;
       }

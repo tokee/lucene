@@ -24,6 +24,7 @@ import java.util.Iterator;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.StringHelper;
 
 import java.io.*;
@@ -58,7 +59,7 @@ public class LuceneDictionary implements Dictionary {
 
     LuceneIterator() {
       try {
-        Terms terms = reader.fields().terms(field);
+        final Terms terms = MultiFields.getTerms(reader, field);
         if (terms != null) {
           termsEnum = terms.iterator();
           pendingTerm = termsEnum.next();

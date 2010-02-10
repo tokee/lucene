@@ -4685,7 +4685,7 @@ public class TestIndexWriter extends LuceneTestCase {
   }
 
   private void checkTermsOrder(IndexReader r, Set<String> allTerms, boolean isTop) throws IOException {
-    TermsEnum terms = r.fields().terms("f").iterator();
+    TermsEnum terms = MultiFields.getFields(r).terms("f").iterator();
 
     char[] last = new char[2];
     int lastLength = 0;

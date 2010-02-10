@@ -28,6 +28,7 @@ import java.util.WeakHashMap;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Bits;
@@ -280,7 +281,7 @@ class FieldCacheImpl implements FieldCache {
         return wrapper.getBytes(reader, field, FieldCache.DEFAULT_BYTE_PARSER);
       }
       final byte[] retArray = new byte[reader.maxDoc()];
-      Terms terms = reader.fields().terms(field);
+      Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
@@ -334,7 +335,7 @@ class FieldCacheImpl implements FieldCache {
         return wrapper.getShorts(reader, field, FieldCache.DEFAULT_SHORT_PARSER);
       }
       final short[] retArray = new short[reader.maxDoc()];
-      Terms terms = reader.fields().terms(field);
+      Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
@@ -393,7 +394,7 @@ class FieldCacheImpl implements FieldCache {
       }
       int[] retArray = null;
 
-      Terms terms = reader.fields().terms(field);
+      Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
@@ -465,7 +466,7 @@ class FieldCacheImpl implements FieldCache {
       }
       float[] retArray = null;
 
-      Terms terms = reader.fields().terms(field);
+      Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
@@ -532,7 +533,8 @@ class FieldCacheImpl implements FieldCache {
         }
       }
       long[] retArray = null;
-      Terms terms = reader.fields().terms(field);
+
+      Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
@@ -601,7 +603,8 @@ class FieldCacheImpl implements FieldCache {
         }
       }
       double[] retArray = null;
-      Terms terms = reader.fields().terms(field);
+
+      Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
@@ -653,7 +656,7 @@ class FieldCacheImpl implements FieldCache {
       String field = StringHelper.intern(entryKey.field);
       final String[] retArray = new String[reader.maxDoc()];
 
-      Terms terms = reader.fields().terms(field);
+      Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
         final Bits delDocs = reader.getDeletedDocs();
@@ -697,7 +700,7 @@ class FieldCacheImpl implements FieldCache {
       String[] mterms = new String[reader.maxDoc()+1];
 
       //System.out.println("FC: getStringIndex field=" + field);
-      Terms terms = reader.fields().terms(field);
+      Terms terms = MultiFields.getTerms(reader, field);
 
       int t = 0;  // current term number
 

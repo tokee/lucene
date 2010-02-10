@@ -846,7 +846,7 @@ public class TestExternalCodecs extends LuceneTestCase {
 
     // Verify sort order matches what my comparator said:
     BytesRef lastBytesRef = null;
-    TermsEnum terms = r.fields().terms("id").iterator();
+    TermsEnum terms = MultiFields.getFields(r).terms("id").iterator();
     //System.out.println("id terms:");
     while(true) {
       BytesRef t = terms.next();

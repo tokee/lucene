@@ -24,6 +24,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.util.ArrayUtil;
 
 import java.util.HashMap;
@@ -62,8 +63,10 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
   private int indexDivisor;
   final private int indexInterval;
 
+  // Closed if indexLoaded is true:
   final private IndexInput in;
   private volatile boolean indexLoaded;
+
   private final BytesRef.Comparator termComp;
 
   final HashMap<FieldInfo,FieldIndexReader> fields = new HashMap<FieldInfo,FieldIndexReader>();
@@ -128,7 +131,6 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         }
       } else {
         this.in = in;
-        // nocommit -- we should close if index gets read on demand?
       }
     }
   }
@@ -139,17 +141,10 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
    * usage of SegmentReader searching a tiny segment. */
   private final void trimByteBlock() {
     if (blockOffset == 0) {
-      // nocommit -- should not happen?  fields w/ no terms
-      // are not written by STDW.  hmmm it does
-      // happen... must explain why -- oh, could be only
-      // on exception; I added only calling this on
-      // success above
-      //assert false;
-      // nocommit -- hit AIOOBE here (blocks is length 0):
+      // There were no fields in this segment:
       if (blocks != null) {
         blocks[blockUpto] = null;
       }
-      //System.out.println("Simple terms index consumed no bytes! blockCount=" + blocks.length);
     } else {
       byte[] last = new byte[blockOffset];
       System.arraycopy(blocks[blockUpto], 0, last, 0, blockOffset);
@@ -157,7 +152,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     }
   }
 
-  // nocommit -- we can record precisely how many bytes are
+  // TODO: we can record precisely how many bytes are
   // required during indexing, save that into file, and be
   // precise when we allocate the blocks; we even don't need
   // to use blocks anymore (though my still want to, to
@@ -170,13 +165,17 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
   int blockUpto;
   int blockOffset;
 
-  // nocommit -- is this big enough, given max allowed term
-  // size (measured in chars!!) ?
-  // nocommit -- or, we could allocate one block way to big,
-  // to accommodate such ridiculous terms
   private static final int BYTE_BLOCK_SHIFT = 15;
   private static final int BYTE_BLOCK_SIZE = 1 << BYTE_BLOCK_SHIFT;
   private static final int BYTE_BLOCK_MASK = BYTE_BLOCK_SIZE - 1;
+
+  static {
+    // Make sure DW can't ever write a term whose length
+    // cannot be encoded with short (because we use short[]
+    // to hold the length of each term).
+    assert IndexWriter.MAX_TERM_LENGTH < Short.MAX_VALUE;
+    assert BYTE_BLOCK_SIZE >= IndexWriter.MAX_TERM_LENGTH;
+  }
 
   private final class FieldIndexReader extends FieldReader {
 
@@ -270,14 +269,13 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       // precise # bits
       final long[] blockPointer;
     
-      // Length of each term
-      // nocommit -- this is length in bytes; is short
-      // sufficient?  have to use negative space?
       // TODO: used packed ints here: we know max term
       // length; often its small
 
       // TODO: can we inline this w/ the bytes?  like
       // DW.  vast majority of terms only need 1 byte, not 2
+
+      // Length of each term
       final short[] termLength;
 
       final int numIndexTerms;
@@ -292,9 +290,6 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
           // IndexWriter because a SegmentReader that at
           // first was opened for merging, is now being
           // opened to perform deletes or for an NRT reader
-
-          // nocommit -- how to allow apps to indexDivisor
-          // in this case?
           this.numIndexTerms = numIndexTerms;
         } else {
           this.numIndexTerms = 1+(numIndexTerms-1) / indexDivisor;
@@ -331,8 +326,6 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
           final int suffix = clone.readVInt();
           final int thisTermLength = start + suffix;
 
-          // nocommit -- verify this is in fact guaranteed by
-          // DW -- we are talking bytes not chars here
           assert thisTermLength <= BYTE_BLOCK_SIZE;
 
           if (i%indexDivisor == 0) {
@@ -351,7 +344,6 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
               blockOffset = 0;
             }
 
-            //System.out.println("blockUpto=" + blockUpto + " blocks.length=" + blocks.length);
             final byte[] block = blocks[blockUpto];
 
             // Copy old prefix
@@ -403,7 +395,6 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
           }
         }
 
-        // nocommit: put in finally clause
         clone.close();
 
         assert upto == this.numIndexTerms;
@@ -501,8 +492,10 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
       while(it.hasNext()) {
         it.next().loadTermsIndex();
       }
-      indexLoaded = true;
       trimByteBlock();
+
+      indexLoaded = true;
+      in.close();
     }
   }
 
@@ -526,7 +519,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
   @Override
   public void close() throws IOException {
-    if (in != null) {
+    if (in != null && !indexLoaded) {
       in.close();
     }
   }

@@ -42,7 +42,6 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
   private final FieldInfos fieldInfos; // unread
   private IndexOutput termsOut;
 
-  // nocommit
   final private String segment;
 
   public SimpleStandardTermsIndexWriter(SegmentWriteState state) throws IOException {
@@ -125,9 +124,6 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
       out.writeLong(field.indexStart);
     }
     out.seek(Codec.headerSize(CODEC_NAME));
-    // nocommit -- why not simply write last 8 bytes of
-    // file?  hmm would require accurate filelength() in
-    // reader
     out.writeLong(dirStart);
     if (Codec.DEBUG) {
       System.out.println(" writeDirStart " + dirStart + " @ " + Codec.headerSize(CODEC_NAME));

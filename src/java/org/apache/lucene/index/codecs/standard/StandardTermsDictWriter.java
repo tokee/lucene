@@ -61,7 +61,6 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   private final List<TermsConsumer> fields = new ArrayList<TermsConsumer>();
   private final BytesRef.Comparator termComp;
 
-  // nocommit
   private String segment;
 
   public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardPostingsWriter postingsWriter, BytesRef.Comparator termComp) throws IOException {
@@ -107,8 +106,9 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   @Override
   public void close() throws IOException {
 
-    if (Codec.DEBUG)
+    if (Codec.DEBUG) {
       System.out.println("stdw.close seg=" + segment);
+    }
 
     try {
       final int fieldCount = fields.size();
@@ -142,14 +142,12 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     }
   }
 
-  long lastIndexPointer;
-
   class TermsWriter extends TermsConsumer {
-    final FieldInfo fieldInfo;
-    final StandardPostingsWriter postingsWriter;
-    final long termsStartPointer;
-    int numTerms;
-    final StandardTermsIndexWriter.FieldWriter fieldIndexWriter;
+    private final FieldInfo fieldInfo;
+    private final StandardPostingsWriter postingsWriter;
+    private final long termsStartPointer;
+    private int numTerms;
+    private final StandardTermsIndexWriter.FieldWriter fieldIndexWriter;
 
     TermsWriter(StandardTermsIndexWriter.FieldWriter fieldIndexWriter, FieldInfo fieldInfo, StandardPostingsWriter postingsWriter) {
       this.fieldInfo = fieldInfo;
@@ -158,7 +156,6 @@ public class StandardTermsDictWriter extends FieldsConsumer {
       termWriter.reset();
       termsStartPointer = out.getFilePointer();
       postingsWriter.setField(fieldInfo);
-      lastIndexPointer = termsStartPointer;
       this.postingsWriter = postingsWriter;
 
       if (Codec.DEBUG) {
@@ -175,8 +172,8 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     public PostingsConsumer startTerm(BytesRef text) throws IOException {
       postingsWriter.startTerm();
       if (Codec.DEBUG) {
-        postingsWriter.desc = fieldInfo.name + ":" + text.toBytesString();
-        System.out.println("stdw.startTerm term=" + fieldInfo.name + ":" + text.toBytesString() + " seg=" + segment);
+        postingsWriter.desc = fieldInfo.name + ":" + text.toString();
+        System.out.println("stdw.startTerm term=" + fieldInfo.name + ":" + text.toString() + " seg=" + segment);
       }
       return postingsWriter;
     }
@@ -184,19 +181,16 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     @Override
     public void finishTerm(BytesRef text, int numDocs) throws IOException {
 
-      // mxx
       if (Codec.DEBUG) {
-        // nocommit     
-        Codec.debug("finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + text.toBytesString() + " numDocs=" + numDocs + " numTerms=" + numTerms);
+        Codec.debug("finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + text.toString() + " numDocs=" + numDocs + " numTerms=" + numTerms);
       }
 
       if (numDocs > 0) {
         final boolean isIndexTerm = fieldIndexWriter.checkIndexTerm(text, numDocs);
 
-        // mxx
         if (Codec.DEBUG) {
           Codec.debug("  tis.fp=" + out.getFilePointer() + " isIndexTerm?=" + isIndexTerm);
-          System.out.println("  term bytes=" + text.toBytesString());
+          System.out.println("  term bytes=" + text.toString());
         }
         termWriter.write(text);
         out.writeVInt(numDocs);

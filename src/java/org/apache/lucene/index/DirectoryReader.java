@@ -36,10 +36,10 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.index.codecs.Codecs;
-import org.apache.lucene.util.PriorityQueue;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.ReaderUtil;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.MultiBits;
 
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
 
@@ -66,13 +66,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   private SegmentReader[] subReaders;
   private int[] starts;                           // 1st docno for each segment
-  private final Map<SegmentReader,Integer> subReaderToDocBase = new HashMap<SegmentReader,Integer>();
+  private final Map<SegmentReader,ReaderUtil.Slice> subReaderToSlice = new HashMap<SegmentReader,ReaderUtil.Slice>();
   private Map<String,byte[]> normsCache = new HashMap<String,byte[]>();
   private int maxDoc = 0;
   private int numDocs = -1;
   private boolean hasDeletions = false;
-
-  private MultiFields fields;
 
 //  static IndexReader open(final Directory directory, final IndexDeletionPolicy deletionPolicy, final IndexCommit commit, final boolean readOnly,
 //      final int termInfosIndexDivisor) throws CorruptIndexException, IOException {
@@ -359,19 +357,31 @@ class DirectoryReader extends IndexReader implements Cloneable {
     return buffer.toString();
   }
 
-  private void initialize(SegmentReader[] subReaders) {
+  private void initialize(SegmentReader[] subReaders) throws IOException {
     this.subReaders = subReaders;
     starts = new int[subReaders.length + 1];    // build starts array
     Bits[] subs = new Bits[subReaders.length];
+
+    final List<Fields> subFields = new ArrayList<Fields>();
+    final List<ReaderUtil.Slice> fieldSlices = new ArrayList<ReaderUtil.Slice>();
+
     for (int i = 0; i < subReaders.length; i++) {
       starts[i] = maxDoc;
       maxDoc += subReaders[i].maxDoc();      // compute maxDocs
 
       if (subReaders[i].hasDeletions()) {
         hasDeletions = true;
+        subs[i] = subReaders[i].getDeletedDocs();
       }
-      subs[i] = subReaders[i].getDeletedDocs();
-      subReaderToDocBase.put(subReaders[i], Integer.valueOf(starts[i]));
+
+      final ReaderUtil.Slice slice = new ReaderUtil.Slice(starts[i], subReaders[i].maxDoc(), i);
+      subReaderToSlice.put(subReaders[i], slice);
+
+      final Fields f = subReaders[i].fields();
+      if (f != null) {
+        subFields.add(f);
+        fieldSlices.add(slice);
+      }
     }
     starts[subReaders.length] = maxDoc;
 
@@ -380,66 +390,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
     } else {
       deletedDocs = null;
     }
-
-    fields = new MultiFields(subReaders, starts);
   }
 
-  private MultiBits deletedDocs;
-
-  // Exposes a slice of an existing Bits as a new Bits.
-  // Only used when one provides an external skipDocs (ie,
-  // not the del docs from this DirectoryReader), to pull
-  // the DocsEnum of the sub readers
-  private final static class SubBits implements Bits {
-    private final Bits parent;
-    private final int start;
-    private final int length;
-
-    // start is inclusive; end is exclusive (length = end-start)
-    public SubBits(Bits parent, int start, int length) {
-      this.parent = parent;
-      this.start = start;
-      this.length = length;
-      assert length >= 0: "length=" + length;
-    }
-    
-    public boolean get(int doc) {
-      if (doc >= length) {
-        throw new RuntimeException("doc " + doc + " is out of bounds 0 .. " + (length-1));
-      }
-      assert doc < length: "doc=" + doc + " length=" + length;
-      return parent.get(doc+start);
-    }
-  }
-    
-  // Concatenates multiple Bits together
-  // nocommit -- if none of the subs have deletions we
-  // should return null from getDeletedDocs:
-  static final class MultiBits implements Bits {
-    private final Bits[] subs;
-    // this is 1+subs.length, ie the last entry has the maxDoc
-    final int[] starts;
-
-    public MultiBits(Bits[] subs, int[] starts) {
-      this.subs = subs;
-      this.starts = starts;
-    }
-
-    public boolean get(int doc) {
-      final int reader = ReaderUtil.subIndex(doc, starts);
-      final Bits bits = subs[reader];
-      if (bits == null) {
-        return false;
-      } else {
-        final int length = starts[1+reader]-starts[reader];
-        assert doc - starts[reader] < length: "doc=" + doc + " reader=" + reader + " starts[reader]=" + starts[reader] + " length=" + length;
-        return bits.get(doc-starts[reader]);
-      }
-    }
-  }
+  private Bits deletedDocs;
 
   @Override
   public Bits getDeletedDocs() {
+    // nocommit -- maybe not supported?
     return deletedDocs;
   }
 
@@ -828,11 +785,10 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   @Override
   public Fields fields() throws IOException {
-    if (subReaders.length == 1) {
-      // Optimize the single reader case
-      return subReaders[0].fields();
+    if (subReaders.length == 0) {
+      return null;
     } else {
-      return fields;
+      throw new UnsupportedOperationException("please use MultiFields.getFields if you really need a top level Fields for this reader");
     }
   }
 
@@ -901,6 +857,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
    */
   @Override
   protected void doCommit(Map<String,String> commitUserData) throws IOException {
+    // poll subreaders for changes
+    for (int i = 0; !hasChanges && i < subReaders.length; i++) {
+      hasChanges |= subReaders[i].hasChanges;
+    }
+    
     if (hasChanges) {
       segmentInfos.setUserData(commitUserData);
       // Default deleter (for backwards compatibility) is
@@ -1051,7 +1012,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   @Override
   public int getSubReaderDocBase(IndexReader subReader) {
-    return subReaderToDocBase.get(subReader).intValue();
+    return subReaderToSlice.get(subReader).start;
   }
 
   /** Returns the directory this index resides in. */
@@ -1187,572 +1148,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
     }
   }
   
-  private final static class TermsWithBase {
-    Terms terms;
-    int base;
-    int length;
-    Bits skipDocs;
-
-    public TermsWithBase(IndexReader reader, int base, String field) throws IOException {
-      this.base = base;
-      length = reader.maxDoc();
-      assert length >= 0: "length=" + length;
-      skipDocs = reader.getDeletedDocs();
-      terms = reader.fields().terms(field);
-    }
-  }
-
-  private final static class FieldsEnumWithBase {
-    FieldsEnum fields;
-    String current;
-    int base;
-    int length;
-    Bits skipDocs;
-
-    public FieldsEnumWithBase(IndexReader reader, int base) throws IOException {
-      this.base = base;
-      length = reader.maxDoc();
-      assert length >= 0: "length=" + length;
-      skipDocs = reader.getDeletedDocs(); 
-      fields = reader.fields().iterator();
-    }
-  }
-
-  private final static class TermsEnumWithBase {
-    final TermsEnum terms;
-    final int base;
-    final int length;
-    BytesRef current;
-    final Bits skipDocs;
-
-    public TermsEnumWithBase(FieldsEnumWithBase start, TermsEnum terms, BytesRef term) {
-      this.terms = terms;
-      current = term;
-      skipDocs = start.skipDocs;
-      base = start.base;
-      length = start.length;
-      assert length >= 0: "length=" + length;
-    }
-
-    public TermsEnumWithBase(TermsWithBase start, TermsEnum terms, BytesRef term) {
-      this.terms = terms;
-      current = term;
-      skipDocs = start.skipDocs;
-      base = start.base;
-      length = start.length;
-      assert length >= 0: "length=" + length;
-    }
-  }
-
-  private final static class PostingsEnumWithBase {
-    DocsAndPositionsEnum postings;
-    int base;
-  }
-
-  private final static class FieldMergeQueue extends PriorityQueue<FieldsEnumWithBase> {
-    FieldMergeQueue(int size) {
-      initialize(size);
-    }
-
-    @Override
-    protected final boolean lessThan(FieldsEnumWithBase fieldsA, FieldsEnumWithBase fieldsB) {
-      return fieldsA.current.compareTo(fieldsB.current) < 0;
-    }
-  }
-
-  private final static class TermMergeQueue extends PriorityQueue<TermsEnumWithBase> {
-    BytesRef.Comparator termComp;
-    TermMergeQueue(int size) {
-      initialize(size);
-    }
-
-    @Override
-    protected final boolean lessThan(TermsEnumWithBase termsA, TermsEnumWithBase termsB) {
-      final int cmp = termComp.compare(termsA.current, termsB.current);
-      if (cmp != 0) {
-        return cmp < 0;
-      } else {
-        return termsA.base < termsB.base;
-      }
-    }
-  }
-
-  // Exposes flex API, merged from flex API of
-  // sub-segments.
-  final static class MultiFields extends Fields {
-    private final IndexReader[] readers;
-    private final int[] starts;
-    private final HashMap<String,MultiTerms> terms = new HashMap<String,MultiTerms>();
-
-    public MultiFields(IndexReader[] readers, int[] starts) {
-      this.readers = readers;
-      this.starts = starts;
-    }
-
-    @Override
-    public FieldsEnum iterator() throws IOException {
-      FieldsEnumWithBase[] subs = new FieldsEnumWithBase[readers.length];
-      for(int i=0;i<subs.length;i++) {
-        subs[i] = new FieldsEnumWithBase(readers[i], starts[i]);
-      }
-      return new MultiFieldsEnum(subs);
-    }
-
-    @Override
-    public Terms terms(String field) throws IOException {
-      MultiTerms result = terms.get(field);
-      if (result == null) {
-
-        // First time this field is requested, we create & add to terms:
-        List<TermsWithBase> subs = new ArrayList<TermsWithBase>();
-
-        // Gather all sub-readers that share this field
-        for(int i=0;i<readers.length;i++) {
-          Terms subTerms = readers[i].fields().terms(field);
-          if (subTerms != null) {
-            subs.add(new TermsWithBase(readers[i], starts[i], field));
-          }
-        }
-        result = new MultiTerms(subs.toArray(new TermsWithBase[]{}));
-        terms.put(field, result);
-      }
-      return result;
-    }
-  }
-
-  // Exposes flex API, merged from flex API of
-  // sub-segments.
-  private final static class MultiTerms extends Terms {
-    private final TermsWithBase[] subs;
-    private final BytesRef.Comparator termComp;
-
-    public MultiTerms(TermsWithBase[] subs) throws IOException {
-      this.subs = subs;
-      
-      BytesRef.Comparator _termComp = null;
-      for(int i=0;i<subs.length;i++) {
-        if (_termComp == null) {
-          _termComp = subs[i].terms.getComparator();
-        } else {
-          // We cannot merge sub-readers that have
-          // different TermComps
-          final BytesRef.Comparator subTermComp = subs[i].terms.getComparator();
-          if (subTermComp != null && !subTermComp.equals(_termComp)) {
-            throw new IllegalStateException("sub-readers have different BytesRef.Comparators; cannot merge");
-          }
-        }
-      }
-      termComp = _termComp;
-    }
-
-    @Override
-    public TermsEnum iterator() throws IOException {
-      return new MultiTermsEnum(subs.length).reset(subs);
-    }
-
-    @Override
-    public BytesRef.Comparator getComparator() {
-      return termComp;
-    }
-  }
-
-  // Exposes flex API, merged from flex API of
-  // sub-segments.  This does a merge sort, by field name,
-  // of the sub-readers.
-  private final static class MultiFieldsEnum extends FieldsEnum {
-    private final FieldMergeQueue queue;
-
-    // Holds sub-readers containing field we are currently
-    // on, popped from queue.
-    private final FieldsEnumWithBase[] top;
-    private int numTop;
-
-    // Re-used TermsEnum
-    private final MultiTermsEnum terms;
-
-    private String currentField;
-    
-    MultiFieldsEnum(FieldsEnumWithBase[] subs) throws IOException {
-      terms = new MultiTermsEnum(subs.length);
-      queue = new FieldMergeQueue(subs.length);
-      top = new FieldsEnumWithBase[subs.length];
-
-      // Init q
-      for(int i=0;i<subs.length;i++) {
-        subs[i].current = subs[i].fields.next();
-        if (subs[i].current != null) {
-          queue.add(subs[i]);
-        }
-      }
-    }
-
-    public String field() {
-      assert currentField != null;
-      assert numTop > 0;
-      return currentField;
-    }
-
-    @Override
-    public String next() throws IOException {
-
-      // restore queue
-      for(int i=0;i<numTop;i++) {
-        top[i].current = top[i].fields.next();
-        if (top[i].current != null) {
-          queue.add(top[i]);
-        } else {
-          // no more fields in this sub-reader
-        }
-      }
-
-      numTop = 0;
-
-      // gather equal top fields
-      if (queue.size() > 0) {
-        while(true) {
-          top[numTop++] = queue.pop();
-          if (queue.size() == 0 || (queue.top()).current != top[0].current) {
-            break;
-          }
-        }
-        currentField = top[0].current;
-      } else {
-        currentField = null;
-      }
-
-      return currentField;
-    }
-
-    @Override
-    public TermsEnum terms() throws IOException {
-      return terms.reset(top, numTop);
-    }
-  }
-
-  // Exposes flex API, merged from flex API of
-  // sub-segments.  This does a merge sort, by term text, of
-  // the sub-readers.
-  private static final class MultiTermsEnum extends TermsEnum {
-    
-    private final TermMergeQueue queue;
-    private final TermsEnumWithBase[] subs;
-    private final TermsEnumWithBase[] top;
-    int numTop;
-    int numSubs;
-    private BytesRef current;
-    private BytesRef.Comparator termComp;
-
-    MultiTermsEnum(int size) {
-      queue = new TermMergeQueue(size);
-      top = new TermsEnumWithBase[size];
-      subs = new TermsEnumWithBase[size];
-    }
-
-    @Override
-    public BytesRef term() {
-      return current;
-    }
-
-    @Override
-    public BytesRef.Comparator getComparator() {
-      return termComp;
-    }
-
-    MultiTermsEnum reset(TermsWithBase[] terms) throws IOException {
-      assert terms.length <= top.length;
-      numSubs = 0;
-      numTop = 0;
-      termComp = null;
-      queue.clear();
-      for(int i=0;i<terms.length;i++) {
-        final TermsEnum termsEnum = terms[i].terms.iterator();
-        if (termsEnum != null) {
-          if (termComp == null) {
-            queue.termComp = termComp = termsEnum.getComparator();
-          } else {
-            // We cannot merge sub-readers that have
-            // different TermComps
-            final BytesRef.Comparator subTermComp = termsEnum.getComparator();
-            if (subTermComp != null && !subTermComp.equals(termComp)) {
-              throw new IllegalStateException("sub-readers have different BytesRef.Comparators; cannot merge");
-            }
-          }
-          final BytesRef term = termsEnum.next();
-          if (term != null) {
-            subs[numSubs] = new TermsEnumWithBase(terms[i], termsEnum, term);
-            queue.add(subs[numSubs]);
-            numSubs++;
-          } else {
-            // field has no terms
-          }
-        }
-      }
-
-      return this;
-    }
-
-    MultiTermsEnum reset(FieldsEnumWithBase[] fields, int numFields) throws IOException {
-      assert numFields <= top.length;
-      numSubs = 0;
-      numTop = 0;
-      termComp = null;
-      queue.clear();
-      for(int i=0;i<numFields;i++) {
-        final TermsEnum terms = fields[i].fields.terms();
-        if (terms != null) {
-          final BytesRef term = terms.next();
-          if (term != null) {
-            if (termComp == null) {
-              queue.termComp = termComp = terms.getComparator();
-            } else {
-              assert termComp.equals(terms.getComparator());
-            }
-            subs[numSubs] = new TermsEnumWithBase(fields[i], terms, term);
-            queue.add(subs[numSubs]);
-            numSubs++;
-          } else {
-            // field has no terms
-          }
-        }
-      }
-
-      return this;
-    }
-
-    @Override
-    public SeekStatus seek(BytesRef term) throws IOException {
-      queue.clear();
-      numTop = 0;
-      for(int i=0;i<numSubs;i++) {
-        final SeekStatus status = subs[i].terms.seek(term);
-        if (status == SeekStatus.FOUND) {
-          top[numTop++] = subs[i];
-          subs[i].current = term;
-        } else if (status == SeekStatus.NOT_FOUND) {
-          subs[i].current = subs[i].terms.term();
-          assert subs[i].current != null;
-          queue.add(subs[i]);
-        } else {
-          // enum exhausted
-        }
-      }
-
-      if (numTop > 0) {
-        current = term;
-        return SeekStatus.FOUND;
-      } else if (queue.size() > 0) {
-        pullTop();
-        return SeekStatus.NOT_FOUND;
-      } else {
-        return SeekStatus.END;
-      }
-    }
-
-    @Override
-    public SeekStatus seek(long ord) throws IOException {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public long ord() throws IOException {
-      throw new UnsupportedOperationException();
-    }
-
-    private final void pullTop() {
-      // extract all subs from the queue that have the same
-      // top term
-      assert numTop == 0;
-      while(true) {
-        top[numTop++] = queue.pop();
-        if (queue.size() == 0 || !(queue.top()).current.bytesEquals(top[0].current)) {
-          break;
-        }
-      } 
-      current = top[0].current;
-    }
-
-    private final void pushTop() throws IOException {
-      // call next() on each top, and put back into queue
-      for(int i=0;i<numTop;i++) {
-        top[i].current = top[i].terms.next();
-        if (top[i].current != null) {
-          queue.add(top[i]);
-        } else {
-          // no more fields in this reader
-        }
-      }
-      numTop = 0;
-    }
-
-    @Override
-    public BytesRef next() throws IOException {
-      // restore queue
-      pushTop();
-
-      // gather equal top fields
-      if (queue.size() > 0) {
-        pullTop();
-      } else {
-        current = null;
-      }
-
-      return current;
-    }
-
-    @Override
-    public int docFreq() {
-      int sum = 0;
-      for(int i=0;i<numTop;i++) {
-        sum += top[i].terms.docFreq();
-      }
-      return sum;
-    }
-
-    @Override
-    public DocsEnum docs(Bits skipDocs, DocsEnum reuse) throws IOException {
-      return docsAndPositions(skipDocs, (DocsAndPositionsEnum) reuse);
-    }
-
-    @Override
-    public DocsAndPositionsEnum docsAndPositions(Bits skipDocs, DocsAndPositionsEnum reuse) throws IOException {
-      if (reuse != null) {
-        return ((MultiDocsAndPositionsEnum) reuse).reset(top, numTop, skipDocs);
-      } else {
-        return new MultiDocsAndPositionsEnum(subs.length).reset(top, numTop, skipDocs);
-      }
-    }
-  }
-
-  private static final class MultiDocsAndPositionsEnum extends DocsAndPositionsEnum {
-    final PostingsEnumWithBase[] subs;
-    int numSubs;
-    int upto;
-    DocsAndPositionsEnum currentDocs;
-    int currentBase;
-    Bits skipDocs;
-    int doc = -1;
-
-    MultiDocsAndPositionsEnum(int count) {
-      subs = new PostingsEnumWithBase[count];
-    }
-
-    MultiDocsAndPositionsEnum reset(TermsEnumWithBase[] subs, final int numSubs, final Bits skipDocs) throws IOException {
-      this.numSubs = 0;
-      this.skipDocs = skipDocs;
-      for(int i=0;i<numSubs;i++) {
-        Bits bits = null;
-        boolean handled = false;
-
-        assert subs[i].length >= 0: "subs[" + i + " of " + numSubs + "].length=" + subs[i].length;
-
-        // Optimize for common case: requested skip docs is
-        // simply our (DiretoryReader's) deleted docs.  In
-        // this case, we just pull the skipDocs from the sub
-        // reader, rather than making the inefficient
-        // Sub(Multi(sub-readers)):
-        if (skipDocs instanceof MultiBits) {
-          MultiBits multiBits = (MultiBits) skipDocs;
-          int reader = ReaderUtil.subIndex(subs[i].base, multiBits.starts);
-          assert reader < multiBits.starts.length-1: " reader=" + reader + " multiBits.starts.length=" + multiBits.starts.length;
-          final int length = multiBits.starts[reader+1] - multiBits.starts[reader];
-          if (multiBits.starts[reader] == subs[i].base &&
-              length == subs[i].length) {
-            bits = multiBits.subs[reader];
-            handled = true;
-          }
-        }
-
-        if (!handled && skipDocs != null) {
-          // custom case: requested skip docs is foreign
-          bits = new SubBits(skipDocs, subs[i].base, subs[i].length);
-        }
-
-        final DocsAndPositionsEnum postings = subs[i].terms.docsAndPositions(bits, null);
-        if (postings != null) {
-          this.subs[this.numSubs] = new PostingsEnumWithBase();
-          this.subs[this.numSubs].postings = postings;
-          this.subs[this.numSubs].base = subs[i].base;
-          this.numSubs++;
-        }
-      }
-      upto = -1;
-      currentDocs = null;
-      return this;
-    }
-
-    @Override
-    public int freq() {
-      return currentDocs.freq();
-    }
-
-    @Override
-    public int docID() {
-      return doc;
-    }
-
-    @Override
-    public int advance(int target) throws IOException {
-      while(true) {
-        if (currentDocs != null) {
-          final int doc = currentDocs.advance(target-currentBase);
-          if (doc == NO_MORE_DOCS) {
-            currentDocs = null;
-          } else {
-            return this.doc = doc + currentBase;
-          }
-        } else if (upto == numSubs-1) {
-          return this.doc = NO_MORE_DOCS;
-        } else {
-          upto++;
-          currentDocs = subs[upto].postings;
-          currentBase = subs[upto].base;
-        }
-      }
-    }
-
-    @Override
-    public int nextDoc() throws IOException {
-      while(true) {
-        if (currentDocs == null) {
-          if (upto == numSubs-1) {
-            return this.doc = NO_MORE_DOCS;
-          } else {
-            upto++;
-            currentDocs = subs[upto].postings;
-            currentBase = subs[upto].base;
-          }
-        }
-
-        final int doc = currentDocs.nextDoc();
-        if (doc != NO_MORE_DOCS) {
-          return this.doc = currentBase + doc;
-        } else {
-          currentDocs = null;
-        }
-      }
-    }
-
-    @Override
-    public int nextPosition() throws IOException {
-      return currentDocs.nextPosition();
-    }
-
-    @Override
-    public int getPayloadLength() {
-      return currentDocs.getPayloadLength();
-    }
-
-    @Override
-    public BytesRef getPayload() throws IOException {
-      return currentDocs.getPayload();
-    }
-
-    @Override
-    public boolean hasPayload() {
-      return currentDocs.hasPayload();
-    }
-  }
-
   // @deprecated This is pre-flex API
   // Exposes pre-flex API by doing on-the-fly merging
   // pre-flex API to each segment

@@ -19,14 +19,33 @@ package org.apache.lucene.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Fields;
 
 /**
  * Common util methods for dealing with {@link IndexReader}s.
  *
  */
 public class ReaderUtil {
+
+  public static class Slice {
+    public static final Slice[] EMPTY_ARRAY = new Slice[0];
+    public final int start;
+    public final int length;
+    public final int readerIndex;
+
+    public Slice(int start, int length, int readerIndex) {
+      this.start = start;
+      this.length = length;
+      this.readerIndex = readerIndex;
+    }
+
+    public String toString() {
+      return "slice start=" + start + " length=" + length;
+    }
+  }
 
   /**
    * Gathers sub-readers from reader into a List.
@@ -44,6 +63,25 @@ public class ReaderUtil {
         gatherSubReaders(allSubReaders, subReaders[i]);
       }
     }
+  }
+
+  public static int gatherSubFields(List<IndexReader> readers, List<Fields> fields, List<Slice> slices, IndexReader reader, int base) throws IOException {
+    IndexReader[] subReaders = reader.getSequentialSubReaders();
+    if (subReaders == null) {
+      // Add the reader's fields
+      if (readers != null) {
+        readers.add(reader);
+      }
+      fields.add(reader.fields());
+      slices.add(new Slice(base, reader.maxDoc(), fields.size()-1));
+      base += reader.maxDoc();
+    } else {
+      for (int i = 0; i < subReaders.length; i++) {
+        base = gatherSubFields(readers, fields, slices, subReaders[i], base);
+      }
+    }
+
+    return base;
   }
 
   /**

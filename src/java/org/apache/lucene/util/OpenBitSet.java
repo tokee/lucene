@@ -134,6 +134,11 @@ public class OpenBitSet extends DocIdSet implements Bits, Cloneable, Serializabl
       return capacity();
   }
 
+  @Override
+  public int length() {
+    return bits.length << 6;
+  }
+
   /** Returns true if there are no set bits */
   public boolean isEmpty() { return cardinality()==0; }
 

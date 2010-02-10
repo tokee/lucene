@@ -29,6 +29,8 @@ import org.apache.lucene.util.CloseableThreadLocal;
 
 public abstract class Terms {
 
+  public final static Terms[] EMPTY_ARRAY = new Terms[0];
+
   // Privately cache a TermsEnum per-thread for looking up
   // docFreq and getting a private DocsEnum
   private final CloseableThreadLocal<TermsEnum> threadEnums = new CloseableThreadLocal<TermsEnum>();

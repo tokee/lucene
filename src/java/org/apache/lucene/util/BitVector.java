@@ -110,6 +110,11 @@ public final class BitVector implements Cloneable, Bits {
     return size;
   }
 
+  @Override
+  public int length() {
+    return size;
+  }
+
   /** Returns the total number of one bits in this vector.  This is efficiently
     computed and cached, so that, if the vector is not changed, no
     recomputation is done for repeated calls. */

@@ -22,6 +22,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.util.AttributeSource;
@@ -62,8 +63,12 @@ public abstract class FilteredTermsEnum extends TermsEnum {
    * Creates a filtered {@link TermsEnum} for the given field name and reader.
    */
   public FilteredTermsEnum(final IndexReader reader, final String field) throws IOException {
-    final Terms terms = reader.fields().terms(field);
-    tenum = (terms != null) ? terms.iterator() : null;
+    final Terms terms = MultiFields.getTerms(reader, field);
+    if (terms != null) {
+      tenum = terms.iterator();
+    } else {
+      tenum = null;
+    }
   }
 
   /**

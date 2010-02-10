@@ -27,11 +27,13 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 
 /** StandardTermsDictReader interacts with a single instance
- *  of this to manage creation of docs enum instances.  It
- *  provides an IndexInput (termsIn) where this class may
- *  read any previously stored data that it had written in
- *  its corresponding StandardDocsConsumer at indexing
+ *  of this to manage creation of {@link DocsEnum} and
+ *  {@link DocsAndPositionsEnum} instances.  It provides an
+ *  IndexInput (termsIn) where this class may read any
+ *  previously stored data that it had written in its
+ *  corresponding {@link StandardPostingsWriter} at indexing
  *  time. */
+
 public abstract class StandardPostingsReader implements Closeable {
 
   public abstract void init(IndexInput termsIn) throws IOException;
