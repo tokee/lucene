@@ -47,6 +47,7 @@ import org.apache.lucene.util.automaton.SpecialOperations;
  * expression of <code>[dl]og?</code> will make approximately four comparisons:
  * do, dog, lo, and log.
  * </p>
+ * @lucene.experimental
  */
 public class AutomatonQuery extends MultiTermQuery {
   /** the automaton to match index terms against */

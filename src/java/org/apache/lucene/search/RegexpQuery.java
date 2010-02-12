@@ -46,6 +46,7 @@ import org.apache.lucene.util.automaton.RegExp;
  * the expression <code>.*</code>
  * 
  * @see RegExp
+ * @lucene.experimental
  */
 public class RegexpQuery extends AutomatonQuery {
   /**

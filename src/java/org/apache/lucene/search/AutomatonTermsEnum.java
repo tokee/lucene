@@ -54,11 +54,7 @@ import org.apache.lucene.util.automaton.Transition;
  * Use {@link #usesLinearMode} to find out if it enumerates all terms
  * in linear mode without seeking.
  * </p>
- * <p>
- * <font color="#FF0000"> WARNING: The status of the <b>Automaton</b> feature is
- * experimental. The APIs introduced here might change in the future and will
- * not be supported anymore in such a case.</font>
- * </p>
+ * @lucene.experimental
  */
 public class AutomatonTermsEnum extends FilteredTermsEnum {
   // the object-oriented form of the DFA

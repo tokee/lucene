@@ -36,10 +36,7 @@ import java.util.Set;
 /**
  * Operations for minimizing automata.
  * 
- * <p><font color="#FF0000">
- * WARNING: The status of the <b>Automaton</b> feature is experimental.
- * The APIs introduced here might change in the future and will not be
- * supported anymore in such a case.</font>
+ * @lucene.experimental
  */
 final public class MinimizationOperations {
   
