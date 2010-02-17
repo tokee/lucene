@@ -58,7 +58,7 @@ public abstract class StandardTermsIndexReader {
 
     /** Call this sequentially for each term encoutered,
      *  after calling {@link #getIndexOffset}. */
-    public abstract boolean isIndexTerm(long ord, int docFreq) throws IOException;
+    public abstract boolean isIndexTerm(long ord, int docFreq, boolean onlyLoaded) throws IOException;
 
     /** Finds the next index term, after the specified
      *  ord.  Returns true if one exists.  */

@@ -67,7 +67,7 @@ public class StandardTermsDictReader extends FieldsProducer {
   // Comparator that orders our terms
   private final BytesRef.Comparator termComp;
 
-  // Caches the most recently looked-up Terms:
+  // Caches the most recently looked-up field + terms:
   private final Cache<FieldAndTerm,TermState> termsCache;
 
   // Reads the terms index
@@ -359,8 +359,8 @@ public class StandardTermsDictReader extends FieldsProducer {
           }
         }
 
-        // Useed only for assert:
-        final int startOrd;
+        // Used only for assert:
+        final long startOrd;
 
         if (doSeek) {
 
@@ -383,10 +383,10 @@ public class StandardTermsDictReader extends FieldsProducer {
           // special case it:
           bytesReader.reset(indexResult.term);
           
-          state.ord = (int) indexResult.position-1;
+          state.ord = indexResult.position-1;
           assert state.ord >= -1: "ord=" + state.ord;
 
-          startOrd = (int) indexResult.position;
+          startOrd = indexResult.position;
 
           if (Codec.DEBUG) {
             Codec.debug("  set ord=" + state.ord);
@@ -434,7 +434,7 @@ public class StandardTermsDictReader extends FieldsProducer {
           // term we are looking for.  So, we should never
           // cross another index term (besides the first
           // one) while we are scanning:
-          assert state.ord == startOrd || !indexReader.isIndexTerm(state.ord, state.docFreq);
+          assert state.ord == startOrd || !indexReader.isIndexTerm(state.ord, state.docFreq, true);
         }
 
         if (Codec.DEBUG) {
@@ -529,7 +529,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         // wrong offset.  make a test...
         postingsReader.readTerm(in,
                                 fieldInfo, state,
-                                indexReader.isIndexTerm(1+state.ord, state.docFreq));
+                                indexReader.isIndexTerm(1+state.ord, state.docFreq, false));
 
         state.ord++;
 

@@ -222,8 +222,12 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     }
 
     @Override
-    public boolean isIndexTerm(long ord, int docFreq) {
-      return ord % totalIndexInterval == 0;
+    public boolean isIndexTerm(long ord, int docFreq, boolean onlyLoaded) {
+      if (onlyLoaded) {
+        return ord % totalIndexInterval == 0;
+      } else {
+        return ord % indexInterval == 0;
+      }
     }
 
     @Override
@@ -433,14 +437,12 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
         int hi = fileOffset.length - 1;
 
         while (hi >= lo) {
-          int mid = (lo + hi) >> 1;
+          int mid = (lo + hi) >>> 1;
 
           final long loc = blockPointer[mid];
           result.term.bytes = blocks[(int) (loc >> BYTE_BLOCK_SHIFT)];
           result.term.offset = (int) (loc & BYTE_BLOCK_MASK);
-          //System.out.println("  cycle mid=" + mid + " bytes=" + result.term.bytes + " offset=" + result.term.offset);
           result.term.length = termLength[mid];
-          //System.out.println("    term=" + result.term);
 
           int delta = termComp.compare(term, result.term);
           if (delta < 0) {

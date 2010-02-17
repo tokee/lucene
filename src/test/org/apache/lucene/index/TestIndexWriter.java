@@ -4817,4 +4817,31 @@ public class TestIndexWriter extends LuceneTestCase {
     writer.close();
     dir.close();
   }
+
+  public void testIndexDivisor() throws Exception {
+    Directory dir = new MockRAMDirectory();
+    IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
+    StringBuilder s = new StringBuilder();
+    // must be > 256
+    for(int i=0;i<300;i++) {
+      s.append(' ').append(""+i);
+    }
+    Document d = new Document();
+    Field f = new Field("field", s.toString(), Field.Store.NO, Field.Index.ANALYZED);
+    d.add(f);
+    w.addDocument(d);
+    IndexReader r = w.getReader(2).getSequentialSubReaders()[0];
+    TermsEnum t = r.fields().terms("field").iterator();
+    int count = 0;
+    while(t.next() != null) {
+      final DocsEnum docs = t.docs(null, null);
+      assertEquals(0, docs.nextDoc());
+      assertEquals(DocsEnum.NO_MORE_DOCS, docs.nextDoc());
+      count++;
+    }
+    assertEquals(300, count);
+    r.close();
+    w.close();
+    dir.close();
+  }
 }
