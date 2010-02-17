@@ -72,9 +72,8 @@ public abstract class FilteredTermsEnum extends TermsEnum {
   }
 
   /**
-   * Creates a filtered {@link TermsEnum} on a terms enum for the given field name.
+   * Creates a filtered {@link TermsEnum} on a terms enum.
    * @param tenum the terms enumeration to filter, if {@code null} this is the null iterator.
-   * @param field the field name this enum operates on (needed by {@link MultiTermQuery}).
    */
   public FilteredTermsEnum(final TermsEnum tenum) {
     this.tenum = tenum;
