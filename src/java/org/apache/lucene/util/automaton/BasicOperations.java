@@ -57,6 +57,10 @@ final public class BasicOperations {
   static public Automaton concatenate(Automaton a1, Automaton a2) {
     if (a1.isSingleton() && a2.isSingleton()) return BasicAutomata
         .makeString(a1.singleton + a2.singleton);
+    // adding epsilon transitions with the NFA concatenation algorithm
+    // in this case always produces a resulting DFA, preventing expensive
+    // redundant determinize() calls for this common case.
+    boolean deterministic = a1.isSingleton() && a2.isDeterministic();
     if (a1 == a2) {
       a1 = a1.cloneExpanded();
       a2 = a2.cloneExpanded();
@@ -68,7 +72,7 @@ final public class BasicOperations {
       s.accept = false;
       s.addEpsilon(a2.initial);
     }
-    a1.deterministic = false;
+    a1.deterministic = deterministic;
     a1.clearHashCode();
     a1.checkMinimizeAlways();
     return a1;
