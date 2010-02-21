@@ -125,9 +125,6 @@ public class TestRAMDirectory extends LuceneTestCase {
             } catch (IOException e) {
               throw new RuntimeException(e);
             }
-            synchronized (ramDir) {
-              assertEquals(ramDir.sizeInBytes(), ramDir.getRecomputedSizeInBytes());
-            }
           }
         }
       };
