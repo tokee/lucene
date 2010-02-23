@@ -132,11 +132,6 @@ final public class UnicodeUtil {
       } else {
         // surrogate pair
         // confirm valid high surrogate
-        // nocommit -- I removed the 0xffff check, here, but
-        // technically that's a break in back-compat, though
-        // it seems crazy that any external apps would rely
-        // on this?
-        //if (code < 0xDC00 && i < end && source[i] != 0xffff) {
         if (code < 0xDC00 && i < end) {
           int utf32 = (int) source[i];
           // confirm valid low surrogate and write pair
@@ -193,11 +188,6 @@ final public class UnicodeUtil {
       } else {
         // surrogate pair
         // confirm valid high surrogate
-        // nocommit -- I removed the 0xffff check, here, but
-        // technically that's a break in back-compat, though
-        // it seems crazy that any external apps would rely
-        // on this?
-        //if (code < 0xDC00 && i < end && source[i] != 0xffff) {
         if (code < 0xDC00 && i < end) {
           int utf32 = (int) source[i];
           // confirm valid low surrogate and write pair
