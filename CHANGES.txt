@@ -1,6 +1,18 @@
 Lucene Change Log
 $Id$
 
+======================= 3.0 branch (not yet released) ==================
+
+Bug fixes
+
+...
+
+API Changes
+
+* LUCENE-2281: added doBeforeFlush to IndexWriter to allow extensions to perform
+  operations before flush starts. Also exposed doAfterFlush as protected instead
+  of package-private. (Shai Erera via Mike McCandless)
+
 ======================= Release 3.0.1 2010-02-26 =======================
 
 Changes in backwards compatibility policy
@@ -10,9 +22,6 @@ Changes in backwards compatibility policy
   had to be changed in an incompatible way. The class was never intended
   to be public.  (Uwe Schindler, Mike McCandless)
   
-* LUCENE-2281: added doBeforeFlush to IndexWriter to allow extensions to perform
-  operations before flush starts. Also exposed doAfterFlush as protected instead
-  of package-private. (Shai Erera via Mike McCandless)
 
 Bug fixes
 
