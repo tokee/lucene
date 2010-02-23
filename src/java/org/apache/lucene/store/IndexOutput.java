@@ -20,6 +20,8 @@ package org.apache.lucene.store;
 import java.io.IOException;
 import java.io.Closeable;
 import java.util.Map;
+
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
 
 /** Abstract base class for output to a file in a Directory.  A random-access
@@ -29,7 +31,7 @@ import org.apache.lucene.util.UnicodeUtil;
  */
 public abstract class IndexOutput implements Closeable {
 
-  private UnicodeUtil.UTF8Result utf8Result = new UnicodeUtil.UTF8Result();
+  private BytesRef utf8Result = new BytesRef(10);
 
   /** Writes a single byte.
    * @see IndexInput#readByte()
@@ -103,7 +105,7 @@ public abstract class IndexOutput implements Closeable {
   public void writeString(String s) throws IOException {
     UnicodeUtil.UTF16toUTF8(s, 0, s.length(), utf8Result);
     writeVInt(utf8Result.length);
-    writeBytes(utf8Result.result, 0, utf8Result.length);
+    writeBytes(utf8Result.bytes, 0, utf8Result.length);
   }
 
   /** Writes a sub sequence of characters from s as the old

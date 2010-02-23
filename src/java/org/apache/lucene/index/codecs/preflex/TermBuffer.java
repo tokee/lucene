@@ -19,6 +19,8 @@ package org.apache.lucene.index.codecs.preflex;
 
 import java.io.IOException;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.FieldInfos;
@@ -31,7 +33,7 @@ final class TermBuffer implements Cloneable {
   private boolean dirty;                          // true if text was set externally (ie not read via UTF8 bytes)
 
   private UnicodeUtil.UTF16Result text = new UnicodeUtil.UTF16Result();
-  private UnicodeUtil.UTF8Result bytes = new UnicodeUtil.UTF8Result();
+  private BytesRef bytes = new BytesRef(10);
 
   public final int compareTo(TermBuffer other) {
     if (field == other.field) 	  // fields are interned
@@ -74,15 +76,19 @@ final class TermBuffer implements Cloneable {
       if (dirty) {
         // Fully convert all bytes since bytes is dirty
         UnicodeUtil.UTF16toUTF8(text.result, 0, text.length, bytes);
-        bytes.setLength(totalLength);
-        input.readBytes(bytes.result, start, length);
-        UnicodeUtil.UTF8toUTF16(bytes.result, 0, totalLength, text);
+        if (bytes.bytes.length < totalLength)
+          bytes.bytes = new byte[totalLength];
+        bytes.length = totalLength;
+        input.readBytes(bytes.bytes, start, length);
+        UnicodeUtil.UTF8toUTF16(bytes.bytes, 0, totalLength, text);
         dirty = false;
       } else {
         // Incrementally convert only the UTF8 bytes that are new:
-        bytes.setLength(totalLength);
-        input.readBytes(bytes.result, start, length);
-        UnicodeUtil.UTF8toUTF16(bytes.result, start, length, text);
+        if (bytes.bytes.length < totalLength)
+          bytes.bytes = ArrayUtil.grow(bytes.bytes, totalLength);
+        bytes.length = totalLength;
+        input.readBytes(bytes.bytes, start, length);
+        UnicodeUtil.UTF8toUTF16(bytes.bytes, start, length, text);
       }
     }
     this.field = fieldInfos.fieldName(input.readVInt());
@@ -134,7 +140,7 @@ final class TermBuffer implements Cloneable {
     } catch (CloneNotSupportedException e) {}
 
     clone.dirty = true;
-    clone.bytes = new UnicodeUtil.UTF8Result();
+    clone.bytes = new BytesRef(10);
     clone.text = new UnicodeUtil.UTF16Result();
     clone.text.copyText(text);
     return clone;

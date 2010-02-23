@@ -44,12 +44,16 @@ public final class BytesRef {
     this.length = bytes.length;
   }
 
+  public BytesRef(int capacity) {
+    this.bytes = new byte[capacity];
+  }
+
   /**
    * @param text Initialize the byte[] from the UTF8 bytes
    * for the provided Sring.  This must be well-formed
    * unicode text, with no unpaired surrogates or U+FFFF.
    */
-  public BytesRef(String text) {
+  public BytesRef(CharSequence text) {
     copy(text);
   }
 
@@ -57,25 +61,18 @@ public final class BytesRef {
     copy(other);
   }
 
-  // nocommit: we could do this w/ UnicodeUtil w/o requiring
-  // allocation of new bytes[]?
   /**
    * Copies the UTF8 bytes for this string.
    * 
    * @param text Must be well-formed unicode text, with no
    * unpaired surrogates or U+FFFF.
    */
-  public void copy(String text) {
+  public void copy(CharSequence text) {
     // nocommit -- remove this paranoia
     assert UnicodeUtil.validUTF16String(text);
-    try {
-      bytes = text.getBytes("UTF-8");
-    } catch (UnsupportedEncodingException uee) {
-      // should not happen:
-      throw new RuntimeException("unable to encode to UTF-8");
-    }
-    offset = 0;
-    length = bytes.length;
+    if (bytes == null)
+      bytes = new byte[10];
+    UnicodeUtil.UTF16toUTF8(text, 0, text.length(), this);
   }
 
   public boolean bytesEquals(BytesRef other) {

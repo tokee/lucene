@@ -73,10 +73,8 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
   private final BitSet visited;
   // used for unicode conversion from BytesRef byte[] to char[]
   private final UnicodeUtil.UTF16Result utf16 = new UnicodeUtil.UTF16Result();
-  // used for unicode conversion from char[] to BytesRef byte[]
-  private final UnicodeUtil.UTF8Result utf8 = new UnicodeUtil.UTF8Result();
   // the reference used for seeking forwards through the term dictionary
-  private final BytesRef seekBytesRef = new BytesRef();
+  private final BytesRef seekBytesRef = new BytesRef(10);
   
   // this accept stati will be returned by accept() dependent on internal mode
   private final AcceptStatus NO_MATCH, YES_MATCH;
@@ -205,10 +203,7 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
         if (!nextString())
           return null;
         UnicodeUtil.nextValidUTF16String(utf16);
-        UnicodeUtil.UTF16toUTF8(utf16.result, 0, utf16.length, utf8);
-        seekBytesRef.bytes = utf8.result;
-        seekBytesRef.offset = 0;
-        seekBytesRef.length = utf8.length;
+        UnicodeUtil.UTF16toUTF8(utf16.result, 0, utf16.length, seekBytesRef);
       }
       return seekBytesRef;
     } else if (!linearMode) {
@@ -217,10 +212,7 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
       if (nextString()) {
         // reposition
         UnicodeUtil.nextValidUTF16String(utf16);
-        UnicodeUtil.UTF16toUTF8(utf16.result, 0, utf16.length, utf8);
-        seekBytesRef.bytes = utf8.result;
-        seekBytesRef.offset = 0;
-        seekBytesRef.length = utf8.length;
+        UnicodeUtil.UTF16toUTF8(utf16.result, 0, utf16.length, seekBytesRef);
         return seekBytesRef;
       }
     }

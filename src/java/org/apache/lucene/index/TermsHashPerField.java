@@ -51,7 +51,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   private int postingsHashMask = postingsHashSize-1;
   private RawPostingList[] postingsHash = new RawPostingList[postingsHashSize];
   private RawPostingList p;
-  private final UnicodeUtil.UTF8Result utf8;
+  private final BytesRef utf8;
   private BytesRef.Comparator termComp;
 
   // nocommit -- move to thread level
@@ -249,7 +249,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     }
 
     if (len == utf8.length) {
-      final byte[] utf8Bytes = utf8.result;
+      final byte[] utf8Bytes = utf8.bytes;
       for(int tokenPos=0;tokenPos<utf8.length;pos++,tokenPos++) {
         if (utf8Bytes[tokenPos] != text[pos]) {
           return false;
@@ -366,19 +366,12 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     // term text into textStart address
 
     // Get the text of this term.
-    final char[] tokenText = termAtt.termBuffer();;
+    final char[] tokenText = termAtt.termBuffer();
     final int tokenTextLen = termAtt.termLength();
     
     //System.out.println("\nfield=" + fieldInfo.name + " add text=" + new String(tokenText, 0, tokenTextLen) + " len=" + tokenTextLen);
     
-    UnicodeUtil.UTF16toUTF8(tokenText, 0, tokenTextLen, utf8);
-
-    // nocommit -- modify UnicodeUtil to compute hash for us
-    // so we don't do 2nd pass here
-    int code = 0;
-    for(int i=0;i<utf8.length;i++) {
-      code = 31*code + utf8.result[i];
-    }
+    int code = UnicodeUtil.UTF16toUTF8WithHash(tokenText, 0, tokenTextLen, utf8);
 
     int hashPos = code & postingsHashMask;
 
@@ -445,13 +438,13 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
         // 1 byte to store length
         text[textUpto] = (byte) utf8.length;
         bytePool.byteUpto += utf8.length + 1;
-        System.arraycopy(utf8.result, 0, text, textUpto+1, utf8.length);
+        System.arraycopy(utf8.bytes, 0, text, textUpto+1, utf8.length);
       } else {
         // 2 byte to store length
         text[textUpto] = (byte) (0x80 | (utf8.length & 0x7f));
         text[textUpto+1] = (byte) ((utf8.length>>7) & 0xff);
         bytePool.byteUpto += utf8.length + 2;
-        System.arraycopy(utf8.result, 0, text, textUpto+2, utf8.length);
+        System.arraycopy(utf8.bytes, 0, text, textUpto+2, utf8.length);
       }
 
       assert postingsHash[hashPos] == null;

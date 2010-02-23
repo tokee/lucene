@@ -307,8 +307,6 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
     termsConsumer.finish();
   }
 
-  final UnicodeUtil.UTF8Result termsUTF8 = new UnicodeUtil.UTF8Result();
-
   //nocommit: needed?
   void files(Collection<String> files) {}
 

@@ -25,6 +25,11 @@ Changes in backwards compatibility policy
   toString.  These are advanced APIs and subject to change suddenly.
   (Tim Smith via Mike McCandless)
 
+* LUCENE-2111: UnicodeUtil now uses BytesRef for UTF-8 output, and
+  some method signatures have changed to CharSequence.  These are
+  advanced APIs and subject to change suddenly.
+  (Robert Muir, Mike McCandless)
+
 Changes in runtime behavior
 
 * LUCENE-1923: Made IndexReader.toString() produce something

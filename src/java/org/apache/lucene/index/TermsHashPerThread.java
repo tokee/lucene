@@ -17,7 +17,7 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-import org.apache.lucene.util.UnicodeUtil;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 
@@ -37,7 +37,7 @@ final class TermsHashPerThread extends InvertedDocConsumerPerThread {
   int freePostingsCount;
 
   // Used by perField:
-  final UnicodeUtil.UTF8Result utf8 = new UnicodeUtil.UTF8Result();
+  final BytesRef utf8 = new BytesRef(10);
 
   public TermsHashPerThread(DocInverterPerThread docInverterPerThread, final TermsHash termsHash, final TermsHash nextTermsHash, final TermsHashPerThread primaryPerThread) {
     docState = docInverterPerThread.docState;

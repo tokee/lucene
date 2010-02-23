@@ -72,22 +72,6 @@ final public class UnicodeUtil {
   private static final long HALF_SHIFT = 10;
   private static final long HALF_MASK = 0x3FFL;
 
-  public static final class UTF8Result {
-    public byte[] result;
-    public int length;
-
-    public UTF8Result() {
-      result = new byte[10];
-    }
-
-    public void setLength(int newLength) {
-      if (result.length < newLength) {
-        result = ArrayUtil.grow(result, newLength);
-      }
-      length = newLength;
-    }
-  }
-
   public static final class UTF16Result {
     public char[] result = new char[10];
     public int[] offsets = new int[10];
@@ -119,87 +103,84 @@ final public class UnicodeUtil {
   }
 
   /** Encode characters from a char[] source, starting at
-   *  offset and stopping when the character 0xffff is seen.
-   *  Returns the number of bytes written to bytesOut.
-   *
-   * @deprecated Use {@link #UTF16toUTF8(char[], int, int,
-   * UTF8Result)} instead. */
-  @Deprecated
-  public static void UTF16toUTF8(final char[] source, final int offset, UTF8Result result) {
-
-    int upto = 0;
-    int i = offset;
-    byte[] out = result.result;
-
-    while(true) {
-      
-      final int code = (int) source[i++];
-
-      if (upto+4 > out.length) {
-        byte[] newOut = new byte[2*out.length];
-        assert newOut.length >= upto+4;
-        System.arraycopy(out, 0, newOut, 0, upto);
-        result.result = out = newOut;
-      }
-      if (code < 0x80)
-        out[upto++] = (byte) code;
-      else if (code < 0x800) {
-        out[upto++] = (byte) (0xC0 | (code >> 6));
-        out[upto++] = (byte)(0x80 | (code & 0x3F));
-      } else if (code < 0xD800 || code > 0xDFFF) {
-        if (code == 0xffff)
-          // END
-          break;
-        out[upto++] = (byte)(0xE0 | (code >> 12));
-        out[upto++] = (byte)(0x80 | ((code >> 6) & 0x3F));
-        out[upto++] = (byte)(0x80 | (code & 0x3F));
-      } else {
-        // surrogate pair
-        // confirm valid high surrogate
-        if (code < 0xDC00 && source[i] != 0xffff) {
-          int utf32 = (int) source[i];
-          // confirm valid low surrogate and write pair
-          if (utf32 >= 0xDC00 && utf32 <= 0xDFFF) { 
-            utf32 = ((code - 0xD7C0) << 10) + (utf32 & 0x3FF);
-            i++;
-            out[upto++] = (byte)(0xF0 | (utf32 >> 18));
-            out[upto++] = (byte)(0x80 | ((utf32 >> 12) & 0x3F));
-            out[upto++] = (byte)(0x80 | ((utf32 >> 6) & 0x3F));
-            out[upto++] = (byte)(0x80 | (utf32 & 0x3F));
-            continue;
-          }
-        }
-        // replace unpaired surrogate or out-of-order low surrogate
-        // with substitution character
-        out[upto++] = (byte) 0xEF;
-        out[upto++] = (byte) 0xBF;
-        out[upto++] = (byte) 0xBD;
-      }
-    }
-    //assert matches(source, offset, i-offset-1, out, upto);
-    result.length = upto;
-  }
-
-  /** Encode characters from a char[] source, starting at
-   *  offset for length chars.  Returns the number of bytes
-   *  written to bytesOut. */
-  public static void UTF16toUTF8(final char[] source, final int offset, final int length, UTF8Result result) {
-
+   *  offset for length chars.  Returns a hash of the resulting bytes */
+  public static int UTF16toUTF8WithHash(final char[] source, final int offset, final int length, BytesRef result) {
+    int hash = 0;
     int upto = 0;
     int i = offset;
     final int end = offset + length;
-    byte[] out = result.result;
+    byte[] out = result.bytes;
+    // Pre-allocate for worst case 4-for-1
+    final int maxLen = length * 4;
+    if (out.length < maxLen)
+      out = result.bytes = new byte[maxLen];
+    result.offset = 0;
 
     while(i < end) {
       
       final int code = (int) source[i++];
 
-      if (upto+4 > out.length) {
-        byte[] newOut = new byte[2*out.length];
-        assert newOut.length >= upto+4;
-        System.arraycopy(out, 0, newOut, 0, upto);
-        result.result = out = newOut;
+      if (code < 0x80) {
+        hash = 31*hash + (out[upto++] = (byte) code);
+      } else if (code < 0x800) {
+        hash = 31*hash + (out[upto++] = (byte) (0xC0 | (code >> 6)));
+        hash = 31*hash + (out[upto++] = (byte)(0x80 | (code & 0x3F)));
+      } else if (code < 0xD800 || code > 0xDFFF) {
+        hash = 31*hash + (out[upto++] = (byte)(0xE0 | (code >> 12)));
+        hash = 31*hash + (out[upto++] = (byte)(0x80 | ((code >> 6) & 0x3F)));
+        hash = 31*hash + (out[upto++] = (byte)(0x80 | (code & 0x3F)));
+      } else {
+        // surrogate pair
+        // confirm valid high surrogate
+        // nocommit -- I removed the 0xffff check, here, but
+        // technically that's a break in back-compat, though
+        // it seems crazy that any external apps would rely
+        // on this?
+        //if (code < 0xDC00 && i < end && source[i] != 0xffff) {
+        if (code < 0xDC00 && i < end) {
+          int utf32 = (int) source[i];
+          // confirm valid low surrogate and write pair
+          if (utf32 >= 0xDC00 && utf32 <= 0xDFFF) { 
+            utf32 = ((code - 0xD7C0) << 10) + (utf32 & 0x3FF);
+            i++;
+            hash = 31*hash + (out[upto++] = (byte)(0xF0 | (utf32 >> 18)));
+            hash = 31*hash + (out[upto++] = (byte)(0x80 | ((utf32 >> 12) & 0x3F)));
+            hash = 31*hash + (out[upto++] = (byte)(0x80 | ((utf32 >> 6) & 0x3F)));
+            hash = 31*hash + (out[upto++] = (byte)(0x80 | (utf32 & 0x3F)));
+            continue;
+          }
+        }
+        // replace unpaired surrogate or out-of-order low surrogate
+        // with substitution character
+        hash = 31*hash + (out[upto++] = (byte) 0xEF);
+        hash = 31*hash + (out[upto++] = (byte) 0xBF);
+        hash = 31*hash + (out[upto++] = (byte) 0xBD);
       }
+    }
+    //assert matches(source, offset, length, out, upto);
+    result.length = upto;
+    return hash;
+  }
+
+  /** Encode characters from a char[] source, starting at
+   *  offset for length chars.  Returns the number of bytes
+   *  written to bytesOut. */
+  public static void UTF16toUTF8(final char[] source, final int offset, final int length, BytesRef result) {
+
+    int upto = 0;
+    int i = offset;
+    final int end = offset + length;
+    byte[] out = result.bytes;
+    // Pre-allocate for worst case 4-for-1
+    final int maxLen = length * 4;
+    if (out.length < maxLen)
+      out = result.bytes = new byte[maxLen];
+    result.offset = 0;
+
+    while(i < end) {
+      
+      final int code = (int) source[i++];
+
       if (code < 0x80)
         out[upto++] = (byte) code;
       else if (code < 0x800) {
@@ -244,21 +225,20 @@ final public class UnicodeUtil {
   /** Encode characters from this String, starting at offset
    *  for length characters.  Returns the number of bytes
    *  written to bytesOut. */
-  public static void UTF16toUTF8(final String s, final int offset, final int length, UTF8Result result) {
+  public static void UTF16toUTF8(final CharSequence s, final int offset, final int length, BytesRef result) {
     final int end = offset + length;
 
-    byte[] out = result.result;
+    byte[] out = result.bytes;
+    result.offset = 0;
+    // Pre-allocate for worst case 4-for-1
+    final int maxLen = length * 4;
+    if (out.length < maxLen)
+      out = result.bytes = new byte[maxLen];
 
     int upto = 0;
     for(int i=offset;i<end;i++) {
       final int code = (int) s.charAt(i);
 
-      if (upto+4 > out.length) {
-        byte[] newOut = new byte[2*out.length];
-        assert newOut.length >= upto+4;
-        System.arraycopy(out, 0, newOut, 0, upto);
-        result.result = out = newOut;
-      }
       if (code < 0x80)
         out[upto++] = (byte) code;
       else if (code < 0x800) {
@@ -479,7 +459,7 @@ final public class UnicodeUtil {
     }
   }
   */
-  public static final boolean validUTF16String(String s) {
+  public static final boolean validUTF16String(CharSequence s) {
     final int size = s.length();
     for(int i=0;i<size;i++) {
       char ch = s.charAt(i);
