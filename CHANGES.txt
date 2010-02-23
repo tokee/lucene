@@ -21,7 +21,6 @@ Changes in backwards compatibility policy
   FuzzyQuery. The change was needed because the comparator of this class
   had to be changed in an incompatible way. The class was never intended
   to be public.  (Uwe Schindler, Mike McCandless)
-  
 
 Bug fixes
 
