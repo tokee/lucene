@@ -39,6 +39,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.util._TestUtil;
@@ -561,13 +562,13 @@ public class TestPayloads extends LuceneTestCase {
             }
         }
         
-        private UnicodeUtil.UTF8Result utf8Result = new UnicodeUtil.UTF8Result();
+        private BytesRef utf8Result = new BytesRef(10);
 
         synchronized String bytesToString(byte[] bytes) {
             String s = new String(bytes);
             UnicodeUtil.UTF16toUTF8(s, 0, s.length(), utf8Result);
             try {
-                return new String(utf8Result.result, 0, utf8Result.length, "UTF-8");
+                return new String(utf8Result.bytes, 0, utf8Result.length, "UTF-8");
             } catch (UnsupportedEncodingException uee) {
                 return null;
             }
