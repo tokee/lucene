@@ -1,6 +1,12 @@
 Lucene Change Log
 $Id$
 
+======================= 3.0 branch (not yet released) ==================
+
+Bug fixes
+
+...
+
 ======================= Release 2.9.2 2010-02-26 =======================
 
 Bug fixes
