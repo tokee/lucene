@@ -24,6 +24,7 @@ import org.apache.lucene.index.codecs.sep.IntIndexOutput;
 
 import java.io.IOException;
 
+/** @lucene.experimental */
 public class SimpleIntBlockFactory extends IntStreamFactory {
   private final int blockSize;
   public SimpleIntBlockFactory(int blockSize) {

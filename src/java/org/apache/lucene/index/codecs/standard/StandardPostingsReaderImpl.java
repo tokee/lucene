@@ -32,7 +32,8 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
 /** Concrete class that reads the current doc/freq/skip
- *  postings format. */
+ *  postings format. 
+ *  @lucene.experimental */
 
 // nocommit -- should we switch "hasProx" higher up?  and
 // create two separate docs readers, one that also reads

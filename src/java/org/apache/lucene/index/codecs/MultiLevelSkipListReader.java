@@ -31,9 +31,9 @@ import org.apache.lucene.store.IndexInput;
  * 
  * Subclasses must implement the abstract method {@link #readSkipData(int, IndexInput)}
  * which defines the actual format of the skip data.
+ * @lucene.experimental
  */
 
-// nocommit -- made public
 public abstract class MultiLevelSkipListReader {
   // the maximum number of skip levels possible for this index
   protected int maxNumberOfSkipLevels; 
@@ -85,7 +85,6 @@ public abstract class MultiLevelSkipListReader {
   
   /** Returns the id of the doc to which the last call of {@link #skipTo(int)}
    *  has skipped.  */
-  // nocommit made public
   public int getDoc() {
     return lastDoc;
   }
@@ -94,7 +93,6 @@ public abstract class MultiLevelSkipListReader {
   /** Skips entries to the first beyond the current whose document number is
    *  greater than or equal to <i>target</i>. Returns the current doc count. 
    */
-  // nocommit made public
   public int skipTo(int target) throws IOException {
     if (!haveSkipped) {
       // first time, load skip levels
@@ -162,7 +160,6 @@ public abstract class MultiLevelSkipListReader {
     }
   }
 
-  // nocommit -- made public
   public void close() throws IOException {
     for (int i = 1; i < skipStream.length; i++) {
       if (skipStream[i] != null) {
@@ -172,7 +169,6 @@ public abstract class MultiLevelSkipListReader {
   }
 
   /** initializes the reader */
-  // nocommit -- made public
   public void init(long skipPointer, int df) {
     this.skipPointer[0] = skipPointer;
     this.docCount = df;

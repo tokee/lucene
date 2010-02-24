@@ -40,16 +40,14 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
-/** Exposes flex API on a pre-flex index, as a codec. */
+/** Exposes flex API on a pre-flex index, as a codec. 
+ * @lucene.experimental */
 public class PreFlexFields extends FieldsProducer {
 
-  // nocommit -- needed public by SegmentReader
   public TermInfosReader tis;
   public final TermInfosReader tisNoIndex;
 
-  // nocomit -- needed public by SR
   public final IndexInput freqStream;
-  // nocomit -- needed public by SR
   public final IndexInput proxStream;
   final private FieldInfos fieldInfos;
   private final SegmentInfo si;

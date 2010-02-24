@@ -23,8 +23,8 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermPositions;
 import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.util.Bits;
 
+/** @lucene.experimental */
 public final class SegmentTermPositions
 extends SegmentTermDocs implements TermPositions {
   private IndexInput proxStream;
@@ -50,7 +50,6 @@ extends SegmentTermDocs implements TermPositions {
   }
   */
 
-  // nocommit -- public
   public SegmentTermPositions(IndexInput freqStream, IndexInput proxStream, TermInfosReader tis, FieldInfos fieldInfos) {
     super(freqStream, tis, fieldInfos);
     this.proxStreamOrig = proxStream;  // the proxStream will be cloned lazily when nextPosition() is called for the first time

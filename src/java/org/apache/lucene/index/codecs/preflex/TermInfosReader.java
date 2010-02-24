@@ -31,8 +31,9 @@ import org.apache.lucene.util.cache.SimpleLRUCache;
  * Directory.  Pairs are accessed either by Term or by ordinal position the
  * set
  * @deprecated This class has been replaced by
- * FormatPostingsTermsDictReader, except for reading old segments. */
-// nocommit -- public
+ * FormatPostingsTermsDictReader, except for reading old segments. 
+ * @lucene.experimental
+ */
 @Deprecated
 public final class TermInfosReader {
   private final Directory directory;

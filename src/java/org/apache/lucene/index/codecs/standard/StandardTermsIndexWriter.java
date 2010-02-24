@@ -22,6 +22,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.util.BytesRef;
 import java.io.IOException;
 
+/** @lucene.experimental */
 public abstract class StandardTermsIndexWriter {
 
   public abstract void setTermsOutput(IndexOutput out);

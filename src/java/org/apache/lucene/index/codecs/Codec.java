@@ -28,6 +28,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 
+/** @lucene.experimental */
 public abstract class Codec {
 
   public static boolean DEBUG = false;

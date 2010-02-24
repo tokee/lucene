@@ -30,6 +30,7 @@ import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.util.BytesRef;
 
+/** @lucene.experimental */
 public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
   final static String CODEC = "StandardPostingsWriterImpl";
   

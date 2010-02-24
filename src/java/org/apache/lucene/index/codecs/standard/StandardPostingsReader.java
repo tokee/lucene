@@ -32,7 +32,8 @@ import org.apache.lucene.util.Bits;
  *  IndexInput (termsIn) where this class may read any
  *  previously stored data that it had written in its
  *  corresponding {@link StandardPostingsWriter} at indexing
- *  time. */
+ *  time. 
+ *  @lucene.experimental */
 
 public abstract class StandardPostingsReader implements Closeable {
 

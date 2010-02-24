@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.io.IOException;
 
+/** @lucene.experimental */
 public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
   final private IndexOutput out;
 

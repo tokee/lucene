@@ -26,7 +26,7 @@ import org.apache.lucene.index.MultiDocsAndPositionsEnum;
 import org.apache.lucene.util.BytesRef;
 
 /**
- * NOTE: this API is experimental and will likely change
+ * @lucene.experimental
  */
 
 public abstract class TermsConsumer {

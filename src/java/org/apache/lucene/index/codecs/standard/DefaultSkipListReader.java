@@ -26,9 +26,8 @@ import org.apache.lucene.store.IndexInput;
 /**
  * Implements the skip list reader for the default posting list format
  * that stores positions and payloads.
- *
+ * @lucene.experimental
  */
-// nocommit -- made public
 public class DefaultSkipListReader extends MultiLevelSkipListReader {
   private boolean currentFieldStoresPayloads;
   private long freqPointer[];
@@ -40,7 +39,6 @@ public class DefaultSkipListReader extends MultiLevelSkipListReader {
   private int lastPayloadLength;
                            
 
-  // nocommit -- made public
   public DefaultSkipListReader(IndexInput skipStream, int maxSkipLevels, int skipInterval) {
     super(skipStream, maxSkipLevels, skipInterval);
     freqPointer = new long[maxSkipLevels];
@@ -48,7 +46,6 @@ public class DefaultSkipListReader extends MultiLevelSkipListReader {
     payloadLength = new int[maxSkipLevels];
   }
 
-  // nocommit -- made public
   public void init(long skipPointer, long freqBasePointer, long proxBasePointer, int df, boolean storesPayloads) {
     super.init(skipPointer, df);
     this.currentFieldStoresPayloads = storesPayloads;
@@ -62,14 +59,12 @@ public class DefaultSkipListReader extends MultiLevelSkipListReader {
 
   /** Returns the freq pointer of the doc to which the last call of 
    * {@link MultiLevelSkipListReader#skipTo(int)} has skipped.  */
-  // nocommit made public
   public long getFreqPointer() {
     return lastFreqPointer;
   }
 
   /** Returns the prox pointer of the doc to which the last call of 
    * {@link MultiLevelSkipListReader#skipTo(int)} has skipped.  */
-  // nocommit made public
   public long getProxPointer() {
     return lastProxPointer;
   }
@@ -77,7 +72,6 @@ public class DefaultSkipListReader extends MultiLevelSkipListReader {
   /** Returns the payload length of the payload stored just before 
    * the doc to which the last call of {@link MultiLevelSkipListReader#skipTo(int)} 
    * has skipped.  */
-  // nocommit made public
   public int getPayloadLength() {
     return lastPayloadLength;
   }

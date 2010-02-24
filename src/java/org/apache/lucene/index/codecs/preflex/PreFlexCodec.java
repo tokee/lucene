@@ -34,6 +34,7 @@ import org.apache.lucene.index.codecs.FieldsProducer;
  *
  * @deprecated This is only used to read indexes created
  * before 3.1.
+ * @lucene.experimental
  */
 @Deprecated
 public class PreFlexCodec extends Codec {

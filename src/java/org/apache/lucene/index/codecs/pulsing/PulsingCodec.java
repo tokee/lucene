@@ -45,7 +45,8 @@ import org.apache.lucene.util.BytesRef;
  *  writing the non-inlined terms.
  *
  *  Currently in only inlines docFreq=1 terms, and
- *  otherwise uses the normal "standard" codec. */
+ *  otherwise uses the normal "standard" codec. 
+ *  @lucene.experimental */
 
 public class PulsingCodec extends Codec {
 

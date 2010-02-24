@@ -25,7 +25,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.codecs.PostingsConsumer;
 
 /**
- * NOTE: this API is experimental and will likely change
+ * @lucene.experimental
  */
 
 public abstract class StandardPostingsWriter extends PostingsConsumer implements Closeable {

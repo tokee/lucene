@@ -32,7 +32,8 @@ import org.apache.lucene.index.codecs.standard.StandardCodec;
  *  this, instantiate it, and register your codecs, then
  *  pass this instance to IndexReader/IndexWriter (via
  *  package private APIs) to use different codecs when
- *  reading & writing segments. */
+ *  reading & writing segments. 
+ *  @lucene.experimental */
 
 public abstract class Codecs {
 

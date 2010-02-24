@@ -44,10 +44,9 @@ import org.apache.lucene.store.RAMOutputStream;
  * 
  * While this class takes care of writing the different skip levels,
  * subclasses must define the actual format of the skip data.
- * 
+ * @lucene.experimental
  */
 
-// nocommit -- made public
 public abstract class MultiLevelSkipListWriter {
   // number of levels in this skip list
   protected int numberOfSkipLevels;
@@ -103,7 +102,6 @@ public abstract class MultiLevelSkipListWriter {
    * @param df the current document frequency 
    * @throws IOException
    */
-  // nocommit -- made public
   public void bufferSkip(int df) throws IOException {
     int numLevels;
    
@@ -135,7 +133,6 @@ public abstract class MultiLevelSkipListWriter {
    * @param output the IndexOutput the skip lists shall be written to 
    * @return the pointer the skip list starts
    */
-  // nocommit -- made public
   public long writeSkip(IndexOutput output) throws IOException {
     long skipPointer = output.getFilePointer();
     //System.out.println("skipper.writeSkip fp=" + skipPointer);

@@ -50,7 +50,8 @@ import org.apache.lucene.util.BytesRef;
  *
  * <p>This class also interacts with an instance of {@link
  * StandardTermsIndexReader}, to abstract away the specific
- * implementation of the terms dict index. */
+ * implementation of the terms dict index. 
+ * @lucene.experimental */
 
 public class StandardTermsDictReader extends FieldsProducer {
   // Open input to the main terms dict file (_X.tis)

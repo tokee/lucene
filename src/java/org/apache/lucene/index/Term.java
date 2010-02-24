@@ -49,7 +49,7 @@ public final class Term implements Comparable<Term>, java.io.Serializable {
     this(fld, "", true);
   }
 
-  // nocommit -- made public
+  /** @lucene.experimental */
   public Term(String fld, String txt, boolean intern) {
     field = intern ? StringHelper.intern(fld) : fld;	  // field names are interned
     text = txt;					          // unless already known to be

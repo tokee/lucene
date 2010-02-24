@@ -21,6 +21,7 @@ package org.apache.lucene.index.codecs.standard;
  * Holds all state required for {@link StandardDocsProducer}
  * to produce a {@link DocsEnum} without re-seeking the
  * terms dict.
+ * @lucene.experimental
  */
 
 public class TermState implements Cloneable {

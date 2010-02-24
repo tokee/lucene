@@ -33,7 +33,7 @@ import org.apache.lucene.util.BytesRef;
 // positions would not be inlined.  Though this is
 // presumably rare in practice...
 
-//nocommit: public 
+/** @lucene.experimental */
 public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
 
   final static String CODEC = "PulsedPostings";

@@ -25,8 +25,7 @@ import java.util.List;
 
 /** Holds common state used during segment merging
  *
- * <p>This API is experimental and subject to suddenly
- * change.</p> */
+ * @lucene.experimental */
 public class MergeState {
   public FieldInfos fieldInfos;
   public List<IndexReader> readers;               // Readers being merged

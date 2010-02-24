@@ -57,6 +57,7 @@ import java.io.IOException;
 
 import org.apache.lucene.index.IndexFileNames;
 
+/** @lucene.experimental */
 public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
 
   final private int totalIndexInterval;

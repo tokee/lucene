@@ -28,20 +28,16 @@ import org.apache.lucene.index.codecs.Codecs;
  * This class is not meant for public usage; it's only
  * public in order to expose access across packages.  It's
  * used internally when updating the index.
+ * @lucene.experimental
  */
 public class SegmentWriteState {
   DocumentsWriter docWriter;
-  // nocommit -- made public
   public Directory directory;
-  // nocommit -- made public
   public String segmentName;
-  // nocommit -- made public
   public FieldInfos fieldInfos;
   String docStoreSegmentName;
-  // nocommit -- made public
   public int numDocs;
   int numDocsInStore;
-  // nocommit -- made public
   public Collection<String> flushedFiles;
 
   // Actual codec used
@@ -52,7 +48,6 @@ public class SegmentWriteState {
    * faster, while larger values use less memory and make searching slightly
    * slower.  Searching is typically not dominated by dictionary lookup, so
    * tweaking this is rarely useful.*/
-  // nocommit -- made public
   public int termIndexInterval;
 
   /** Expert: The fraction of {@link TermDocs} entries stored in skip tables,
@@ -60,13 +55,11 @@ public class SegmentWriteState {
    * smaller indexes, greater acceleration, but fewer accelerable cases, while
    * smaller values result in bigger indexes, less acceleration and more
    * accelerable cases. More detailed experiments would be useful here. */
-  // nocommit -- made public
   public int skipInterval = 16;
   
   /** Expert: The maximum number of skip levels. Smaller values result in 
    * slightly smaller indexes, but slower skipping in big posting lists.
    */
-  // nocommit -- made public
   public int maxSkipLevels = 10;
 
   public SegmentWriteState(DocumentsWriter docWriter, Directory directory, String segmentName, FieldInfos fieldInfos,

@@ -28,7 +28,8 @@ import org.apache.lucene.index.codecs.standard.DefaultSkipListReader;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 
-/** @deprecated */
+/** @deprecated 
+ *  @lucene.experimental */
 @Deprecated
 public class SegmentTermDocs implements TermDocs {
   //protected SegmentReader parent;
@@ -66,7 +67,6 @@ public class SegmentTermDocs implements TermDocs {
   }
   */
 
-  // nocommit -- SR needs public
   public SegmentTermDocs(IndexInput freqStream, TermInfosReader tis, FieldInfos fieldInfos) {
     this.freqStream = (IndexInput) freqStream.clone();
     this.tis = tis;

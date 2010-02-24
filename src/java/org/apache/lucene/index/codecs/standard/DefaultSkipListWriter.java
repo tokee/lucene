@@ -28,9 +28,8 @@ import org.apache.lucene.index.codecs.MultiLevelSkipListWriter;
 /**
  * Implements the skip list writer for the default posting list format
  * that stores positions and payloads.
- *
+ * @lucene.experimental
  */
-// nocommit -- made public
 public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
   private int[] lastSkipDoc;
   private int[] lastSkipPayloadLength;
@@ -47,7 +46,6 @@ public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
   private long curFreqPointer;
   private long curProxPointer;
 
-  // nocommit made public
   public DefaultSkipListWriter(int skipInterval, int numberOfSkipLevels, int docCount, IndexOutput freqOutput, IndexOutput proxOutput) {
     super(skipInterval, numberOfSkipLevels, docCount);
     this.freqOutput = freqOutput;
@@ -72,7 +70,6 @@ public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
   /**
    * Sets the values for the current skip data. 
    */
-  // nocommit -- made public
   public void setSkipData(int doc, boolean storePayloads, int payloadLength) {
     this.curDoc = doc;
     this.curStorePayloads = storePayloads;
@@ -82,7 +79,6 @@ public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
       this.curProxPointer = proxOutput.getFilePointer();
   }
 
-  // nocommit -- made public
   @Override
   public void resetSkip() {
     super.resetSkip();

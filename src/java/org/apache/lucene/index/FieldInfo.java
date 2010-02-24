@@ -17,13 +17,10 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
-// nocommit -- made this public:
+/** @lucene.experimental */
 public final class FieldInfo {
-  // nocommit -- made this public
   public String name;
-  // nocommit -- made this public
   public boolean isIndexed;
-  // nocommit -- made this public
   public int number;
 
   // true if term vector for this field should be stored
@@ -31,12 +28,9 @@ public final class FieldInfo {
   boolean storeOffsetWithTermVector;
   boolean storePositionWithTermVector;
 
-  // nocommit -- made this public
   public boolean omitNorms; // omit norms associated with indexed fields  
-  // nocommit -- made this public
   public boolean omitTermFreqAndPositions;
 
-  // nocommit -- made public
   public boolean storePayloads; // whether this field stores payloads together with term positions
 
   FieldInfo(String na, boolean tk, int nu, boolean storeTermVector, 

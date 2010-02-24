@@ -35,7 +35,8 @@ import java.util.Collection;
  * indexed terms (many pairs of CharSequence text + long
  * fileOffset), and then this reader must be able to
  * retrieve the nearest index term to a provided term
- * text. */
+ * text. 
+ * @lucene.experimental */
 
 public abstract class StandardTermsIndexReader {
 

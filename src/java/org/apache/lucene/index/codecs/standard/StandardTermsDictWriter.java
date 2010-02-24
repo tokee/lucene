@@ -40,6 +40,7 @@ import org.apache.lucene.store.IndexOutput;
  * has its own section in the file.  Fields are written in
  * UTF16 string comparison order.  Within each field, each
  * term's text is written in UTF16 string comparison order.
+ * @lucene.experimental
  */
 
 public class StandardTermsDictWriter extends FieldsConsumer {
