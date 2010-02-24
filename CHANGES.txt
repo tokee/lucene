@@ -30,6 +30,11 @@ Changes in backwards compatibility policy
   advanced APIs and subject to change suddenly.
   (Robert Muir, Mike McCandless)
 
+* LUCENE-1458: Flex API changes:
+  - Directory.copy now copies all files (not just index files), since
+    what is and isn't and index file is now dependent on the codec
+    used.
+
 Changes in runtime behavior
 
 * LUCENE-1923: Made IndexReader.toString() produce something

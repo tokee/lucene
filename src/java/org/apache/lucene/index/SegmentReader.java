@@ -1453,7 +1453,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     @Override
     public Term term() {
       if (!done && terms != null && currentTerm != null) {
-        return new Term(currentField, currentTerm.toString());
+        return new Term(currentField, currentTerm.utf8ToString());
       }
       return null;
     }

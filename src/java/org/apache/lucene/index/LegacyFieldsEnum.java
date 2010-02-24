@@ -92,7 +92,7 @@ class LegacyFieldsEnum extends FieldsEnum {
       if (terms != null) {
         terms.close();
       }
-      terms = r.terms(new Term(field, text.toString()));
+      terms = r.terms(new Term(field, text.utf8ToString()));
 
       final Term t = terms.term();
       if (t == null) {

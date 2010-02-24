@@ -274,7 +274,7 @@ public class TestCodecs extends LuceneTestCase {
     for(int i=0;i<NUM_TERMS;i++) {
       BytesRef term = termsEnum.next();
       assertNotNull(term);
-      assertEquals(terms[i].text2, term.toString());
+      assertEquals(terms[i].text2, term.utf8ToString());
     }
     assertNull(termsEnum.next());
 

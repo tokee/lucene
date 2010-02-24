@@ -143,27 +143,7 @@ final class IndexFileDeleter {
     // First pass: walk the files and initialize our ref
     // counts:
     long currentGen = segmentInfos.getGeneration();
-    final Collection<String> codecsExtensions = codecs.getAllExtensions();
-    final FilenameFilter mainFilter = IndexFileNameFilter.getFilter();
-
-    indexFilenameFilter = new FilenameFilter() {
-        public boolean accept(File dir, String name) {
-          if (mainFilter.accept(dir, name)) {
-            return true;
-          } else {
-            // See if any of the codecs claim this
-            // extension:
-            int i = name.lastIndexOf('.');
-            if (i != -1) {
-              String extension = name.substring(1+i);
-              if (codecsExtensions.contains(extension)) {
-                return true;
-              }
-            }
-            return false;
-        }
-      }
-      };
+    indexFilenameFilter = new IndexFileNameFilter(codecs);
     
     String[] files = directory.listAll();
 

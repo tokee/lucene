@@ -400,14 +400,12 @@ public final class SegmentInfo {
         if (result == null)
           throw new IOException("cannot read directory " + dir + ": listAll() returned null");
 
-        final IndexFileNameFilter filter = IndexFileNameFilter.getFilter();
-        String pattern;
-        pattern = name + ".s";
-        int patternLength = pattern.length();
+        final String pattern = name + ".s\\d+";
         for(int i = 0; i < result.length; i++){
           String fileName = result[i];
-          if (filter.accept(null, fileName) && fileName.startsWith(pattern) && Character.isDigit(fileName.charAt(patternLength)))
-              return true;
+          if (fileName.matches(pattern)) {
+            return true;
+          }
         }
         return false;
       }
@@ -701,16 +699,17 @@ public final class SegmentInfo {
       // Pre-2.1: we have to scan the dir to find all
       // matching _X.sN/_X.fN files for our segment:
       String prefix;
-      if (useCompoundFile)
+      if (useCompoundFile) {
         prefix = name + "." + IndexFileNames.SEPARATE_NORMS_EXTENSION;
-      else
+      } else {
         prefix = name + "." + IndexFileNames.PLAIN_NORMS_EXTENSION;
-      int prefixLength = prefix.length();
+      }
+      final String pattern = prefix + "\\d+";
+
       String[] allFiles = dir.listAll();
-      final IndexFileNameFilter filter = IndexFileNameFilter.getFilter();
       for(int i=0;i<allFiles.length;i++) {
         String fileName = allFiles[i];
-        if (filter.accept(null, fileName) && fileName.length() > prefixLength && Character.isDigit(fileName.charAt(prefixLength)) && fileName.startsWith(prefix)) {
+        if (fileName.matches(pattern)) {
           files.add(fileName);
         }
       }

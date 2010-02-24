@@ -76,26 +76,10 @@ final class SegmentMerger {
   
   private final Codecs codecs;
   private Codec codec;
+  private SegmentWriteState segmentWriteState;
 
-  /** This ctor used only by test code.
-   * 
-   * @param dir The Directory to merge the other segments into
-   * @param name The name of the new segment
-   */
-  SegmentMerger(Directory dir, String name) {
+  SegmentMerger(Directory dir, int termIndexInterval, String name, MergePolicy.OneMerge merge, Codecs codecs) {
     directory = dir;
-    segment = name;
-    codecs = Codecs.getDefault();
-    checkAbort = new CheckAbort(null, null) {
-      @Override
-      public void work(double units) throws MergeAbortedException {
-        // do nothing
-      }
-    };
-  }
-
-  SegmentMerger(IndexWriter writer, String name, MergePolicy.OneMerge merge, Codecs codecs) {
-    directory = writer.getDirectory();
     this.codecs = codecs;
     segment = name;
     if (merge != null) {
@@ -108,7 +92,7 @@ final class SegmentMerger {
         }
       };
     }
-    termIndexInterval = writer.getTermIndexInterval();
+    this.termIndexInterval = termIndexInterval;
   }
   
   boolean hasProx() {
@@ -181,13 +165,6 @@ final class SegmentMerger {
     for (final IndexReader reader : readers) {
       reader.close();
     }
-  }
-
-  final List<String> createCompoundFile(String fileName) throws IOException {
-    // nocommit -- messy!
-    final SegmentWriteState state = new SegmentWriteState(null, directory, segment, fieldInfos, null, mergedDocs, 0, 0, Codecs.getDefault());
-    return createCompoundFile(fileName, new SegmentInfo(segment, mergedDocs, directory,
-                                                        Codecs.getDefault().getWriter(state)));
   }
 
   final List<String> createCompoundFile(String fileName, final SegmentInfo info)
@@ -375,13 +352,16 @@ final class SegmentMerger {
         // details.
         throw new RuntimeException("mergeFields produced an invalid result: docCount is " + docCount + " but fdx file size is " + fdxFileLength + " file=" + fileName + " file exists?=" + directory.fileExists(fileName) + "; now aborting this merge to prevent index corruption");
 
-    } else
+    } else {
       // If we are skipping the doc stores, that means there
       // are no deletions in any of these segments, so we
       // just sum numDocs() of each segment to get total docCount
       for (final IndexReader reader : readers) {
         docCount += reader.numDocs();
       }
+    }
+
+    segmentWriteState = new SegmentWriteState(null, directory, segment, fieldInfos, null, docCount, 0, termIndexInterval, codecs);
 
     return docCount;
   }
@@ -582,11 +562,9 @@ final class SegmentMerger {
 
   private final void mergeTerms() throws CorruptIndexException, IOException {
 
-    SegmentWriteState state = new SegmentWriteState(null, directory, segment, fieldInfos, null, mergedDocs, 0, termIndexInterval, codecs);
-
     // Let Codecs decide which codec will be used to write
     // the new segment:
-    codec = codecs.getWriter(state);
+    codec = codecs.getWriter(segmentWriteState);
     
     int docBase = 0;
 
@@ -647,7 +625,7 @@ final class SegmentMerger {
     }
     starts[mergeState.readerCount] = inputDocBase;
 
-    final FieldsConsumer consumer = codec.fieldsConsumer(state);
+    final FieldsConsumer consumer = codec.fieldsConsumer(segmentWriteState);
 
     mergeState.multiDeletedDocs = new MultiBits(subBits, starts);
     

@@ -167,7 +167,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       
       @Override
       public PostingsConsumer startTerm(BytesRef text) {
-        final String term = text.toString();
+        final String term = text.utf8ToString();
         current = new RAMTerm(term);
         postingsWriter.reset(current);
         return postingsWriter;
@@ -284,7 +284,7 @@ public class TestExternalCodecs extends LuceneTestCase {
 
       @Override
       public SeekStatus seek(BytesRef term) {
-        current = term.toString();
+        current = term.utf8ToString();
         if (ramField.termToDocs.containsKey(current)) {
           return SeekStatus.FOUND;
         } else {
@@ -857,7 +857,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       if (lastBytesRef == null) {
         lastBytesRef = new BytesRef(t);
       } else {
-        assertTrue("terms in wrong order last=" + lastBytesRef + " current=" + t, reverseUnicodeComparator.compare(lastBytesRef, t) < 0);
+        assertTrue("terms in wrong order last=" + lastBytesRef.utf8ToString() + " current=" + t.utf8ToString(), reverseUnicodeComparator.compare(lastBytesRef, t) < 0);
         lastBytesRef.copy(t);
       }
     }

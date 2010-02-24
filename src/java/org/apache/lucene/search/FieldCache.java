@@ -209,7 +209,7 @@ public interface FieldCache {
     public float parseFloat(BytesRef term) {
       // TODO: would be far better to directly parse
       // the UTF-8 bytes into float, but that's tricky?
-      return Float.parseFloat(term.toString());
+      return Float.parseFloat(term.utf8ToString());
     }
     protected Object readResolve() {
       return DEFAULT_FLOAT_PARSER;
@@ -239,7 +239,7 @@ public interface FieldCache {
     public double parseDouble(BytesRef term) {
       // TODO: would be far better to directly parse
       // the UTF-8 bytes into float, but that's tricky?
-      return Double.parseDouble(term.toString());
+      return Double.parseDouble(term.utf8ToString());
     }
     protected Object readResolve() {
       return DEFAULT_DOUBLE_PARSER;

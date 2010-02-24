@@ -142,7 +142,7 @@ public class FlexTestUtil {
           assertTrue(termEnum.next());
           Term t = termEnum.term();
           assertEquals(t.field(), field);
-          assertEquals(t.text(), termRef.toString());
+          assertEquals(t.text(), termRef.utf8ToString());
           assertEquals(termEnum.docFreq(), terms.docFreq());
           //allTerms.add(t);
 
@@ -236,7 +236,7 @@ public class FlexTestUtil {
             }
             Term t = termEnum.term();
             assertEquals(t.field(), field);
-            assertEquals(t.text(), termRef.toString());
+            assertEquals(t.text(), termRef.utf8ToString());
             assertEquals(termEnum.docFreq(), terms.docFreq());
             //allTerms.add(t);
 
@@ -426,7 +426,7 @@ public class FlexTestUtil {
         assertEquals(t, termEnum.term());
       } else {
         //System.out.println("found other");
-        assertEquals(termsEnum.term().toString(), termEnum.term().text());
+        assertEquals(termsEnum.term().utf8ToString(), termEnum.term().text());
       }
 
       assertEquals(termsEnum.docFreq(), termEnum.docFreq());

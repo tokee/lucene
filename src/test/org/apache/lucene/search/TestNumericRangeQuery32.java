@@ -447,7 +447,7 @@ public class TestNumericRangeQuery32 extends LuceneTestCase {
     while (termEnum.next() != null) {
       final BytesRef t = termEnum.term();
       if (t != null) {
-        final int val = NumericUtils.prefixCodedToInt(t.toString());
+        final int val = NumericUtils.prefixCodedToInt(t.utf8ToString());
         assertTrue("value not in bounds " + val + " >= " + lower + " && "
             + val + " <= " + upper, val >= lower && val <= upper);
         count++;

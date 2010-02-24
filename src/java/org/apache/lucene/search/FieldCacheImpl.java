@@ -667,7 +667,7 @@ class FieldCacheImpl implements FieldCache {
             break;
           }
           docs = termsEnum.docs(delDocs, docs);
-          final String termval = term.toString();
+          final String termval = term.utf8ToString();
           while (true) {
             final int docID = docs.nextDoc();
             if (docID == DocsEnum.NO_MORE_DOCS) {
@@ -721,7 +721,7 @@ class FieldCacheImpl implements FieldCache {
           }
 
           // store term text
-          mterms[t] = term.toString();
+          mterms[t] = term.utf8ToString();
           //System.out.println("FC:  ord=" + t + " term=" + term.toBytesString());
 
           docs = termsEnum.docs(delDocs, docs);
@@ -783,7 +783,7 @@ class FieldCacheImpl implements FieldCache {
       if (b >= '0' && b <= '9') {
         number = 10*number + (int) (b-'0');
       } else {
-        throw new NumberFormatException("could not parse \"" + term + "\" to a number");
+        throw new NumberFormatException("could not parse \"" + term.utf8ToString() + "\" to a number");
       }
     }
     return negMul * number;

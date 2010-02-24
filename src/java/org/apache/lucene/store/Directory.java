@@ -20,8 +20,6 @@ package org.apache.lucene.store;
 import java.io.IOException;
 import java.io.Closeable;
 
-import org.apache.lucene.index.IndexFileNameFilter;
-
 /** A Directory is a flat list of files.  Files may be written once, when they
  * are created.  Once a file is created it may only be opened for read, or
  * deleted.  Random access is permitted both when reading and writing.
@@ -180,15 +178,8 @@ public abstract class Directory implements Closeable {
   public static void copy(Directory src, Directory dest, boolean closeDirSrc) throws IOException {
     final String[] files = src.listAll();
 
-    IndexFileNameFilter filter = IndexFileNameFilter.getFilter();
-
     byte[] buf = new byte[BufferedIndexOutput.BUFFER_SIZE];
     for (int i = 0; i < files.length; i++) {
-
-      if (false && !filter.accept(null, files[i])) {
-        System.out.println("  filter rejects " + files[i]);
-        continue;
-      }
 
       IndexOutput os = null;
       IndexInput is = null;

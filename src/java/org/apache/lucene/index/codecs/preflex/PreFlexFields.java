@@ -277,7 +277,7 @@ public class PreFlexFields extends FieldsProducer {
         System.out.println("pff.seek term=" + term);
       }
       skipNext = false;
-      termEnum = getTermsDict().terms(new Term(fieldInfo.name, term.toString()));
+      termEnum = getTermsDict().terms(new Term(fieldInfo.name, term.utf8ToString()));
       final Term t = termEnum.term();
 
       final BytesRef tr;

@@ -3226,7 +3226,7 @@ public class IndexWriter implements Closeable {
 
       try {
         mergedName = newSegmentName();
-        merger = new SegmentMerger(this, mergedName, null, codecs);
+        merger = new SegmentMerger(directory, termIndexInterval, mergedName, null, codecs);
 
         SegmentReader sReader = null;
         synchronized(this) {
@@ -4241,7 +4241,7 @@ public class IndexWriter implements Closeable {
     if (infoStream != null)
       message("merging " + merge.segString(directory));
 
-    merger = new SegmentMerger(this, mergedName, merge, codecs);
+    merger = new SegmentMerger(directory, termIndexInterval, mergedName, merge, codecs);
 
     merge.readers = new SegmentReader[numSegments];
     merge.readersClone = new SegmentReader[numSegments];

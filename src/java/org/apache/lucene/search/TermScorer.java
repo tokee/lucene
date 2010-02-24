@@ -24,6 +24,7 @@ import org.apache.lucene.index.DocsEnum;
 /** Expert: A <code>Scorer</code> for documents matching a <code>Term</code>.
  */
 final class TermScorer extends Scorer {
+  private Weight weight;
   private DocsEnum docsEnum;
   private byte[] norms;
   private float weightValue;
@@ -53,6 +54,7 @@ final class TermScorer extends Scorer {
   TermScorer(Weight weight, DocsEnum td, Similarity similarity, byte[] norms) {
     super(similarity);
     
+    this.weight = weight;
     this.docsEnum = td;
     this.norms = norms;
     this.weightValue = weight.getValue();
@@ -157,7 +159,6 @@ final class TermScorer extends Scorer {
   }
 
   /** Returns a string representation of this <code>TermScorer</code>. */
-  // nocommit
-  //@Override
-  //public String toString() { return "scorer(" + weight + ")"; }
+  @Override
+  public String toString() { return "scorer(" + weight + ")"; }
 }

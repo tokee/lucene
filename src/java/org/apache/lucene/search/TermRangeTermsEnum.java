@@ -117,12 +117,12 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
       return AcceptStatus.YES;
     } else {
       if ((includeLower
-           ? collator.compare(term.toString(), lowerTermText) >= 0
-           : collator.compare(term.toString(), lowerTermText) > 0)
+           ? collator.compare(term.utf8ToString(), lowerTermText) >= 0
+           : collator.compare(term.utf8ToString(), lowerTermText) > 0)
           && (upperTermText == null
               || (includeUpper
-                  ? collator.compare(term.toString(), upperTermText) <= 0
-                  : collator.compare(term.toString(), upperTermText) < 0))) {
+                  ? collator.compare(term.utf8ToString(), upperTermText) <= 0
+                  : collator.compare(term.utf8ToString(), upperTermText) < 0))) {
         return AcceptStatus.YES;
       }
       return AcceptStatus.NO;

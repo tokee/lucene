@@ -56,7 +56,7 @@ public class RegexTermsEnum extends FilteredTermsEnum {
   @Override
   protected final AcceptStatus accept(BytesRef term) {
     if (term.startsWith(prefixRef)) {
-      return regexImpl.match(term.toString()) ? AcceptStatus.YES : AcceptStatus.NO;
+      return regexImpl.match(term.utf8ToString()) ? AcceptStatus.YES : AcceptStatus.NO;
     } else {
       return AcceptStatus.END;
     }

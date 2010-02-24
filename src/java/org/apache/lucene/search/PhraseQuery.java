@@ -170,7 +170,7 @@ public class PhraseQuery extends Query {
                                           t.field(),
                                           text) != null) {
             // term does exist, but has no positions
-            throw new IllegalStateException("field \"" + t.field() + "\" was indexed with Field.omitTermFreqAndPositions=true; cannot run PhraseQuery (term=" + text + ")");
+            throw new IllegalStateException("field \"" + t.field() + "\" was indexed with Field.omitTermFreqAndPositions=true; cannot run PhraseQuery (term=" + t.text() + ")");
           } else {
             // term does not exist
             return null;

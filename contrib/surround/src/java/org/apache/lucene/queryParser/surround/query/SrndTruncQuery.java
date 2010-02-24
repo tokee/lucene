@@ -108,7 +108,7 @@ public class SrndTruncQuery extends SimpleTerm {
 
         while(text != null) {
           if (text != null && text.startsWith(prefixRef)) {
-            String textString = text.toString();
+            String textString = text.utf8ToString();
             matcher.reset(textString.substring(prefixLength));
             if (matcher.matches()) {
               mtv.visitMatchingTerm(new Term(fieldName, textString));

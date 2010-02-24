@@ -35,6 +35,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.index.codecs.Codecs;
 
 
 /** JUnit adaptation of an older test case DocTest. */
@@ -180,7 +181,7 @@ public class TestDoc extends LuceneTestCase {
       SegmentReader r1 = SegmentReader.get(true, si1, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR);
       SegmentReader r2 = SegmentReader.get(true, si2, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR);
 
-      SegmentMerger merger = new SegmentMerger(si1.dir, merged);
+      SegmentMerger merger = new SegmentMerger(si1.dir, IndexWriter.DEFAULT_TERM_INDEX_INTERVAL, merged, null, Codecs.getDefault());
 
       merger.add(r1);
       merger.add(r2);

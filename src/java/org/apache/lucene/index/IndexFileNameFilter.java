@@ -20,28 +20,28 @@ package org.apache.lucene.index;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.HashSet;
+import org.apache.lucene.index.codecs.Codecs;
 
 /**
- * Filename filter that accept filenames and extensions only created by Lucene.
+ * Filename filter that accept filenames and extensions only
+ * created by Lucene.
+ *
+ * @lucene.internal
  */
 
-// nocommit -- make ctor that takes Codecs and expands base
-// filter to include any of their extensions?
 public class IndexFileNameFilter implements FilenameFilter {
 
-  private static IndexFileNameFilter singleton = new IndexFileNameFilter();
-  private HashSet<String> extensions;
-  private HashSet<String> extensionsInCFS;
+  private final HashSet<String> extensions;
 
-  // Prevent instantiation.
-  private IndexFileNameFilter() {
+  public IndexFileNameFilter(Codecs codecs) {
     extensions = new HashSet<String>();
     for (int i = 0; i < IndexFileNames.INDEX_EXTENSIONS.length; i++) {
       extensions.add(IndexFileNames.INDEX_EXTENSIONS[i]);
     }
-    extensionsInCFS = new HashSet<String>();
-    for (int i = 0; i < IndexFileNames.INDEX_EXTENSIONS_IN_COMPOUND_FILE.length; i++) {
-      extensionsInCFS.add(IndexFileNames.INDEX_EXTENSIONS_IN_COMPOUND_FILE[i]);
+    if (codecs != null) {
+      for(String ext : codecs.getAllExtensions()) {
+        extensions.add(ext);
+      }
     }
   }
 
@@ -66,30 +66,5 @@ public class IndexFileNameFilter implements FilenameFilter {
       else if (name.startsWith(IndexFileNames.SEGMENTS)) return true;
     }
     return false;
-  }
-
-  /**
-   * Returns true if this is a file that would be contained
-   * in a CFS file.  This function should only be called on
-   * files that pass the above "accept" (ie, are already
-   * known to be a Lucene index file).
-   */
-  public boolean isCFSFile(String name) {
-    int i = name.lastIndexOf('.');
-    if (i != -1) {
-      String extension = name.substring(1+i);
-      if (extensionsInCFS.contains(extension)) {
-        return true;
-      }
-      if (extension.startsWith("f") &&
-          extension.matches("f\\d+")) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public static IndexFileNameFilter getFilter() {
-    return singleton;
   }
 }

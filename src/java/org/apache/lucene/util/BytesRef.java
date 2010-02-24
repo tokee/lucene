@@ -136,11 +136,13 @@ public final class BytesRef {
     return this.bytesEquals((BytesRef) other);
   }
 
+  // nocommit -- catch statically all places where this is
+  // being incorrectly called & switch to utf8ToString
   public String toString() {
     // nocommit -- do this, to fix all places using
     // toString, to use utf8ToString instead:
-    //throw new RuntimeException();
-    return utf8ToString();
+    throw new RuntimeException();
+    //return utf8ToString();
   }
 
   /** Interprets stored bytes as UTF8 bytes, returning the
@@ -149,7 +151,8 @@ public final class BytesRef {
     try {
       return new String(bytes, offset, length, "UTF-8");
     } catch (UnsupportedEncodingException uee) {
-      // should not happen
+      // should not happen -- UTF8 is presumably supported
+      // by all JREs
       throw new RuntimeException(uee);
     }
   }

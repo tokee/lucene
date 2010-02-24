@@ -4729,7 +4729,7 @@ public class TestIndexWriter extends LuceneTestCase {
     Iterator<String> it = seenTerms.iterator();
     while(it.hasNext()) {
       BytesRef tr = new BytesRef(it.next());
-      assertEquals("seek failed for term=" + termDesc(tr.toString()), 
+      assertEquals("seek failed for term=" + termDesc(tr.utf8ToString()),
                    TermsEnum.SeekStatus.FOUND,
                    terms.seek(tr));
     }

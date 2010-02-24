@@ -675,7 +675,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
       assertNotNull(t);
 
       // content field only has term aaa:
-      assertEquals("aaa", t.toString());
+      assertEquals("aaa", t.utf8ToString());
       assertNull(terms.next());
 
       BytesRef aaaTerm = new BytesRef("aaa");

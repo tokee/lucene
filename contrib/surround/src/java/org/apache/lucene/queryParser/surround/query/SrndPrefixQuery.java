@@ -70,7 +70,7 @@ public class SrndPrefixQuery extends SimpleTerm {
         expanded = true;
       } else if (status == TermsEnum.SeekStatus.NOT_FOUND) {
         if (termsEnum.term().startsWith(prefixRef)) {
-          mtv.visitMatchingTerm(new Term(fieldName, termsEnum.term().toString()));
+          mtv.visitMatchingTerm(new Term(fieldName, termsEnum.term().utf8ToString()));
           expanded = true;
         } else {
           skip = true;
@@ -84,7 +84,7 @@ public class SrndPrefixQuery extends SimpleTerm {
         while(true) {
           BytesRef text = termsEnum.next();
           if (text != null && text.startsWith(prefixRef)) {
-            mtv.visitMatchingTerm(new Term(fieldName, text.toString()));
+            mtv.visitMatchingTerm(new Term(fieldName, text.utf8ToString()));
             expanded = true;
           } else {
             break;

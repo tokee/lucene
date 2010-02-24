@@ -187,7 +187,7 @@ public abstract class MultiTermQuery extends Query {
         BytesRef term;
         final Term placeholderTerm = new Term(query.field);
         while ((term = termsEnum.next()) != null) {
-          if (collector.collect(placeholderTerm.createTerm(term.toString()), boostAtt.getBoost())) {
+          if (collector.collect(placeholderTerm.createTerm(term.utf8ToString()), boostAtt.getBoost())) {
             count++;
           } else {
             break;

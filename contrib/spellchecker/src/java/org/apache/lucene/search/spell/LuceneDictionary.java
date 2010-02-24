@@ -74,7 +74,7 @@ public class LuceneDictionary implements Dictionary {
         return null;
       }
 
-      String result = pendingTerm.toString();
+      String result = pendingTerm.utf8ToString();
 
       try {
         pendingTerm = termsEnum.next();
