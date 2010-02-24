@@ -553,7 +553,7 @@ public class StandardTermsDictReader extends FieldsProducer {
         }
         DocsEnum docsEnum = postingsReader.docs(fieldInfo, state, skipDocs, reuse);
         if (Codec.DEBUG) {
-          docsEnum.desc = fieldInfo.name + ":" + bytesReader.term.toString();
+          docsEnum.desc = fieldInfo.name + ":" + bytesReader.term.utf8ToString();
         }
         return docsEnum;
       }
@@ -569,7 +569,7 @@ public class StandardTermsDictReader extends FieldsProducer {
           DocsAndPositionsEnum postingsEnum = postingsReader.docsAndPositions(fieldInfo, state, skipDocs, reuse);
           if (Codec.DEBUG) {
             if (postingsEnum != null) {
-              postingsEnum.desc = fieldInfo.name + ":" + bytesReader.term.toString();
+              postingsEnum.desc = fieldInfo.name + ":" + bytesReader.term.utf8ToString();
             }
           }
           if (Codec.DEBUG) {

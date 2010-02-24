@@ -61,7 +61,7 @@ public class HighFreqTerms {
         while(true) {
           BytesRef term = termsEnum.next();
           if (term != null) {
-            tiq.insertWithOverflow(new TermInfo(new Term(field, term.toString()), termsEnum.docFreq()));
+            tiq.insertWithOverflow(new TermInfo(new Term(field, term.utf8ToString()), termsEnum.docFreq()));
           } else {
             break;
           }    

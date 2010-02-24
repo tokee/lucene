@@ -220,7 +220,7 @@ public class TestRemoteSort extends LuceneTestCase implements Serializable {
     public void setNextReader(IndexReader reader, int docBase) throws IOException {
       docValues = FieldCache.DEFAULT.getInts(reader, "parser", new FieldCache.IntParser() {
           public final int parseInt(BytesRef termRef) {
-            return (termRef.toString().charAt(0)-'A') * 123456;
+            return (termRef.utf8ToString().charAt(0)-'A') * 123456;
           }
         });
     }

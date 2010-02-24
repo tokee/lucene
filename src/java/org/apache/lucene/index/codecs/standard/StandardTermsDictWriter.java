@@ -173,8 +173,8 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     public PostingsConsumer startTerm(BytesRef text) throws IOException {
       postingsWriter.startTerm();
       if (Codec.DEBUG) {
-        postingsWriter.desc = fieldInfo.name + ":" + text.toString();
-        System.out.println("stdw.startTerm term=" + fieldInfo.name + ":" + text.toString() + " seg=" + segment);
+        postingsWriter.desc = fieldInfo.name + ":" + text.utf8ToString();
+        System.out.println("stdw.startTerm term=" + fieldInfo.name + ":" + text.utf8ToString() + " seg=" + segment);
       }
       return postingsWriter;
     }
@@ -183,7 +183,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     public void finishTerm(BytesRef text, int numDocs) throws IOException {
 
       if (Codec.DEBUG) {
-        Codec.debug("finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + text.toString() + " numDocs=" + numDocs + " numTerms=" + numTerms);
+        Codec.debug("finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + text.utf8ToString() + " numDocs=" + numDocs + " numTerms=" + numTerms);
       }
 
       if (numDocs > 0) {
@@ -191,7 +191,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
 
         if (Codec.DEBUG) {
           Codec.debug("  tis.fp=" + out.getFilePointer() + " isIndexTerm?=" + isIndexTerm);
-          System.out.println("  term bytes=" + text.toString());
+          System.out.println("  term bytes=" + text.utf8ToString());
         }
         termWriter.write(text);
         out.writeVInt(numDocs);
