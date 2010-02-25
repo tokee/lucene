@@ -35,7 +35,7 @@ import org.apache.lucene.util.BytesRef;
  *  postings format 
  *  @lucene.experimental */
 
-// nocommit -- should we switch "hasProx" higher up?  and
+// TODO: -- should we switch "hasProx" higher up?  and
 // create two separate docs readers, one that also reads
 // prox and one that doesn't?
 
@@ -217,7 +217,7 @@ public class PulsingPostingsReaderImpl extends StandardPostingsReader {
     }
   }
 
-  // nocommit -- not great that we can't always reuse
+  // TODO: -- not great that we can't always reuse
   @Override
   public DocsAndPositionsEnum docsAndPositions(FieldInfo field, TermState _termState, Bits skipDocs, DocsAndPositionsEnum reuse) throws IOException {
     PulsingTermState termState = (PulsingTermState) _termState;
@@ -246,7 +246,7 @@ public class PulsingPostingsReaderImpl extends StandardPostingsReader {
     public void close() {}
 
     PulsingDocsEnum reset(Bits skipDocs, PulsingTermState termState) {
-      // nocommit -- not great we have to clone here --
+      // TODO: -- not great we have to clone here --
       // merging is wasteful; TermRangeQuery too
       state = (PulsingTermState) termState.clone();
       this.skipDocs = skipDocs;
@@ -271,7 +271,7 @@ public class PulsingPostingsReaderImpl extends StandardPostingsReader {
     @Override
     public int read(int[] docs, int[] freqs) {
       int i=0;
-      // nocommit -- ob1?
+      // TODO: -- ob1?
       while(nextRead < state.docFreq) {
         doc = state.docs[nextRead++];
         if (skipDocs == null || !skipDocs.get(doc.docID)) {
@@ -319,7 +319,7 @@ public class PulsingPostingsReaderImpl extends StandardPostingsReader {
     public void close() {}
 
     PulsingDocsAndPositionsEnum reset(Bits skipDocs, PulsingTermState termState) {
-      // nocommit -- not great we have to clone here --
+      // TODO: -- not great we have to clone here --
       // merging is wasteful; TermRangeQuery too
       state = (PulsingTermState) termState.clone();
       this.skipDocs = skipDocs;

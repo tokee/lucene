@@ -93,7 +93,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
       state.flushedFiles.add(posFileName);
       posIndex = posOut.index();
 
-      // nocommit -- only if at least one field stores payloads?
+      // TODO: -- only if at least one field stores payloads?
       final String payloadFileName = IndexFileNames.segmentFileName(state.segmentName, SepCodec.PAYLOAD_EXTENSION);
       state.flushedFiles.add(payloadFileName);
       payloadOut = state.directory.createOutput(payloadFileName);
@@ -112,7 +112,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
 
     totalNumDocs = state.numDocs;
 
-    // nocommit -- abstraction violation
+    // TODO: -- abstraction violation
     skipListWriter = new SepSkipListWriter(state.skipInterval,
                                            state.maxSkipLevels,
                                            state.numDocs,
@@ -127,7 +127,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
   public void start(IndexOutput termsOut) throws IOException {
     this.termsOut = termsOut;
     Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
-    // nocommit -- just ask skipper to "start" here
+    // TODO: -- just ask skipper to "start" here
     termsOut.writeInt(skipInterval);                // write skipInterval
     termsOut.writeInt(maxSkipLevels);               // write maxSkipLevels
   }
@@ -147,7 +147,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
     skipListWriter.resetSkip(docIndex, freqIndex, posIndex);
   }
 
-  // nocommit -- should we NOT reuse across fields?  would
+  // TODO: -- should we NOT reuse across fields?  would
   // be cleaner
 
   // Currently, this instance is re-used across fields, so
@@ -177,7 +177,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
     }
 
     if ((++df % skipInterval) == 0) {
-      // nocommit -- awkward we have to make these two
+      // TODO: -- awkward we have to make these two
       // separate calls to skipper
       skipListWriter.setSkipData(lastDocID, storePayloads, lastPayloadLength);
       skipListWriter.bufferSkip(df);
@@ -259,13 +259,13 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
 
     long skipPos = skipOut.getFilePointer();
 
-    // nocommit -- wasteful we are counting this in two places?
+    // TODO: -- wasteful we are counting this in two places?
     assert docCount == df;
     if (Codec.DEBUG) {
       System.out.println("dw.finishTerm termsFP=" + termsOut.getFilePointer() + " df=" + df + " skipPos=" + skipPos);
     }
 
-    // nocommit -- only do this if once (consolidate the
+    // TODO: -- only do this if once (consolidate the
     // conditional things that are written)
     if (!omitTF) {
       freqIndex.write(termsOut, isIndexTerm);

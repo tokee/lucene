@@ -42,7 +42,7 @@ class SepSkipListReader extends MultiLevelSkipListReader {
 
   private final IntIndexInput.Index lastFreqIndex;
   private final IntIndexInput.Index lastDocIndex;
-  // nocommit -- make private again
+  // TODO: -- make private again
   final IntIndexInput.Index lastPosIndex;
   
   private long lastPayloadPointer;

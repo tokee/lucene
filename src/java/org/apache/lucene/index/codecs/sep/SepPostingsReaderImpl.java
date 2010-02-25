@@ -39,7 +39,7 @@ import org.apache.lucene.util.BytesRef;
  * @lucene.experimental
  */
 
-// nocommit -- should we switch "hasProx" higher up?  and
+// TODO: -- should we switch "hasProx" higher up?  and
 // create two separate docs readers, one that also reads
 // prox and one that doesn't?
 
@@ -250,7 +250,7 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
     int freq;
     long freqStart;
 
-    // nocommit -- should we do omitTF with 2 different enum classes?
+    // TODO: -- should we do omitTF with 2 different enum classes?
     private boolean omitTF;
     private boolean storePayloads;
     private Bits skipDocs;
@@ -262,7 +262,7 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
     private final IntIndexInput.Index freqIndex;
     private final IntIndexInput.Index posIndex;
 
-    // nocommit -- should we do hasProx with 2 different enum classes?
+    // TODO: -- should we do hasProx with 2 different enum classes?
 
     boolean skipped;
     SepSkipListReader skipper;
@@ -295,7 +295,7 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
       omitTF = fieldInfo.omitTermFreqAndPositions;
       storePayloads = fieldInfo.storePayloads;
 
-      // nocommit: can't we only do this if consumer
+      // TODO: can't we only do this if consumer
       // skipped consuming the previous docs?
       docIndex.set(termState.docIndex);
       docIndex.seek(docReader);
@@ -361,7 +361,7 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
 
     @Override
     public int read(int[] docs, int[] freqs) throws IOException {
-      // nocommit -- switch to bulk read api in IntIndexInput
+      // TODO: -- switch to bulk read api in IntIndexInput
       int i = 0;
       final int length = docs.length;
       while (i < length && count < docFreq) {
@@ -484,7 +484,7 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
     int freq;
     long freqStart;
 
-    // nocommit -- should we do omitTF with 2 different enum classes?
+    // TODO: -- should we do omitTF with 2 different enum classes?
     private boolean omitTF;
     private boolean storePayloads;
     private Bits skipDocs;
@@ -529,7 +529,7 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
       this.skipDocs = skipDocs;
       storePayloads = fieldInfo.storePayloads;
 
-      // nocommit: can't we only do this if consumer
+      // TODO: can't we only do this if consumer
       // skipped consuming the previous docs?
       docIndex.set(termState.docIndex);
       docIndex.seek(docReader);

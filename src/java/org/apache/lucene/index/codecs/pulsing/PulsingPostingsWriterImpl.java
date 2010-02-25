@@ -55,7 +55,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
   // nocommit
   String desc;
 
-  // nocommit: public
+  /** @lucene.experimental */
   public static class Document {
     int docID;
     int termDocFreq;
@@ -110,7 +110,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
     }
   }
 
-  // nocommit -- lazy init this?  ie, if every single term
+  // TODO: -- lazy init this?  ie, if every single term
   // was pulsed then we never need to use this fallback?
   // Fallback writer for non-pulsed terms:
   final StandardPostingsWriter wrappedPostingsWriter;
@@ -144,7 +144,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
     pulsed = false;
   }
 
-  // nocommit -- should we NOT reuse across fields?  would
+  // TODO: -- should we NOT reuse across fields?  would
   // be cleaner
 
   // Currently, this instance is re-used across fields, so
@@ -211,7 +211,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
     } else {
       currentDoc = pendingDocs[pendingDocCount++];
       currentDoc.docID = docID;
-      // nocommit -- need not store in doc?  only used for alloc & assert
+      // TODO: -- need not store in doc?  only used for alloc & assert
       currentDoc.termDocFreq = termDocFreq;
       if (termDocFreq > currentDoc.positions.length) {
         currentDoc.reallocPositions(termDocFreq);

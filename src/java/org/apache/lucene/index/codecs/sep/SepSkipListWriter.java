@@ -24,7 +24,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.MultiLevelSkipListWriter;
 
-// nocommit -- skip data should somehow be more local to the
+// TODO: -- skip data should somehow be more local to the
 // particular stream (doc, freq, pos, payload)
 
 /**
@@ -44,9 +44,9 @@ class SepSkipListWriter extends MultiLevelSkipListWriter {
   
   private IntIndexOutput freqOutput;
   private IntIndexOutput docOutput;
-  // nocommit -- private again
+  // TODO: -- private again
   IntIndexOutput posOutput;
-  // nocommit -- private again
+  // TODO: -- private again
   IndexOutput payloadOutput;
 
   private int curDoc;
@@ -69,7 +69,7 @@ class SepSkipListWriter extends MultiLevelSkipListWriter {
     
     lastSkipDoc = new int[numberOfSkipLevels];
     lastSkipPayloadLength = new int[numberOfSkipLevels];
-    // nocommit -- also cutover normal IndexOutput to use getIndex()?
+    // TODO: -- also cutover normal IndexOutput to use getIndex()?
     lastSkipPayloadPointer = new long[numberOfSkipLevels];
 
     freqIndex = new IntIndexOutput.Index[numberOfSkipLevels];

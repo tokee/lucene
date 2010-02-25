@@ -36,7 +36,7 @@ public abstract class IntIndexInput implements Closeable {
 
   public abstract Index index() throws IOException;
   
-  // nocommit -- can we simplify this?
+  // TODO: -- can we simplify this?
   public abstract static class Index {
 
     // nocommit
