@@ -21,10 +21,14 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Collections;
 
 import junit.framework.TestCase;
 
 import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.FieldCache.CacheEntry;
 import org.apache.lucene.util.FieldCacheSanityChecker.Insanity;
@@ -49,6 +53,22 @@ import org.apache.lucene.util.FieldCacheSanityChecker.Insanity;
  */
 public abstract class LuceneTestCase extends TestCase {
 
+
+  private int savedBoolMaxClauseCount;
+  
+  private volatile Thread.UncaughtExceptionHandler savedUncaughtExceptionHandler = null;
+  
+  private static class UncaughtExceptionEntry {
+    public final Thread thread;
+    public final Throwable exception;
+    
+    public UncaughtExceptionEntry(Thread thread, Throwable exception) {
+      this.thread = thread;
+      this.exception = exception;
+    }
+  }
+  private List<UncaughtExceptionEntry> uncaughtExceptions = Collections.synchronizedList(new ArrayList<UncaughtExceptionEntry>());
+
   public LuceneTestCase() {
     super();
   }
@@ -60,7 +80,18 @@ public abstract class LuceneTestCase extends TestCase {
   @Override
   protected void setUp() throws Exception {
     super.setUp();
+    
+    savedUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler();
+    Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+      public void uncaughtException(Thread t, Throwable e) {
+        uncaughtExceptions.add(new UncaughtExceptionEntry(t, e));
+        if (savedUncaughtExceptionHandler != null)
+          savedUncaughtExceptionHandler.uncaughtException(t, e);
+      }
+    });
+    
     ConcurrentMergeScheduler.setTestMode();
+    savedBoolMaxClauseCount = BooleanQuery.getMaxClauseCount();
   }
 
   /**
@@ -83,6 +114,7 @@ public abstract class LuceneTestCase extends TestCase {
 
   @Override
   protected void tearDown() throws Exception {
+    BooleanQuery.setMaxClauseCount(savedBoolMaxClauseCount);
     try {
       // this isn't as useful as calling directly from the scope where the 
       // index readers are used, because they could be gc'ed just before
@@ -98,6 +130,16 @@ public abstract class LuceneTestCase extends TestCase {
       }
     } finally {
       purgeFieldCache(FieldCache.DEFAULT);
+    }
+    
+    Thread.setDefaultUncaughtExceptionHandler(savedUncaughtExceptionHandler);
+    if (!uncaughtExceptions.isEmpty()) {
+      System.err.println("The following exceptions were thrown by threads:");
+      for (UncaughtExceptionEntry entry : uncaughtExceptions) {
+        System.err.println("*** Thread: " + entry.thread.getName() + " ***");
+        entry.exception.printStackTrace(System.err);
+      }
+      fail("Some threads throwed uncaught exceptions!");
     }
     
     super.tearDown();
