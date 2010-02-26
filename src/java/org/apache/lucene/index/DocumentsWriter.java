@@ -42,6 +42,7 @@ import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.ThreadInterruptedException;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.RamUsageEstimator;
 
 /**
  * This class accepts multiple added documents and directly
@@ -999,57 +1000,58 @@ final class DocumentsWriter {
     assert checkDeleteTerm(null);
 
     // Delete by term
-    try {
-      Fields fields = reader.fields();
-      TermsEnum termsEnum = null;
-
-      String currentField = null;
-      BytesRef termRef = new BytesRef();
-      DocsEnum docs = null;
-
-      for (Entry<Term, BufferedDeletes.Num> entry: deletesFlushed.terms.entrySet()) {
-        Term term = entry.getKey();
-        // Since we visit terms sorted, we gain performance
-        // by re-using the same TermsEnum and seeking only
-        // forwards
-        if (term.field() != currentField) {
-          // nocommit -- once we sync up branch again, add
-          // assert that this field is always > last one
-          currentField = term.field();
-          Terms terms = fields.terms(currentField);
-          if (terms != null) {
-            termsEnum = terms.iterator();
-          } else {
-            termsEnum = null;
+    if (deletesFlushed.terms.size() > 0) {
+      try {
+        Fields fields = reader.fields();
+        TermsEnum termsEnum = null;
+        
+        String currentField = null;
+        BytesRef termRef = new BytesRef();
+        DocsEnum docs = null;
+        
+        for (Entry<Term, BufferedDeletes.Num> entry: deletesFlushed.terms.entrySet()) {
+          Term term = entry.getKey();
+          // Since we visit terms sorted, we gain performance
+          // by re-using the same TermsEnum and seeking only
+          // forwards
+          if (term.field() != currentField) {
+            // nocommit -- once we sync up branch again, add
+            // assert that this field is always > last one
+            currentField = term.field();
+            Terms terms = fields.terms(currentField);
+            if (terms != null) {
+              termsEnum = terms.iterator();
+            } else {
+              termsEnum = null;
+            }
           }
-        }
-
-        if (termsEnum == null) {
-          continue;
-        }
-
-        termRef.copy(term.text());
-        if (termsEnum.seek(termRef) == TermsEnum.SeekStatus.FOUND) {
-          DocsEnum docsEnum = termsEnum.docs(reader.getDeletedDocs(), docs);
-
-          if (docsEnum != null) {
-            docs = docsEnum;
-            int limit = entry.getValue().getNum();
-            while (true) {
-              final int docID = docs.nextDoc();
-              if (docID == DocsEnum.NO_MORE_DOCS || docIDStart+docID >= limit) {
-                break;
+          
+          if (termsEnum == null) {
+            continue;
+          }
+          
+          termRef.copy(term.text());
+          if (termsEnum.seek(termRef) == TermsEnum.SeekStatus.FOUND) {
+            DocsEnum docsEnum = termsEnum.docs(reader.getDeletedDocs(), docs);
+            
+            if (docsEnum != null) {
+              docs = docsEnum;
+              int limit = entry.getValue().getNum();
+              while (true) {
+                final int docID = docs.nextDoc();
+                if (docID == DocsEnum.NO_MORE_DOCS || docIDStart+docID >= limit) {
+                  break;
+                }
+                reader.deleteDocument(docID);
+                any = true;
               }
-              reader.deleteDocument(docID);
-              any = true;
             }
           }
         }
+      } finally {
+        //docs.close();
       }
-    } finally {
-      //docs.close();
     }
-
     // Delete by docID
     for (Integer docIdInt : deletesFlushed.docIDs) {
       int docID = docIdInt.intValue();
@@ -1060,23 +1062,28 @@ final class DocumentsWriter {
     }
 
     // Delete by query
-    IndexSearcher searcher = new IndexSearcher(reader);
-    for (Entry<Query, Integer> entry : deletesFlushed.queries.entrySet()) {
-      Query query = entry.getKey();
-      int limit = entry.getValue().intValue();
-      Weight weight = query.weight(searcher);
-      Scorer scorer = weight.scorer(reader, true, false);
-      if (scorer != null) {
-        while(true)  {
-          int doc = scorer.nextDoc();
-          if (((long) docIDStart) + doc >= limit)
-            break;
-          reader.deleteDocument(doc);
-          any = true;
+    if (deletesFlushed.queries.size() > 0) {
+      IndexSearcher searcher = new IndexSearcher(reader);
+      try {
+        for (Entry<Query, Integer> entry : deletesFlushed.queries.entrySet()) {
+          Query query = entry.getKey();
+          int limit = entry.getValue().intValue();
+          Weight weight = query.weight(searcher);
+          Scorer scorer = weight.scorer(reader, true, false);
+          if (scorer != null) {
+            while(true)  {
+              int doc = scorer.nextDoc();
+              if (((long) docIDStart) + doc >= limit)
+                break;
+              reader.deleteDocument(doc);
+              any = true;
+            }
+          }
         }
+      } finally {
+        searcher.close();
       }
     }
-    searcher.close();
     return any;
   }
 
@@ -1507,7 +1514,7 @@ final class DocumentsWriter {
         int gap = doc.docID - nextWriteDocID;
         if (gap >= waiting.length) {
           // Grow queue
-          DocWriter[] newArray = new DocWriter[ArrayUtil.getNextSize(gap)];
+          DocWriter[] newArray = new DocWriter[ArrayUtil.oversize(gap, RamUsageEstimator.NUM_BYTES_OBJECT_REF)];
           assert nextWriteLoc >= 0;
           System.arraycopy(waiting, nextWriteLoc, newArray, 0, waiting.length-nextWriteLoc);
           System.arraycopy(waiting, 0, newArray, waiting.length-nextWriteLoc, nextWriteLoc);

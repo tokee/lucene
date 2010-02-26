@@ -23,6 +23,7 @@ import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.util.ArrayUtil;
@@ -339,7 +340,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
               // New block
               final byte[] newBlock = new byte[BYTE_BLOCK_SIZE];
               if (blocks.length == blockUpto+1) {
-                final int newSize = ArrayUtil.getNextSize(blockUpto+2);
+                final int newSize = ArrayUtil.oversize(blockUpto+2, RamUsageEstimator.NUM_BYTES_OBJECT_REF);
                 final byte[][] newBlocks = new byte[newSize][];
                 System.arraycopy(blocks, 0, newBlocks, 0, blocks.length);
                 blocks = newBlocks;

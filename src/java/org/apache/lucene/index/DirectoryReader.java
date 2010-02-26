@@ -985,6 +985,12 @@ class DirectoryReader extends IndexReader implements Cloneable {
     // not a good idea):
     FieldCache.DEFAULT.purge(this);
 
+    if (writer != null) {
+      // Since we just closed, writer may now be able to
+      // delete unused files:
+      writer.deleteUnusedFiles();
+    }
+
     // throw the first exception
     if (ioe != null) throw ioe;
   }
@@ -1032,7 +1038,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   /**
    * Expert: return the IndexCommit that this reader has opened.
    * <p/>
-   * <p><b>WARNING</b>: this API is new and experimental and may suddenly change.</p>
+   * @lucene.experimental
    */
   @Override
   public IndexCommit getIndexCommit() throws IOException {

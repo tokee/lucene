@@ -27,6 +27,7 @@ import org.apache.lucene.index.Fields;
 /**
  * Common util methods for dealing with {@link IndexReader}s.
  *
+ * @lucene.internal
  */
 public class ReaderUtil {
 

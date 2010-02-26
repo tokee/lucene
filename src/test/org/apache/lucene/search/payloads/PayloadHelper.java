@@ -27,6 +27,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.util.English;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Similarity;
+import static org.apache.lucene.util.LuceneTestCaseJ4.TEST_VERSION_CURRENT;
 
 import java.io.Reader;
 import java.io.IOException;
@@ -50,7 +51,7 @@ public class PayloadHelper {
 
     @Override
     public TokenStream tokenStream(String fieldName, Reader reader) {
-      TokenStream result = new LowerCaseTokenizer(reader);
+      TokenStream result = new LowerCaseTokenizer(TEST_VERSION_CURRENT, reader);
       result = new PayloadFilter(result, fieldName);
       return result;
     }

@@ -1,7 +1,5 @@
 Lucene README file
 
-$Id$
-
 INTRODUCTION
 
 Lucene is a Java full-text search engine.  Lucene is not a complete
@@ -27,7 +25,7 @@ luceneweb.war
 
 contrib/*
   Contributed code which extends and enhances Lucene, but is not
-  part of the core library.  Of special note are the JAR files in the analyzers and snowball directory which
+  part of the core library.  Of special note are the JAR files in the analyzers directory which
   contain various analyzers that people may find useful in place of the StandardAnalyzer.
 
 

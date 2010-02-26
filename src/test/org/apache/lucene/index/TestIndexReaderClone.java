@@ -197,7 +197,7 @@ public class TestIndexReaderClone extends LuceneTestCase {
 
     TestIndexReaderReopen.createIndex(dir1, true);
     IndexReader reader1 = IndexReader.open(dir1, false);
-    IndexWriter w = new IndexWriter(dir1, new SimpleAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter w = new IndexWriter(dir1, new SimpleAnalyzer(TEST_VERSION_CURRENT), IndexWriter.MaxFieldLength.LIMITED);
     w.optimize();
     w.close();
     IndexReader reader2 = reader1.clone(true);
@@ -484,7 +484,7 @@ public class TestIndexReaderClone extends LuceneTestCase {
 
   public void testCloseStoredFields() throws Exception {
     final Directory dir = new MockRAMDirectory();
-    IndexWriter w = new IndexWriter(dir, new SimpleAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
+    IndexWriter w = new IndexWriter(dir, new SimpleAnalyzer(TEST_VERSION_CURRENT), IndexWriter.MaxFieldLength.UNLIMITED);
     w.setUseCompoundFile(false);
     Document doc = new Document();
     doc.add(new Field("field", "yes it's stored", Field.Store.YES, Field.Index.ANALYZED));

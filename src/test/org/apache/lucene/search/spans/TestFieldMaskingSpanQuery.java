@@ -54,7 +54,7 @@ public class TestFieldMaskingSpanQuery extends LuceneTestCase {
     super.setUp();
     RAMDirectory directory = new RAMDirectory();
     IndexWriter writer= new IndexWriter(directory,
-                                        new WhitespaceAnalyzer(), true,
+                                        new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true,
                                         IndexWriter.MaxFieldLength.LIMITED);
     
     writer.addDocument(doc(new Field[] { field("id", "0")

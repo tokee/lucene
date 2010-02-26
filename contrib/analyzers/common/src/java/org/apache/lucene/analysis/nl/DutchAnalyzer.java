@@ -19,10 +19,15 @@ package org.apache.lucene.analysis.nl;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
+import org.apache.lucene.analysis.KeywordMarkerTokenFilter;
+import org.apache.lucene.analysis.LowerCaseFilter;
+import org.apache.lucene.analysis.ReusableAnalyzerBase;
 import org.apache.lucene.analysis.StopFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.WordlistLoader;
+import org.apache.lucene.analysis.miscellaneous.StemmerOverrideFilter;
+import org.apache.lucene.analysis.snowball.SnowballFilter;
 import org.apache.lucene.analysis.standard.StandardFilter;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;  // for javadoc
@@ -31,7 +36,6 @@ import org.apache.lucene.util.Version;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,28 +53,31 @@ import java.util.Map;
  * exclusion list is empty by default.
  * </p>
  *
+ * <a name="version"/>
+ * <p>You must specify the required {@link Version}
+ * compatibility when creating DutchAnalyzer:
+ * <ul>
+ *   <li> As of 3.1, Snowball stemming is done with SnowballFilter, 
+ *        LowerCaseFilter is used prior to StopFilter, and Snowball 
+ *        stopwords are used by default.
+ *   <li> As of 2.9, StopFilter preserves position
+ *        increments
+ * </ul>
+ * 
  * <p><b>NOTE</b>: This class uses the same {@link Version}
  * dependent settings as {@link StandardAnalyzer}.</p>
  */
-public final class DutchAnalyzer extends Analyzer {
+public final class DutchAnalyzer extends ReusableAnalyzerBase {
   /**
    * List of typical Dutch stopwords.
    * @deprecated use {@link #getDefaultStopSet()} instead
    */
   @Deprecated
-  public final static String[] DUTCH_STOP_WORDS =
-      {
-        "de", "en", "van", "ik", "te", "dat", "die", "in", "een",
-        "hij", "het", "niet", "zijn", "is", "was", "op", "aan", "met", "als", "voor", "had",
-        "er", "maar", "om", "hem", "dan", "zou", "of", "wat", "mijn", "men", "dit", "zo",
-        "door", "over", "ze", "zich", "bij", "ook", "tot", "je", "mij", "uit", "der", "daar",
-        "haar", "naar", "heb", "hoe", "heeft", "hebben", "deze", "u", "want", "nog", "zal",
-        "me", "zij", "nu", "ge", "geen", "omdat", "iets", "worden", "toch", "al", "waren",
-        "veel", "meer", "doen", "toen", "moet", "ben", "zonder", "kan", "hun", "dus",
-        "alles", "onder", "ja", "eens", "hier", "wie", "werd", "altijd", "doch", "wordt",
-        "wezen", "kunnen", "ons", "zelf", "tegen", "na", "reeds", "wil", "kon", "niets",
-        "uw", "iemand", "geweest", "andere"
-      };
+  public final static String[] DUTCH_STOP_WORDS = getDefaultStopSet().toArray(new String[0]);
+  
+  /** File containing default Dutch stopwords. */
+  public final static String DEFAULT_STOPWORD_FILE = "dutch_stop.txt";
+
   /**
    * Returns an unmodifiable instance of the default stop-words set.
    * @return an unmodifiable instance of the default stop-words set.
@@ -80,9 +87,18 @@ public final class DutchAnalyzer extends Analyzer {
   }
   
   private static class DefaultSetHolder {
-    static final Set<?> DEFAULT_STOP_SET = CharArraySet
-        .unmodifiableSet(new CharArraySet(Version.LUCENE_CURRENT, 
-            Arrays.asList(DUTCH_STOP_WORDS), false));
+    static final Set<?> DEFAULT_STOP_SET;
+
+    static {
+      try {
+        DEFAULT_STOP_SET = WordlistLoader.getSnowballWordSet(SnowballFilter.class, 
+            DEFAULT_STOPWORD_FILE);
+      } catch (IOException ex) {
+        // default set should always be present as it is part of the
+        // distribution (JAR)
+        throw new RuntimeException("Unable to load default stopword set");
+      }
+    }
   }
 
 
@@ -215,50 +231,38 @@ public final class DutchAnalyzer extends Analyzer {
     }
   }
 
-  /**
-   * Creates a {@link TokenStream} which tokenizes all the text in the 
-   * provided {@link Reader}.
-   *
-   * @return A {@link TokenStream} built from a {@link StandardTokenizer}
-   *   filtered with {@link StandardFilter}, {@link StopFilter}, 
-   *   and {@link DutchStemFilter}
-   */
-  @Override
-  public TokenStream tokenStream(String fieldName, Reader reader) {
-    TokenStream result = new StandardTokenizer(matchVersion, reader);
-    result = new StandardFilter(result);
-    result = new StopFilter(matchVersion, result, stoptable);
-    result = new DutchStemFilter(result, excltable, stemdict);
-    return result;
-  }
-  
-  private class SavedStreams {
-    Tokenizer source;
-    TokenStream result;
-  };
-  
+
   /**
    * Returns a (possibly reused) {@link TokenStream} which tokenizes all the 
    * text in the provided {@link Reader}.
    *
    * @return A {@link TokenStream} built from a {@link StandardTokenizer}
-   *   filtered with {@link StandardFilter}, {@link StopFilter}, 
-   *   and {@link DutchStemFilter}
+   *   filtered with {@link StandardFilter}, {@link LowerCaseFilter}, 
+   *   {@link StopFilter}, {@link KeywordMarkerTokenFilter} if a stem exclusion set is provided,
+   *   {@link StemmerOverrideFilter}, and {@link SnowballFilter}
    */
   @Override
-  public TokenStream reusableTokenStream(String fieldName, Reader reader)
-      throws IOException {
-    SavedStreams streams = (SavedStreams) getPreviousTokenStream();
-    if (streams == null) {
-      streams = new SavedStreams();
-      streams.source = new StandardTokenizer(matchVersion, reader);
-      streams.result = new StandardFilter(streams.source);
-      streams.result = new StopFilter(matchVersion, streams.result, stoptable);
-      streams.result = new DutchStemFilter(streams.result, excltable, stemdict);
-      setPreviousTokenStream(streams);
+  protected TokenStreamComponents createComponents(String fieldName,
+      Reader aReader) {
+    if (matchVersion.onOrAfter(Version.LUCENE_31)) {
+      final Tokenizer source = new StandardTokenizer(matchVersion, aReader);
+      TokenStream result = new StandardFilter(source);
+      result = new LowerCaseFilter(matchVersion, result);
+      result = new StopFilter(matchVersion, result, stoptable);
+      if (!excltable.isEmpty())
+        result = new KeywordMarkerTokenFilter(result, excltable);
+      if (!stemdict.isEmpty())
+        result = new StemmerOverrideFilter(matchVersion, result, stemdict);
+      result = new SnowballFilter(result, new org.tartarus.snowball.ext.DutchStemmer());
+      return new TokenStreamComponents(source, result);
     } else {
-      streams.source.reset(reader);
+      final Tokenizer source = new StandardTokenizer(matchVersion, aReader);
+      TokenStream result = new StandardFilter(source);
+      result = new StopFilter(matchVersion, result, stoptable);
+      if (!excltable.isEmpty())
+        result = new KeywordMarkerTokenFilter(result, excltable);
+      result = new DutchStemFilter(result, stemdict);
+      return new TokenStreamComponents(source, result);
     }
-    return streams.result;
   }
 }

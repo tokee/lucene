@@ -26,6 +26,7 @@ import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.RamUsageEstimator;
 
 // TODO: we now pulse entirely according to docFreq of the
 // term; it might be better to eg pulse by "net bytes used"
@@ -81,7 +82,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
     }
 
     void reallocPositions(int minSize) {
-      final Position[] newArray = new Position[ArrayUtil.getNextSize(minSize)];
+      final Position[] newArray = new Position[ArrayUtil.oversize(minSize, RamUsageEstimator.NUM_BYTES_OBJECT_REF)];
       System.arraycopy(positions, 0, newArray, 0, positions.length);
       for(int i=positions.length;i<newArray.length;i++) {
         newArray[i] = new Position();

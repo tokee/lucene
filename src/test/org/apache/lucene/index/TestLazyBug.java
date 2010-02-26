@@ -63,7 +63,7 @@ public class TestLazyBug extends LuceneTestCase {
     Directory dir = new RAMDirectory();
     try {
       Random r = newRandom();
-      Analyzer analyzer = new SimpleAnalyzer();
+      Analyzer analyzer = new SimpleAnalyzer(TEST_VERSION_CURRENT);
       IndexWriter writer = new IndexWriter(dir, analyzer, true, IndexWriter.MaxFieldLength.LIMITED);
       
       writer.setUseCompoundFile(false);

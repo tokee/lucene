@@ -2,7 +2,6 @@ package org.apache.lucene.search;
 
 import org.apache.lucene.util.DocIdBitSet;
 import org.apache.lucene.util.LuceneTestCase;
-
 import java.util.Random;
 import java.util.BitSet;
 import java.io.IOException;
@@ -33,10 +32,6 @@ import org.apache.lucene.document.Field;
  * limitations under the License.
  */
 
-/**
- *
- * @version $Id$
- */
 public class TestScorerPerf extends LuceneTestCase {
   Random r;
   boolean validate = true;  // set to false when doing performance testing
@@ -49,7 +44,7 @@ public class TestScorerPerf extends LuceneTestCase {
       // Create a dummy index with nothing in it.
     // This could possibly fail if Lucene starts checking for docid ranges...
     RAMDirectory rd = new RAMDirectory();
-    IndexWriter iw = new IndexWriter(rd,new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter iw = new IndexWriter(rd,new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
     iw.addDocument(new Document());
     iw.close();
     s = new IndexSearcher(rd, true);
@@ -64,7 +59,7 @@ public class TestScorerPerf extends LuceneTestCase {
       terms[i] = new Term("f",Character.toString((char)('A'+i)));
     }
 
-    IndexWriter iw = new IndexWriter(dir,new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter iw = new IndexWriter(dir,new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
     for (int i=0; i<nDocs; i++) {
       Document d = new Document();
       for (int j=0; j<nTerms; j++) {

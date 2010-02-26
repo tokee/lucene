@@ -51,7 +51,7 @@ public class TestTermScorer extends LuceneTestCase
         directory = new RAMDirectory();
 
 
-        IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+        IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
         for (int i = 0; i < values.length; i++)
         {
             Document doc = new Document();

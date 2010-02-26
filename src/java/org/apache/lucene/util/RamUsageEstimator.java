@@ -30,9 +30,11 @@ import java.util.*;
  * Internally uses a Map to temporally hold a reference to every
  * object seen. 
  * 
- * If checkIntered, all Strings checked will be interned, but those
+ * If checkInterned, all Strings checked will be interned, but those
  * that were not already interned will be released for GC when the
  * estimate is complete.
+ * 
+ * @lucene.internal
  */
 public final class RamUsageEstimator {
   private MemoryModel memoryModel;
@@ -42,6 +44,14 @@ public final class RamUsageEstimator {
   private int refSize;
   private int arraySize;
   private int classSize;
+
+  public final static int NUM_BYTES_OBJECT_REF = Constants.JRE_IS_64BIT ? 8 : 4;
+  public final static int NUM_BYTES_CHAR = 2;
+  public final static int NUM_BYTES_SHORT = 2;
+  public final static int NUM_BYTES_INT = 4;
+  public final static int NUM_BYTES_LONG = 8;
+  public final static int NUM_BYTES_FLOAT = 4;
+  public final static int NUM_BYTES_DOUBLE = 8;
 
   private boolean checkInterned;
 

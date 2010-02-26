@@ -25,7 +25,6 @@ import java.io.ByteArrayOutputStream;
 
 
 import org.apache.lucene.util.LuceneTestCase;
-
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -55,7 +54,7 @@ public class TestRAMDirectory extends LuceneTestCase {
     indexDir = new File(tempDir, "RAMDirIndex");
     
     Directory dir = FSDirectory.open(indexDir);
-    IndexWriter writer  = new IndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter writer  = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
     // add some documents
     Document doc = null;
     for (int i = 0; i < docsToAdd; i++) {
@@ -106,7 +105,7 @@ public class TestRAMDirectory extends LuceneTestCase {
     final MockRAMDirectory ramDir = new MockRAMDirectory(dir);
     dir.close();
     
-    final IndexWriter writer  = new IndexWriter(ramDir, new WhitespaceAnalyzer(), false, IndexWriter.MaxFieldLength.LIMITED);
+    final IndexWriter writer  = new IndexWriter(ramDir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), false, IndexWriter.MaxFieldLength.LIMITED);
     writer.optimize();
     
     assertEquals(ramDir.sizeInBytes(), ramDir.getRecomputedSizeInBytes());

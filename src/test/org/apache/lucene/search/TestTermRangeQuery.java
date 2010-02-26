@@ -122,7 +122,7 @@ public class TestTermRangeQuery extends LuceneTestCase {
   }
   
   private void checkBooleanTerms(Searcher searcher, TermRangeQuery query, String... terms) throws IOException {
-    query.setRewriteMethod(MultiTermQuery.TOP_TERMS_SCORING_BOOLEAN_REWRITE);
+    query.setRewriteMethod(new MultiTermQuery.TopTermsScoringBooleanQueryRewrite());
     final BooleanQuery bq = (BooleanQuery) searcher.rewrite(query);
     final Set<String> allowedTerms = new HashSet<String>(Arrays.asList(terms));
     assertEquals(allowedTerms.size(), bq.clauses().size());
@@ -284,6 +284,7 @@ public class TestTermRangeQuery extends LuceneTestCase {
         if (done)
           return false;
         else {
+          clearAttributes();
           done = true;
           if (count == 1) {
             termAtt.termBuffer()[0] = buffer[0];
@@ -319,7 +320,7 @@ public class TestTermRangeQuery extends LuceneTestCase {
   }
 
   private void initializeIndex(String[] values) throws IOException {
-    initializeIndex(values, new WhitespaceAnalyzer());
+    initializeIndex(values, new WhitespaceAnalyzer(TEST_VERSION_CURRENT));
   }
 
   private void initializeIndex(String[] values, Analyzer analyzer) throws IOException {
@@ -331,7 +332,7 @@ public class TestTermRangeQuery extends LuceneTestCase {
   }
 
   private void addDoc(String content) throws IOException {
-    IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), false, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), false, IndexWriter.MaxFieldLength.LIMITED);
     insertDoc(writer, content);
     writer.close();
   }

@@ -28,8 +28,6 @@ import org.apache.lucene.store.FSDirectory;
  * This tests the patch for issue #LUCENE-715 (IndexWriter does not
  * release its write lock when trying to open an index which does not yet
  * exist).
- *
- * @version $Id$
  */
 
 public class TestIndexWriterLockRelease extends LuceneTestCase {
@@ -77,10 +75,10 @@ public class TestIndexWriterLockRelease extends LuceneTestCase {
         IndexWriter im;
         FSDirectory dir = FSDirectory.open(this.__test_dir);
         try {
-            im = new IndexWriter(dir, new org.apache.lucene.analysis.standard.StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT), false, IndexWriter.MaxFieldLength.LIMITED);
+            im = new IndexWriter(dir, new org.apache.lucene.analysis.standard.StandardAnalyzer(TEST_VERSION_CURRENT), false, IndexWriter.MaxFieldLength.LIMITED);
         } catch (FileNotFoundException e) {
             try {
-                im = new IndexWriter(dir, new org.apache.lucene.analysis.standard.StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT), false, IndexWriter.MaxFieldLength.LIMITED);
+                im = new IndexWriter(dir, new org.apache.lucene.analysis.standard.StandardAnalyzer(TEST_VERSION_CURRENT), false, IndexWriter.MaxFieldLength.LIMITED);
             } catch (FileNotFoundException e1) {
             }
         } finally {

@@ -1,12 +1,26 @@
 Lucene Change Log
-$Id$
 
-Bug fixes
+======================= Flexible Indexing Branch =======================
 
- * LUCENE-2222: FixedIntBlockIndexInput incorrectly read one block of
-   0s before the actual data.  (Renaud Delbru via Mike McCandless)
+Changes in backwards compatibility policy
+
+* LUCENE-2111: UnicodeUtil now uses BytesRef for UTF-8 output, and
+  some method signatures have changed to CharSequence.  These are
+  advanced APIs and subject to change suddenly.
+  (Robert Muir, Mike McCandless)
+
+* LUCENE-1458: Flex API changes:
+    Directory.copy now copies all files (not just index files), since
+    what is and isn't and index file is now dependent on the codec
+    used. (Mike McCandless)
+
+Bug Fixes
+
+* LUCENE-2222: FixedIntBlockIndexInput incorrectly read one block of
+  0s before the actual data.  (Renaud Delbru via Mike McCandless)
 
 ======================= Trunk (not yet released) =======================
+
 Changes in backwards compatibility policy
 
 * LUCENE-1483: Removed utility class oal.util.SorterTemplate; this
@@ -25,15 +39,8 @@ Changes in backwards compatibility policy
   toString.  These are advanced APIs and subject to change suddenly.
   (Tim Smith via Mike McCandless)
 
-* LUCENE-2111: UnicodeUtil now uses BytesRef for UTF-8 output, and
-  some method signatures have changed to CharSequence.  These are
-  advanced APIs and subject to change suddenly.
-  (Robert Muir, Mike McCandless)
-
-* LUCENE-1458: Flex API changes:
-  - Directory.copy now copies all files (not just index files), since
-    what is and isn't and index file is now dependent on the codec
-    used.
+* LUCENE-2190: Removed deprecated customScore() and customExplain()
+  methods from experimental CustomScoreQuery.  (Uwe Schindler)
 
 Changes in runtime behavior
 
@@ -58,58 +65,52 @@ API Changes
   until Lucene 4.0 the default one will be deprecated.
   (Shai Erera via Uwe Schindler) 
 
-* LUCENE-1609: Restore IndexReader.getTermInfosIndexDivisor (it was
-  accidentally removed in 3.0.0)  (Mike McCandless)
-
-* LUCENE-1972: Restore SortField.getComparatorSource (it was
-  accidentally removed in 3.0.0)  (John Wang via Uwe Schindler)
-
 * LUCENE-2177: Deprecate the Field ctors that take byte[] and Store.
   Since the removal of compressed fields, Store can only be YES, so
   it's not necessary to specify.  (Erik Hatcher via Mike McCandless)
-
-* LUCENE-2190: Added setNextReader method to CustomScoreQuery, which
-  is necessary with per-segment searching to notify the subclass
-  which reader the int doc, passed to customScore, refers to.  (Paul
-  chez Jamespot via Mike McCandless)
 
 * LUCENE-2200: Several final classes had non-overriding protected
   members. These were converted to private and unused protected
   constructors removed.  (Steven Rowe via Robert Muir)
 
+* LUCENE-2240: SimpleAnalyzer and WhitespaceAnalyzer now have
+  Version ctors.  (Simon Willnauer via Uwe Schindler)
+
+* LUCENE-2259: Add IndexWriter.deleteUnusedFiles, to attempt removing
+  unused files.  This is only useful on Windows, which prevents
+  deletion of open files. IndexWriter will eventually remove these
+  files itself; this method just lets you do so when you know the
+  files are no longer open by IndexReaders. (luocanrao via Mike
+  McCandless)
+
+* LUCENE-2281: added doBeforeFlush to IndexWriter to allow extensions to perform
+  operations before flush starts. Also exposed doAfterFlush as protected instead
+  of package-private. (Shai Erera via Mike McCandless)
+
 Bug fixes
-
-* LUCENE-2092: BooleanQuery was ignoring disableCoord in its hashCode
-  and equals methods, cause bad things to happen when caching
-  BooleanQueries.  (Chris Hostetter, Mike McCandless)
-
-* LUCENE-2095: Fixes: when two threads call IndexWriter.commit() at
-  the same time, it's possible for commit to return control back to
-  one of the threads before all changes are actually committed.
-  (Sanne Grinovero via Mike McCandless)
 
 * LUCENE-2119: Don't throw NegativeArraySizeException if you pass
   Integer.MAX_VALUE as nDocs to IndexSearcher search methods.  (Paul
   Taylor via Mike McCandless)
 
-* LUCENE-2132: Fix the demo result.jsp to use QueryParser with a 
-  Version argument.  (Brian Li via Robert Muir)
-
 * LUCENE-2142: FieldCacheImpl.getStringIndex no longer throws an
   exception when term count exceeds doc count.  (Mike McCandless)
-
-* LUCENE-2166: Don't incorrectly keep warning about the same immense
-  term, when IndexWriter.infoStream is on.  (Mike McCandless)
 
 * LUCENE-2104: NativeFSLock.release() would silently fail if the lock is held by 
   another thread/process.  (Shai Erera via Uwe Schindler)
 
-* LUCENE-2158: At high indexing rates, NRT reader could temporarily
-  lose deletions.  (Mike McCandless)
+* LUCENE-2216: OpenBitSet.hashCode returned different hash codes for
+  sets that only differed by trailing zeros. (Dawid Weiss, yonik)
+
+* LUCENE-2235: Implement missing PerFieldAnalyzerWrapper.getOffsetGap().
+  (Javier Godoy via Uwe Schindler)
+
+* LUCENE-2249: ParallelMultiSearcher should shut down thread pool on
+  close.  (Martin Traverso via Uwe Schindler)
   
-* LUCENE-2182: DEFAULT_ATTRIBUTE_FACTORY was failing to load
-  implementation class when interface was loaded by a different
-  class loader.  (Uwe Schindler, reported on java-user by Ahmed El-dawy)
+* LUCENE-2273: FieldCacheImpl.getCacheEntries() used WeakHashMap
+  incorrectly and lead to ConcurrentModificationException.
+  (Uwe Schindler, Robert Muir)
   
 New features
 
@@ -135,10 +136,19 @@ New features
   stopwords, and implement many analyzers in contrib with it.  
   (Simon Willnauer via Robert Muir)
   
-Optimizations
+* LUCENE-2198: Support protected words in stemming TokenFilters using a
+  new KeywordAttribute.  (Simon Willnauer via Uwe Schindler)
+  
+* LUCENE-2183, LUCENE-2240, LUCENE-2241: Added Unicode 4 support
+  to CharTokenizer and its subclasses. CharTokenizer now has new
+  int-API which is conditionally preferred to the old char-API depending
+  on the provided Version. Version < 3.1 will use the char-API.
+  (Simon Willnauer via Uwe Schindler)
 
-* LUCENE-2086: When resolving deleted terms, do so in term sort order
-  for better performance. (Bogdan Ghidireac via Mike McCandless)
+* LUCENE-2247: Added a CharArrayMap<V> for performance improvements
+  in some stemmers and synonym filters. (Uwe Schindler)
+
+Optimizations
 
 * LUCENE-2075: Terms dict cache is now shared across threads instead
   of being stored separately in thread local storage.  Also fixed
@@ -155,12 +165,11 @@ Optimizations
 * LUCENE-2137: Switch to AtomicInteger for some ref counting (Earwin
   Burrfoot via Mike McCandless)
 
-* LUCENE-2123: Move FuzzyQuery rewrite as separate RewriteMode into
-  MTQ. This also fixes a slowdown / memory issue added by LUCENE-504.
+* LUCENE-2123, LUCENE-2261: Move FuzzyQuery rewrite to separate RewriteMode 
+  into MultiTermQuery. The number of fuzzy expansions can be specified with
+  the maxExpansions parameter to FuzzyQuery, but the default is limited to
+  BooleanQuery.maxClauseCount() as before. 
   (Uwe Schindler, Robert Muir, Mike McCandless)
-
-* LUCENE-2137: Switch to AtomicInteger for some ref counting (Earwin
-  Burrfoot via Mike McCandless)
 
 * LUCENE-2135: On IndexReader.close, forcefully evict any entries from
   the FieldCache rather than waiting for the WeakHashMap to release
@@ -188,6 +197,9 @@ Optimizations
 * LUCENE-2188: Add a utility class for tracking deprecated overridden
   methods in non-final subclasses.
   (Uwe Schindler, Robert Muir)
+
+* LUCENE-2195: Speedup CharArraySet if set is empty.
+  (Simon Willnauer via Robert Muir)
    
 Build
 
@@ -206,15 +218,118 @@ Test Cases
 * LUCENE-2065: Use Java 5 generics throughout our unit tests.  (Kay
   Kay via Mike McCandless)
 
-* LUCENE-2114: Change TestFilteredSearch to test on multi-segment
-  index as well; improve javadocs of Filter to call out that the
-  provided reader is per-segment (Simon Willnauer via Mike McCandless)
-
 * LUCENE-2155: Fix time and zone dependent localization test failures
   in queryparser tests. (Uwe Schindler, Chris Male, Robert Muir)
 
 * LUCENE-2170: Fix thread starvation problems.  (Uwe Schindler)
 
+* LUCENE-2248, LUCENE-2251: Refactor tests to not use Version.LUCENE_CURRENT,
+  but instead use a global static value from LuceneTestCase(J4), that
+  contains the release version.  (Uwe Schindler, Simon Willnauer)
+  
+================== Release 2.9.2 / 3.0.1 2010-02-26 ====================
+
+Changes in backwards compatibility policy
+
+* LUCENE-2123 (3.0.1 only): Removed the protected inner class ScoreTerm
+  from FuzzyQuery. The change was needed because the comparator of this
+  class had to be changed in an incompatible way. The class was never
+  intended to be public.  (Uwe Schindler, Mike McCandless)
+  
+Bug fixes
+
+ * LUCENE-2092: BooleanQuery was ignoring disableCoord in its hashCode
+   and equals methods, cause bad things to happen when caching
+   BooleanQueries.  (Chris Hostetter, Mike McCandless)
+
+ * LUCENE-2095: Fixes: when two threads call IndexWriter.commit() at
+   the same time, it's possible for commit to return control back to
+   one of the threads before all changes are actually committed.
+   (Sanne Grinovero via Mike McCandless)
+
+ * LUCENE-2132 (3.0.1 only): Fix the demo result.jsp to use QueryParser
+   with a Version argument.  (Brian Li via Robert Muir)
+
+ * LUCENE-2166: Don't incorrectly keep warning about the same immense
+   term, when IndexWriter.infoStream is on.  (Mike McCandless)
+
+ * LUCENE-2158: At high indexing rates, NRT reader could temporarily
+   lose deletions.  (Mike McCandless)
+  
+ * LUCENE-2182: DEFAULT_ATTRIBUTE_FACTORY was failing to load
+   implementation class when interface was loaded by a different
+   class loader.  (Uwe Schindler, reported on java-user by Ahmed El-dawy)
+
+ * LUCENE-2257: Increase max number of unique terms in one segment to
+   termIndexInterval (default 128) * ~2.1 billion = ~274 billion.
+   (Tom Burton-West via Mike McCandless)
+  
+ * LUCENE-2260: Fixed AttributeSource to not hold a strong
+   reference to the Attribute/AttributeImpl classes which prevents
+   unloading of custom attributes loaded by other classloaders
+   (e.g. in Solr plugins).  (Uwe Schindler)
+ 
+ * LUCENE-1941: Fix Min/MaxPayloadFunction returns 0 when
+   only one payload is present.  (Erik Hatcher, Mike McCandless
+   via Uwe Schindler)
+
+ * LUCENE-2270: Queries consisting of all zero-boost clauses
+   (for example, text:foo^0) sorted incorrectly and produced
+   invalid docids. (yonik)
+
+API Changes
+
+ * LUCENE-1609 (3.0.1 only): Restore IndexReader.getTermInfosIndexDivisor
+   (it was accidentally removed in 3.0.0)  (Mike McCandless)
+
+ * LUCENE-1972 (3.0.1 only): Restore SortField.getComparatorSource
+   (it was accidentally removed in 3.0.0)  (John Wang via Uwe Schindler)
+
+ * LUCENE-2190: Added a new class CustomScoreProvider to function package
+   that can be subclassed to provide custom scoring to CustomScoreQuery.
+   The methods in CustomScoreQuery that did this before were deprecated
+   and replaced by a method getCustomScoreProvider(IndexReader) that
+   returns a custom score implementation using the above class. The change
+   is necessary with per-segment searching, as CustomScoreQuery is
+   a stateless class (like all other Queries) and does not know about
+   the currently searched segment. This API works similar to Filter's
+   getDocIdSet(IndexReader).  (Paul chez Jamespot via Mike McCandless,
+   Uwe Schindler)
+
+ * LUCENE-2080: Deprecate Version.LUCENE_CURRENT, as using this constant
+   will cause backwards compatibility problems when upgrading Lucene. See
+   the Version javadocs for additional information.
+   (Robert Muir)
+
+Optimizations
+
+ * LUCENE-2086: When resolving deleted terms, do so in term sort order
+   for better performance (Bogdan Ghidireac via Mike McCandless)
+
+ * LUCENE-2123 (partly, 3.0.1 only): Fixes a slowdown / memory issue
+   added by LUCENE-504.  (Uwe Schindler, Robert Muir, Mike McCandless)
+
+ * LUCENE-2258: Remove unneeded synchronization in FuzzyTermEnum.
+   (Uwe Schindler, Robert Muir)
+
+Test Cases
+
+ * LUCENE-2114: Change TestFilteredSearch to test on multi-segment
+   index as well. (Simon Willnauer via Mike McCandless)
+
+ * LUCENE-2211: Improves BaseTokenStreamTestCase to use a fake attribute
+   that checks if clearAttributes() was called correctly.
+   (Uwe Schindler, Robert Muir)
+
+ * LUCENE-2207, LUCENE-2219: Improve BaseTokenStreamTestCase to check if 
+   end() is implemented correctly.  (Koji Sekiguchi, Robert Muir)
+
+Documentation
+
+ * LUCENE-2114: Improve javadocs of Filter to call out that the
+   provided reader is per-segment (Simon Willnauer via Mike
+   McCandless)
+ 
 ======================= Release 3.0.0 2009-11-25 =======================
 
 Changes in backwards compatibility policy
@@ -520,10 +635,10 @@ Changes in backwards compatibility policy
     code to implement this method.  If you already extend
     IndexSearcher, no further changes are needed to use Collector.
     
-    Finally, the values Float.NaN, Float.NEGATIVE_INFINITY and
-    Float.POSITIVE_INFINITY are not valid scores.  Lucene uses these
-    values internally in certain places, so if you have hits with such
-    scores, it will cause problems. (Shai Erera via Mike McCandless)
+    Finally, the values Float.NaN and Float.NEGATIVE_INFINITY are not
+    valid scores.  Lucene uses these values internally in certain
+    places, so if you have hits with such scores, it will cause
+    problems. (Shai Erera via Mike McCandless)
 
  * LUCENE-1687: All methods and parsers from the interface ExtendedFieldCache
     have been moved into FieldCache. ExtendedFieldCache is now deprecated and
@@ -601,7 +716,7 @@ Changes in runtime behavior
     
  * LUCENE-1575: As of 2.9, the core collectors as well as
     IndexSearcher's search methods that return top N results, no
-    longer filter out zero scoring documents. If you rely on this
+    longer filter documents with scores <= 0.0. If you rely on this
     functionality you can use PositiveScoresOnlyCollector like this:
 
     <code>

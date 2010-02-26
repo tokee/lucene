@@ -54,8 +54,7 @@ package org.apache.lucene.util;
  * without always allocating a new byte[] as
  * String.getBytes("UTF-8") does.
  *
- * <p><b>WARNING</b>: This API is a new and experimental and
- * may suddenly change. </p>
+ * @lucene.internal
  */
 
 final public class UnicodeUtil {
@@ -72,6 +71,9 @@ final public class UnicodeUtil {
   private static final long HALF_SHIFT = 10;
   private static final long HALF_MASK = 0x3FFL;
 
+  /**
+   * @lucene.internal
+   */
   public static final class UTF16Result {
     public char[] result = new char[10];
     public int[] offsets = new int[10];
@@ -113,7 +115,7 @@ final public class UnicodeUtil {
     // Pre-allocate for worst case 4-for-1
     final int maxLen = length * 4;
     if (out.length < maxLen)
-      out = result.bytes = new byte[maxLen];
+      out = result.bytes = new byte[ArrayUtil.oversize(maxLen, 1)];
     result.offset = 0;
 
     while(i < end) {
@@ -169,7 +171,7 @@ final public class UnicodeUtil {
     // Pre-allocate for worst case 4-for-1
     final int maxLen = length * 4;
     if (out.length < maxLen)
-      out = result.bytes = new byte[maxLen];
+      out = result.bytes = new byte[ArrayUtil.oversize(maxLen, 1)];
     result.offset = 0;
 
     while(i < end) {
@@ -223,7 +225,7 @@ final public class UnicodeUtil {
     // Pre-allocate for worst case 4-for-1
     final int maxLen = length * 4;
     if (out.length < maxLen)
-      out = result.bytes = new byte[maxLen];
+      out = result.bytes = new byte[ArrayUtil.oversize(maxLen, 1)];
 
     int upto = 0;
     for(int i=offset;i<end;i++) {
@@ -274,9 +276,7 @@ final public class UnicodeUtil {
     final int end = offset + length;
     char[] out = result.result;
     if (result.offsets.length <= end) {
-      int[] newOffsets = new int[2*end];
-      System.arraycopy(result.offsets, 0, newOffsets, 0, result.offsets.length);
-      result.offsets  = newOffsets;
+      result.offsets = ArrayUtil.grow(result.offsets, end+1);
     }
     final int[] offsets = result.offsets;
 
@@ -290,9 +290,7 @@ final public class UnicodeUtil {
 
     // Pre-allocate for worst case 1-for-1
     if (outUpto+length >= out.length) {
-      char[] newOut = new char[2*(outUpto+length)];
-      System.arraycopy(out, 0, newOut, 0, outUpto);
-      result.result = out = newOut;
+      out = result.result = ArrayUtil.grow(out, outUpto+length+1);
     }
 
     while (upto < end) {

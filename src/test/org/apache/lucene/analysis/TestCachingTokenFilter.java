@@ -37,7 +37,7 @@ public class TestCachingTokenFilter extends BaseTokenStreamTestCase {
   
   public void testCaching() throws IOException {
     Directory dir = new RAMDirectory();
-    IndexWriter writer = new IndexWriter(dir, new SimpleAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter writer = new IndexWriter(dir, new SimpleAnalyzer(TEST_VERSION_CURRENT), IndexWriter.MaxFieldLength.LIMITED);
     Document doc = new Document();
     TokenStream stream = new TokenStream() {
       private int index = 0;
@@ -49,6 +49,7 @@ public class TestCachingTokenFilter extends BaseTokenStreamTestCase {
         if (index == tokens.length) {
           return false;
         } else {
+          clearAttributes();
           termAtt.setTermBuffer(tokens[index++]);
           offsetAtt.setOffset(0,0);
           return true;

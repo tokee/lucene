@@ -34,7 +34,6 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
-import org.apache.lucene.util.Version;
 
 /**
  * A very simple demo used in the API documentation (src/java/overview.html).
@@ -46,7 +45,7 @@ public class TestDemo extends LuceneTestCase {
 
   public void testDemo() throws IOException, ParseException {
 
-    Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_CURRENT);
+    Analyzer analyzer = new StandardAnalyzer(TEST_VERSION_CURRENT);
 
     // Store the index in memory:
     Directory directory = new RAMDirectory();
@@ -67,7 +66,7 @@ public class TestDemo extends LuceneTestCase {
 
     assertEquals(1, isearcher.search(new TermQuery(new Term("fieldname", longTerm)), 1).totalHits);
     // Parse a simple query that searches for "text":
-    QueryParser parser = new QueryParser(Version.LUCENE_CURRENT, "fieldname", analyzer);
+    QueryParser parser = new QueryParser(TEST_VERSION_CURRENT, "fieldname", analyzer);
     Query query = parser.parse("text");
     ScoreDoc[] hits = isearcher.search(query, null, 1).scoreDocs;
     assertEquals(1, hits.length);

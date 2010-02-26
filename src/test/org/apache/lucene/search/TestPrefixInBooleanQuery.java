@@ -18,7 +18,6 @@ package org.apache.lucene.search;
  */
 
 import org.apache.lucene.util.LuceneTestCase;
-
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -46,7 +45,7 @@ public class TestPrefixInBooleanQuery extends LuceneTestCase {
     super.setUp();
     
     IndexWriter writer = new IndexWriter(directory,
-                                         new WhitespaceAnalyzer(), true,
+                                         new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true,
                                          IndexWriter.MaxFieldLength.LIMITED);
 
     for (int i = 0; i < 5137; ++i) {

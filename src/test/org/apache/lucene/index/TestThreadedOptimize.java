@@ -34,7 +34,7 @@ import java.io.File;
 
 public class TestThreadedOptimize extends LuceneTestCase {
   
-  private static final Analyzer ANALYZER = new SimpleAnalyzer();
+  private static final Analyzer ANALYZER = new SimpleAnalyzer(TEST_VERSION_CURRENT);
 
   private final static int NUM_THREADS = 3;
   //private final static int NUM_THREADS = 5;

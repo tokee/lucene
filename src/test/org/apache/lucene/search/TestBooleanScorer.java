@@ -44,7 +44,7 @@ public class TestBooleanScorer extends LuceneTestCase
     String[] values = new String[] { "1", "2", "3", "4" };
 
     try {
-      IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+      IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
       for (int i = 0; i < values.length; i++) {
         Document doc = new Document();
         doc.add(new Field(FIELD, values[i], Field.Store.YES, Field.Index.NOT_ANALYZED));

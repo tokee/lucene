@@ -35,7 +35,7 @@ public class TestCrash extends LuceneTestCase {
   private IndexWriter initIndex(MockRAMDirectory dir) throws IOException {
     dir.setLockFactory(NoLockFactory.getNoLockFactory());
 
-    IndexWriter writer  = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
+    IndexWriter writer  = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), IndexWriter.MaxFieldLength.UNLIMITED);
     //writer.setMaxBufferedDocs(2);
     writer.setMaxBufferedDocs(10);
     ((ConcurrentMergeScheduler) writer.getMergeScheduler()).setSuppressExceptions();

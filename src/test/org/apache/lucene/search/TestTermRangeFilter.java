@@ -339,7 +339,7 @@ public class TestTermRangeFilter extends BaseTestRangeFilter {
             
         /* build an index */
         RAMDirectory farsiIndex = new RAMDirectory();
-        IndexWriter writer = new IndexWriter(farsiIndex, new SimpleAnalyzer(), T, 
+        IndexWriter writer = new IndexWriter(farsiIndex, new SimpleAnalyzer(TEST_VERSION_CURRENT), T, 
                                              IndexWriter.MaxFieldLength.LIMITED);
         Document doc = new Document();
         doc.add(new Field("content","\u0633\u0627\u0628", 
@@ -379,7 +379,7 @@ public class TestTermRangeFilter extends BaseTestRangeFilter {
         /* build an index */
         RAMDirectory danishIndex = new RAMDirectory();
         IndexWriter writer = new IndexWriter
-            (danishIndex, new SimpleAnalyzer(), T, 
+            (danishIndex, new SimpleAnalyzer(TEST_VERSION_CURRENT), T, 
              IndexWriter.MaxFieldLength.LIMITED);
         // Danish collation orders the words below in the given order
         // (example taken from TestSort.testInternationalSort() ).

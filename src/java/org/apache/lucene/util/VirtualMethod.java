@@ -20,7 +20,7 @@ package org.apache.lucene.util;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
+import java.util.WeakHashMap;
 import java.util.Set;
 
 /**
@@ -54,6 +54,8 @@ import java.util.Set;
  * The one with the larger distance should be used preferable.
  * This way also more complicated method rename scenarios can be handled
  * (think of 2.9 {@code TokenStream} deprecations).</p>
+ *
+ * @lucene.internal
  */
 public final class VirtualMethod<C> {
 
@@ -62,8 +64,8 @@ public final class VirtualMethod<C> {
   private final Class<C> baseClass;
   private final String method;
   private final Class<?>[] parameters;
-  private final IdentityHashMap<Class<? extends C>, Integer> cache =
-    new IdentityHashMap<Class<? extends C>, Integer>();
+  private final WeakHashMap<Class<? extends C>, Integer> cache =
+    new WeakHashMap<Class<? extends C>, Integer>();
 
   /**
    * Creates a new instance for the given {@code baseClass} and method declaration.

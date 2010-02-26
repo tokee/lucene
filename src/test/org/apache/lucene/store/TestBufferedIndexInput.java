@@ -242,7 +242,7 @@ public class TestBufferedIndexInput extends LuceneTestCase {
       File indexDir = new File(System.getProperty("tempDir"), "testSetBufferSize");
       MockFSDirectory dir = new MockFSDirectory(indexDir, newRandom());
       try {
-        IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+        IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
         writer.setUseCompoundFile(false);
         for(int i=0;i<37;i++) {
           Document doc = new Document();

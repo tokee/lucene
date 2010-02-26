@@ -110,7 +110,7 @@ public class TestDoc extends LuceneTestCase {
       PrintWriter out = new PrintWriter(sw, true);
 
       Directory directory = FSDirectory.open(indexDir);
-      IndexWriter writer = new IndexWriter(directory, new SimpleAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+      IndexWriter writer = new IndexWriter(directory, new SimpleAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
 
       SegmentInfo si1 = indexDoc(writer, "test.txt");
       printSegment(out, si1);
@@ -138,7 +138,7 @@ public class TestDoc extends LuceneTestCase {
       out = new PrintWriter(sw, true);
 
       directory = FSDirectory.open(indexDir);
-      writer = new IndexWriter(directory, new SimpleAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+      writer = new IndexWriter(directory, new SimpleAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
 
       si1 = indexDoc(writer, "test.txt");
       printSegment(out, si1);

@@ -468,7 +468,7 @@ public class TestPayloadSpans extends LuceneTestCase {
 
     @Override
     public TokenStream tokenStream(String fieldName, Reader reader) {
-      TokenStream result = new LowerCaseTokenizer(reader);
+      TokenStream result = new LowerCaseTokenizer(TEST_VERSION_CURRENT, reader);
       result = new PayloadFilter(result, fieldName);
       return result;
     }
@@ -520,7 +520,7 @@ public class TestPayloadSpans extends LuceneTestCase {
 
     @Override
     public TokenStream tokenStream(String fieldName, Reader reader) {
-      TokenStream result = new LowerCaseTokenizer(reader);
+      TokenStream result = new LowerCaseTokenizer(TEST_VERSION_CURRENT, reader);
       result = new PayloadFilter(result, fieldName);
       return result;
     }

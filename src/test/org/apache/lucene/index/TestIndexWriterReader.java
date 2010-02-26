@@ -76,7 +76,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
     boolean optimize = true;
 
     Directory dir1 = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
 
     // create the index
@@ -99,12 +99,26 @@ public class TestIndexWriterReader extends LuceneTestCase {
     assertEquals(1, count(new Term("id", Integer.toString(8000)), r2));
     
     r1.close();
-    r2.close();
     writer.close();
     
     IndexReader r3 = IndexReader.open(dir1, true);
     assertEquals(0, count(new Term("id", id10), r3));
     assertEquals(1, count(new Term("id", Integer.toString(8000)), r3));
+
+    writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
+                             IndexWriter.MaxFieldLength.LIMITED);
+    Document doc = new Document();
+    doc.add(new Field("field", "a b c", Field.Store.NO, Field.Index.ANALYZED));
+    writer.addDocument(doc);
+    assertTrue(r2.isCurrent());
+    assertTrue(r3.isCurrent());
+
+    writer.close();
+
+    assertFalse(r2.isCurrent());
+    assertTrue(!r3.isCurrent());
+
+    r2.close();
     r3.close();
     
     dir1.close();
@@ -119,7 +133,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
     boolean optimize = false;
 
     Directory dir1 = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
     // create the index
@@ -128,7 +142,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
 
     // create a 2nd index
     Directory dir2 = new MockRAMDirectory();
-    IndexWriter writer2 = new IndexWriter(dir2, new WhitespaceAnalyzer(),
+    IndexWriter writer2 = new IndexWriter(dir2, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     writer2.setInfoStream(infoStream);
     createIndexNoClose(!optimize, "index2", writer2);
@@ -157,13 +171,13 @@ public class TestIndexWriterReader extends LuceneTestCase {
     boolean optimize = false;
 
     Directory dir1 = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
 
     // create a 2nd index
     Directory dir2 = new MockRAMDirectory();
-    IndexWriter writer2 = new IndexWriter(dir2, new WhitespaceAnalyzer(),
+    IndexWriter writer2 = new IndexWriter(dir2, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     writer2.setInfoStream(infoStream);
     createIndexNoClose(!optimize, "index2", writer2);
@@ -192,7 +206,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
     boolean optimize = true;
 
     Directory dir1 = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
     // create the index
@@ -231,7 +245,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
     writer.close();
         
     // reopen the writer to verify the delete made it to the directory
-    writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
     IndexReader w2r1 = writer.getReader();
@@ -246,7 +260,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
     int numDirs = 3;
     
     Directory mainDir = new MockRAMDirectory();
-    IndexWriter mainWriter = new IndexWriter(mainDir, new WhitespaceAnalyzer(),
+    IndexWriter mainWriter = new IndexWriter(mainDir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     mainWriter.setInfoStream(infoStream);
     AddDirectoriesThreads addDirThreads = new AddDirectoriesThreads(numIter, mainWriter);
@@ -354,7 +368,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
       this.numDirs = numDirs;
       this.mainWriter = mainWriter;
       addDir = new MockRAMDirectory();
-      IndexWriter writer = new IndexWriter(addDir, new WhitespaceAnalyzer(),
+      IndexWriter writer = new IndexWriter(addDir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
           IndexWriter.MaxFieldLength.LIMITED);
       writer.setMaxBufferedDocs(2);
       for (int i = 0; i < NUM_INIT_DOCS; i++) {
@@ -462,7 +476,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
    */
   public void doTestIndexWriterReopenSegment(boolean optimize) throws Exception {
     Directory dir1 = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
     IndexReader r1 = writer.getReader();
@@ -500,7 +514,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
     writer.close();
 
     // test whether the changes made it to the directory
-    writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     IndexReader w2r1 = writer.getReader();
     // insure the deletes were actually flushed to the directory
@@ -541,7 +555,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
    */
   public static void createIndex(Directory dir1, String indexName,
       boolean multiSegment) throws IOException {
-    IndexWriter w = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter w = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     w.setMergePolicy(new LogDocMergePolicy(w));
     for (int i = 0; i < 100; i++) {
@@ -576,7 +590,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
   public void testMergeWarmer() throws Exception {
 
     Directory dir1 = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
                                          IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
 
@@ -611,7 +625,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
 
   public void testAfterCommit() throws Exception {
     Directory dir1 = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
                                          IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
 
@@ -644,7 +658,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
   // Make sure reader remains usable even if IndexWriter closes
   public void testAfterClose() throws Exception {
     Directory dir1 = new MockRAMDirectory();
-    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
                                          IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
 
@@ -674,7 +688,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
   // Stress test reopen during addIndexes
   public void testDuringAddIndexes() throws Exception {
     Directory dir1 = new MockRAMDirectory();
-    final IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    final IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
                                                IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
     writer.setMergeFactor(2);
@@ -752,7 +766,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
   // Stress test reopen during add/delete
   public void testDuringAddDelete() throws Exception {
     Directory dir1 = new MockRAMDirectory();
-    final IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(),
+    final IndexWriter writer = new IndexWriter(dir1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
                                                IndexWriter.MaxFieldLength.LIMITED);
     writer.setInfoStream(infoStream);
     writer.setMergeFactor(2);
@@ -833,7 +847,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
 
   public void testExpungeDeletes() throws Throwable {
     Directory dir = new MockRAMDirectory();
-    final IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(),
+    final IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
                                                IndexWriter.MaxFieldLength.LIMITED);
     Document doc = new Document();
     doc.add(new Field("field", "a b c", Field.Store.NO, Field.Index.ANALYZED));
@@ -858,7 +872,7 @@ public class TestIndexWriterReader extends LuceneTestCase {
 
   public void testDeletesNumDocs() throws Throwable {
     Directory dir = new MockRAMDirectory();
-    final IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(),
+    final IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
                                                IndexWriter.MaxFieldLength.LIMITED);
     Document doc = new Document();
     doc.add(new Field("field", "a b c", Field.Store.NO, Field.Index.ANALYZED));

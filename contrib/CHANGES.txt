@@ -15,6 +15,10 @@ Changes in backwards compatibility policy
    preserved, but some protected/public member variables changed type. This 
    does NOT affect java code/class files produced by the snowball compiler, 
    but technically is a backwards compatibility break.  (Robert Muir)
+   
+ * LUCENE-2226: Moved contrib/snowball functionality into contrib/analyzers.
+   Be sure to remove any old obselete lucene-snowball jar files from your
+   classpath!  (Robert Muir)
     
 Changes in runtime behavior
 
@@ -23,10 +27,11 @@ Changes in runtime behavior
    used with Version > 3.0 and the TurkishStemmer.
    (Robert Muir via Simon Willnauer)  
 
-Bug fixes
+ * LUCENE-2055: GermanAnalyzer now uses the Snowball German2 algorithm and 
+   stopwords list by default for Version > 3.0.
+   (Robert Muir, Uwe Schindler, Simon Willnauer)
 
- * LUCENE-2199: ShingleFilter skipped over tri-gram shingles if outputUnigram
-   was set to false. (Simon Willnauer)
+Bug fixes
 
  * LUCENE-2068: Fixed ReverseStringFilter which was not aware of supplementary
    characters. During reverse the filter created unpaired surrogates, which
@@ -34,27 +39,36 @@ Bug fixes
    now reverses supplementary characters correctly if used with Version > 3.0.
    (Simon Willnauer, Robert Muir)
 
- * LUCENE-2144: Fix InstantiatedIndex to handle termDocs(null)
-   correctly (enumerate all non-deleted docs).  (Karl Wettin via Mike
-   McCandless)
-   
  * LUCENE-2035: TokenSources.getTokenStream() does not assign  positionIncrement. 
    (Christopher Morris via Mark Miller)
+  
+ * LUCENE-2055: Deprecated RussianTokenizer, RussianStemmer, RussianStemFilter,
+   FrenchStemmer, FrenchStemFilter, DutchStemmer, and DutchStemFilter. For
+   these Analyzers, SnowballFilter is used instead (for Version > 3.0), as
+   the previous code did not always implement the Snowball algorithm correctly.
+   Additionally, for Version > 3.0, the Snowball stopword lists are used by
+   default.  (Robert Muir, Uwe Schindler, Simon Willnauer)
+
+ * LUCENE-2278: FastVectorHighlighter: Highlighted term is out of alignment
+   in multi-valued NOT_ANALYZED field. (Koji Sekiguchi)
+ 
+ * LUCENE-2284: MatchAllDocsQueryNode toString() created an invalid XML tag.
+   (Frank Wesemann via Robert Muir)
    
 API Changes
 
- * LUCENE-2108: Add SpellChecker.close, to close the underlying
-   reader.  (Eirik Bjørsnøs via Mike McCandless)
- 
  * LUCENE-2147: Spatial GeoHashUtils now always decode GeoHash strings
    with full precision. GeoHash#decode_exactly(String) was merged into
    GeoHash#decode(String). (Chris Male, Simon Willnauer)
    
- * LUCENE-2165: Add a constructor to SnowballAnalyzer that takes a Set of 
-   stopwords, and deprecate the String[] one.  (Nick Burch via Robert Muir)
-
  * LUCENE-2204: Change some package private classes/members to publicly accessible to implement
    custom FragmentsBuilders. (Koji Sekiguchi)
+
+ * LUCENE-2055: Integrate snowball into contrib/analyzers. SnowballAnalyzer is
+   now deprecated in favor of language-specific analyzers which contain things
+   such as stopword lists and any language-specific processing in addition to
+   stemming. Add Turkish and Romanian stopwords lists to support this.
+   (Robert Muir, Uwe Schindler, Simon Willnauer)
    
 New features
 
@@ -67,27 +81,35 @@ New features
    customizable field naming scheme.
    (Simon Willnauer)
 
- * LUCENE-2108: Spellchecker now safely supports concurrent modifications to
-   the spell-index. Threads can safely obtain term suggestions while the spell-
-   index is rebuild, cleared or reset. Internal IndexSearcher instances remain
-   open until the last thread accessing them releases the reference.
-   (Simon Willnauer)
-
  * LUCENE-2067: Add a Czech light stemmer. CzechAnalyzer will now stem words
    when Version is set to 3.1 or higher.  (Robert Muir)
    
  * LUCENE-2062: Add a Bulgarian analyzer.  (Robert Muir, Simon Willnauer)
 
-Build
+ * LUCENE-2206: Add Snowball's stopword lists for Danish, Dutch, English,
+   Finnish, French, German, Hungarian, Italian, Norwegian, Russian, Spanish, 
+   and Swedish. These can be loaded with WordListLoader.getSnowballWordSet.
+   (Robert Muir, Simon Willnauer)
 
- * LUCENE-2117: SnowballAnalyzer now holds a runtime-dependency on
-   contrib-analyzers to correctly handle the unique Turkish casing behavior.
-   (Robert Muir via Simon Willnauer)  
+ * LUCENE-2243: Add DisjunctionMaxQuery support for FastVectorHighlighter.
+   (Koji Sekiguchi)
+
+ * LUCENE-2218: ShingleFilter supports minimum shingle size, and the separator
+   character is now configurable. Its also up to 20% faster. 
+   (Steven Rowe via Robert Muir)
+
+ * LUCENE-2234: Add a Hindi analyzer.  (Robert Muir)
+
+ * LUCENE-2055: Add analyzers/misc/StemmerOverrideFilter. This filter provides
+   the ability to override any stemmer with a custom dictionary map.
+   (Robert Muir, Uwe Schindler, Simon Willnauer)
+
+Build
 
  * LUCENE-2124: Moved the JDK-based collation support from contrib/collation 
    into core, and moved the ICU-based collation support into contrib/icu.  
    (Steven Rowe, Robert Muir)
-
+   
 Optimizations
 
  * LUCENE-2157: DelimitedPayloadTokenFilter no longer copies the buffer
@@ -104,6 +126,50 @@ Test Cases
  * LUCENE-2115: Cutover contrib tests to use Java5 generics.  (Kay Kay
    via Mike McCandless)
 
+Other
+
+ * LUCENE-1845: Updated bdb-je jar from version 3.3.69 to 3.3.93.
+   (Simon Willnauer via Mike McCandless)
+
+================== Release 2.9.2 / 3.0.1 2010-02-26 ====================
+
+New features
+
+ * LUCENE-2108: Spellchecker now safely supports concurrent modifications to
+   the spell-index. Threads can safely obtain term suggestions while the spell-
+   index is rebuild, cleared or reset. Internal IndexSearcher instances remain
+   open until the last thread accessing them releases the reference.
+   (Simon Willnauer)
+
+Bug Fixes
+
+ * LUCENE-2144: Fix InstantiatedIndex to handle termDocs(null)
+   correctly (enumerate all non-deleted docs).  (Karl Wettin via Mike
+   McCandless)
+
+ * LUCENE-2199: ShingleFilter skipped over tri-gram shingles if outputUnigram
+   was set to false. (Simon Willnauer)
+  
+ * LUCENE-2211: Fix missing clearAttributes() calls:
+   ShingleMatrix, PrefixAware, compounds, NGramTokenFilter,
+   EdgeNGramTokenFilter, Highlighter, and MemoryIndex.
+   (Uwe Schindler, Robert Muir)
+
+ * LUCENE-2207, LUCENE-2219: Fix incorrect offset calculations in end() for 
+   CJKTokenizer, ChineseTokenizer, SmartChinese SentenceTokenizer, 
+   and WikipediaTokenizer.  (Koji Sekiguchi, Robert Muir)
+   
+ * LUCENE-2266: Fixed offset calculations in NGramTokenFilter and 
+   EdgeNGramTokenFilter.  (Joe Calderon, Robert Muir via Uwe Schindler)
+   
+API Changes
+
+ * LUCENE-2108: Add SpellChecker.close, to close the underlying
+   reader.  (Eirik Bjørsnøs via Mike McCandless)
+
+ * LUCENE-2165: Add a constructor to SnowballAnalyzer that takes a Set of 
+   stopwords, and deprecate the String[] one.  (Nick Burch via Robert Muir)
+   
 ======================= Release 3.0.0 2009-11-25 =======================
 
 Changes in backwards compatibility policy
@@ -124,6 +190,10 @@ API Changes
    text exactly the same as LowerCaseFilter. Please use LowerCaseFilter
    instead, which has the same functionality.  (Robert Muir)
    
+ * LUCENE-2051: Contrib Analyzer setters were deprecated and replaced
+   with ctor arguments / Version number.  Also stop word lists
+   were unified.  (Simon Willnauer)
+
 Bug fixes
 
  * LUCENE-1781: Fixed various issues with the lat/lng bounding box
@@ -163,6 +233,7 @@ Optimizations
    Previous versions were loading the stopword files each time a new
    instance was created. This might improve performance for applications
    creating lots of instances of these Analyzers. (Simon Willnauer) 
+
 Documentation
 
  * LUCENE-1916: Translated documentation in the smartcn hhmm package.
@@ -176,7 +247,6 @@ Build
  * LUCENE-2031: Moved PatternAnalyzer from contrib/memory into
    contrib/analyzers/common, under miscellaneous.  (Robert Muir)
    
-Test Cases
 ======================= Release 2.9.1 2009-11-06 =======================
 
 Changes in backwards compatibility policy

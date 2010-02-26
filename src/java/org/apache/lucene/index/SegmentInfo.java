@@ -34,8 +34,7 @@ import java.util.Collections;
  * Information about a segment such as it's name, directory, and files related
  * to the segment.
  * 
- * * <p><b>NOTE:</b> This API is new and still experimental
- * (subject to change suddenly in the next release)</p>
+ * @lucene.experimental
  */
 public final class SegmentInfo {
 
@@ -558,6 +557,7 @@ public final class SegmentInfo {
    */
   void write(IndexOutput output)
     throws IOException {
+    assert delCount <= docCount: "delCount=" + delCount + " docCount=" + docCount + " segment=" + name;
     output.writeString(name);
     output.writeInt(docCount);
     output.writeLong(delGen);

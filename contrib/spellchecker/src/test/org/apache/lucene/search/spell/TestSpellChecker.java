@@ -38,6 +38,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.English;
 import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.util.Version;
 
 
 /**
@@ -57,7 +58,7 @@ public class TestSpellChecker extends LuceneTestCase {
     
     //create a user index
     userindex = new RAMDirectory();
-    IndexWriter writer = new IndexWriter(userindex, new SimpleAnalyzer(), true, IndexWriter.MaxFieldLength.UNLIMITED);
+    IndexWriter writer = new IndexWriter(userindex, new SimpleAnalyzer(Version.LUCENE_CURRENT), true, IndexWriter.MaxFieldLength.UNLIMITED);
 
     for (int i = 0; i < 1000; i++) {
       Document doc = new Document();
@@ -299,12 +300,12 @@ public class TestSpellChecker extends LuceneTestCase {
     
     spellChecker.close();
     executor.shutdown();
-    executor.awaitTermination(5, TimeUnit.SECONDS);
-    
+    // wait for 60 seconds - usually this is very fast but coverage runs could take quite long
+    executor.awaitTermination(60L, TimeUnit.SECONDS);
     
     for (int i = 0; i < workers.length; i++) {
-      assertFalse(workers[i].failed);
-      assertTrue(workers[i].terminated);
+      assertFalse(String.format("worker thread %d failed", i), workers[i].failed);
+      assertTrue(String.format("worker thread %d is still running but should be terminated", i), workers[i].terminated);
     }
     // 4 searchers more than iterations
     // 1. at creation
@@ -347,8 +348,8 @@ public class TestSpellChecker extends LuceneTestCase {
   
   private class SpellCheckWorker implements Runnable {
     private final IndexReader reader;
-    boolean terminated = false;
-    boolean failed = false;
+    volatile boolean terminated = false;
+    volatile boolean failed = false;
     
     SpellCheckWorker(IndexReader reader) {
       super();

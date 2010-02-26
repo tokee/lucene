@@ -25,8 +25,8 @@ public class TestPerFieldAnalzyerWrapper extends BaseTokenStreamTestCase {
   public void testPerField() throws Exception {
     String text = "Qwerty";
     PerFieldAnalyzerWrapper analyzer =
-              new PerFieldAnalyzerWrapper(new WhitespaceAnalyzer());
-    analyzer.addAnalyzer("special", new SimpleAnalyzer());
+              new PerFieldAnalyzerWrapper(new WhitespaceAnalyzer(TEST_VERSION_CURRENT));
+    analyzer.addAnalyzer("special", new SimpleAnalyzer(TEST_VERSION_CURRENT));
 
     TokenStream tokenStream = analyzer.tokenStream("field",
                                             new StringReader(text));

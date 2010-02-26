@@ -48,7 +48,7 @@ public class TestLockFactory extends LuceneTestCase {
         // Lock prefix should have been set:
         assertTrue("lock prefix was not set by the RAMDirectory", lf.lockPrefixSet);
 
-        IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), true,
+        IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true,
                                              IndexWriter.MaxFieldLength.LIMITED);
 
         // add 100 documents (so that commit lock is used)
@@ -81,14 +81,14 @@ public class TestLockFactory extends LuceneTestCase {
         assertTrue("RAMDirectory.setLockFactory did not take",
                    NoLockFactory.class.isInstance(dir.getLockFactory()));
 
-        IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), true,
+        IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true,
                                              IndexWriter.MaxFieldLength.LIMITED);
 
         // Create a 2nd IndexWriter.  This is normally not allowed but it should run through since we're not
         // using any locks:
         IndexWriter writer2 = null;
         try {
-            writer2 = new IndexWriter(dir, new WhitespaceAnalyzer(), false,
+            writer2 = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), false,
                                       IndexWriter.MaxFieldLength.LIMITED);
         } catch (Exception e) {
             e.printStackTrace(System.out);
@@ -109,13 +109,13 @@ public class TestLockFactory extends LuceneTestCase {
         assertTrue("RAMDirectory did not use correct LockFactory: got " + dir.getLockFactory(),
                    SingleInstanceLockFactory.class.isInstance(dir.getLockFactory()));
 
-        IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), true,
+        IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true,
                                              IndexWriter.MaxFieldLength.LIMITED);
 
         // Create a 2nd IndexWriter.  This should fail:
         IndexWriter writer2 = null;
         try {
-            writer2 = new IndexWriter(dir, new WhitespaceAnalyzer(), false,
+            writer2 = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), false,
                                       IndexWriter.MaxFieldLength.LIMITED);
             fail("Should have hit an IOException with two IndexWriters on default SingleInstanceLockFactory");
         } catch (IOException e) {
@@ -152,7 +152,7 @@ public class TestLockFactory extends LuceneTestCase {
         FSDirectory fs1 = FSDirectory.open(indexDir, lockFactory);
 
         // First create a 1 doc index:
-        IndexWriter w = new IndexWriter(fs1, new WhitespaceAnalyzer(), true,
+        IndexWriter w = new IndexWriter(fs1, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true,
                                         IndexWriter.MaxFieldLength.LIMITED);
         addDoc(w);
         w.close();
@@ -262,7 +262,7 @@ public class TestLockFactory extends LuceneTestCase {
         }
         @Override
         public void run() {
-            WhitespaceAnalyzer analyzer = new WhitespaceAnalyzer();
+            WhitespaceAnalyzer analyzer = new WhitespaceAnalyzer(TEST_VERSION_CURRENT);
             IndexWriter writer = null;
             for(int i=0;i<this.numIteration;i++) {
                 try {

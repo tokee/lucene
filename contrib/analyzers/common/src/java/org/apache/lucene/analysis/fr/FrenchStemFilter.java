@@ -17,8 +17,11 @@ package org.apache.lucene.analysis.fr;
  * limitations under the License.
  */
 
+import org.apache.lucene.analysis.KeywordMarkerTokenFilter;// for javadoc
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.snowball.SnowballFilter;
+import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 
 import java.io.IOException;
@@ -29,29 +32,46 @@ import java.util.Set;
 /**
  * A {@link TokenFilter} that stems french words. 
  * <p>
- * It supports a table of words that should
- * not be stemmed at all. The used stemmer can be changed at runtime after the
+ * The used stemmer can be changed at runtime after the
  * filter object is created (as long as it is a {@link FrenchStemmer}).
  * </p>
+ * <p>
+ * To prevent terms from being stemmed use an instance of
+ * {@link KeywordMarkerTokenFilter} or a custom {@link TokenFilter} that sets
+ * the {@link KeywordAttribute} before this {@link TokenStream}.
+ * </p>
+ * @see KeywordMarkerTokenFilter
+ * @deprecated Use {@link SnowballFilter} with 
+ * {@link org.tartarus.snowball.ext.FrenchStemmer} instead, which has the
+ * same functionality. This filter will be removed in Lucene 4.0
  */
+@Deprecated
 public final class FrenchStemFilter extends TokenFilter {
 
 	/**
 	 * The actual token in the input stream.
 	 */
 	private FrenchStemmer stemmer = null;
-	private Set exclusions = null;
+	private Set<?> exclusions = null;
 	
-	private TermAttribute termAtt;
+	private final TermAttribute termAtt;
+  private final KeywordAttribute keywordAttr;
 
 	public FrenchStemFilter( TokenStream in ) {
           super(in);
 		stemmer = new FrenchStemmer();
 		termAtt = addAttribute(TermAttribute.class);
+    keywordAttr = addAttribute(KeywordAttribute.class);
 	}
 
-
-	public FrenchStemFilter( TokenStream in, Set exclusiontable ) {
+  /**
+   * 
+   * @param in the {@link TokenStream} to filter
+   * @param exclusiontable a set of terms not to be stemmed
+   * @deprecated use {@link KeywordAttribute} with {@link KeywordMarkerTokenFilter} instead.
+   */
+	@Deprecated // TODO remove in 3.2
+	public FrenchStemFilter( TokenStream in, Set<?> exclusiontable ) {
 		this( in );
 		exclusions = exclusiontable;
 	}
@@ -65,7 +85,7 @@ public final class FrenchStemFilter extends TokenFilter {
 	    String term = termAtt.term();
 
 	    // Check the exclusion table
-	    if ( exclusions == null || !exclusions.contains( term ) ) {
+	    if ( !keywordAttr.isKeyword() && (exclusions == null || !exclusions.contains( term )) ) {
 	      String s = stemmer.stem( term );
 	      // If not stemmed, don't waste the time  adjusting the token.
 	      if ((s != null) && !s.equals( term ) )
@@ -86,8 +106,10 @@ public final class FrenchStemFilter extends TokenFilter {
 	}
 	/**
 	 * Set an alternative exclusion list for this filter.
+   * @deprecated use {@link KeywordAttribute} with {@link KeywordMarkerTokenFilter} instead.
 	 */
-	public void setExclusionTable( Map exclusiontable ) {
+	@Deprecated // TODO remove in 3.2
+	public void setExclusionTable( Map<?,?> exclusiontable ) {
 		exclusions = new HashSet(exclusiontable.keySet());
 	}
 }

@@ -20,10 +20,10 @@ package org.apache.lucene.index;
 import java.io.IOException;
 
 import org.apache.lucene.util.LuceneTestCase;
-
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.index.codecs.preflex.SegmentTermEnum;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.MockRAMDirectory;
@@ -37,7 +37,7 @@ public class TestSegmentTermEnum extends LuceneTestCase
   {
     IndexWriter writer = null;
 
-    writer  = new IndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+    writer  = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
 
     // ADD 100 documents with term : aaa
     // add 100 documents with terms: aaa bbb
@@ -53,7 +53,7 @@ public class TestSegmentTermEnum extends LuceneTestCase
     verifyDocFreq();
 
     // merge segments by optimizing the index
-    writer = new IndexWriter(dir, new WhitespaceAnalyzer(), false, IndexWriter.MaxFieldLength.LIMITED);
+    writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), false, IndexWriter.MaxFieldLength.LIMITED);
     writer.optimize();
     writer.close();
 
@@ -61,6 +61,25 @@ public class TestSegmentTermEnum extends LuceneTestCase
     verifyDocFreq();
   }
 
+  // nocommit
+  /*
+  public void testPrevTermAtEnd() throws IOException
+  {
+    Directory dir = new MockRAMDirectory();
+    IndexWriter writer  = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
+    addDoc(writer, "aaa bbb");
+    writer.close();
+    SegmentReader reader = SegmentReader.getOnlySegmentReader(dir);
+    SegmentTermEnum termEnum = (SegmentTermEnum) reader.terms();
+    assertTrue(termEnum.next());
+    assertEquals("aaa", termEnum.term().text());
+    assertTrue(termEnum.next());
+    assertEquals("aaa", termEnum.prev().text());
+    assertEquals("bbb", termEnum.term().text());
+    assertFalse(termEnum.next());
+    assertEquals("bbb", termEnum.prev().text());
+  }
+  */
   private void verifyDocFreq()
       throws IOException
   {

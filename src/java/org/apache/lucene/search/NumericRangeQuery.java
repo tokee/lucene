@@ -74,8 +74,7 @@ import org.apache.lucene.index.TermsEnum;
  * BooleanQuery rewrite methods without changing
  * BooleanQuery's default max clause count.
  *
- * <p><font color="red"><b>NOTE:</b> This API is experimental and
- * might change in incompatible ways in the next release.</font>
+ * @lucene.experimental
  *
  * <br><h3>How it works</h3>
  *

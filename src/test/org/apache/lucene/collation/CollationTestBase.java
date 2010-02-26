@@ -18,7 +18,6 @@ package org.apache.lucene.collation;
  */
 
 
-import junit.framework.TestCase;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.PerFieldAnalyzerWrapper;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
@@ -38,13 +37,14 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.util.IndexableBinaryStringTools;
+import org.apache.lucene.util.LuceneTestCase;
 
 import java.io.IOException;
 import java.nio.CharBuffer;
 import java.nio.ByteBuffer;
 
 
-public class CollationTestBase extends TestCase {
+public class CollationTestBase extends LuceneTestCase {
 
   protected String firstRangeBeginningOriginal = "\u062F";
   protected String firstRangeEndOriginal = "\u0698";
@@ -178,7 +178,7 @@ public class CollationTestBase extends TestCase {
                                    String usResult) throws Exception {
     RAMDirectory indexStore = new RAMDirectory();
     PerFieldAnalyzerWrapper analyzer
-      = new PerFieldAnalyzerWrapper(new WhitespaceAnalyzer());
+      = new PerFieldAnalyzerWrapper(new WhitespaceAnalyzer(TEST_VERSION_CURRENT));
     analyzer.addAnalyzer("US", usAnalyzer);
     analyzer.addAnalyzer("France", franceAnalyzer);
     analyzer.addAnalyzer("Sweden", swedenAnalyzer);
@@ -229,7 +229,7 @@ public class CollationTestBase extends TestCase {
     Sort sort = new Sort();
     Query queryX = new TermQuery(new Term ("contents", "x"));
     Query queryY = new TermQuery(new Term ("contents", "y"));
-
+    
     sort.setSort(new SortField("US", SortField.STRING));
     assertMatches(searcher, queryY, sort, usResult);
 

@@ -106,7 +106,7 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
    */
   public void testShingleAnalyzerWrapperQueryParsing() throws Exception {
     ScoreDoc[] hits = queryParsingTest(new ShingleAnalyzerWrapper
-                                     (new WhitespaceAnalyzer(), 2),
+                                     (new WhitespaceAnalyzer(Version.LUCENE_CURRENT), 2),
                                  "test sentence");
     int[] ranks = new int[] { 1, 2, 0 };
     compareRanks(hits, ranks);
@@ -117,7 +117,7 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
    */
   public void testShingleAnalyzerWrapperPhraseQueryParsingFails() throws Exception {
     ScoreDoc[] hits = queryParsingTest(new ShingleAnalyzerWrapper
-                                     (new WhitespaceAnalyzer(), 2),
+                                     (new WhitespaceAnalyzer(Version.LUCENE_CURRENT), 2),
                                  "\"this sentence\"");
     int[] ranks = new int[] { 0 };
     compareRanks(hits, ranks);
@@ -128,7 +128,7 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
    */
   public void testShingleAnalyzerWrapperPhraseQueryParsing() throws Exception {
     ScoreDoc[] hits = queryParsingTest(new ShingleAnalyzerWrapper
-                                     (new WhitespaceAnalyzer(), 2),
+                                     (new WhitespaceAnalyzer(Version.LUCENE_CURRENT), 2),
                                  "\"test sentence\"");
     int[] ranks = new int[] { 1 };
     compareRanks(hits, ranks);
@@ -139,7 +139,7 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
    */
   public void testShingleAnalyzerWrapperRequiredQueryParsing() throws Exception {
     ScoreDoc[] hits = queryParsingTest(new ShingleAnalyzerWrapper
-                                     (new WhitespaceAnalyzer(), 2),
+                                     (new WhitespaceAnalyzer(Version.LUCENE_CURRENT), 2),
                                  "+test +sentence");
     int[] ranks = new int[] { 1, 2 };
     compareRanks(hits, ranks);
@@ -149,7 +149,7 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
    * This shows how to construct a phrase query containing shingles.
    */
   public void testShingleAnalyzerWrapperPhraseQuery() throws Exception {
-    Analyzer analyzer = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer(), 2);
+    Analyzer analyzer = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer(Version.LUCENE_CURRENT), 2);
     searcher = setUpSearcher(analyzer);
 
     PhraseQuery q = new PhraseQuery();
@@ -178,7 +178,7 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
    * in the right order and adjacent to each other.
    */
   public void testShingleAnalyzerWrapperBooleanQuery() throws Exception {
-    Analyzer analyzer = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer(), 2);
+    Analyzer analyzer = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer(Version.LUCENE_CURRENT), 2);
     searcher = setUpSearcher(analyzer);
 
     BooleanQuery q = new BooleanQuery();
@@ -200,7 +200,7 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
   }
   
   public void testReusableTokenStream() throws Exception {
-    Analyzer a = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer(), 2);
+    Analyzer a = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer(Version.LUCENE_CURRENT), 2);
     assertAnalyzesToReuse(a, "please divide into shingles",
         new String[] { "please", "please divide", "divide", "divide into", "into", "into shingles", "shingles" },
         new int[] { 0, 0, 7, 7, 14, 14, 19 },
@@ -222,9 +222,9 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
     @Override
     public TokenStream tokenStream(String fieldName, Reader reader) {
       if (++invocationCount % 2 == 0)
-        return new WhitespaceTokenizer(reader);
+        return new WhitespaceTokenizer(Version.LUCENE_CURRENT, reader);
       else
-        return new LetterTokenizer(reader);
+        return new LetterTokenizer(Version.LUCENE_CURRENT, reader);
     }
   }
   
@@ -245,5 +245,118 @@ public class ShingleAnalyzerWrapperTest extends BaseTokenStreamTestCase {
         new int[] { 0, 0, 7, 7, 14, 14, 19 },
         new int[] { 6, 13, 13, 18, 18, 27, 27 },
         new int[] { 1, 0, 1, 0, 1, 0, 1 });
+  }
+
+  public void testNonDefaultMinShingleSize() throws Exception {
+    ShingleAnalyzerWrapper analyzer 
+      = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer(), 3, 4);
+    assertAnalyzesToReuse(analyzer, "please divide this sentence into shingles",
+                          new String[] { "please",   "please divide this",   "please divide this sentence", 
+                                         "divide",   "divide this sentence", "divide this sentence into", 
+                                         "this",     "this sentence into",   "this sentence into shingles",
+                                         "sentence", "sentence into shingles",
+                                         "into",
+                                         "shingles" },
+                          new int[] { 0,  0,  0,  7,  7,  7, 14, 14, 14, 19, 19, 28, 33 },
+                          new int[] { 6, 18, 27, 13, 27, 32, 18, 32, 41, 27, 41, 32, 41 },
+                          new int[] { 1,  0,  0,  1,  0,  0,  1,  0,  0,  1,  0,  1,  1 });
+    analyzer.setOutputUnigrams(false);
+    assertAnalyzesToReuse(analyzer, "please divide this sentence into shingles",
+                          new String[] { "please divide this",   "please divide this sentence", 
+                                         "divide this sentence", "divide this sentence into", 
+                                         "this sentence into",   "this sentence into shingles",
+                                         "sentence into shingles" },
+                          new int[] {  0,  0,  7,  7, 14, 14, 19 },
+                          new int[] { 18, 27, 27, 32, 32, 41, 41 },
+                          new int[] {  1,  0,  1,  0,  1,  0,  1 });
+  }
+  
+  public void testNonDefaultMinAndSameMaxShingleSize() throws Exception {
+    ShingleAnalyzerWrapper analyzer
+      = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer(), 3, 3);
+    assertAnalyzesToReuse(analyzer, "please divide this sentence into shingles",
+                          new String[] { "please",   "please divide this", 
+                                         "divide",   "divide this sentence", 
+                                         "this",     "this sentence into",
+                                         "sentence", "sentence into shingles",
+                                         "into",
+                                         "shingles" },
+                          new int[] { 0,  0,  7,  7, 14, 14, 19, 19, 28, 33 },
+                          new int[] { 6, 18, 13, 27, 18, 32, 27, 41, 32, 41 },
+                          new int[] { 1,  0,  1,  0,  1,  0,  1,  0,  1,  1 });
+    analyzer.setOutputUnigrams(false);
+    assertAnalyzesToReuse(analyzer, "please divide this sentence into shingles",
+                          new String[] { "please divide this", 
+                                         "divide this sentence", 
+                                         "this sentence into",
+                                         "sentence into shingles" },
+                          new int[] {  0,  7, 14, 19 },
+                          new int[] { 18, 27, 32, 41 },
+                          new int[] {  1,  1,  1,  1 });
+  }
+
+  public void testNoTokenSeparator() throws Exception {
+    ShingleAnalyzerWrapper analyzer 
+      = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer());
+    analyzer.setTokenSeparator("");
+    assertAnalyzesToReuse(analyzer, "please divide into shingles",
+                          new String[] { "please", "pleasedivide", 
+                                         "divide", "divideinto", 
+                                         "into", "intoshingles", 
+                                         "shingles" },
+                          new int[] { 0,  0,  7,  7, 14, 14, 19 },
+                          new int[] { 6, 13, 13, 18, 18, 27, 27 },
+                          new int[] { 1,  0,  1,  0,  1,  0,  1 });
+    analyzer.setOutputUnigrams(false);
+    assertAnalyzesToReuse(analyzer, "please divide into shingles",
+                          new String[] { "pleasedivide", 
+                                         "divideinto", 
+                                         "intoshingles" },
+                          new int[] {  0,  7, 14 },
+                          new int[] { 13, 18, 27 },
+                          new int[] {  1,  1,  1 });
+  }
+
+  public void testNullTokenSeparator() throws Exception {
+    ShingleAnalyzerWrapper analyzer 
+      = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer());
+    analyzer.setTokenSeparator(null);
+    assertAnalyzesToReuse(analyzer, "please divide into shingles",
+                          new String[] { "please", "pleasedivide", 
+                                         "divide", "divideinto", 
+                                         "into", "intoshingles", 
+                                         "shingles" },
+                          new int[] { 0,  0,  7,  7, 14, 14, 19 },
+                          new int[] { 6, 13, 13, 18, 18, 27, 27 },
+                          new int[] { 1,  0,  1,  0,  1,  0,  1 });
+    analyzer.setOutputUnigrams(false);
+    assertAnalyzesToReuse(analyzer, "please divide into shingles",
+                          new String[] { "pleasedivide", 
+                                         "divideinto", 
+                                         "intoshingles" },
+                          new int[] {  0,  7, 14 },
+                          new int[] { 13, 18, 27 },
+                          new int[] {  1,  1,  1 });
+  }
+  public void testAltTokenSeparator() throws Exception {
+    ShingleAnalyzerWrapper analyzer 
+      = new ShingleAnalyzerWrapper(new WhitespaceAnalyzer());
+    analyzer.setTokenSeparator("<SEP>");
+    assertAnalyzesToReuse(analyzer, "please divide into shingles",
+                          new String[] { "please", "please<SEP>divide", 
+                                         "divide", "divide<SEP>into", 
+                                         "into", "into<SEP>shingles", 
+                                         "shingles" },
+                          new int[] { 0,  0,  7,  7, 14, 14, 19 },
+                          new int[] { 6, 13, 13, 18, 18, 27, 27 },
+                          new int[] { 1,  0,  1,  0,  1,  0,  1 });
+    analyzer.setOutputUnigrams(false);
+    assertAnalyzesToReuse(analyzer, "please divide into shingles",
+                          new String[] { "please<SEP>divide", 
+                                         "divide<SEP>into", 
+                                         "into<SEP>shingles" },
+                          new int[] {  0,  7, 14 },
+                          new int[] { 13, 18, 27 },
+                          new int[] {  1,  1,  1 });
   }
 }

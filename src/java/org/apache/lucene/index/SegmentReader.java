@@ -49,10 +49,8 @@ import org.apache.lucene.index.codecs.FieldsProducer;
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
 import org.apache.lucene.util.BytesRef;
 
-/** @version $Id */
 /**
- * <p><b>NOTE:</b> This API is new and still experimental
- * (subject to change suddenly in the next release)</p>
+ * @lucene.experimental
  */
 public class SegmentReader extends IndexReader implements Cloneable {
   protected boolean readOnly;
@@ -205,7 +203,11 @@ public class SegmentReader extends IndexReader implements Cloneable {
           storeCFSReader.close();
         }
 
-        // Force FieldCache to evict our entries at this point
+        // Force FieldCache to evict our entries at this
+        // point.  If the exception occurred while
+        // initializing the core readers, then
+        // origInstance will be null, and we don't want
+        // to call FieldCache.purge (it leads to NPE):
         if (origInstance != null) {
           FieldCache.DEFAULT.purge(origInstance);
         }
@@ -583,7 +585,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
       deletedDocsRef = new AtomicInteger(1);
       assert checkDeletedCounts();
       if (deletedDocs.size() != si.docCount) {
-        throw new CorruptIndexException("document count mismatch: deleted docs count " + deletedDocs.size() + " vs segment doc count " + si.docCount);
+        throw new CorruptIndexException("document count mismatch: deleted docs count " + deletedDocs.size() + " vs segment doc count " + si.docCount + " segment=" + si.name);
       }
     } else
       assert si.getDelCount() == 0;

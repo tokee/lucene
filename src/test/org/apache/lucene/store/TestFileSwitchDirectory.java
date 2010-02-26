@@ -41,7 +41,7 @@ public class TestFileSwitchDirectory extends LuceneTestCase {
     RAMDirectory secondaryDir = new MockRAMDirectory();
     
     FileSwitchDirectory fsd = new FileSwitchDirectory(fileExtensions, primaryDir, secondaryDir, true);
-    IndexWriter writer = new IndexWriter(fsd, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(fsd, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         IndexWriter.MaxFieldLength.LIMITED);
     writer.setUseCompoundFile(false);
     TestIndexWriterReader.createIndexNoClose(true, "ram", writer);

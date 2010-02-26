@@ -224,7 +224,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
         hasTested29++;
       }
 
-      IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
+      IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), IndexWriter.MaxFieldLength.LIMITED);
       w.optimize();
       FlexTestUtil.verifyFlexVsPreFlex(rand, w);
       w.close();
@@ -365,7 +365,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     Directory dir = FSDirectory.open(new File(dirName));
 
     // open writer
-    IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), false, IndexWriter.MaxFieldLength.UNLIMITED);
+    IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), false, IndexWriter.MaxFieldLength.UNLIMITED);
 
     // add 10 docs
     for(int i=0;i<10;i++) {
@@ -409,7 +409,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     searcher.close();
 
     // optimize
-    writer = new IndexWriter(dir, new WhitespaceAnalyzer(), false, IndexWriter.MaxFieldLength.UNLIMITED);
+    writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), false, IndexWriter.MaxFieldLength.UNLIMITED);
     writer.optimize();
     writer.close();
 
@@ -459,7 +459,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     searcher.close();
 
     // optimize
-    IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), false, IndexWriter.MaxFieldLength.UNLIMITED);
+    IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), false, IndexWriter.MaxFieldLength.UNLIMITED);
     writer.optimize();
     writer.close();
 
@@ -481,7 +481,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     dirName = fullDir(dirName);
 
     Directory dir = FSDirectory.open(new File(dirName));
-    IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
     writer.setUseCompoundFile(doCFS);
     writer.setMaxBufferedDocs(10);
     
@@ -492,7 +492,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     writer.close();
 
     // open fresh writer so we get no prx file in the added segment
-    writer = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
+    writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), IndexWriter.MaxFieldLength.LIMITED);
     writer.setUseCompoundFile(doCFS);
     writer.setMaxBufferedDocs(10);
     addNoProxDoc(writer);
@@ -519,7 +519,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     try {
       Directory dir = FSDirectory.open(new File(fullDir(outputDir)));
 
-      IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.UNLIMITED);
+      IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.UNLIMITED);
       writer.setRAMBufferSizeMB(16.0);
       for(int i=0;i<35;i++) {
         addDoc(writer, i);

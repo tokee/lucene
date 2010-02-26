@@ -47,7 +47,7 @@ public class TestParallelReaderEmptyIndex extends LuceneTestCase {
    */
   public void testEmptyIndex() throws IOException {
     RAMDirectory rd1 = new MockRAMDirectory();
-    IndexWriter iw = new IndexWriter(rd1, new SimpleAnalyzer(), true,
+    IndexWriter iw = new IndexWriter(rd1, new SimpleAnalyzer(TEST_VERSION_CURRENT), true,
                                      MaxFieldLength.UNLIMITED);
     iw.close();
 
@@ -55,7 +55,7 @@ public class TestParallelReaderEmptyIndex extends LuceneTestCase {
 
     RAMDirectory rdOut = new MockRAMDirectory();
 
-    IndexWriter iwOut = new IndexWriter(rdOut, new SimpleAnalyzer(), true,
+    IndexWriter iwOut = new IndexWriter(rdOut, new SimpleAnalyzer(TEST_VERSION_CURRENT), true,
                                         MaxFieldLength.UNLIMITED);
     ParallelReader pr = new ParallelReader();
     pr.add(IndexReader.open(rd1,true));
@@ -80,7 +80,7 @@ public class TestParallelReaderEmptyIndex extends LuceneTestCase {
   public void testEmptyIndexWithVectors() throws IOException {
     RAMDirectory rd1 = new MockRAMDirectory();
     {
-      IndexWriter iw = new IndexWriter(rd1, new SimpleAnalyzer(), true,
+      IndexWriter iw = new IndexWriter(rd1, new SimpleAnalyzer(TEST_VERSION_CURRENT), true,
                                        MaxFieldLength.UNLIMITED);
       Document doc = new Document();
       doc.add(new Field("test", "", Store.NO, Index.ANALYZED,
@@ -95,7 +95,7 @@ public class TestParallelReaderEmptyIndex extends LuceneTestCase {
       ir.deleteDocument(0);
       ir.close();
 
-      iw = new IndexWriter(rd1, new SimpleAnalyzer(), false,
+      iw = new IndexWriter(rd1, new SimpleAnalyzer(TEST_VERSION_CURRENT), false,
                            MaxFieldLength.UNLIMITED);
       iw.optimize();
       iw.close();
@@ -103,7 +103,7 @@ public class TestParallelReaderEmptyIndex extends LuceneTestCase {
 
     RAMDirectory rd2 = new MockRAMDirectory();
     {
-      IndexWriter iw = new IndexWriter(rd2, new SimpleAnalyzer(), true,
+      IndexWriter iw = new IndexWriter(rd2, new SimpleAnalyzer(TEST_VERSION_CURRENT), true,
                                        MaxFieldLength.UNLIMITED);
       Document doc = new Document();
       iw.addDocument(doc);
@@ -112,7 +112,7 @@ public class TestParallelReaderEmptyIndex extends LuceneTestCase {
 
     RAMDirectory rdOut = new MockRAMDirectory();
 
-    IndexWriter iwOut = new IndexWriter(rdOut, new SimpleAnalyzer(), true,
+    IndexWriter iwOut = new IndexWriter(rdOut, new SimpleAnalyzer(TEST_VERSION_CURRENT), true,
                                         MaxFieldLength.UNLIMITED);
     ParallelReader pr = new ParallelReader();
     pr.add(IndexReader.open(rd1,true));

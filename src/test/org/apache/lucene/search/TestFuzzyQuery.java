@@ -33,7 +33,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.MockRAMDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
-import org.apache.lucene.util.Version;
 
 /**
  * Tests {@link FuzzyQuery}.
@@ -43,7 +42,7 @@ public class TestFuzzyQuery extends LuceneTestCase {
 
   public void testFuzziness() throws Exception {
     RAMDirectory directory = new RAMDirectory();
-    IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
     addDoc("aaaaa", writer);
     addDoc("aaaab", writer);
     addDoc("aaabb", writer);
@@ -90,22 +89,16 @@ public class TestFuzzyQuery extends LuceneTestCase {
       assertEquals(order.get(i), term);
     }
 
-    // test BooleanQuery.maxClauseCount
-    int savedClauseCount = BooleanQuery.getMaxClauseCount();
-    try {
-      BooleanQuery.setMaxClauseCount(2);
-      // This query would normally return 3 documents, because 3 terms match (see above):
-      query = new FuzzyQuery(new Term("field", "bbbbb"), FuzzyQuery.defaultMinSimilarity, 0);   
-      hits = searcher.search(query, null, 1000).scoreDocs;
-      assertEquals("only 2 documents should match", 2, hits.length);
-      order = Arrays.asList("bbbbb","abbbb");
-      for (int i = 0; i < hits.length; i++) {
-        final String term = searcher.doc(hits[i].doc).get("field");
-        //System.out.println(hits[i].score);
-        assertEquals(order.get(i), term);
-      }
-    } finally {
-      BooleanQuery.setMaxClauseCount(savedClauseCount);
+    // test pq size by supplying maxExpansions=2
+    // This query would normally return 3 documents, because 3 terms match (see above):
+    query = new FuzzyQuery(new Term("field", "bbbbb"), FuzzyQuery.defaultMinSimilarity, 0, 2); 
+    hits = searcher.search(query, null, 1000).scoreDocs;
+    assertEquals("only 2 documents should match", 2, hits.length);
+    order = Arrays.asList("bbbbb","abbbb");
+    for (int i = 0; i < hits.length; i++) {
+      final String term = searcher.doc(hits[i].doc).get("field");
+      //System.out.println(hits[i].score);
+      assertEquals(order.get(i), term);
     }
 
     // not similar enough:
@@ -200,7 +193,7 @@ public class TestFuzzyQuery extends LuceneTestCase {
 
   public void testFuzzinessLong() throws Exception {
     RAMDirectory directory = new RAMDirectory();
-    IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(), true, IndexWriter.MaxFieldLength.LIMITED);
+    IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), true, IndexWriter.MaxFieldLength.LIMITED);
     addDoc("aaaaaaa", writer);
     addDoc("segment", writer);
     writer.optimize();
@@ -288,7 +281,7 @@ public class TestFuzzyQuery extends LuceneTestCase {
   
   public void testTokenLengthOpt() throws IOException {
     RAMDirectory directory = new RAMDirectory();
-    IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(),
+    IndexWriter writer = new IndexWriter(directory, new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
         true, IndexWriter.MaxFieldLength.LIMITED);
     addDoc("12345678911", writer);
     addDoc("segment", writer);
@@ -320,7 +313,7 @@ public class TestFuzzyQuery extends LuceneTestCase {
   
   public void testGiga() throws Exception {
 
-    StandardAnalyzer analyzer = new StandardAnalyzer(org.apache.lucene.util.Version.LUCENE_CURRENT);
+    StandardAnalyzer analyzer = new StandardAnalyzer(TEST_VERSION_CURRENT);
 
     Directory index = new MockRAMDirectory();
     IndexWriter w = new IndexWriter(index, analyzer, true, IndexWriter.MaxFieldLength.UNLIMITED);
@@ -345,7 +338,7 @@ public class TestFuzzyQuery extends LuceneTestCase {
     IndexReader r = w.getReader();
     w.close();
 
-    Query q = new QueryParser(Version.LUCENE_CURRENT, "field", analyzer).parse( "giga~0.9" );
+    Query q = new QueryParser(TEST_VERSION_CURRENT, "field", analyzer).parse( "giga~0.9" );
 
     // 3. search
     IndexSearcher searcher = new IndexSearcher(r);

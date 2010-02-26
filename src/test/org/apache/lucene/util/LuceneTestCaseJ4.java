@@ -18,6 +18,7 @@ package org.apache.lucene.util;
  */
 
 import org.apache.lucene.index.ConcurrentMergeScheduler;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.FieldCache.CacheEntry;
 import org.apache.lucene.util.FieldCacheSanityChecker.Insanity;
@@ -30,6 +31,9 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -73,6 +77,24 @@ import static org.junit.Assert.fail;
 //@RunWith(RunBareWrapper.class)
 public class LuceneTestCaseJ4 extends TestWatchman {
 
+  /** Change this when development starts for new Lucene version: */
+  public static final Version TEST_VERSION_CURRENT = Version.LUCENE_31;
+
+  private int savedBoolMaxClauseCount;
+
+  private volatile Thread.UncaughtExceptionHandler savedUncaughtExceptionHandler = null;
+  
+  private static class UncaughtExceptionEntry {
+    public final Thread thread;
+    public final Throwable exception;
+    
+    public UncaughtExceptionEntry(Thread thread, Throwable exception) {
+      this.thread = thread;
+      this.exception = exception;
+    }
+  }
+  private List<UncaughtExceptionEntry> uncaughtExceptions = Collections.synchronizedList(new ArrayList<UncaughtExceptionEntry>());
+
   // This is how we get control when errors occur.
   // Think of this as start/end/success/failed
   // events.
@@ -88,7 +110,17 @@ public class LuceneTestCaseJ4 extends TestWatchman {
 
   @Before
   public void setUp() throws Exception {
+    savedUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler();
+    Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+      public void uncaughtException(Thread t, Throwable e) {
+        uncaughtExceptions.add(new UncaughtExceptionEntry(t, e));
+        if (savedUncaughtExceptionHandler != null)
+          savedUncaughtExceptionHandler.uncaughtException(t, e);
+      }
+    });
+    
     ConcurrentMergeScheduler.setTestMode();
+    savedBoolMaxClauseCount = BooleanQuery.getMaxClauseCount();
     seed = null;
   }
 
@@ -114,6 +146,7 @@ public class LuceneTestCaseJ4 extends TestWatchman {
 
   @After
   public void tearDown() throws Exception {
+    BooleanQuery.setMaxClauseCount(savedBoolMaxClauseCount);
     try {
       // this isn't as useful as calling directly from the scope where the
       // index readers are used, because they could be gc'ed just before
@@ -129,6 +162,16 @@ public class LuceneTestCaseJ4 extends TestWatchman {
       }
     } finally {
       purgeFieldCache(FieldCache.DEFAULT);
+    }
+    
+    Thread.setDefaultUncaughtExceptionHandler(savedUncaughtExceptionHandler);
+    if (!uncaughtExceptions.isEmpty()) {
+      System.err.println("The following exceptions were thrown by threads:");
+      for (UncaughtExceptionEntry entry : uncaughtExceptions) {
+        System.err.println("*** Thread: " + entry.thread.getName() + " ***");
+        entry.exception.printStackTrace(System.err);
+      }
+      fail("Some threads throwed uncaught exceptions!");
     }
   }
 
@@ -214,7 +257,7 @@ public class LuceneTestCaseJ4 extends TestWatchman {
    */
   public Random newRandom() {
     if (seed != null) {
-      throw new IllegalStateException("please call LuceneTestCase.newRandom only once per test");
+      throw new IllegalStateException("please call LuceneTestCaseJ4.newRandom only once per test");
     }
     return newRandom(seedRnd.nextLong());
   }
@@ -226,7 +269,7 @@ public class LuceneTestCaseJ4 extends TestWatchman {
    */
   public Random newRandom(long seed) {
     if (this.seed != null) {
-      throw new IllegalStateException("please call LuceneTestCase.newRandom only once per test");
+      throw new IllegalStateException("please call LuceneTestCaseJ4.newRandom only once per test");
     }
     this.seed = Long.valueOf(seed);
     return new Random(seed);

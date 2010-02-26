@@ -42,7 +42,7 @@ public class TestQueryTermVector extends LuceneTestCase {
     result = new QueryTermVector(null);
     assertTrue(result.getTerms().length == 0);
     
-    result = new QueryTermVector("foo bar foo again foo bar go go go", new WhitespaceAnalyzer());
+    result = new QueryTermVector("foo bar foo again foo bar go go go", new WhitespaceAnalyzer(TEST_VERSION_CURRENT));
     assertTrue(result != null);
     terms = result.getTerms();
     assertTrue(terms.length == 4);

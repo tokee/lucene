@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.io.IOException;
 
 import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.RamUsageEstimator;
 
 /** This class implements {@link InvertedDocConsumer}, which
  *  is passed each token produced by the analyzer on each
@@ -92,7 +93,7 @@ final class TermsHash extends InvertedDocConsumer {
 
     assert postingsFreeCount == postingsAllocCount: Thread.currentThread().getName() + ": postingsFreeCount=" + postingsFreeCount + " postingsAllocCount=" + postingsAllocCount + " consumer=" + consumer;
 
-    final int newSize = ArrayUtil.getShrinkSize(postingsFreeList.length, postingsAllocCount);
+    final int newSize = ArrayUtil.getShrinkSize(postingsFreeList.length, postingsAllocCount, RamUsageEstimator.NUM_BYTES_OBJECT_REF);
     if (newSize != postingsFreeList.length) {
       RawPostingList[] newArray = new RawPostingList[newSize];
       System.arraycopy(postingsFreeList, 0, newArray, 0, postingsFreeCount);
@@ -225,7 +226,7 @@ final class TermsHash extends InvertedDocConsumer {
       if (newPostingsAllocCount > postingsFreeList.length)
         // Pre-allocate the postingsFreeList so it's large
         // enough to hold all postings we've given out
-        postingsFreeList = new RawPostingList[ArrayUtil.getNextSize(newPostingsAllocCount)];
+        postingsFreeList = new RawPostingList[ArrayUtil.oversize(newPostingsAllocCount, RamUsageEstimator.NUM_BYTES_OBJECT_REF)];
     }
 
     postingsFreeCount -= numToCopy;

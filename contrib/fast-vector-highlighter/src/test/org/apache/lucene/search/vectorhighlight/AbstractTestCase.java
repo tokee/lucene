@@ -24,6 +24,7 @@ import java.util.Collection;
 import junit.framework.TestCase;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
@@ -40,6 +41,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.IndexWriter.MaxFieldLength;
 import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
@@ -55,6 +57,7 @@ public abstract class AbstractTestCase extends TestCase {
   protected Directory dir;
   protected Analyzer analyzerW;
   protected Analyzer analyzerB;
+  protected Analyzer analyzerK;
   protected IndexReader reader;  
   protected QueryParser paW;
   protected QueryParser paB;
@@ -75,11 +78,18 @@ public abstract class AbstractTestCase extends TestCase {
     "\nLucene/Solr does not require such additional hardware.",
     "\nWhen you talk about processing speed, the"
   };
+  
+  protected static final String[] strMVValues = {
+    "abc",
+    "defg",
+    "hijkl"
+  };
 
   @Override
   protected void setUp() throws Exception {
-    analyzerW = new WhitespaceAnalyzer();
+    analyzerW = new WhitespaceAnalyzer(Version.LUCENE_CURRENT);
     analyzerB = new BigramAnalyzer();
+    analyzerK = new KeywordAnalyzer();
     paW = new QueryParser(Version.LUCENE_CURRENT,  F, analyzerW );
     paB = new QueryParser(Version.LUCENE_CURRENT,  F, analyzerB );
     dir = new RAMDirectory();
@@ -138,6 +148,18 @@ public abstract class AbstractTestCase extends TestCase {
     }
     query.setBoost( boost );
     query.setSlop( slop );
+    return query;
+  }
+  
+  protected Query dmq( Query... queries ){
+    return dmq( 0.0F, queries );
+  }
+  
+  protected Query dmq( float tieBreakerMultiplier, Query... queries ){
+    DisjunctionMaxQuery query = new DisjunctionMaxQuery( tieBreakerMultiplier );
+    for( Query q : queries ){
+      query.add( q );
+    }
     return query;
   }
   
@@ -205,7 +227,7 @@ public abstract class AbstractTestCase extends TestCase {
     public boolean incrementToken() throws IOException {
       if( !getNextPartialSnippet() )
         return false;
-      
+      clearAttributes();
       termAtt.setTermBuffer(snippet, startTerm, lenTerm);
       offsetAtt.setOffset(correctOffset(startOffset), correctOffset(startOffset + lenTerm));
       return true;
@@ -301,11 +323,24 @@ public abstract class AbstractTestCase extends TestCase {
     make1dmfIndex( analyzerB, values );
   }
   
+  // make 1 doc with multi valued field
   protected void make1dmfIndex( Analyzer analyzer, String... values ) throws Exception {
     IndexWriter writer = new IndexWriter( dir, analyzer, true, MaxFieldLength.LIMITED );
     Document doc = new Document();
     for( String value: values )
       doc.add( new Field( F, value, Store.YES, Index.ANALYZED, TermVector.WITH_POSITIONS_OFFSETS ) );
+    writer.addDocument( doc );
+    writer.close();
+
+    reader = IndexReader.open( dir, true );
+  }
+  
+  // make 1 doc with multi valued & not analyzed field
+  protected void make1dmfIndexNA( String... values ) throws Exception {
+    IndexWriter writer = new IndexWriter( dir, analyzerK, true, MaxFieldLength.LIMITED );
+    Document doc = new Document();
+    for( String value: values )
+      doc.add( new Field( F, value, Store.YES, Index.NOT_ANALYZED, TermVector.WITH_POSITIONS_OFFSETS ) );
     writer.addDocument( doc );
     writer.close();
 
@@ -372,5 +407,19 @@ public abstract class AbstractTestCase extends TestCase {
     //                                    ed 64
 
     make1dmfIndexB( biMVValues );
+  }
+  
+  protected void makeIndexStrMV() throws Exception {
+
+    //  0123
+    // "abc"
+    
+    //  34567
+    // "defg"
+
+    //     111
+    //  789012
+    // "hijkl"
+    make1dmfIndexNA( strMVValues );
   }
 }

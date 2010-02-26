@@ -101,7 +101,7 @@ public class TestMultiLevelSkipList extends LuceneTestCase {
   private static class PayloadAnalyzer extends Analyzer {
     @Override
     public TokenStream tokenStream(String fieldName, Reader reader) {
-      return new PayloadFilter(new LowerCaseTokenizer(reader));
+      return new PayloadFilter(new LowerCaseTokenizer(TEST_VERSION_CURRENT, reader));
     }
 
   }

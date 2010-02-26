@@ -410,7 +410,7 @@ public class TestPayloads extends LuceneTestCase {
         @Override
         public TokenStream tokenStream(String fieldName, Reader reader) {
             PayloadData payload =  fieldToData.get(fieldName);
-            TokenStream ts = new WhitespaceTokenizer(reader);
+            TokenStream ts = new WhitespaceTokenizer(TEST_VERSION_CURRENT, reader);
             if (payload != null) {
                 if (payload.numFieldInstancesToSkip == 0) {
                     ts = new PayloadFilter(ts, payload.data, payload.offset, payload.length);
@@ -483,7 +483,7 @@ public class TestPayloads extends LuceneTestCase {
         final ByteArrayPool pool = new ByteArrayPool(numThreads, 5);
         
         Directory dir = new MockRAMDirectory();
-        final IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.LIMITED);
+        final IndexWriter writer = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), IndexWriter.MaxFieldLength.LIMITED);
         final String field = "test";
         
         Thread[] ingesters = new Thread[numThreads];
@@ -552,6 +552,7 @@ public class TestPayloads extends LuceneTestCase {
         public boolean incrementToken() throws IOException {
             if (!first) return false;
             first = false;
+            clearAttributes();
             termAtt.setTermBuffer(term);
             payloadAtt.setPayload(new Payload(payload));
             return true;

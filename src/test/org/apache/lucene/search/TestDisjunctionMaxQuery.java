@@ -79,7 +79,7 @@ public class TestDisjunctionMaxQuery extends LuceneTestCase{
 
         index = new RAMDirectory();
         IndexWriter writer = new IndexWriter(index,
-                                             new WhitespaceAnalyzer(),
+                                             new WhitespaceAnalyzer(TEST_VERSION_CURRENT),
                                              true, IndexWriter.MaxFieldLength.LIMITED);
         writer.setSimilarity(sim);
 

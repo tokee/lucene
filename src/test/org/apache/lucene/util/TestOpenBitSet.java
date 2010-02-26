@@ -22,9 +22,6 @@ import java.util.BitSet;
 
 import org.apache.lucene.search.DocIdSetIterator;
 
-/**
- * @version $Id$
- */
 public class TestOpenBitSet extends LuceneTestCase {
   Random rand;
 
@@ -233,7 +230,14 @@ public class TestOpenBitSet extends LuceneTestCase {
     }
   }
 
-  
+  public void testHashCodeEquals() {
+    OpenBitSet bs1 = new OpenBitSet(200);
+    OpenBitSet bs2 = new OpenBitSet(64);
+    bs1.set(3);
+    bs2.set(3);       
+    assertEquals(bs1, bs2);
+    assertEquals(bs1.hashCode(), bs2.hashCode());
+  } 
 }
 
 

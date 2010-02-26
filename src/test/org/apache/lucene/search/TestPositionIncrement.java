@@ -80,6 +80,7 @@ public class TestPositionIncrement extends LuceneTestCase {
           public boolean incrementToken() {
             if (i == TOKENS.length)
               return false;
+            clearAttributes();
             termAtt.setTermBuffer(TOKENS[i]);
             offsetAtt.setOffset(i,i);
             posIncrAtt.setPositionIncrement(INCREMENTS[i]);
@@ -193,7 +194,7 @@ public class TestPositionIncrement extends LuceneTestCase {
     assertEquals(0, hits.length);
 
     // should not find "1 2" because there is a gap of 1 in the index
-    QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, "field",
+    QueryParser qp = new QueryParser(TEST_VERSION_CURRENT, "field",
                                      new StopWhitespaceAnalyzer(false));
     q = (PhraseQuery) qp.parse("\"1 2\"");
     hits = searcher.search(q, null, 1000).scoreDocs;
@@ -217,7 +218,7 @@ public class TestPositionIncrement extends LuceneTestCase {
     assertEquals(0, hits.length);
       
     // when both qp qnd stopFilter propagate increments, we should find the doc.
-    qp = new QueryParser(Version.LUCENE_CURRENT, "field",
+    qp = new QueryParser(TEST_VERSION_CURRENT, "field",
                          new StopWhitespaceAnalyzer(true));
     qp.setEnablePositionIncrements(true);
     q = (PhraseQuery) qp.parse("\"1 stop 2\"");
@@ -227,15 +228,15 @@ public class TestPositionIncrement extends LuceneTestCase {
 
   private static class StopWhitespaceAnalyzer extends Analyzer {
     boolean enablePositionIncrements;
-    final WhitespaceAnalyzer a = new WhitespaceAnalyzer();
+    final WhitespaceAnalyzer a = new WhitespaceAnalyzer(TEST_VERSION_CURRENT);
     public StopWhitespaceAnalyzer(boolean enablePositionIncrements) {
       this.enablePositionIncrements = enablePositionIncrements;
     }
     @Override
     public TokenStream tokenStream(String fieldName, Reader reader) {
       TokenStream ts = a.tokenStream(fieldName,reader);
-      return new StopFilter(enablePositionIncrements?Version.LUCENE_CURRENT:Version.LUCENE_24, ts,
-          new CharArraySet(Version.LUCENE_CURRENT, Collections.singleton("stop"), true));
+      return new StopFilter(enablePositionIncrements?TEST_VERSION_CURRENT:Version.LUCENE_24, ts,
+          new CharArraySet(TEST_VERSION_CURRENT, Collections.singleton("stop"), true));
     }
   }
   
@@ -332,7 +333,7 @@ class TestPayloadAnalyzer extends Analyzer {
 
   @Override
   public TokenStream tokenStream(String fieldName, Reader reader) {
-    TokenStream result = new LowerCaseTokenizer(reader);
+    TokenStream result = new LowerCaseTokenizer(LuceneTestCase.TEST_VERSION_CURRENT, reader);
     return new PayloadFilter(result, fieldName);
   }
 }

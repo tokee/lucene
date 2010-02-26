@@ -70,6 +70,7 @@ public final class EdgeNGramTokenFilter extends TokenFilter {
   private char[] curTermBuffer;
   private int curTermLength;
   private int curGramSize;
+  private int tokStart;
   
   private final TermAttribute termAtt;
   private final OffsetAttribute offsetAtt;
@@ -126,6 +127,7 @@ public final class EdgeNGramTokenFilter extends TokenFilter {
           curTermBuffer = (char[]) termAtt.termBuffer().clone();
           curTermLength = termAtt.termLength();
           curGramSize = minGram;
+          tokStart = offsetAtt.startOffset();
         }
       }
       if (curGramSize <= maxGram) {
@@ -134,7 +136,8 @@ public final class EdgeNGramTokenFilter extends TokenFilter {
           // grab gramSize chars from front or back
           int start = side == Side.FRONT ? 0 : curTermLength - curGramSize;
           int end = start + curGramSize;
-          offsetAtt.setOffset(start, end);
+          clearAttributes();
+          offsetAtt.setOffset(tokStart + start, tokStart + end);
           termAtt.setTermBuffer(curTermBuffer, start, curGramSize);
           curGramSize++;
           return true;
