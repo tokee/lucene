@@ -306,7 +306,7 @@ class FieldCacheImpl implements FieldCache {
       }
       return retArray;
     }
-  };
+  }
   
   // inherit javadocs
   public short[] getShorts (IndexReader reader, String field) throws IOException {
@@ -360,7 +360,7 @@ class FieldCacheImpl implements FieldCache {
       }
       return retArray;
     }
-  };
+  }
   
   // inherit javadocs
   public int[] getInts (IndexReader reader, String field) throws IOException {
@@ -429,7 +429,7 @@ class FieldCacheImpl implements FieldCache {
       }
       return retArray;
     }
-  };
+  }
 
 
   // inherit javadocs
@@ -501,7 +501,7 @@ class FieldCacheImpl implements FieldCache {
       }
       return retArray;
     }
-  };
+  }
 
 
   public long[] getLongs(IndexReader reader, String field) throws IOException {
@@ -569,7 +569,7 @@ class FieldCacheImpl implements FieldCache {
       }
       return retArray;
     }
-  };
+  }
 
   // inherit javadocs
   public double[] getDoubles(IndexReader reader, String field)
@@ -636,7 +636,7 @@ class FieldCacheImpl implements FieldCache {
         retArray = new double[reader.maxDoc()];
       return retArray;
     }
-  };
+  }
 
   // inherit javadocs
   public String[] getStrings(IndexReader reader, String field)
@@ -678,7 +678,7 @@ class FieldCacheImpl implements FieldCache {
       }
       return retArray;
     }
-  };
+  }
 
   // inherit javadocs
   public StringIndex getStringIndex(IndexReader reader, String field)
@@ -752,7 +752,7 @@ class FieldCacheImpl implements FieldCache {
       //System.out.println("FC: done\n");
       return value;
     }
-  };
+  }
   
   private volatile PrintStream infoStream;
 

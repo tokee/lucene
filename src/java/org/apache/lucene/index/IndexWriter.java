@@ -139,7 +139,7 @@ import java.util.Map;
   directly.</p>
 
   <a name="thread-safety"></a><p><b>NOTE</b>: {@link
-  <code>IndexWriter</code>} instances are completely thread
+  IndexWriter} instances are completely thread
   safe, meaning multiple threads can call any of its
   methods, concurrently.  If your application requires
   external synchronization, you should <b>not</b>
@@ -406,7 +406,11 @@ public class IndexWriter implements Closeable {
     // just like we do when loading segments_N
     synchronized(this) {
       applyDeletes();
-      return new ReadOnlyDirectoryReader(this, segmentInfos, termInfosIndexDivisor, codecs);
+      final IndexReader r = new ReadOnlyDirectoryReader(this, segmentInfos, termInfosIndexDivisor, codecs);
+      if (infoStream != null) {
+        message("return reader version=" + r.getVersion() + " reader=" + r);
+      }
+      return r;
     }
   }
 

@@ -80,11 +80,9 @@ public class TestBackwardsCompatibility extends LuceneTestCase
      first */
   public void unzip(String zipName, String destDirName) throws IOException {
 
-    Enumeration entries;
-    ZipFile zipFile;
-    zipFile = new ZipFile(zipName + ".zip");
+    ZipFile zipFile = new ZipFile(zipName + ".zip");
 
-    entries = zipFile.entries();
+    Enumeration<? extends ZipEntry> entries = zipFile.entries();
 
     String dirName = fullDir(destDirName);
 
@@ -94,7 +92,7 @@ public class TestBackwardsCompatibility extends LuceneTestCase
     fileDir.mkdir();
 
     while (entries.hasMoreElements()) {
-      ZipEntry entry = (ZipEntry) entries.nextElement();
+      ZipEntry entry = entries.nextElement();
 
       InputStream in = zipFile.getInputStream(entry);
       OutputStream out = new BufferedOutputStream(new FileOutputStream(new File(fileDir, entry.getName())));

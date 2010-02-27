@@ -3496,14 +3496,14 @@ public class TestIndexWriter extends LuceneTestCase {
       final TermAttribute termAtt = addAttribute(TermAttribute.class);
       final PositionIncrementAttribute posIncrAtt = addAttribute(PositionIncrementAttribute.class);
       
-      final Iterator<String> tokens = Arrays.asList(new String[]{"a","b","c"}).iterator();
+      final Iterator<String> terms = Arrays.asList("a","b","c").iterator();
       boolean first = true;
       
       @Override
       public boolean incrementToken() {
-        if (!tokens.hasNext()) return false;
+        if (!terms.hasNext()) return false;
         clearAttributes();
-        termAtt.setTermBuffer( tokens.next());
+        termAtt.setTermBuffer( terms.next());
         posIncrAtt.setPositionIncrement(first ? 0 : 1);
         first = false;
         return true;
@@ -3787,7 +3787,7 @@ public class TestIndexWriter extends LuceneTestCase {
 
     c.joinThreads();
 
-    assertEquals(100+NUM_COPY*(3*NUM_ITER/4)*c.NUM_THREADS*c.NUM_INIT_DOCS, c.writer2.numDocs());
+    assertEquals(100+NUM_COPY*(3*NUM_ITER/4)*RunAddIndexesThreads.NUM_THREADS*RunAddIndexesThreads.NUM_INIT_DOCS, c.writer2.numDocs());
 
     c.close(true);
 
@@ -3796,7 +3796,7 @@ public class TestIndexWriter extends LuceneTestCase {
     _TestUtil.checkIndex(c.dir2);
 
     IndexReader reader = IndexReader.open(c.dir2, true);
-    assertEquals(100+NUM_COPY*(3*NUM_ITER/4)*c.NUM_THREADS*c.NUM_INIT_DOCS, reader.numDocs());
+    assertEquals(100+NUM_COPY*(3*NUM_ITER/4)*RunAddIndexesThreads.NUM_THREADS*RunAddIndexesThreads.NUM_INIT_DOCS, reader.numDocs());
     reader.close();
 
     c.closeDir();
@@ -3972,7 +3972,7 @@ public class TestIndexWriter extends LuceneTestCase {
       b[i] = (byte) (i+77);
     
     Document doc = new Document();
-    Field f = new Field("binary", b, 10, 17, Field.Store.YES);
+    Field f = new Field("binary", b, 10, 17);
     byte[] bx = f.getBinaryValue();
     assertTrue(bx != null);
     assertEquals(50, bx.length);
@@ -4521,7 +4521,7 @@ public class TestIndexWriter extends LuceneTestCase {
       b[i] = (byte) (i+77);
 
     Document doc = new Document();
-    Field f = new Field("binary", b, 10, 17, Field.Store.YES);
+    Field f = new Field("binary", b, 10, 17);
     f.setTokenStream(new WhitespaceTokenizer(TEST_VERSION_CURRENT, new StringReader("doc1field1")));
     Field f2 = new Field("string", "value", Field.Store.YES,Field.Index.ANALYZED);
     f2.setTokenStream(new WhitespaceTokenizer(TEST_VERSION_CURRENT, new StringReader("doc1field2")));
@@ -4861,7 +4861,7 @@ public class TestIndexWriter extends LuceneTestCase {
 
     for(int iter=0;iter<2;iter++) {
       Directory dir = new MockRAMDirectory();
-      IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(), IndexWriter.MaxFieldLength.UNLIMITED);
+      IndexWriter w = new IndexWriter(dir, new WhitespaceAnalyzer(TEST_VERSION_CURRENT), IndexWriter.MaxFieldLength.UNLIMITED);
       Document doc = new Document();
       doc.add(new Field("field", "go", Field.Store.NO, Field.Index.ANALYZED));
       w.addDocument(doc);

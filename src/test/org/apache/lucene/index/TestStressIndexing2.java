@@ -26,7 +26,7 @@ import org.apache.lucene.search.TermQuery;
 import java.util.*;
 import java.io.IOException;
 
-import junit.framework.TestCase;
+import junit.framework.Assert;
 
 // nocommit -- cut test over to flex API, but not too soon
 // (it catches bugs in emulation)
@@ -666,7 +666,7 @@ public class TestStressIndexing2 extends LuceneTestCase {
         }
       } catch (Throwable e) {
         e.printStackTrace();
-        TestCase.fail(e.toString());
+        Assert.fail(e.toString());
       }
 
       synchronized (this) {

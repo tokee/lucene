@@ -987,8 +987,8 @@ public class TestPerfTasksLogic extends LuceneTestCase {
     
     // Default analyzer, maxShingleSize, and outputUnigrams
     Benchmark benchmark = execBenchmark(getShingleConfig(""));
-    TokenStream stream = benchmark.getRunData().getAnalyzer().tokenStream
-      ("bogus", new StringReader(text));
+    benchmark.getRunData().getAnalyzer().tokenStream
+      ("bogus", new StringReader(text)).close();
     assertEqualShingle(benchmark.getRunData().getAnalyzer(), text,
                        new String[] {"one", "one two", "two", "two three",
                                      "three", "three four", "four", "four five",
