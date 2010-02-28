@@ -149,7 +149,7 @@ public class PreFlexFields extends FieldsProducer {
         // nocommit -- not clean that I open my own CFS
         // reader here; caller should pass it in?
         if (!(dir instanceof CompoundFileReader)) {
-          dir0 = cfsReader = new CompoundFileReader(dir, si.name + "." + IndexFileNames.COMPOUND_FILE_EXTENSION, readBufferSize);
+          dir0 = cfsReader = new CompoundFileReader(dir, IndexFileNames.segmentFileName(si.name, IndexFileNames.COMPOUND_FILE_EXTENSION), readBufferSize);
         } else {
           dir0 = dir;
         }

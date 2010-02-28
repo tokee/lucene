@@ -132,12 +132,12 @@ public class SegmentReader extends IndexReader implements Cloneable {
       try {
         Directory dir0 = dir;
         if (si.getUseCompoundFile()) {
-          cfsReader = new CompoundFileReader(dir, segment + "." + IndexFileNames.COMPOUND_FILE_EXTENSION, readBufferSize);
+          cfsReader = new CompoundFileReader(dir, IndexFileNames.segmentFileName(segment, IndexFileNames.COMPOUND_FILE_EXTENSION), readBufferSize);
           dir0 = cfsReader;
         }
         cfsDir = dir0;
 
-        fieldInfos = new FieldInfos(cfsDir, segment + "." + IndexFileNames.FIELD_INFOS_EXTENSION);
+        fieldInfos = new FieldInfos(cfsDir, IndexFileNames.segmentFileName(segment, IndexFileNames.FIELD_INFOS_EXTENSION));
 
         this.termsIndexDivisor = termsIndexDivisor;
 
@@ -224,7 +224,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
           if (si.getDocStoreIsCompoundFile()) {
             assert storeCFSReader == null;
             storeCFSReader = new CompoundFileReader(dir,
-                                                    si.getDocStoreSegment() + "." + IndexFileNames.COMPOUND_FILE_STORE_EXTENSION,
+                IndexFileNames.segmentFileName(si.getDocStoreSegment(), IndexFileNames.COMPOUND_FILE_STORE_EXTENSION),
                                                     readBufferSize);
             storeDir = storeCFSReader;
             assert storeDir != null;
@@ -237,7 +237,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
           // was not used, but then we are asked to open doc
           // stores after the segment has switched to CFS
           if (cfsReader == null) {
-            cfsReader = new CompoundFileReader(dir, segment + "." + IndexFileNames.COMPOUND_FILE_EXTENSION, readBufferSize);
+            cfsReader = new CompoundFileReader(dir, IndexFileNames.segmentFileName(segment, IndexFileNames.COMPOUND_FILE_EXTENSION), readBufferSize);
           }
           storeDir = cfsReader;
           assert storeDir != null;
@@ -1091,7 +1091,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         }
         
         // singleNormFile means multiple norms share this file
-        boolean singleNormFile = fileName.endsWith("." + IndexFileNames.NORMS_EXTENSION);
+        boolean singleNormFile = IndexFileNames.matchesExtension(fileName, IndexFileNames.NORMS_EXTENSION);
         IndexInput normInput = null;
         long normSeek;
 

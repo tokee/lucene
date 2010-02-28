@@ -623,7 +623,8 @@ final class DocumentsWriter {
   /** Build compound file for the segment we just flushed */
   void createCompoundFile(String segment) throws IOException {
     
-    CompoundFileWriter cfsWriter = new CompoundFileWriter(directory, segment + "." + IndexFileNames.COMPOUND_FILE_EXTENSION);
+    CompoundFileWriter cfsWriter = new CompoundFileWriter(directory, 
+        IndexFileNames.segmentFileName(segment, IndexFileNames.COMPOUND_FILE_EXTENSION));
     for(String fileName : flushState.flushedFiles) {
       if (Codec.DEBUG) {
         System.out.println("make cfs " + fileName);

@@ -77,8 +77,4 @@ public class SegmentWriteState {
     this.codec = codecs.getWriter(this);
     flushedFiles = new HashSet<String>();
   }
-
-  public String segmentFileName(String ext) {
-    return segmentName + "." + ext;
-  }
 }

@@ -35,8 +35,8 @@ public class IndexFileNameFilter implements FilenameFilter {
 
   public IndexFileNameFilter(Codecs codecs) {
     extensions = new HashSet<String>();
-    for (int i = 0; i < IndexFileNames.INDEX_EXTENSIONS.length; i++) {
-      extensions.add(IndexFileNames.INDEX_EXTENSIONS[i]);
+    for (String ext : IndexFileNames.INDEX_EXTENSIONS) {
+      extensions.add(ext);
     }
     if (codecs != null) {
       for(String ext : codecs.getAllExtensions()) {

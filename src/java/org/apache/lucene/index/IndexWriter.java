@@ -1756,13 +1756,13 @@ public class IndexWriter implements Closeable {
       // Now build compound doc store file
 
       if (infoStream != null) {
-        message("create compound file " + docStoreSegment + "." + IndexFileNames.COMPOUND_FILE_STORE_EXTENSION);
+        message("create compound file " + IndexFileNames.segmentFileName(docStoreSegment, IndexFileNames.COMPOUND_FILE_STORE_EXTENSION));
       }
 
       success = false;
 
       final int numSegments = segmentInfos.size();
-      final String compoundFileName = docStoreSegment + "." + IndexFileNames.COMPOUND_FILE_STORE_EXTENSION;
+      final String compoundFileName = IndexFileNames.segmentFileName(docStoreSegment, IndexFileNames.COMPOUND_FILE_STORE_EXTENSION);
 
       try {
         CompoundFileWriter cfsWriter = new CompoundFileWriter(directory, compoundFileName);
@@ -3673,7 +3673,7 @@ public class IndexWriter implements Closeable {
           if (!success) {
             if (infoStream != null)
               message("hit exception creating compound file for newly flushed segment " + segment);
-            deleter.deleteFile(segment + "." + IndexFileNames.COMPOUND_FILE_EXTENSION);
+            deleter.deleteFile(IndexFileNames.segmentFileName(segment, IndexFileNames.COMPOUND_FILE_EXTENSION));
           }
         }
 
@@ -4407,7 +4407,7 @@ public class IndexWriter implements Closeable {
     if (merge.useCompoundFile) {
 
       success = false;
-      final String compoundFileName = mergedName + "." + IndexFileNames.COMPOUND_FILE_EXTENSION;
+      final String compoundFileName = IndexFileNames.segmentFileName(mergedName, IndexFileNames.COMPOUND_FILE_EXTENSION);
 
       try {
         merger.createCompoundFile(compoundFileName, merge.info);
