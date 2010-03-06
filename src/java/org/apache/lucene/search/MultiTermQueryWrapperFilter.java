@@ -106,8 +106,11 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
    */
   @Override
   public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
-    final TermsEnum termsEnum = query.getTermsEnum(reader);
-    if (termsEnum != null) {
+    if (query.hasNewAPI) {
+      final TermsEnum termsEnum = query.getTermsEnum(reader);
+      if (termsEnum == null) {
+        return DocIdSet.EMPTY_DOCIDSET;// nocommit;
+      }
       if (termsEnum.next() != null) {
         // fill into a OpenBitSet
         final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());

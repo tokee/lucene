@@ -29,6 +29,7 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.queryParser.QueryParser; // for javadoc
 import org.apache.lucene.util.Attribute;
 import org.apache.lucene.util.AttributeImpl;
+import org.apache.lucene.util.VirtualMethod;
 
 /**
  * An abstract {@link Query} that matches documents
@@ -68,6 +69,17 @@ public abstract class MultiTermQuery extends Query {
   protected RewriteMethod rewriteMethod = CONSTANT_SCORE_AUTO_REWRITE_DEFAULT;
   transient int numberOfTerms = 0;
   
+  /** @deprecated remove when getEnum is removed */
+  private static final VirtualMethod<MultiTermQuery> getEnumMethod =
+    new VirtualMethod<MultiTermQuery>(MultiTermQuery.class, "getEnum", IndexReader.class);
+  /** @deprecated remove when getEnum is removed */
+  private static final VirtualMethod<MultiTermQuery> getTermsEnumMethod =
+    new VirtualMethod<MultiTermQuery>(MultiTermQuery.class, "getTermsEnum", IndexReader.class);
+  /** @deprecated remove when getEnum is removed */
+  final boolean hasNewAPI = 
+    VirtualMethod.compareImplementationDistance(getClass(), 
+        getTermsEnumMethod, getEnumMethod) >= 0; // its ok for both to be overridden
+
   /** Add this {@link Attribute} to a {@link TermsEnum} returned by {@link #getTermsEnum}
    * and update the boost on each returned term. This enables to control the boost factor
    * for each matching term in {@link #SCORING_BOOLEAN_QUERY_REWRITE} or
@@ -174,8 +186,11 @@ public abstract class MultiTermQuery extends Query {
   private abstract static class BooleanQueryRewrite extends RewriteMethod {
   
     protected final int collectTerms(IndexReader reader, MultiTermQuery query, TermCollector collector) throws IOException {
-      final TermsEnum termsEnum = query.getTermsEnum(reader);
-      if (termsEnum != null) {
+      if (query.hasNewAPI) {
+        final TermsEnum termsEnum = query.getTermsEnum(reader);
+        if (termsEnum == null) {
+          return 0; // nocommit, subclass shouldn't deal with this case of nonexistent field
+        }
         if (query.field == null)
           throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
         if (termsEnum == TermsEnum.EMPTY)
@@ -595,7 +610,7 @@ public abstract class MultiTermQuery extends Query {
    * @deprecated Please override {@link #getTermsEnum} instead */
   @Deprecated
   protected FilteredTermEnum getEnum(IndexReader reader) throws IOException {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   /** Construct the enumeration to be used, expanding the
@@ -606,7 +621,7 @@ public abstract class MultiTermQuery extends Query {
    *
    *  nocommit in 3.x this will become abstract  */
   protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   /**
