@@ -612,7 +612,7 @@ public final class SegmentInfo {
       return files;
     }
     
-    Set fileSet = new HashSet<String>();
+    Set<String> fileSet = new HashSet<String>();
     
     boolean useCompoundFile = getUseCompoundFile();
 
@@ -694,7 +694,7 @@ public final class SegmentInfo {
       }
     }
 
-    files = new ArrayList(fileSet);
+    files = new ArrayList<String>(fileSet);
 
     return files;
   }
