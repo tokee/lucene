@@ -29,14 +29,13 @@ import org.apache.lucene.util.BytesRef;
 
 public abstract class PostingsConsumer {
 
-  // nocommit
+  // nocommit -- debugging
   public String desc;
 
-  // nocommit -- rename to startDoc?
   /** Adds a new doc in this term.  Return null if this
    *  consumer doesn't need to see the positions for this
    *  doc. */
-  public abstract void addDoc(int docID, int termDocFreq) throws IOException;
+  public abstract void startDoc(int docID, int termDocFreq) throws IOException;
 
   public static class PostingsMergeState {
     DocsEnum docsEnum;
@@ -67,7 +66,7 @@ public abstract class PostingsConsumer {
         if (doc == DocsAndPositionsEnum.NO_MORE_DOCS) {
           break;
         }
-        addDoc(doc, postings.freq());
+        startDoc(doc, postings.freq());
         df++;
       }
     } else {
@@ -78,7 +77,7 @@ public abstract class PostingsConsumer {
           break;
         }
         final int freq = postingsEnum.freq();
-        addDoc(doc, freq);
+        startDoc(doc, freq);
         for(int i=0;i<freq;i++) {
           final int position = postingsEnum.nextPosition();
           final int payloadLength = postingsEnum.getPayloadLength();

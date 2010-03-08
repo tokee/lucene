@@ -31,6 +31,7 @@ import org.apache.lucene.util.ArrayUtil;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Collection;
+import java.util.Comparator;
 import java.io.IOException;
 
 /**
@@ -69,11 +70,11 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
   final private IndexInput in;
   private volatile boolean indexLoaded;
 
-  private final BytesRef.Comparator termComp;
+  private final Comparator<BytesRef> termComp;
 
   final HashMap<FieldInfo,FieldIndexReader> fields = new HashMap<FieldInfo,FieldIndexReader>();
 
-  public SimpleStandardTermsIndexReader(Directory dir, FieldInfos fieldInfos, String segment, int indexDivisor, BytesRef.Comparator termComp)
+  public SimpleStandardTermsIndexReader(Directory dir, FieldInfos fieldInfos, String segment, int indexDivisor, Comparator<BytesRef> termComp)
     throws IOException {
 
     this.termComp = termComp;

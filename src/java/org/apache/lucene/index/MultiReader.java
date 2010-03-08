@@ -30,7 +30,6 @@ import org.apache.lucene.index.DirectoryReader.MultiTermEnum;       // deprecate
 import org.apache.lucene.index.DirectoryReader.MultiTermPositions;  // deprecated
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
-import org.apache.lucene.util.MultiBits;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.ReaderUtil;
@@ -46,8 +45,6 @@ public class MultiReader extends IndexReader implements Cloneable {
   private int maxDoc = 0;
   private int numDocs = -1;
   private boolean hasDeletions = false;
-  private MultiBits deletedDocs;
-  //private Fields fields;
   
  /**
   * <p>Construct a MultiReader aggregating the named set of (sub)readers.
@@ -76,7 +73,6 @@ public class MultiReader extends IndexReader implements Cloneable {
     this.subReaders =  subReaders.clone();
     starts = new int[subReaders.length + 1];    // build starts array
     decrefOnClose = new boolean[subReaders.length];
-    Bits[] subs = new Bits[subReaders.length];
 
     for (int i = 0; i < subReaders.length; i++) {
       starts[i] = maxDoc;
@@ -92,7 +88,6 @@ public class MultiReader extends IndexReader implements Cloneable {
       if (subReaders[i].hasDeletions()) {
         hasDeletions = true;
       }
-      subs[i] = subReaders[i].getDeletedDocs();
 
       final ReaderUtil.Slice slice = new ReaderUtil.Slice(starts[i],
                                                           subReaders[i].maxDoc(),
@@ -101,11 +96,11 @@ public class MultiReader extends IndexReader implements Cloneable {
     }
 
     starts[subReaders.length] = maxDoc;
-    if (hasDeletions) {
-      deletedDocs = new MultiBits(subs, starts);
-    } else {
-      deletedDocs = null;
-    }
+  }
+
+  @Override
+  public long getUniqueTermCount() throws IOException {
+    throw new UnsupportedOperationException("");
   }
 
   @Override
@@ -115,7 +110,7 @@ public class MultiReader extends IndexReader implements Cloneable {
 
   @Override
   public Fields fields() throws IOException {
-    throw new UnsupportedOperationException("please use MultiFields.getFields if you really need a top level Fields for this reader");
+    throw new UnsupportedOperationException("please use MultiFields.getFields if you really need a top level Fields (NOTE that it's usually better to work per segment instead)");
   }
 
   /**
@@ -162,11 +157,7 @@ public class MultiReader extends IndexReader implements Cloneable {
   
   @Override
   public Bits getDeletedDocs() throws IOException {
-    if (subReaders.length == 1) {
-      return subReaders[0].getDeletedDocs();
-    } else {
-      return deletedDocs;
-    }
+    throw new UnsupportedOperationException("please use MultiFields.getDeletedDocs if you really need a top level Bits deletedDocs (NOTE that it's usually better to work per segment instead)");
   }
 
   /**

@@ -23,7 +23,7 @@ import org.apache.lucene.index.codecs.standard.*;
 import org.apache.lucene.store.*;
 import java.util.*;
 
-// nocommit -- test multiple codecs here?
+// TODO: test multiple codecs here?
 
 // TODO
 //   - test across fields
@@ -43,14 +43,11 @@ import java.util.*;
 
 public class TestCodecs extends LuceneTestCase {
 
-  // nocommit -- switch to newRandom():
-  private static final Random RANDOM = new Random(42);
+  private Random RANDOM;
   private static String[] fieldNames = new String[] {"one", "two", "three", "four"};
 
   private final static int NUM_TEST_ITER = 4000;
-  // nocommit
-  //private final static int NUM_TEST_THREADS = 3;
-  private final static int NUM_TEST_THREADS = 1;
+  private final static int NUM_TEST_THREADS = 3;
   private final static int NUM_FIELDS = 4;
   private final static int NUM_TERMS_RAND = 50; // must be > 16 to test skipping
   private final static int DOC_FREQ_RAND = 500; // must be > 16 to test skipping
@@ -167,7 +164,7 @@ public class TestCodecs extends LuceneTestCase {
         } else {
           termDocFreq = positions[i].length;
         }
-        postingsConsumer.addDoc(docs[i], termDocFreq);
+        postingsConsumer.startDoc(docs[i], termDocFreq);
         if (!field.omitTF) {
           for(int j=0;j<positions[i].length;j++) {
             PositionData pos = positions[i][j];
@@ -248,6 +245,8 @@ public class TestCodecs extends LuceneTestCase {
 
   public void testFixedPostings() throws Throwable {
 
+    RANDOM = newRandom();
+
     final int NUM_TERMS = 100;
     TermData[] terms = new TermData[NUM_TERMS];
     for(int i=0;i<NUM_TERMS;i++) {
@@ -287,7 +286,7 @@ public class TestCodecs extends LuceneTestCase {
 
   public void testRandomPostings() throws Throwable {
 
-    // Codec.DEBUG = true;
+    RANDOM = newRandom();
 
     final FieldInfos fieldInfos = new FieldInfos();
     
@@ -384,7 +383,7 @@ public class TestCodecs extends LuceneTestCase {
               System.out.println("TEST do check payload len=" + posEnum.getPayloadLength() + " vs " + (otherPayload == null ? "null" : otherPayload.length));
             }
 
-            assertTrue("expected=" + positions[i].payload.toBytesString() + " got=" + otherPayload.toBytesString(), positions[i].payload.equals(otherPayload));
+            assertTrue("expected=" + positions[i].payload.toString() + " got=" + otherPayload.toString(), positions[i].payload.equals(otherPayload));
           } else {
             if (Codec.DEBUG) {
               System.out.println("TEST skip check payload len=" + posEnum.getPayloadLength());
@@ -528,9 +527,23 @@ public class TestCodecs extends LuceneTestCase {
                   System.out.println("TEST [" + getDesc(field, term) + "]: skip: " + left + " docs left; skip to doc=" + term.docs[upto2] + " [" + upto2 + " of " + term.docs.length + "]");
                 }
 
-                doc = docsEnum.advance(term.docs[upto2]);
-                // nocommit -- test skipping to non-existent doc
-                assertEquals(term.docs[upto2], doc);
+                if (nextInt(2) == 1) {
+                  doc = docsEnum.advance(term.docs[upto2]);
+                  assertEquals(term.docs[upto2], doc);
+                } else {
+                  doc = docsEnum.advance(1+term.docs[upto2]);
+                  if (doc == DocsEnum.NO_MORE_DOCS) {
+                    // skipped past last doc
+                    assert upto2 == term.docs.length-1;
+                    break;
+                  } else {
+                    // skipped to next doc
+                    assert upto2 < term.docs.length-1;
+                    if (doc >= term.docs[1+upto2]) {
+                      upto2++;
+                    }
+                  }
+                }
               } else {
                 doc = docsEnum.nextDoc();
                 assertTrue(doc != -1);
@@ -565,16 +578,13 @@ public class TestCodecs extends LuceneTestCase {
         } while (termsEnum.next() != null);
 
         assertEquals(upto, field.terms.length);
-        
-        //termsEnum.close();
       }
     }
   }
 
   private void write(FieldInfos fieldInfos, Directory dir, FieldData[] fields) throws Throwable {
 
-    // nocommit -- randomize this:
-    final int termIndexInterval = 16;
+    final int termIndexInterval = nextInt(13, 27);
 
     SegmentWriteState state = new SegmentWriteState(null, dir, SEGMENT, fieldInfos, null, 10000, 10000, termIndexInterval,
                                                     Codecs.getDefault());

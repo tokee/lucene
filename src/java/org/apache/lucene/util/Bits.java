@@ -17,7 +17,13 @@ package org.apache.lucene.util;
  * limitations under the License.
  */
 
+/**
+ * @lucene.experimental
+ */
+
 public interface Bits {
   public boolean get(int index);
   public int length();
+
+  public static final Bits[] EMPTY_ARRAY = new Bits[0];
 }

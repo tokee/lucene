@@ -73,8 +73,6 @@ public class TestTermVectorAccessor extends LuceneTestCase {
 
     for (int i = 0; i < ir.maxDoc(); i++) {
 
-      // nocommit
-      /*        
       mapper = new ParallelArrayTermVectorMapper();
       accessor.accept(ir, i, "a", mapper);
       tfv = mapper.materializeVector();
@@ -94,7 +92,6 @@ public class TestTermVectorAccessor extends LuceneTestCase {
       assertEquals("doc " + i, 8, tfv.getTermFrequencies().length);
       assertEquals("doc " + i, "c", tfv.getTerms()[2]);
       assertEquals("doc " + i, 7, tfv.getTermFrequencies()[2]);
-      */
 
       mapper = new ParallelArrayTermVectorMapper();
       accessor.accept(ir, i, "q", mapper);

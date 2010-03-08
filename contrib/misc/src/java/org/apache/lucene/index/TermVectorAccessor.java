@@ -100,7 +100,7 @@ public class TermVectorAccessor {
       positions.clear();
     }
 
-    final Bits delDocs = indexReader.getDeletedDocs();
+    final Bits delDocs = MultiFields.getDeletedDocs(indexReader);
 
     Terms terms = MultiFields.getTerms(indexReader, field);
     boolean anyTerms = false;

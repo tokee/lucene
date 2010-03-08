@@ -18,7 +18,7 @@ package org.apache.lucene.index.codecs.pulsing;
  */
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Set;
 
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
@@ -142,14 +142,14 @@ public class PulsingCodec extends Codec {
   }
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
+  public void files(Directory dir, SegmentInfo segmentInfo, Set<String> files) throws IOException {
     StandardPostingsReaderImpl.files(dir, segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override
-  public void getExtensions(Collection<String> extensions) {
+  public void getExtensions(Set<String> extensions) {
     StandardCodec.getStandardExtensions(extensions);
   }
 }

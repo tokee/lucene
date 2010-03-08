@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.TreeMap;
+import java.util.Comparator;
 
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.DocsAndPositionsEnum;
@@ -66,7 +67,7 @@ public class StandardTermsDictReader extends FieldsProducer {
   private final String segment;
 
   // Comparator that orders our terms
-  private final BytesRef.Comparator termComp;
+  private final Comparator<BytesRef> termComp;
 
   // Caches the most recently looked-up field + terms:
   private final Cache<FieldAndTerm,TermState> termsCache;
@@ -98,7 +99,7 @@ public class StandardTermsDictReader extends FieldsProducer {
   }
   
   public StandardTermsDictReader(StandardTermsIndexReader indexReader, Directory dir, FieldInfos fieldInfos, String segment, StandardPostingsReader postingsReader, int readBufferSize,
-                                 BytesRef.Comparator termComp, int termsCacheSize)
+                                 Comparator<BytesRef> termComp, int termsCacheSize)
     throws IOException {
     
     this.segment = segment;
@@ -256,7 +257,7 @@ public class StandardTermsDictReader extends FieldsProducer {
     }
 
     @Override
-    public BytesRef.Comparator getComparator() {
+    public Comparator<BytesRef> getComparator() {
       return termComp;
     }
 
@@ -296,7 +297,7 @@ public class StandardTermsDictReader extends FieldsProducer {
       }
 
       @Override
-      public BytesRef.Comparator getComparator() {
+      public Comparator<BytesRef> getComparator() {
         return termComp;
       }
 
@@ -522,12 +523,6 @@ public class StandardTermsDictReader extends FieldsProducer {
         // a "how many terms until next index entry" in each
         // index entry, but that'd require some tricky
         // lookahead work when writing the index
-
-        // nocommit -- this call to isIndexTerm is not
-        // right, when indexDivisor > 1?  ie, this will
-        // return false for entries that actually are index
-        // terms, and then the postings impl will read the
-        // wrong offset.  make a test...
         postingsReader.readTerm(in,
                                 fieldInfo, state,
                                 indexReader.isIndexTerm(1+state.ord, state.docFreq, false));
@@ -552,6 +547,7 @@ public class StandardTermsDictReader extends FieldsProducer {
           System.out.println("stdr.docs");
         }
         DocsEnum docsEnum = postingsReader.docs(fieldInfo, state, skipDocs, reuse);
+        assert docsEnum != null;
         if (Codec.DEBUG) {
           docsEnum.desc = fieldInfo.name + ":" + bytesReader.term.utf8ToString();
         }
@@ -567,13 +563,11 @@ public class StandardTermsDictReader extends FieldsProducer {
           return null;
         } else {
           DocsAndPositionsEnum postingsEnum = postingsReader.docsAndPositions(fieldInfo, state, skipDocs, reuse);
-          if (Codec.DEBUG) {
-            if (postingsEnum != null) {
+          if (postingsEnum != null) {
+            if (Codec.DEBUG) {
               postingsEnum.desc = fieldInfo.name + ":" + bytesReader.term.utf8ToString();
+              Codec.debug("  return enum=" + postingsEnum);
             }
-          }
-          if (Codec.DEBUG) {
-            Codec.debug("  return enum=" + postingsEnum);
           }
           return postingsEnum;
         }

@@ -25,6 +25,7 @@ import org.apache.lucene.util.MultiBits;
 import org.apache.lucene.util.ReaderUtil;
 
 import java.io.IOException;
+import java.util.Comparator;
 
 /**
  * Exposes flex API, merged from flex API of sub-segments.
@@ -35,8 +36,8 @@ import java.io.IOException;
 public final class MultiTermsEnum extends TermsEnum {
     
   private final TermMergeQueue queue;
-  private final TermsEnumWithSlice[] subs;
-  private final TermsEnumWithSlice[] currentSubs;
+  private final TermsEnumWithSlice[] subs;        // all of our subs (one per sub-reader)
+  private final TermsEnumWithSlice[] currentSubs; // current subs that have at least one term for this field
   private final TermsEnumWithSlice[] top;
   private final MultiDocsEnum.EnumWithSlice[] subDocs;
   private final MultiDocsAndPositionsEnum.EnumWithSlice[] subDocsAndPositions;
@@ -44,7 +45,7 @@ public final class MultiTermsEnum extends TermsEnum {
   private int numTop;
   private int numSubs;
   private BytesRef current;
-  private BytesRef.Comparator termComp;
+  private Comparator<BytesRef> termComp;
 
   public static class TermsEnumIndex {
     public final static TermsEnumIndex[] EMPTY_ARRAY = new TermsEnumIndex[0];
@@ -87,13 +88,13 @@ public final class MultiTermsEnum extends TermsEnum {
   }
 
   @Override
-  public BytesRef.Comparator getComparator() {
+  public Comparator<BytesRef> getComparator() {
     return termComp;
   }
 
   /** The terms array must be newly created TermsEnum, ie
    *  {@link TermsEnum#next} has not yet been called. */
-  public MultiTermsEnum reset(TermsEnumIndex[] termsEnumsIndex) throws IOException {
+  public TermsEnum reset(TermsEnumIndex[] termsEnumsIndex) throws IOException {
     assert termsEnumsIndex.length <= top.length;
     numSubs = 0;
     numTop = 0;
@@ -110,7 +111,7 @@ public final class MultiTermsEnum extends TermsEnum {
       } else {
         // We cannot merge sub-readers that have
         // different TermComps
-        final BytesRef.Comparator subTermComp = termsEnumIndex.termsEnum.getComparator();
+        final Comparator<BytesRef> subTermComp = termsEnumIndex.termsEnum.getComparator();
         if (subTermComp != null && !subTermComp.equals(termComp)) {
           throw new IllegalStateException("sub-readers have different BytesRef.Comparators; cannot merge");
         }
@@ -128,7 +129,7 @@ public final class MultiTermsEnum extends TermsEnum {
     }
 
     if (queue.size() == 0) {
-      return null;
+      return TermsEnum.EMPTY;
     } else {
       return this;
     }
@@ -141,12 +142,12 @@ public final class MultiTermsEnum extends TermsEnum {
     for(int i=0;i<numSubs;i++) {
       final SeekStatus status = currentSubs[i].terms.seek(term);
       if (status == SeekStatus.FOUND) {
-        top[numTop++] = subs[i];
-        subs[i].current = term;
+        top[numTop++] = currentSubs[i];
+        currentSubs[i].current = term;
       } else if (status == SeekStatus.NOT_FOUND) {
-        subs[i].current = subs[i].terms.term();
-        assert subs[i].current != null;
-        queue.add(subs[i]);
+        currentSubs[i].current = currentSubs[i].terms.term();
+        assert currentSubs[i].current != null;
+        queue.add(currentSubs[i]);
       } else {
         // enum exhausted
       }
@@ -257,14 +258,16 @@ public final class MultiTermsEnum extends TermsEnum {
         // just pull the skipDocs from the sub reader, rather
         // than making the inefficient
         // Slice(Multi(sub-readers)):
-        final Bits b2 = multiSkipDocs.getMatchingSub(top[i].subSlice);
-        if (b2 != null) {
-          b = b2;
+        final MultiBits.SubResult sub = multiSkipDocs.getMatchingSub(top[i].subSlice);
+        if (sub.matches) {
+          b = sub.result;
         } else {
           // custom case: requested skip docs is foreign:
           // must slice it on every access
           b = new BitsSlice(skipDocs, top[i].subSlice);
         }
+      } else if (skipDocs != null) {
+        b = new BitsSlice(skipDocs, top[i].subSlice);
       } else {
         // no deletions
         b = null;
@@ -311,19 +314,22 @@ public final class MultiTermsEnum extends TermsEnum {
       final Bits b;
 
       if (multiSkipDocs != null) {
-        // optimize for common case: requested skip docs is a
+        // Optimize for common case: requested skip docs is a
         // congruent sub-slice of MultiBits: in this case, we
         // just pull the skipDocs from the sub reader, rather
         // than making the inefficient
         // Slice(Multi(sub-readers)):
-        final Bits b2 = multiSkipDocs.getMatchingSub(top[i].subSlice);
-        if (b2 != null) {
-          b = b2;
+        final MultiBits.SubResult sub = multiSkipDocs.getMatchingSub(top[i].subSlice);
+        if (sub.matches) {
+          b = sub.result;
         } else {
           // custom case: requested skip docs is foreign:
-          // must slice it on every access
+          // must slice it on every access (very
+          // inefficient)
           b = new BitsSlice(skipDocs, top[i].subSlice);
         }
+      } else if (skipDocs != null) {
+        b = new BitsSlice(skipDocs, top[i].subSlice);
       } else {
         // no deletions
         b = null;
@@ -335,6 +341,13 @@ public final class MultiTermsEnum extends TermsEnum {
         entry.reusePostings = subDocsAndPositions[upto].docsAndPositionsEnum = subPostings;
         subDocsAndPositions[upto].slice = entry.subSlice;
         upto++;
+      } else {
+        if (entry.terms.docs(b, entry.reuseDocs) != null) {
+          // At least one of our subs does not store
+          // positions -- we can't correctly produce a
+          // MultiDocsAndPositions enum
+          return null;
+        }
       }
     }
 
@@ -366,7 +379,7 @@ public final class MultiTermsEnum extends TermsEnum {
   }
 
   private final static class TermMergeQueue extends PriorityQueue<TermsEnumWithSlice> {
-    BytesRef.Comparator termComp;
+    Comparator<BytesRef> termComp;
     TermMergeQueue(int size) {
       initialize(size);
     }

@@ -206,9 +206,6 @@ public final class TermInfosReader {
       }
     }
 
-    // nocommit -- make sure these optimizations survive
-    // into flex 
-
     // optimize sequential access: first try scanning cached enum w/o seeking
     SegmentTermEnum enumerator = resources.termEnum;
     if (enumerator.term() != null                 // term is at or past current

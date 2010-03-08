@@ -20,7 +20,6 @@ package org.apache.lucene.index.codecs.pulsing;
 import java.io.IOException;
 
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
 import org.apache.lucene.store.IndexOutput;
@@ -53,7 +52,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
   // Starts a new term
   FieldInfo fieldInfo;
 
-  // nocommit
+  // nocommit -- debugging
   String desc;
 
   /** @lucene.experimental */
@@ -159,7 +158,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
   }
 
   @Override
-  public void addDoc(int docID, int termDocFreq) throws IOException {
+  public void startDoc(int docID, int termDocFreq) throws IOException {
 
     assert docID >= 0: "got docID=" + docID;
         
@@ -183,7 +182,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
         if (Codec.DEBUG)
           System.out.println("  docID=" + doc.docID);
 
-        wrappedPostingsWriter.addDoc(doc.docID, doc.termDocFreq);
+        wrappedPostingsWriter.startDoc(doc.docID, doc.termDocFreq);
 
         if (!omitTF) {
           assert doc.termDocFreq == doc.numPositions;
@@ -208,7 +207,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
     if (pulsed) {
       // We've already seen too many docs for this term --
       // just forward to our fallback writer
-      wrappedPostingsWriter.addDoc(docID, termDocFreq);
+      wrappedPostingsWriter.startDoc(docID, termDocFreq);
     } else {
       currentDoc = pendingDocs[pendingDocCount++];
       currentDoc.docID = docID;
@@ -254,6 +253,8 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
   /** Called when we are done adding docs to this term */
   @Override
   public void finishTerm(int docCount, boolean isIndexTerm) throws IOException {
+
+    assert docCount > 0;
 
     if (Codec.DEBUG) {
       System.out.println("PW: finishTerm pendingDocCount=" + pendingDocCount);

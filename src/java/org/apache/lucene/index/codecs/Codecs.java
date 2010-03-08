@@ -20,6 +20,7 @@ package org.apache.lucene.index.codecs;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.codecs.intblock.IntBlockCodec;
@@ -39,7 +40,7 @@ public abstract class Codecs {
 
   private final HashMap<String, Codec> codecs = new HashMap<String, Codec>();
 
-  private final Collection<String> knownExtensions = new HashSet<String>();
+  private final Set<String> knownExtensions = new HashSet<String>();
 
   public void register(Codec codec) {
     if (codec.name == null) {

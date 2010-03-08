@@ -20,7 +20,8 @@ package org.apache.lucene.index;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-
+import java.util.Set;
+import java.util.HashSet;
 import java.util.List;
 
 import org.apache.lucene.document.Document;
@@ -171,31 +172,23 @@ final class SegmentMerger {
           throws IOException {
     CompoundFileWriter cfsWriter = new CompoundFileWriter(directory, fileName, checkAbort);
 
-    List<String> files = new ArrayList<String>();
+    Set<String> fileSet = new HashSet<String>();
 
     // Basic files
     for (String ext : IndexFileNames.COMPOUND_EXTENSIONS_NOT_CODEC) {
-       
-      // nocommit
-      /*
-      if (ext.equals(IndexFileNames.PROX_EXTENSION) && !hasProx())
-        continue;
-        
-      */
-
       if (mergeDocStores || (!ext.equals(IndexFileNames.FIELDS_EXTENSION) &&
                              !ext.equals(IndexFileNames.FIELDS_INDEX_EXTENSION)))
-        files.add(IndexFileNames.segmentFileName(segment, ext));
+        fileSet.add(IndexFileNames.segmentFileName(segment, ext));
     }
 
-    codec.files(directory, info, files);
+    codec.files(directory, info, fileSet);
     
     // Fieldable norm files
     int numFIs = fieldInfos.size();
     for (int i = 0; i < numFIs; i++) {
       FieldInfo fi = fieldInfos.fieldInfo(i);
       if (fi.isIndexed && !fi.omitNorms) {
-        files.add(IndexFileNames.segmentFileName(segment, IndexFileNames.NORMS_EXTENSION));
+        fileSet.add(IndexFileNames.segmentFileName(segment, IndexFileNames.NORMS_EXTENSION));
         break;
       }
     }
@@ -203,19 +196,19 @@ final class SegmentMerger {
     // Vector files
     if (fieldInfos.hasVectors() && mergeDocStores) {
       for (String ext : IndexFileNames.VECTOR_EXTENSIONS) {
-        files.add(IndexFileNames.segmentFileName(segment, ext));
+        fileSet.add(IndexFileNames.segmentFileName(segment, ext));
       }
     }
 
     // Now merge all added files
-    for (String file : files) {
+    for (String file : fileSet) {
       cfsWriter.addFile(file);
     }
     
     // Perform the merge
     cfsWriter.close();
    
-    return files;
+    return new ArrayList(fileSet);
   }
 
   private void addIndexed(IndexReader reader, FieldInfos fInfos,
@@ -571,11 +564,24 @@ final class SegmentMerger {
     final List<Fields> fields = new ArrayList<Fields>();
     final List<IndexReader> subReaders = new ArrayList<IndexReader>();
     final List<ReaderUtil.Slice> slices = new ArrayList<ReaderUtil.Slice>();
+    final List<Bits> bits = new ArrayList<Bits>();
+    final List<Integer> bitsStarts = new ArrayList<Integer>();
 
     final int numReaders = readers.size();
     for(int i=0;i<numReaders;i++) {
-      docBase = ReaderUtil.gatherSubFields(subReaders, fields, slices, readers.get(i), docBase);
+      docBase = new ReaderUtil.Gather(readers.get(i)) {
+          @Override
+          protected void add(int base, IndexReader r) throws IOException {
+            subReaders.add(r);
+            fields.add(r.fields());
+            slices.add(new ReaderUtil.Slice(base, r.maxDoc(), fields.size()-1));
+            bits.add(r.getDeletedDocs());
+            bitsStarts.add(base);
+          }
+        }.run(docBase);
     }
+
+    bitsStarts.add(docBase);
 
     // we may gather more readers than mergeState.readerCount
     mergeState = new MergeState();
@@ -592,7 +598,6 @@ final class SegmentMerger {
     docBase = 0;
     int inputDocBase = 0;
 
-    final Bits[] subBits = new Bits[mergeState.readerCount];
     final int[] starts = new int[mergeState.readerCount+1];
 
     for(int i=0;i<mergeState.readerCount;i++) {
@@ -600,7 +605,6 @@ final class SegmentMerger {
       final IndexReader reader = subReaders.get(i);
 
       starts[i] = inputDocBase;
-      subBits[i] = reader.getDeletedDocs();
 
       mergeState.delCounts[i] = reader.numDeletedDocs();
       mergeState.docBase[i] = docBase;
@@ -627,7 +631,10 @@ final class SegmentMerger {
 
     final FieldsConsumer consumer = codec.fieldsConsumer(segmentWriteState);
 
-    mergeState.multiDeletedDocs = new MultiBits(subBits, starts);
+    // nocommit: somewhat stupid that we create this only to
+    // have it broken apart when we step through the docs
+    // enums in MultidDcsEnum.... is there a cleaner way?
+    mergeState.multiDeletedDocs = new MultiBits(bits, bitsStarts);
     
     try {
       consumer.merge(mergeState,

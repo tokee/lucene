@@ -44,9 +44,6 @@ final class TermsHash extends InvertedDocConsumer {
   final int postingsFreeChunk;
   final DocumentsWriter docWriter;
   
-  //nocommit: did I lose code for this below in merge?
-  private TermsHash primaryTermsHash;
-
   private RawPostingList[] postingsFreeList = new RawPostingList[1];
   private int postingsFreeCount;
   private int postingsAllocCount;

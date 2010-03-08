@@ -18,7 +18,7 @@ package org.apache.lucene.index.codecs;
  */
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Set;
 
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.FieldInfos;
@@ -56,16 +56,14 @@ public abstract class Codec {
   /** Reads a segment.  NOTE: by the time this call
    *  returns, it must hold open any files it will need to
    *  use; else, those files may be deleted. */
-  // nocommit -- add a "required capabilities" here; this
-  // way merging could say only "TERMS_LINEAR_SCAN" but
-  // searching would say "TERMS_RANDOM_ACCESS"?
+  // nocommit -- make a SegmentReadState (symmetric)?
   public abstract FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException;
 
   /** Gathers files associated with this segment */
-  public abstract void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException;
+  public abstract void files(Directory dir, SegmentInfo segmentInfo, Set<String> files) throws IOException;
 
   /** Records all file extensions this codec uses */
-  public abstract void getExtensions(Collection<String> extensions);
+  public abstract void getExtensions(Set<String> extensions);
 
   /** @return Actual version of the file */
   public static int checkHeader(IndexInput in, String codec, int version) throws IOException {

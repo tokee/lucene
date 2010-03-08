@@ -39,7 +39,6 @@ import org.apache.lucene.index.codecs.Codecs;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.ReaderUtil;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.MultiBits;
 
 import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
 
@@ -355,6 +354,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
         buffer.append(' ');
       }
       buffer.append(subReaders[i]);
+      buffer.append(' ');
     }
     buffer.append(')');
     return buffer.toString();
@@ -363,7 +363,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
   private void initialize(SegmentReader[] subReaders) throws IOException {
     this.subReaders = subReaders;
     starts = new int[subReaders.length + 1];    // build starts array
-    Bits[] subs = new Bits[subReaders.length];
 
     final List<Fields> subFields = new ArrayList<Fields>();
     final List<ReaderUtil.Slice> fieldSlices = new ArrayList<ReaderUtil.Slice>();
@@ -374,7 +373,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
       if (subReaders[i].hasDeletions()) {
         hasDeletions = true;
-        subs[i] = subReaders[i].getDeletedDocs();
       }
 
       final ReaderUtil.Slice slice = new ReaderUtil.Slice(starts[i], subReaders[i].maxDoc(), i);
@@ -387,20 +385,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
       }
     }
     starts[subReaders.length] = maxDoc;
-
-    if (hasDeletions) {
-      deletedDocs = new MultiBits(subs, starts);
-    } else {
-      deletedDocs = null;
-    }
   }
-
-  private Bits deletedDocs;
 
   @Override
   public Bits getDeletedDocs() {
-    // nocommit -- maybe not supported?
-    return deletedDocs;
+    throw new UnsupportedOperationException("please use MultiFields.getDeletedDocs if you really need a top level Bits deletedDocs (NOTE that it's usually better to work per segment instead)");
   }
 
   @Override
@@ -725,7 +714,6 @@ class DirectoryReader extends IndexReader implements Cloneable {
   @Override
   public TermEnum terms() throws IOException {
     ensureOpen();
-    //nocommit: investigate this opto
     if (subReaders.length == 1) {
       // Optimize single segment case:
       return subReaders[0].terms();
@@ -788,11 +776,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   @Override
   public Fields fields() throws IOException {
-    if (subReaders.length == 0) {
-      return null;
-    } else {
-      throw new UnsupportedOperationException("please use MultiFields.getFields if you really need a top level Fields for this reader");
-    }
+    throw new UnsupportedOperationException("please use MultiFields.getFields if you really need a top level Fields (NOTE that it's usually better to work per segment instead)");
   }
 
   @Override
@@ -946,6 +930,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
     for (int i = 0; i < subReaders.length; i++) {
       subReaders[i].rollbackCommit();
     }
+  }
+
+  @Override
+  public long getUniqueTermCount() throws IOException {
+    throw new UnsupportedOperationException("");
   }
 
   @Override

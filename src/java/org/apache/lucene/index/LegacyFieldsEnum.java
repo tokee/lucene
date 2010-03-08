@@ -18,6 +18,7 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
+import java.util.Comparator;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
@@ -82,7 +83,7 @@ class LegacyFieldsEnum extends FieldsEnum {
     }
 
     @Override
-    public BytesRef.Comparator getComparator() {
+    public Comparator<BytesRef> getComparator() {
       // Pre-flex indexes always sorted in UTF16 order
       return BytesRef.getUTF8SortedAsUTF16Comparator();
     }
@@ -197,11 +198,11 @@ class LegacyFieldsEnum extends FieldsEnum {
       this.term = term;
       td.seek(term);
 
-      if (skipDocs != r.getDeletedDocs()) {
+      if (skipDocs != MultiFields.getDeletedDocs(r)) {
         // An external reader's TermDocs/Positions will
         // silently skip deleted docs, so, we can't allow
         // arbitrary skipDocs here:
-        throw new IllegalStateException("external IndexReader requires skipDocs == IndexReader.getDeletedDocs()");
+        throw new IllegalStateException("external IndexReader requires skipDocs == MultiFields.getDeletedDocs()");
       }
 
       return this;
@@ -256,11 +257,11 @@ class LegacyFieldsEnum extends FieldsEnum {
       this.term = term;
       tp.seek(term);
 
-      if (skipDocs != r.getDeletedDocs()) {
+      if (skipDocs != MultiFields.getDeletedDocs(r)) {
         // An external reader's TermDocs/Positions will
         // silently skip deleted docs, so, we can't allow
         // arbitrary skipDocs here:
-        throw new IllegalStateException("external IndexReader requires skipDocs == IndexReader.getDeletedDocs()");
+        throw new IllegalStateException("external IndexReader requires skipDocs == MultiFields.getDeletedDocs() skipDocs=" + skipDocs + " MultiFields.getDeletedDocs=" + MultiFields.getDeletedDocs(r) + " r=" + r);
       }
 
       return this;

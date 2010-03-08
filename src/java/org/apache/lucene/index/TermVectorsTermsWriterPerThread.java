@@ -17,11 +17,14 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
+import org.apache.lucene.util.BytesRef;
+
 final class TermVectorsTermsWriterPerThread extends TermsHashConsumerPerThread {
 
   final TermVectorsTermsWriter termsWriter;
   final TermsHashPerThread termsHashPerThread;
   final DocumentsWriter.DocState docState;
+  final BytesRef flushTerm = new BytesRef();
 
   TermVectorsTermsWriter.PerDoc doc;
 

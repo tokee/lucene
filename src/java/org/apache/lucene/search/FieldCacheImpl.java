@@ -283,7 +283,7 @@ class FieldCacheImpl implements FieldCache {
       Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docs = null;
         try {
           while(true) {
@@ -337,7 +337,7 @@ class FieldCacheImpl implements FieldCache {
       Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docs = null;
         try {
           while(true) {
@@ -396,7 +396,7 @@ class FieldCacheImpl implements FieldCache {
       Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docs = null;
         try {
           while(true) {
@@ -468,7 +468,7 @@ class FieldCacheImpl implements FieldCache {
       Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docs = null;
         try {
           while(true) {
@@ -536,7 +536,7 @@ class FieldCacheImpl implements FieldCache {
       Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docs = null;
         try {
           while(true) {
@@ -606,7 +606,7 @@ class FieldCacheImpl implements FieldCache {
       Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docs = null;
         try {
           while(true) {
@@ -658,7 +658,7 @@ class FieldCacheImpl implements FieldCache {
       Terms terms = MultiFields.getTerms(reader, field);
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docs = null;
         while(true) {
           final BytesRef term = termsEnum.next();
@@ -711,7 +711,7 @@ class FieldCacheImpl implements FieldCache {
 
       if (terms != null) {
         final TermsEnum termsEnum = terms.iterator();
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docs = null;
         while(true) {
           final BytesRef term = termsEnum.next();
@@ -762,30 +762,6 @@ class FieldCacheImpl implements FieldCache {
 
   public PrintStream getInfoStream() {
     return infoStream;
-  }
-  
-  // Directly parses a numeric value from UTF8 bytes
-  // nocommit -- whitespace?  +e syntax?
-  final static long parseLong(BytesRef term) {
-    int upto = term.offset;
-    final int negMul;
-    if (term.bytes[upto] == '-') {
-      negMul = -1;
-      upto++;
-    } else {
-      negMul = 1;
-    }
-    final int end = term.offset + term.length;
-    long number = 0;
-    while(upto < end) {
-      final int b = term.bytes[upto++];
-      if (b >= '0' && b <= '9') {
-        number = 10*number + (int) (b-'0');
-      } else {
-        throw new NumberFormatException("could not parse \"" + term.utf8ToString() + "\" to a number");
-      }
-    }
-    return negMul * number;
   }
 }
 

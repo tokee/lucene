@@ -18,7 +18,7 @@ package org.apache.lucene.index.codecs.sep;
  */
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Set;
 
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
@@ -125,18 +125,18 @@ public class SepCodec extends Codec {
   }
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) {
+  public void files(Directory dir, SegmentInfo segmentInfo, Set<String> files) {
     SepPostingsReaderImpl.files(segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override
-  public void getExtensions(Collection<String> extensions) {
+  public void getExtensions(Set<String> extensions) {
     getSepExtensions(extensions);
   }
 
-  public static void getSepExtensions(Collection<String> extensions) {
+  public static void getSepExtensions(Set<String> extensions) {
     extensions.add(DOC_EXTENSION);
     extensions.add(FREQ_EXTENSION);
     extensions.add(SKIP_EXTENSION);

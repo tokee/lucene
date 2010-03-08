@@ -144,8 +144,10 @@ public class SegmentTermDocs implements TermDocs {
         doc += docCode >>> 1;       // shift off low bit
         if ((docCode & 1) != 0)       // if low bit is set
           freq = 1;         // freq is one
-        else
+        else {
           freq = freqStream.readVInt();     // else read freq
+          assert freq != 1;
+        }
       }
       
       count++;

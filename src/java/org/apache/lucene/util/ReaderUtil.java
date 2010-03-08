@@ -22,7 +22,6 @@ import java.util.List;
 import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Fields;
 
 /**
  * Common util methods for dealing with {@link IndexReader}s.
@@ -54,35 +53,53 @@ public class ReaderUtil {
    * @param allSubReaders
    * @param reader
    */
-  public static void gatherSubReaders(List<IndexReader> allSubReaders, IndexReader reader) {
-    IndexReader[] subReaders = reader.getSequentialSubReaders();
-    if (subReaders == null) {
-      // Add the reader itself, and do not recurse
-      allSubReaders.add(reader);
-    } else {
-      for (int i = 0; i < subReaders.length; i++) {
-        gatherSubReaders(allSubReaders, subReaders[i]);
-      }
+
+  public static void gatherSubReaders(final List<IndexReader> allSubReaders, IndexReader reader) {
+    try {
+      new Gather(reader) {
+        @Override
+          protected void add(int base, IndexReader r) {
+          allSubReaders.add(r);
+        }
+      }.run();
+    } catch (IOException ioe) {
+      // won't happen
+      throw new RuntimeException(ioe);
     }
   }
 
-  public static int gatherSubFields(List<IndexReader> readers, List<Fields> fields, List<Slice> slices, IndexReader reader, int base) throws IOException {
-    IndexReader[] subReaders = reader.getSequentialSubReaders();
-    if (subReaders == null) {
-      // Add the reader's fields
-      if (readers != null) {
-        readers.add(reader);
-      }
-      fields.add(reader.fields());
-      slices.add(new Slice(base, reader.maxDoc(), fields.size()-1));
-      base += reader.maxDoc();
-    } else {
-      for (int i = 0; i < subReaders.length; i++) {
-        base = gatherSubFields(readers, fields, slices, subReaders[i], base);
-      }
+  public static abstract class Gather {
+    private final IndexReader topReader;
+
+    public Gather(IndexReader r) {
+      topReader = r;
     }
 
-    return base;
+    public int run() throws IOException {
+      return run(0, topReader);
+    }
+
+    public int run(int docBase) throws IOException {
+      return run(docBase, topReader);
+    }
+
+    private int run(int base, IndexReader reader) throws IOException {
+      IndexReader[] subReaders = reader.getSequentialSubReaders();
+      if (subReaders == null) {
+        // atomic reader
+        add(base, reader);
+        base += reader.maxDoc();
+      } else {
+        // composite reader
+        for (int i = 0; i < subReaders.length; i++) {
+          base = run(base, subReaders[i]);
+        }
+      }
+
+      return base;
+    }
+
+    protected abstract void add(int base, IndexReader r) throws IOException;
   }
 
   /**

@@ -20,6 +20,7 @@ package org.apache.lucene.index.codecs.standard;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Comparator;
 
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
@@ -60,11 +61,11 @@ public class StandardTermsDictWriter extends FieldsConsumer {
   FieldInfo currentField;
   private final StandardTermsIndexWriter indexWriter;
   private final List<TermsConsumer> fields = new ArrayList<TermsConsumer>();
-  private final BytesRef.Comparator termComp;
+  private final Comparator<BytesRef> termComp;
 
   private String segment;
 
-  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardPostingsWriter postingsWriter, BytesRef.Comparator termComp) throws IOException {
+  public StandardTermsDictWriter(StandardTermsIndexWriter indexWriter, SegmentWriteState state, StandardPostingsWriter postingsWriter, Comparator<BytesRef> termComp) throws IOException {
     final String termsFileName = IndexFileNames.segmentFileName(state.segmentName, StandardCodec.TERMS_EXTENSION);
     this.indexWriter = indexWriter;
     this.termComp = termComp;
@@ -165,7 +166,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     }
     
     @Override
-    public BytesRef.Comparator getComparator() {
+    public Comparator<BytesRef> getComparator() {
       return termComp;
     }
 
@@ -182,23 +183,23 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     @Override
     public void finishTerm(BytesRef text, int numDocs) throws IOException {
 
+      assert numDocs > 0;
+
       if (Codec.DEBUG) {
         Codec.debug("finishTerm seg=" + segment + " text=" + fieldInfo.name + ":" + text.utf8ToString() + " numDocs=" + numDocs + " numTerms=" + numTerms);
       }
 
-      if (numDocs > 0) {
-        final boolean isIndexTerm = fieldIndexWriter.checkIndexTerm(text, numDocs);
+      final boolean isIndexTerm = fieldIndexWriter.checkIndexTerm(text, numDocs);
 
-        if (Codec.DEBUG) {
-          Codec.debug("  tis.fp=" + out.getFilePointer() + " isIndexTerm?=" + isIndexTerm);
-          System.out.println("  term bytes=" + text.utf8ToString());
-        }
-        termWriter.write(text);
-        out.writeVInt(numDocs);
-
-        postingsWriter.finishTerm(numDocs, isIndexTerm);
-        numTerms++;
+      if (Codec.DEBUG) {
+        Codec.debug("  tis.fp=" + out.getFilePointer() + " isIndexTerm?=" + isIndexTerm);
+        System.out.println("  term bytes=" + text.utf8ToString());
       }
+      termWriter.write(text);
+      out.writeVInt(numDocs);
+
+      postingsWriter.finishTerm(numDocs, isIndexTerm);
+      numTerms++;
     }
 
     // Finishes all terms in this field

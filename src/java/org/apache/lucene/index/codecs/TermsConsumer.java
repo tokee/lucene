@@ -18,6 +18,7 @@ package org.apache.lucene.index.codecs;
  */
 
 import java.io.IOException;
+import java.util.Comparator;
 
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.MultiDocsEnum;
@@ -31,10 +32,12 @@ import org.apache.lucene.util.BytesRef;
 
 public abstract class TermsConsumer {
 
-  /** Starts a new term in this field. */
+  /** Starts a new term in this field; this may be called
+   *  with no corresponding call to finish if the term had
+   *  no docs. */
   public abstract PostingsConsumer startTerm(BytesRef text) throws IOException;
 
-  /** Finishes the current term */
+  /** Finishes the current term; numDocs must be > 0. */
   public abstract void finishTerm(BytesRef text, int numDocs) throws IOException;
 
   /** Called when we are done adding terms to this field */
@@ -42,7 +45,7 @@ public abstract class TermsConsumer {
 
   /** Return the BytesRef Comparator used to sort terms
    *  before feeding to this API. */
-  public abstract BytesRef.Comparator getComparator() throws IOException;
+  public abstract Comparator<BytesRef> getComparator() throws IOException;
 
   /** Default merge impl */
   private MappingMultiDocsEnum docsEnum = null;
@@ -51,6 +54,7 @@ public abstract class TermsConsumer {
   public void merge(MergeState mergeState, TermsEnum termsEnum) throws IOException {
 
     BytesRef term;
+    assert termsEnum != null;
 
     if (mergeState.fieldInfo.omitTermFreqAndPositions) {
       if (docsEnum == null) {
@@ -61,13 +65,14 @@ public abstract class TermsConsumer {
       MultiDocsEnum docsEnumIn = null;
 
       while((term = termsEnum.next()) != null) {
-        MultiDocsEnum docsEnumIn2 = (MultiDocsEnum) termsEnum.docs(mergeState.multiDeletedDocs, docsEnumIn);
-        if (docsEnumIn2 != null) {
-          docsEnumIn = docsEnumIn2;
+        docsEnumIn = (MultiDocsEnum) termsEnum.docs(mergeState.multiDeletedDocs, docsEnumIn);
+        if (docsEnumIn != null) {
           docsEnum.reset(docsEnumIn);
           final PostingsConsumer postingsConsumer = startTerm(term);
           final int numDocs = postingsConsumer.merge(mergeState, docsEnum);
-          finishTerm(term, numDocs);
+          if (numDocs > 0) {
+            finishTerm(term, numDocs);
+          }
         }
       }
     } else {
@@ -77,13 +82,14 @@ public abstract class TermsConsumer {
       postingsEnum.setMergeState(mergeState);
       MultiDocsAndPositionsEnum postingsEnumIn = null;
       while((term = termsEnum.next()) != null) {
-        MultiDocsAndPositionsEnum postingsEnumIn2 = (MultiDocsAndPositionsEnum) termsEnum.docsAndPositions(mergeState.multiDeletedDocs, postingsEnumIn);
-        if (postingsEnumIn2 != null) {
-          postingsEnumIn = postingsEnumIn2;
+        postingsEnumIn = (MultiDocsAndPositionsEnum) termsEnum.docsAndPositions(mergeState.multiDeletedDocs, postingsEnumIn);
+        if (postingsEnumIn != null) {
           postingsEnum.reset(postingsEnumIn);
           final PostingsConsumer postingsConsumer = startTerm(term);
           final int numDocs = postingsConsumer.merge(mergeState, postingsEnum);
-          finishTerm(term, numDocs);
+          if (numDocs > 0) {
+            finishTerm(term, numDocs);
+          }
         }
       }
     }

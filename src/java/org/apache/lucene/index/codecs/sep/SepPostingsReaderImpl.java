@@ -352,7 +352,7 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
         }
       }
 
-      // nocommit
+      // nocommit -- debugging
       if (Codec.DEBUG) {
         System.out.println("  return doc=" + doc);
       }
@@ -594,7 +594,7 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
         }
       }
 
-      // nocommit
+      // nocommit -- debugging
       if (Codec.DEBUG) {
         System.out.println("  return doc=" + doc);
       }

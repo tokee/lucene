@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import org.apache.lucene.util.ReaderUtil;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.util.MultiBits;
 
 /**
  * Exposes flex API, merged from flex API of sub-segments.
@@ -45,13 +45,24 @@ import org.apache.lucene.index.codecs.Codec;
 public final class MultiFields extends Fields {
   private final Fields[] subs;
   private final ReaderUtil.Slice[] subSlices;
-  private final Map<String,MultiTerms> terms = new HashMap<String,MultiTerms>();
+  private final Map<String,Terms> terms = new HashMap<String,Terms>();
 
+  /** Returns a single {@link Fields} instance for this
+   *  reader, merging fields/terms/docs/positions on the
+   *  fly.  This method will not return null.
+   *
+   *  <p><bNOTE</b>: this is a slow way to access postings.
+   *  It's better to get the sub-readers (using {@link
+   *  ReaderUtil#Gather}) and iterate through them
+   *  yourself. */
   public static Fields getFields(IndexReader r) throws IOException {
     final IndexReader[] subs = r.getSequentialSubReaders();
     if (subs == null) {
       // already an atomic reader
       return r.fields();
+    } else if (subs.length == 0) {
+      // no fields
+      return null;
     } else if (subs.length == 1) {
       return getFields(subs[0]);
     } else {
@@ -61,7 +72,14 @@ public final class MultiFields extends Fields {
       
         final List<Fields> fields = new ArrayList<Fields>();
         final List<ReaderUtil.Slice> slices = new ArrayList<ReaderUtil.Slice>();
-        ReaderUtil.gatherSubFields(null, fields, slices, r, 0);
+
+        new ReaderUtil.Gather(r) {
+          @Override
+          protected void add(int base, IndexReader r) throws IOException {
+            fields.add(r.fields());
+            slices.add(new ReaderUtil.Slice(base, r.maxDoc(), fields.size()-1));
+          }
+        }.run();
 
         if (fields.size() == 0) {
           return null;
@@ -77,65 +95,79 @@ public final class MultiFields extends Fields {
     }
   }
 
+  public static Bits getDeletedDocs(IndexReader r) throws IOException {
+    Bits result;
+    if (r.hasDeletions()) {
+
+      result = r.retrieveDelDocs();
+      if (result == null) {
+
+        final List<Bits> bits = new ArrayList<Bits>();
+        final List<Integer> starts = new ArrayList<Integer>();
+
+        final int maxDoc = new ReaderUtil.Gather(r) {
+          @Override
+          protected void add(int base, IndexReader r) throws IOException {
+            // record all delDocs, even if they are null
+            bits.add(r.getDeletedDocs());
+            starts.add(base);
+          }
+        }.run();
+        starts.add(maxDoc);
+
+        assert bits.size() > 0;
+        if (bits.size() == 1) {
+          // Only one actual sub reader -- optimize this case
+          result = bits.get(0);
+        } else {
+          result = new MultiBits(bits, starts);
+        }
+        r.storeDelDocs(result);
+      }
+    } else {
+      result = null;
+    }
+
+    return result;
+  }
+
+  /**  This method may return null if the field does not exist.*/
   public static Terms getTerms(IndexReader r, String field) throws IOException {
     final Fields fields = getFields(r);
-    if (fields != null) {
+    if (fields == null) {
+      return null;
+    } else {
       return fields.terms(field);
+    }
+  }
+
+  /** Returns {@link DocsEnum} for the specified field &
+   *  term.  This may return null if the term does not
+   *  exist. */
+  public static DocsEnum getTermDocsEnum(IndexReader r, Bits skipDocs, String field, BytesRef term) throws IOException {
+    assert field != null;
+    assert term != null;
+    final Terms terms = getTerms(r, field);
+    if (terms != null) {
+      return terms.docs(skipDocs, term, null);
     } else {
       return null;
     }
   }
 
-  /** Returns {@link DocsEnum} for the specified field &
-   *  term.  This may return null, for example if either the
-   *  field or term does not exist. */
-  public static DocsEnum getTermDocsEnum(IndexReader r, Bits skipDocs, String field, BytesRef term) throws IOException {
-
-    assert field != null;
-    assert term != null;
-    final Fields fields = getFields(r);
-    if (fields != null) {
-      final Terms terms = fields.terms(field);
-      if (terms != null) {
-        if (Codec.DEBUG) {
-          System.out.println("mf.termDocsEnum field=" + field + " term=" + term + " terms=" + terms);
-        }
-        final DocsEnum docs = terms.docs(skipDocs, term, null);
-        if (Codec.DEBUG) {
-          System.out.println("mf.termDocsEnum field=" + field + " docs=" +docs);
-        }
-        return docs;
-      }
-    }
-
-    return null;
-  }
-
   /** Returns {@link DocsAndPositionsEnum} for the specified
-   *  field & term.  This may return null, for example if
-   *  either the field or term does not exist. */
+   *  field & term.  This may return null if the term does
+   *  not exist or positions were not indexed. */
   public static DocsAndPositionsEnum getTermPositionsEnum(IndexReader r, Bits skipDocs, String field, BytesRef term) throws IOException {
     assert field != null;
     assert term != null;
-
-    final Fields fields = getFields(r);
-    if (fields != null) {
-      final Terms terms = fields.terms(field);
-      if (terms != null) {
-        if (Codec.DEBUG) {
-          System.out.println("mf.termPositionsEnum field=" + field + " term=" + term + " terms=" + terms);
-        }
-        final DocsAndPositionsEnum postings = terms.docsAndPositions(skipDocs, term, null);
-        if (Codec.DEBUG) {
-          System.out.println("mf.termPositionsEnum field=" + field + " postings=" +postings);
-        }
-        return postings;
-      }
+    final Terms terms = getTerms(r, field);
+    if (terms != null) {
+      return terms.docsAndPositions(skipDocs, term, null);
+    } else {
+      return null;
     }
-
-    return null;
   }
-
 
   public MultiFields(Fields[] subs, ReaderUtil.Slice[] subSlices) {
     this.subs = subs;
@@ -148,14 +180,11 @@ public final class MultiFields extends Fields {
     final List<FieldsEnum> fieldsEnums = new ArrayList<FieldsEnum>();
     final List<ReaderUtil.Slice> fieldsSlices = new ArrayList<ReaderUtil.Slice>();
     for(int i=0;i<subs.length;i++) {
-      final FieldsEnum subFieldsEnum = subs[i].iterator();
-      if (subFieldsEnum != null) {
-        fieldsEnums.add(subFieldsEnum);
-        fieldsSlices.add(subSlices[i]);
-      }
+      fieldsEnums.add(subs[i].iterator());
+      fieldsSlices.add(subSlices[i]);
     }
     if (fieldsEnums.size() == 0) {
-      return null;
+      return FieldsEnum.EMPTY;
     } else {
       return new MultiFieldsEnum(fieldsEnums.toArray(FieldsEnum.EMPTY_ARRAY),
                                  fieldsSlices.toArray(ReaderUtil.Slice.EMPTY_ARRAY));
@@ -165,7 +194,7 @@ public final class MultiFields extends Fields {
   @Override
   public Terms terms(String field) throws IOException {
 
-    final MultiTerms result;
+    final Terms result;
 
     if (!terms.containsKey(field)) {
 
@@ -176,15 +205,14 @@ public final class MultiFields extends Fields {
 
       // Gather all sub-readers that share this field
       for(int i=0;i<subs.length;i++) {
-        Terms subTerms = subs[i].terms(field);
-        if (subTerms != null) {
-          subs2.add(subTerms);
+        final Terms terms = subs[i].terms(field);
+        if (terms != null) {
+          subs2.add(terms);
           slices2.add(subSlices[i]);
         }
       }
       if (subs2.size() == 0) {
         result = null;
-        terms.put(field, null);
       } else {
         result = new MultiTerms(subs2.toArray(Terms.EMPTY_ARRAY),
                                 slices2.toArray(ReaderUtil.Slice.EMPTY_ARRAY));

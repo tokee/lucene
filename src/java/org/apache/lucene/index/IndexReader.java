@@ -21,7 +21,6 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.index.codecs.Codecs;
-import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
@@ -881,7 +880,8 @@ public abstract class IndexReader implements Cloneable,Closeable {
   public abstract TermEnum terms() throws IOException;
 
   /** Flex API: returns {@link Fields} for this reader.
-   *  This may return  null if there are no fields.
+   *  This method may return null if the reader has no
+   *  postings.
    *
    * <p><b>NOTE</b>: if this is a multi reader ({@link
    * #getSequentialSubReaders} is not null) then this
@@ -914,16 +914,20 @@ public abstract class IndexReader implements Cloneable,Closeable {
   public abstract int docFreq(Term t) throws IOException;
 
   /** Returns the number of documents containing the term
-   * <code>t</code>.  This method does not take into
-   * account deleted documents that have not yet been
-   * merged away. */
+   * <code>t</code>.  This method returns 0 if the term or
+   * field does not exists.  This method does not take into
+   * account deleted documents that have not yet been merged
+   * away. */
   public int docFreq(String field, BytesRef term) throws IOException {
-    final Terms terms = fields().terms(field);
-    if (terms != null) {
-      return terms.docFreq(term);
-    } else {
+    final Fields fields = fields();
+    if (fields == null) {
       return 0;
     }
+    final Terms terms = fields.terms(field);
+    if (terms == null) {
+      return 0;
+    }
+    return terms.docFreq(term);
   }
 
   /** Returns an enumeration of all the documents which contain
@@ -948,64 +952,50 @@ public abstract class IndexReader implements Cloneable,Closeable {
     return termDocs;
   }
 
+  /** This may return null if the field does not exist.*/
   public Terms terms(String field) throws IOException {
     final Fields fields = fields();
-    if (fields != null) {
-      return fields.terms(field);
+    if (fields == null) {
+      return null;
+    }
+    return fields.terms(field);
+  }
+
+  /** Returns {@link DocsEnum} for the specified field &
+   *  term.  This may return null, if either the field or
+   *  term does not exist. */
+  public DocsEnum termDocsEnum(Bits skipDocs, String field, BytesRef term) throws IOException {
+    assert field != null;
+    assert term != null;
+    final Fields fields = fields();
+    if (fields == null) {
+      return null;
+    }
+    final Terms terms = fields.terms(field);
+    if (terms != null) {
+      return terms.docs(skipDocs, term, null);
     } else {
       return null;
     }
   }
 
-  /** Returns {@link DocsEnum} for the specified field &
-   *  term.  This may return null, for example if either the
-   *  field or term does not exist. */
-  public DocsEnum termDocsEnum(Bits skipDocs, String field, BytesRef term) throws IOException {
-
-    assert field != null;
-    assert term != null;
-    final Fields fields = fields();
-    if (fields != null) {
-      final Terms terms = fields.terms(field);
-      if (terms != null) {
-        if (Codec.DEBUG) {
-          System.out.println("ir.termDocsEnum field=" + field + " term=" + term + " terms=" + terms + " this=" + this);
-        }
-        final DocsEnum docs = terms.docs(skipDocs, term, null);
-        if (Codec.DEBUG) {
-          System.out.println("ir.termDocsEnum field=" + field + " docs=" +docs);
-        }
-        return docs;
-      }
-    }
-
-    return null;
-  }
-
   /** Returns {@link DocsAndPositionsEnum} for the specified
-   *  field & term.  This may return null, for example if
-   *  either the field or term does not exist. */
+   *  field & term.  This may return null, if either the
+   *  field or term does not exist, or, positions were not
+   *  stored for this term. */
   public DocsAndPositionsEnum termPositionsEnum(Bits skipDocs, String field, BytesRef term) throws IOException {
-
     assert field != null;
     assert term != null;
-
     final Fields fields = fields();
-    if (fields != null) {
-      final Terms terms = fields.terms(field);
-      if (terms != null) {
-        if (Codec.DEBUG) {
-          System.out.println("ir.termPositionsEnum field=" + field + " term=" + term + " terms=" + terms + " this=" + this);
-        }
-        final DocsAndPositionsEnum postings = terms.docsAndPositions(skipDocs, term, null);
-        if (Codec.DEBUG) {
-          System.out.println("ir.termPositionsEnum field=" + field + " postings=" +postings);
-        }
-        return postings;
-      }
+    if (fields == null) {
+      return null;
     }
-
-    return null;
+    final Terms terms = fields.terms(field);
+    if (terms != null) {
+      return terms.docsAndPositions(skipDocs, term, null);
+    } else {
+      return null;
+    }
   }
 
   /** Returns an unpositioned {@link TermDocs} enumerator.
@@ -1230,12 +1220,14 @@ public abstract class IndexReader implements Cloneable,Closeable {
     }
   }
 
-  /**
-   * Returns the {@link Bits} representing deleted docs.  A
-   * set bit indicates the doc ID has been deleted.  This
-   * method should return null when there are no deleted
-   * docs. */
   private Bits deletedDocsBits;
+
+  /** Returns the {@link Bits} representing deleted docs.  A
+   *  set bit indicates the doc ID has been deleted.  This
+   *  method should return null when there are no deleted
+   *  docs.
+   *
+   * @lucene.experimental */
   public Bits getDeletedDocs() throws IOException {
     if (deletedDocsBits == null) {
       deletedDocsBits = new DeletedDocsBits();
@@ -1397,10 +1389,6 @@ public abstract class IndexReader implements Cloneable,Closeable {
   /** Returns the number of unique terms (across all fields)
    *  in this reader.
    *
-   *  This method returns long, even though internally
-   *  Lucene cannot handle more than 2^31 unique terms, for
-   *  a possible future when this limitation is removed.
-   *
    *  @throws UnsupportedOperationException if this count
    *  cannot be easily determined (eg Multi*Readers).
    *  Instead, you should call {@link
@@ -1408,13 +1396,17 @@ public abstract class IndexReader implements Cloneable,Closeable {
    *  its unique term count. */
   public long getUniqueTermCount() throws IOException {
     long numTerms = 0;
-    FieldsEnum it = fields().iterator();
+    final Fields fields = fields();
+    if (fields == null) {
+      return 0;
+    }
+    FieldsEnum it = fields.iterator();
     while(true) {
       String field = it.next();
       if (field == null) {
         break;
       }
-      numTerms += fields().terms(field).getUniqueTermCount();
+      numTerms += fields.terms(field).getUniqueTermCount();
     }
     return numTerms;
   }
@@ -1431,13 +1423,25 @@ public abstract class IndexReader implements Cloneable,Closeable {
 
   private Fields fields;
 
-  /** lucene.experimental */
-  public void storeFields(Fields fields) {
+  /** lucene.internal */
+  void storeFields(Fields fields) {
     this.fields = fields;
   }
 
-  /** lucene.experimental */
-  public Fields retrieveFields() {
+  /** lucene.internal */
+  Fields retrieveFields() {
     return fields;
+  }
+
+  private Bits storedDelDocs;
+
+  /** lucene.internal */
+  void storeDelDocs(Bits delDocs) {
+    this.storedDelDocs = delDocs;
+  }
+
+  /** lucene.internal */
+  Bits retrieveDelDocs() {
+    return storedDelDocs;
   }
 }

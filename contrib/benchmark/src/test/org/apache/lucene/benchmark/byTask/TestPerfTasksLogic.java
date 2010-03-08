@@ -478,7 +478,7 @@ public class TestPerfTasksLogic extends LuceneTestCase {
       TermsEnum terms = fields.terms();
       DocsEnum docs = null;
       while(terms.next() != null) {
-        docs = terms.docs(reader.getDeletedDocs(), docs);
+        docs = terms.docs(MultiFields.getDeletedDocs(reader), docs);
         while(docs.nextDoc() != docs.NO_MORE_DOCS) {
           totalTokenCount2 += docs.freq();
         }

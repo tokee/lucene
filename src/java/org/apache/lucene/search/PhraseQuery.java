@@ -154,21 +154,18 @@ public class PhraseQuery extends Query {
         return null;
 
       DocsAndPositionsEnum[] postings = new DocsAndPositionsEnum[terms.size()];
-      final Bits delDocs = reader.getDeletedDocs();
+      final Bits delDocs = MultiFields.getDeletedDocs(reader);
       for (int i = 0; i < terms.size(); i++) {
         final Term t = terms.get(i);
         final BytesRef text = new BytesRef(t.text());
-        // NOTE: debateably, the caller should never pass in a
-        // multi reader...
         DocsAndPositionsEnum postingsEnum = MultiFields.getTermPositionsEnum(reader,
                                                                              delDocs,
                                                                              t.field(),
                                                                              text);
+        // PhraseQuery on a field that did not index
+        // positions.
         if (postingsEnum == null) {
-          if (MultiFields.getTermDocsEnum(reader,
-                                          delDocs,
-                                          t.field(),
-                                          text) != null) {
+          if (MultiFields.getTermDocsEnum(reader, delDocs, t.field(), text) != null) {
             // term does exist, but has no positions
             throw new IllegalStateException("field \"" + t.field() + "\" was indexed with Field.omitTermFreqAndPositions=true; cannot run PhraseQuery (term=" + t.text() + ")");
           } else {

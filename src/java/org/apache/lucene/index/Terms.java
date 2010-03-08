@@ -18,6 +18,7 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
+import java.util.Comparator;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.CloseableThreadLocal;
@@ -29,21 +30,20 @@ import org.apache.lucene.util.CloseableThreadLocal;
 
 public abstract class Terms {
 
-  public final static Terms[] EMPTY_ARRAY = new Terms[0];
-
   // Privately cache a TermsEnum per-thread for looking up
   // docFreq and getting a private DocsEnum
   private final CloseableThreadLocal<TermsEnum> threadEnums = new CloseableThreadLocal<TermsEnum>();
 
-  /** Returns an iterator that will step through all terms */
+  /** Returns an iterator that will step through all
+   *  terms. This method will not return null.*/
   public abstract TermsEnum iterator() throws IOException;
   
   /** Return the BytesRef Comparator used to sort terms
-   *  provided by the iterator.  NOTE: this may return null
+   *  provided by the iterator.  This method may return null
    *  if there are no terms.  This method may be invoked
    *  many times; it's best to cache a single instance &
    *  reuse it. */
-  public abstract BytesRef.Comparator getComparator() throws IOException;
+  public abstract Comparator<BytesRef> getComparator() throws IOException;
 
   /** Returns the number of documents containing the
    *  specified term text.  Returns 0 if the term does not
@@ -57,9 +57,8 @@ public abstract class Terms {
     }
   }
 
-  // nocommit -- or maybe make a separate positions(...) method?
-  /** Get DocsEnum for the specified term.  Returns null if
-   *  the term does not exist. */
+  /** Get DocsEnum for the specified term.  This method may
+   *  return null if the term does not exist. */
   public DocsEnum docs(Bits skipDocs, BytesRef text, DocsEnum reuse) throws IOException {
     final TermsEnum termsEnum = getThreadTermsEnum();
     if (termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
@@ -69,8 +68,9 @@ public abstract class Terms {
     }
   }
 
-  /** Get DocsEnum for the specified term.  Returns null if
-   *  the term does not exist. */
+  /** Get DocsEnum for the specified term.  This method will
+   *  may return null if the term does not exists, or
+   *  positions were not indexed. */ 
   public DocsAndPositionsEnum docsAndPositions(Bits skipDocs, BytesRef text, DocsAndPositionsEnum reuse) throws IOException {
     final TermsEnum termsEnum = getThreadTermsEnum();
     if (termsEnum.seek(text) == TermsEnum.SeekStatus.FOUND) {
@@ -97,4 +97,5 @@ public abstract class Terms {
   protected void close() {
     threadEnums.close();
   }
+  public final static Terms[] EMPTY_ARRAY = new Terms[0];
 }

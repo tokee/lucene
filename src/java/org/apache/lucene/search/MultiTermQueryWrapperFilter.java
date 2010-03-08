@@ -21,10 +21,13 @@ import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.Fields;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermDocs;
 import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.OpenBitSet;
 import org.apache.lucene.util.Bits;
 
@@ -107,17 +110,31 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
   @Override
   public DocIdSet getDocIdSet(IndexReader reader) throws IOException {
     if (query.hasNewAPI) {
-      final TermsEnum termsEnum = query.getTermsEnum(reader);
-      if (termsEnum == null) {
-        return DocIdSet.EMPTY_DOCIDSET;// nocommit;
+      if (query.field == null) {
+        throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
       }
+
+      final Fields fields = MultiFields.getFields(reader);
+      if (fields == null) {
+        // reader has no fields
+        return DocIdSet.EMPTY_DOCIDSET;
+      }
+
+      final Terms terms = fields.terms(query.field);
+      if (terms == null) {
+        // field does not exist
+        return DocIdSet.EMPTY_DOCIDSET;
+      }
+
+      final TermsEnum termsEnum = query.getTermsEnum(reader);
+      assert termsEnum != null;
       if (termsEnum.next() != null) {
         // fill into a OpenBitSet
         final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());
         final int[] docs = new int[32];
         final int[] freqs = new int[32];
         int termCount = 0;
-        final Bits delDocs = reader.getDeletedDocs();
+        final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docsEnum = null;
         do {
           termCount++;

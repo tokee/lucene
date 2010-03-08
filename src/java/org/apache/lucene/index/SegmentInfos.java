@@ -384,9 +384,9 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
   public Object clone() {
     SegmentInfos sis = (SegmentInfos) super.clone();
     for(int i=0;i<sis.size();i++) {
-      // nocommit
-      assert sis.info(i).getCodec() != null;
-      sis.set(i, (SegmentInfo) sis.info(i).clone());
+      final SegmentInfo info = sis.info(i);
+      assert info.getCodec() != null;
+      sis.set(i, (SegmentInfo) info.clone());
     }
     sis.userData = new HashMap<String,String>(userData);
     return sis;

@@ -19,6 +19,7 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Comparator;
 
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.document.Fieldable;
@@ -52,12 +53,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   private RawPostingList[] postingsHash = new RawPostingList[postingsHashSize];
   private RawPostingList p;
   private final BytesRef utf8;
-  private BytesRef.Comparator termComp;
-
-  // nocommit -- move to thread level
-  // Used when comparing postings via termRefComp
-  private final BytesRef tr1 = new BytesRef();
-  private final BytesRef tr2 = new BytesRef();
+  private Comparator<BytesRef> termComp;
 
   public TermsHashPerField(DocInverterPerField docInverterPerField, final TermsHashPerThread perThread, final TermsHashPerThread nextPerThread, final FieldInfo fieldInfo) {
     this.perThread = perThread;
@@ -67,9 +63,6 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
     docState = perThread.docState;
     fieldState = docInverterPerField.fieldState;
     this.consumer = perThread.consumer.addField(this, fieldInfo);
-
-    tr1.length = 3*((int) (Short.MAX_VALUE));
-    tr2.length = 3*((int) (Short.MAX_VALUE));
 
     streamCount = consumer.getStreamCount();
     numPostingInt = 2*streamCount;
@@ -146,7 +139,7 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   }
 
   /** Collapse the hash table & sort in-place. */
-  public RawPostingList[] sortPostings(BytesRef.Comparator termComp) {
+  public RawPostingList[] sortPostings(Comparator<BytesRef> termComp) {
     this.termComp = termComp;
     compactPostings();
     quickSort(postingsHash, 0, numPostings-1);
@@ -219,14 +212,14 @@ final class TermsHashPerField extends InvertedDocConsumerPerField {
   int comparePostings(RawPostingList p1, RawPostingList p2) {
 
     if (p1 == p2) {
-      // nocommit -- why does this happen again?
+      // Our quicksort does this, eg during partition
       return 0;
     }
 
-    termBytePool.setBytesRef(tr1, p1.textStart);
-    termBytePool.setBytesRef(tr2, p2.textStart);
+    termBytePool.setBytesRef(perThread.tr1, p1.textStart);
+    termBytePool.setBytesRef(perThread.tr2, p2.textStart);
 
-    return termComp.compare(tr1, tr2);
+    return termComp.compare(perThread.tr1, perThread.tr2);
   }
 
   /** Test whether the text for current RawPostingList p equals

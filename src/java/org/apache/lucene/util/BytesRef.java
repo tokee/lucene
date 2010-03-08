@@ -17,6 +17,7 @@ package org.apache.lucene.util;
  * limitations under the License.
  */
 
+import java.util.Comparator;
 import java.io.UnsupportedEncodingException;
 
 /** Represents byte[], as a slice (offset + length) into an
@@ -65,16 +66,15 @@ public final class BytesRef {
    * Copies the UTF8 bytes for this string.
    * 
    * @param text Must be well-formed unicode text, with no
-   * unpaired surrogates or U+FFFF.
+   * unpaired surrogates or invalid UTF16 code units.
    */
   public void copy(CharSequence text) {
-    // nocommit -- remove this paranoia
-    assert UnicodeUtil.validUTF16String(text);
     // nocommit -- new byte[10] is waste of resources,
     // it should simply allocate text.length()*4 like UnicodeUtil.
     // Ideally, I would remove this here and add a null-check in UnicodeUtil. (Uwe)
-    if (bytes == null)
+    if (bytes == null) {
       bytes = new byte[10];
+    }
     UnicodeUtil.UTF16toUTF8(text, 0, text.length(), this);
   }
 
@@ -99,8 +99,7 @@ public final class BytesRef {
     return new BytesRef(this);
   }
 
-  public boolean startsWith(BytesRef other, int pos) {
-    // nocommit: maybe this one shouldn't be public...
+  private boolean sliceEquals(BytesRef other, int pos) {
     if (pos < 0 || length - pos < other.length) {
       return false;
     }
@@ -108,19 +107,21 @@ public final class BytesRef {
     int j = other.offset;
     final int k = other.offset + other.length;
     
-    while (j < k)
-      if (bytes[i++] != other.bytes[j++])
+    while (j < k) {
+      if (bytes[i++] != other.bytes[j++]) {
         return false;
+      }
+    }
     
     return true;
   }
   
   public boolean startsWith(BytesRef other) {
-    return startsWith(other, 0);
+    return sliceEquals(other, 0);
   }
 
   public boolean endsWith(BytesRef other) {
-    return startsWith(other, length - other.length);
+    return sliceEquals(other, length - other.length);
   }
   
   @Override
@@ -139,15 +140,6 @@ public final class BytesRef {
     return this.bytesEquals((BytesRef) other);
   }
 
-  // nocommit -- catch statically all places where this is
-  // being incorrectly called & switch to utf8ToString
-  public String toString() {
-    // nocommit -- do this, to fix all places using
-    // toString, to use utf8ToString instead:
-    throw new RuntimeException();
-    //return utf8ToString();
-  }
-
   /** Interprets stored bytes as UTF8 bytes, returning the
    *  resulting string */
   public String utf8ToString() {
@@ -160,7 +152,8 @@ public final class BytesRef {
     }
   }
 
-  public String toBytesString() {
+  /** Returns hex encoded bytes, eg [0x6c 0x75 0x63 0x65 0x6e 0x65] */
+  public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append('[');
     final int end = offset + length;
@@ -169,25 +162,6 @@ public final class BytesRef {
         sb.append(' ');
       }
       sb.append(Integer.toHexString(bytes[i]&0xff));
-    }
-    sb.append(']');
-    return sb.toString();
-  }
-
-  private final String asUnicodeChar(char c) {
-    return "U+" + Integer.toHexString(c);
-  }
-
-  // for debugging only -- this is slow
-  public String toUnicodeString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append('[');
-    final String s = toString();
-    for(int i=0;i<s.length();i++) {
-      if (i > 0) {
-        sb.append(' ');
-      }
-      sb.append(asUnicodeChar(s.charAt(i)));
     }
     sb.append(']');
     return sb.toString();
@@ -208,17 +182,16 @@ public final class BytesRef {
     bytes = ArrayUtil.grow(bytes, newLength);
   }
 
-  public abstract static class Comparator {
-    abstract public int compare(BytesRef a, BytesRef b);
-  }
+  private final static Comparator<BytesRef> utf8SortedAsUTF16SortOrder = new UTF8SortedAsUTF16Comparator();
 
-  private final static Comparator utf8SortedAsUTF16SortOrder = new UTF8SortedAsUTF16Comparator();
-
-  public static Comparator getUTF8SortedAsUTF16Comparator() {
+  public static Comparator<BytesRef> getUTF8SortedAsUTF16Comparator() {
     return utf8SortedAsUTF16SortOrder;
   }
 
-  public static class UTF8SortedAsUTF16Comparator extends Comparator {
+  public static class UTF8SortedAsUTF16Comparator implements Comparator<BytesRef> {
+    // Only singleton
+    private UTF8SortedAsUTF16Comparator() {};
+
     public int compare(BytesRef a, BytesRef b) {
 
       final byte[] aBytes = a.bytes;
@@ -258,6 +231,10 @@ public final class BytesRef {
 
       // One is a prefix of the other, or, they are equal:
       return a.length - b.length;
+    }
+
+    public boolean equals(Object other) {
+      return this == other;
     }
   }
 }

@@ -26,6 +26,8 @@ import org.apache.lucene.index.codecs.Codecs;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -90,8 +92,6 @@ public final class SegmentInfo {
 
   private boolean hasProx;                        // True if this segment has any fields with omitTermFreqAndPositions==false
   
-  // nocommit: unread field
-  private boolean flexPostings;                   // True if postings were written with new flex format
   private Codec codec;
 
 
@@ -110,17 +110,9 @@ public final class SegmentInfo {
     docStoreIsCompoundFile = false;
     delCount = 0;
     hasProx = true;
-    flexPostings = true;
     this.codec = codec;
   }
 
-  // nocommit -- this ctor is only used by back-compat tests
-  public SegmentInfo(String name, int docCount, Directory dir, boolean isCompoundFile, boolean hasSingleNormFile) { 
-    this(name, docCount, dir, isCompoundFile, hasSingleNormFile, -1, null, false, true, null);
-    SegmentWriteState state = new SegmentWriteState(null, dir, name, null, null, docCount, docCount, -1, Codecs.getDefault());
-    codec = state.codec = Codecs.getDefault().getWriter(state);
-  }
-  
   public SegmentInfo(String name, int docCount, Directory dir, boolean isCompoundFile, boolean hasSingleNormFile, 
                      int docStoreOffset, String docStoreSegment, boolean docStoreIsCompoundFile, boolean hasProx,
                      Codec codec) { 
@@ -602,7 +594,7 @@ public final class SegmentInfo {
     return codec;
   }
 
-  private void addIfExists(List<String> files, String fileName) throws IOException {
+  private void addIfExists(Set<String> files, String fileName) throws IOException {
     if (dir.fileExists(fileName))
       files.add(fileName);
   }
@@ -620,19 +612,17 @@ public final class SegmentInfo {
       return files;
     }
     
-    files = new ArrayList<String>();
+    Set fileSet = new HashSet<String>();
     
     boolean useCompoundFile = getUseCompoundFile();
 
     if (useCompoundFile) {
-      files.add(IndexFileNames.segmentFileName(name, IndexFileNames.COMPOUND_FILE_EXTENSION));
+      fileSet.add(IndexFileNames.segmentFileName(name, IndexFileNames.COMPOUND_FILE_EXTENSION));
     } else {
-      final String[] exts = IndexFileNames.NON_STORE_INDEX_EXTENSIONS;
       for(String ext : IndexFileNames.NON_STORE_INDEX_EXTENSIONS) {
-        addIfExists(files, IndexFileNames.segmentFileName(name, ext));
+        addIfExists(fileSet, IndexFileNames.segmentFileName(name, ext));
       }
-      // nocommit -- only does ifExists on prx for standard codec
-      codec.files(dir, this, files);
+      codec.files(dir, this, fileSet);
     }
 
     if (docStoreOffset != -1) {
@@ -640,19 +630,19 @@ public final class SegmentInfo {
       // vectors) with other segments
       assert docStoreSegment != null;
       if (docStoreIsCompoundFile) {
-        files.add(IndexFileNames.segmentFileName(docStoreSegment, IndexFileNames.COMPOUND_FILE_STORE_EXTENSION));
+        fileSet.add(IndexFileNames.segmentFileName(docStoreSegment, IndexFileNames.COMPOUND_FILE_STORE_EXTENSION));
       } else {
         for (String ext : IndexFileNames.STORE_INDEX_EXTENSIONS)
-          addIfExists(files, IndexFileNames.segmentFileName(docStoreSegment, ext));
+          addIfExists(fileSet, IndexFileNames.segmentFileName(docStoreSegment, ext));
       }
     } else if (!useCompoundFile) {
       for (String ext : IndexFileNames.STORE_INDEX_EXTENSIONS)
-        addIfExists(files, IndexFileNames.segmentFileName(name, ext));
+        addIfExists(fileSet, IndexFileNames.segmentFileName(name, ext));
     }
 
     String delFileName = IndexFileNames.fileNameFromGeneration(name, IndexFileNames.DELETES_EXTENSION, delGen);
     if (delFileName != null && (delGen >= YES || dir.fileExists(delFileName))) {
-      files.add(delFileName);
+      fileSet.add(delFileName);
     }
 
     // Careful logic for norms files    
@@ -661,14 +651,14 @@ public final class SegmentInfo {
         long gen = normGen[i];
         if (gen >= YES) {
           // Definitely a separate norm file, with generation:
-          files.add(IndexFileNames.fileNameFromGeneration(name, IndexFileNames.SEPARATE_NORMS_EXTENSION + i, gen));
+          fileSet.add(IndexFileNames.fileNameFromGeneration(name, IndexFileNames.SEPARATE_NORMS_EXTENSION + i, gen));
         } else if (NO == gen) {
           // No separate norms but maybe plain norms
           // in the non compound file case:
           if (!hasSingleNormFile && !useCompoundFile) {
             String fileName = IndexFileNames.segmentFileName(name, IndexFileNames.PLAIN_NORMS_EXTENSION + i);
             if (dir.fileExists(fileName)) {
-              files.add(fileName);
+              fileSet.add(fileName);
             }
           }
         } else if (CHECK_DIR == gen) {
@@ -680,7 +670,7 @@ public final class SegmentInfo {
             fileName = IndexFileNames.segmentFileName(name, IndexFileNames.PLAIN_NORMS_EXTENSION + i);
           }
           if (fileName != null && dir.fileExists(fileName)) {
-            files.add(fileName);
+            fileSet.add(fileName);
           }
         }
       }
@@ -699,10 +689,13 @@ public final class SegmentInfo {
       for(int i=0;i<allFiles.length;i++) {
         String fileName = allFiles[i];
         if (fileName.matches(pattern)) {
-          files.add(fileName);
+          fileSet.add(fileName);
         }
       }
     }
+
+    files = new ArrayList(fileSet);
+
     return files;
   }
 

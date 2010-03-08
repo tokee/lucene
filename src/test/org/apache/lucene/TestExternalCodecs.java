@@ -37,8 +37,7 @@ public class TestExternalCodecs extends LuceneTestCase {
   // For fun, test that we can override how terms are
   // sorted, and basic things still work -- this comparator
   // sorts in reversed unicode code point order:
-  private static final BytesRef.Comparator reverseUnicodeComparator = new BytesRef.Comparator() {
-      @Override
+  private static final Comparator<BytesRef> reverseUnicodeComparator = new Comparator<BytesRef>() {
       public int compare(BytesRef t1, BytesRef t2) {
         byte[] b1 = t1.bytes;
         byte[] b2 = t2.bytes;
@@ -61,6 +60,10 @@ public class TestExternalCodecs extends LuceneTestCase {
 
         // One is prefix of another, or they are equal
         return t2.length-t1.length;
+      }
+
+      public boolean equals(Object other) {
+        return this == other;
       }
     };
 
@@ -110,7 +113,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public BytesRef.Comparator getComparator() {
+      public Comparator<BytesRef> getComparator() {
         return reverseUnicodeComparator;
       }
     }
@@ -175,17 +178,15 @@ public class TestExternalCodecs extends LuceneTestCase {
 
       
       @Override
-      public BytesRef.Comparator getComparator() {
+      public Comparator<BytesRef> getComparator() {
         return BytesRef.getUTF8SortedAsUTF16Comparator();
       }
 
       @Override
       public void finishTerm(BytesRef text, int numDocs) {
-        // nocommit -- are we even called when numDocs == 0?
-        if (numDocs > 0) {
-          assert numDocs == current.docs.size();
-          field.termToDocs.put(current.term, current);
-        }
+        assert numDocs > 0;
+        assert numDocs == current.docs.size();
+        field.termToDocs.put(current.term, current);
       }
 
       @Override
@@ -203,7 +204,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
 
       @Override
-      public void addDoc(int docID, int freq) {
+      public void startDoc(int docID, int freq) {
         current = new RAMDoc(docID, freq);
         term.docs.add(current);
         posUpto = 0;
@@ -261,7 +262,7 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
       
       @Override
-      public BytesRef.Comparator getComparator() {
+      public Comparator<BytesRef> getComparator() {
         return BytesRef.getUTF8SortedAsUTF16Comparator();
       }
 
@@ -285,10 +286,10 @@ public class TestExternalCodecs extends LuceneTestCase {
       @Override
       public SeekStatus seek(BytesRef term) {
         current = term.utf8ToString();
+        it = null;
         if (ramField.termToDocs.containsKey(current)) {
           return SeekStatus.FOUND;
         } else {
-          // nocommit -- right?
           if (current.compareTo(ramField.termToDocs.lastKey()) > 0) {
             return SeekStatus.END;
           } else {
@@ -465,11 +466,11 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
 
     @Override
-    public void getExtensions(Collection extensions) {
+    public void getExtensions(Set<String> extensions) {
     }
 
     @Override
-    public void files(Directory dir, SegmentInfo segmentInfo, Collection files) {
+    public void files(Directory dir, SegmentInfo segmentInfo, Set<String> files) {
     }
   }
 
@@ -477,6 +478,7 @@ public class TestExternalCodecs extends LuceneTestCase {
    *  You must ensure every field you index has a Codec, or
    *  the defaultCodec is non null.  Also, the separate
    *  codecs cannot conflict on file names.*/
+  // nocommit -- promote to core
   public static class PerFieldCodecWrapper extends Codec {
     private final Map<String,Codec> fields = new HashMap<String,Codec>();
     private final Codec defaultCodec;
@@ -523,16 +525,26 @@ public class TestExternalCodecs extends LuceneTestCase {
           fields = codec.fieldsConsumer(state);
           codecs.put(codec, fields);
         }
-        //System.out.println("field " + field.name + " -> codec " + codec);
         return fields.addField(field);
       }
 
       @Override
       public void close() throws IOException {
         Iterator<FieldsConsumer> it = codecs.values().iterator();
+        IOException err = null;
         while(it.hasNext()) {
-          // nocommit -- catch exc and keep closing the rest?
-          it.next().close();
+          try {
+            it.next().close();
+          } catch (IOException ioe) {
+            // keep first IOException we hit but keep
+            // closing the rest
+            if (err == null) {
+              err = ioe;
+            }
+          }
+        }
+        if (err != null) {
+          throw err;
         }
       }
     }
@@ -606,9 +618,20 @@ public class TestExternalCodecs extends LuceneTestCase {
       @Override
       public void close() throws IOException {
         Iterator<FieldsProducer> it = codecs.values().iterator();
+        IOException err = null;
         while(it.hasNext()) {
-          // nocommit -- catch exc and keep closing the rest?
-          it.next().close();
+          try {
+            it.next().close();
+          } catch (IOException ioe) {
+            // keep first IOException we hit but keep
+            // closing the rest
+            if (err == null) {
+              err = ioe;
+            }
+          }
+        }
+        if (err != null) {
+          throw err;
         }
       }
 
@@ -616,7 +639,6 @@ public class TestExternalCodecs extends LuceneTestCase {
       public void loadTermsIndex(int indexDivisor) throws IOException {
         Iterator<FieldsProducer> it = codecs.values().iterator();
         while(it.hasNext()) {
-          // nocommit -- catch exc and keep closing the rest?
           it.next().loadTermsIndex(indexDivisor);
         }
       }
@@ -630,7 +652,7 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
 
     @Override
-    public void files(Directory dir, SegmentInfo info, Collection<String> files) throws IOException {
+    public void files(Directory dir, SegmentInfo info, Set<String> files) throws IOException {
       Iterator<Codec> it = fields.values().iterator();
       Set<Codec> seen = new HashSet<Codec>();
       while(it.hasNext()) {
@@ -643,7 +665,7 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
 
     @Override
-    public void getExtensions(Collection<String> extensions) {
+    public void getExtensions(Set<String> extensions) {
       Iterator<Codec> it = fields.values().iterator();
       while(it.hasNext()) {
         final Codec codec = it.next();
@@ -762,14 +784,14 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
 
     @Override
-    public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
+    public void files(Directory dir, SegmentInfo segmentInfo, Set<String> files) throws IOException {
       StandardPostingsReaderImpl.files(dir, segmentInfo, files);
       StandardTermsDictReader.files(dir, segmentInfo, files);
       SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
     }
 
     @Override
-    public void getExtensions(Collection<String> extensions) {
+    public void getExtensions(Set<String> extensions) {
       StandardCodec.getStandardExtensions(extensions);
     }
   }

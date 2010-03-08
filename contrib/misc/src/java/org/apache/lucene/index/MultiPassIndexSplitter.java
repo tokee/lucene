@@ -202,6 +202,8 @@ public class MultiPassIndexSplitter {
       if (oldDels != null) {
         dels.or(oldDels);
       }
+      // nocommit -- not good that this class has to do this...
+      storeDelDocs(null);
     }
 
     @Override

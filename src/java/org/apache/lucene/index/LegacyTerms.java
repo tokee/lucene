@@ -18,6 +18,7 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
+import java.util.Comparator;
 
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.BytesRef;
@@ -41,7 +42,7 @@ class LegacyTerms extends Terms {
   }
 
   @Override
-  public BytesRef.Comparator getComparator() {
+  public Comparator<BytesRef> getComparator() {
     // Pre-flex indexes always sorted in UTF16 order
     return BytesRef.getUTF8SortedAsUTF16Comparator();
   }

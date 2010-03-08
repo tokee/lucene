@@ -57,7 +57,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   private SegmentInfo si;
   private int readBufferSize;
-  boolean isPreFlex;
 
   CloseableThreadLocal<FieldsReader> fieldsReaderLocal = new FieldsReaderLocal();
   CloseableThreadLocal<TermVectorsReader> termVectorsLocal = new CloseableThreadLocal<TermVectorsReader>();
@@ -835,7 +834,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   @Override
   public TermEnum terms() throws IOException {
     ensureOpen();
-    if (isPreFlex) {
+    if (core.isPreFlex) {
       // For old API on an old segment, instead of
       // converting old API -> new API -> old API, just give
       // direct access to old:
@@ -852,7 +851,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   @Override
   public TermEnum terms(Term t) throws IOException {
     ensureOpen();
-    if (isPreFlex) {
+    if (core.isPreFlex) {
       // For old API on an old segment, instead of
       // converting old API -> new API -> old API, just give
       // direct access to old:
@@ -901,7 +900,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   @Override
   public TermDocs termDocs() throws IOException {
     ensureOpen();
-    if (isPreFlex) {
+    if (core.isPreFlex) {
       // For old API on an old segment, instead of
       // converting old API -> new API -> old API, just give
       // direct access to old:
@@ -921,7 +920,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   @Override
   public TermPositions termPositions() throws IOException {
     ensureOpen();
-    if (isPreFlex) {
+    if (core.isPreFlex) {
       // For old API on an old segment, instead of
       // converting old API -> new API -> old API, just give
       // direct access to old:
@@ -1300,19 +1299,11 @@ public class SegmentReader extends IndexReader implements Cloneable {
   // This is necessary so that cloned SegmentReaders (which
   // share the underlying postings data) will map to the
   // same entry in the FieldCache.  See LUCENE-1579.
-  // nocommit - what to return here?
   @Override
   public final Object getFieldCacheKey() {
     return core;
   }
   
-  // nocommit: missing?
-  //@Override
-  //public long getUniqueTermCount() {
-  //  return core.getTermsReader().size();
-  //}
-
-
   /**
    * Lotsa tests did hacks like:<br/>
    * SegmentReader reader = (SegmentReader) IndexReader.open(dir);<br/>
@@ -1363,9 +1354,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
       } else if (t != null) {
         // Pre-seek to this term
 
-        // nocommit -- inefficient; do we need
-        // FieldsEnum.seek? (but this is slow only for
-        // legacy API, and, when field count is high)
         while(currentField.compareTo(t.field) < 0) {
           currentField = fields.next();
           if (currentField == null) {
@@ -1379,7 +1367,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
           // We found some field -- get its terms:
           terms = fields.terms();
 
-          // nocommit: confirm inlining is working!
           if (currentField == t.field) {
             // We found exactly the requested field; now
             // seek the term text:
@@ -1486,7 +1473,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
     public void close() {}
 
     public void seek(TermEnum termEnum) throws IOException {
-      // nocommit -- optimize for the special cases here
       seek(termEnum.term());
     }
 
@@ -1590,7 +1576,6 @@ public class SegmentReader extends IndexReader implements Cloneable {
     public void close() {}
 
     public void seek(TermEnum termEnum) throws IOException {
-      // nocommit -- optimize for the special cases here
       seek(termEnum.term());
     }
 

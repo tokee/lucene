@@ -25,7 +25,6 @@ import java.util.*;
 
 public class FlexTestUtil {
 
-  // nocommit:
   // index variations
   //   need del docs
   //   need payloads
@@ -73,8 +72,7 @@ public class FlexTestUtil {
   public static void verifyFlexVsPreFlex(Random rand, IndexReader r) throws Exception {
     // First test on DirReader
 
-    // nocommit turn back on
-    // verifyFlexVsPreFlexSingle(rand, r);
+    verifyFlexVsPreFlexSingle(rand, r);
 
     // Then on each individual sub reader
     IndexReader[] subReaders = r.getSequentialSubReaders();
@@ -86,24 +84,18 @@ public class FlexTestUtil {
     }
 
     // Then on a new MultiReader
-    // nocommit -- back on:
-    if (false) {
-      IndexReader m = new MultiReader(subReaders, false);
-      verifyFlexVsPreFlexSingle(rand, m);
-      m.close();
-    }
+    IndexReader m = new MultiReader(subReaders, false);
+    verifyFlexVsPreFlexSingle(rand, m);
+    m.close();
 
     // Then on a forced-external reader (forced flex to
     // emulate API on pre-flex API, which in turn is
     // emulating pre-flex on flex -- twisted, but, better
     // work):
-    // nocommit back on
-    if (false) {
-      verifyFlexVsPreFlexSingle(rand, new ForcedExternalReader(r));
-      IndexReader m = new MultiReader(forcedSubReaders, false);
-      verifyFlexVsPreFlexSingle(rand, m);
-      m.close();
-    }
+    verifyFlexVsPreFlexSingle(rand, new ForcedExternalReader(r));
+    m = new MultiReader(forcedSubReaders, false);
+    verifyFlexVsPreFlexSingle(rand, m);
+    m.close();
   }
 
   private static void verifyFlexVsPreFlexSingle(Random rand, IndexReader r) throws Exception {
@@ -119,9 +111,13 @@ public class FlexTestUtil {
 
     // straight enum of fields/terms/docs/positions
     TermEnum termEnum = r.terms();
-    FieldsEnum fields = r.fields().iterator();
+    final Fields fields = MultiFields.getFields(r);
+    if (fields == null) {
+      return;
+    }
+    FieldsEnum fieldsEnum = fields.iterator();
     while(true) {
-      final String field = fields.next();
+      final String field = fieldsEnum.next();
       if (field == null) {
         boolean result = termEnum.next();
         if (result) {
@@ -130,7 +126,7 @@ public class FlexTestUtil {
         assertFalse(result);
         break;
       }
-      TermsEnum terms = fields.terms();
+      TermsEnum terms = fieldsEnum.terms();
       DocsAndPositionsEnum postings = null;
       DocsEnum docsEnum = null;
       final TermPositions termPos = r.termPositions();
@@ -146,8 +142,8 @@ public class FlexTestUtil {
           assertEquals(termEnum.docFreq(), terms.docFreq());
           //allTerms.add(t);
 
-          postings = terms.docsAndPositions(r.getDeletedDocs(), postings);
-          docsEnum = terms.docs(r.getDeletedDocs(), docsEnum);
+          postings = terms.docsAndPositions(MultiFields.getDeletedDocs(r), postings);
+          docsEnum = terms.docs(MultiFields.getDeletedDocs(r), docsEnum);
 
           final DocsEnum docs;
           if (postings != null) {
@@ -166,16 +162,18 @@ public class FlexTestUtil {
               assertTrue(termPos.next());
               assertEquals(termPos.doc(), doc);
               assertEquals(termPos.freq(), docs.freq());
-              //System.out.println("TEST:     doc=" + doc + " freq=" + docs.freq());
               final int freq = docs.freq();
               if (postings == null) {
                 assertEquals(1, freq);
-                assertEquals(0, termPos.nextPosition());
+                // Old API did not always do this,
+                // specifically in the MultiTermPositions
+                // case when some segs omit positions and
+                // some don't
+                //assertEquals(0, termPos.nextPosition());
                 assertEquals(false, termPos.isPayloadAvailable());
               } else {
                 for(int i=0;i<freq;i++) {
                   final int position = postings.nextPosition();
-                  //System.out.println("TEST:       pos=" + position);
                   assertEquals(position, termPos.nextPosition());
                   assertEquals(postings.hasPayload(), termPos.isPayloadAvailable());
                   if (postings.hasPayload()) {
@@ -198,15 +196,18 @@ public class FlexTestUtil {
   private static void testRandomSkips(Random rand, IndexReader r) throws Exception {
 
     TermEnum termEnum = r.terms();
-    FieldsEnum fields = r.fields().iterator();
+    Fields fields = MultiFields.getFields(r);
+    if (fields == null) {
+      return;
+    }
+    FieldsEnum fieldsEnum = fields.iterator();
     boolean skipNext = false;
     int[] docs1 = new int[16];
     int[] freqs1 = new int[16];
     int[] docs2 = new int[16];
     int[] freqs2 = new int[16];
     while(true) {
-      final String field = fields.next();
-      //System.out.println("TEST: enum field=" + field);
+      final String field = fieldsEnum.next();
       if (field == null) {
         boolean result = termEnum.next();
         if (result) {
@@ -218,14 +219,13 @@ public class FlexTestUtil {
       if (rand.nextInt(3) <= 1) {
         // Enum the terms
         //System.out.println("TEST:   get terms");
-        TermsEnum terms = fields.terms();
+        TermsEnum terms = fieldsEnum.terms();
         final TermPositions termPos = r.termPositions();
         final TermDocs termDocs = r.termDocs();
         DocsEnum docs = null;
         DocsAndPositionsEnum postings = null;
         while(true) {
           final BytesRef termRef = terms.next();
-          //System.out.println("TEST:   enum term=" + termRef);
           if (termRef == null) {
             break;
           } else {
@@ -241,9 +241,9 @@ public class FlexTestUtil {
             //allTerms.add(t);
 
             if (rand.nextInt(3) <= 1) {
-              docs = terms.docs(r.getDeletedDocs(), docs);
+              docs = terms.docs(MultiFields.getDeletedDocs(r), docs);
               assert !(docs instanceof DocsAndPositionsEnum): "docs=" + docs;
-              postings = terms.docsAndPositions(r.getDeletedDocs(), postings);
+              postings = terms.docsAndPositions(MultiFields.getDeletedDocs(r), postings);
               final DocsEnum docsEnum;
               if (postings == null) {
                 docsEnum = docs;
@@ -253,17 +253,39 @@ public class FlexTestUtil {
               if (rand.nextBoolean()) {
                 // use bulk read API
                 termDocs.seek(t);
+                int count1 = 0;
+                int count2 = 0;
                 while(true) {
-                  final int count1 = docs.read(docs1, freqs1);
-                  final int count2 = termDocs.read(docs2, freqs2);
-                  assertEquals(count1, count2);
                   if (count1 == 0) {
+                    count1 = docs.read(docs1, freqs1);
+                  }
+                  if (count2 == 0) {
+                    count2 = termDocs.read(docs2, freqs2);
+                  }
+
+                  if (count1 == 0 || count2 == 0) {
+                    assertEquals(0, count2);
+                    assertEquals(0, count1);
                     break;
                   }
-                  for(int i=0;i<count1;i++) {
+                  final int limit = Math.min(count1, count2);
+                  for(int i=0;i<limit;i++) {
                     assertEquals(docs1[i], docs2[i]);
                     assertEquals(freqs1[i], freqs2[i]);
                   }
+                  if (count1 > limit) {
+                    // copy down
+                    System.arraycopy(docs1, limit, docs1, 0, count1-limit);
+                    System.arraycopy(freqs1, limit, freqs1, 0, count1-limit);
+                  }
+                  count1 -= limit;
+
+                  if (count2 > limit) {
+                    // copy down
+                    System.arraycopy(docs2, limit, docs2, 0, count2-limit);
+                    System.arraycopy(freqs2, limit, freqs2, 0, count2-limit);
+                  }
+                  count2 -= limit;
                 }
               } else {
                 // Enum the docs one by one
@@ -284,7 +306,11 @@ public class FlexTestUtil {
                       final int freq = docsEnum.freq();
                       if (postings == null) {
                         assertEquals(1, termPos.freq());
-                        assertEquals(0, termPos.nextPosition());
+                        // Old API did not always do this,
+                        // specifically in the MultiTermPositions
+                        // case when some segs omit positions and
+                        // some don't
+                        //assertEquals(0, termPos.nextPosition());
                         assertFalse(termPos.isPayloadAvailable());
                       } else {
                         // we have positions
@@ -387,9 +413,13 @@ public class FlexTestUtil {
   private static void testRandomSeeks(Random rand, IndexReader r) throws Exception {
     final int ITER = 100;
     List<String> allFields = new ArrayList<String>();
-    FieldsEnum fields = r.fields().iterator();
+    Fields fields = MultiFields.getFields(r);
+    if (fields == null) {
+      return;
+    }
+    FieldsEnum fieldsEnum = fields.iterator();
     while(true) {
-      String f = fields.next();
+      String f = fieldsEnum.next();
       if (f == null) {
         break;
       }
@@ -409,7 +439,7 @@ public class FlexTestUtil {
       String f = allFields.get(rand.nextInt(fieldCount));
 
       String text = getRandomText(rand, 1, 3, false);
-      final TermsEnum termsEnum = r.fields().terms(f).iterator();
+      final TermsEnum termsEnum = MultiFields.getFields(r).terms(f).iterator();
 
       final TermsEnum.SeekStatus seekStatus = termsEnum.seek(new BytesRef(text));
       Term t = new Term(f, text);
@@ -431,8 +461,8 @@ public class FlexTestUtil {
 
       assertEquals(termsEnum.docFreq(), termEnum.docFreq());
 
-      docs = termsEnum.docs(r.getDeletedDocs(), docs);
-      postings = termsEnum.docsAndPositions(r.getDeletedDocs(), postings);
+      docs = termsEnum.docs(MultiFields.getDeletedDocs(r), docs);
+      postings = termsEnum.docsAndPositions(MultiFields.getDeletedDocs(r), postings);
 
       termPositions.seek(termEnum.term());
 
@@ -465,7 +495,11 @@ public class FlexTestUtil {
 
         if (postings == null) {
           assertEquals(1, termPositions.freq());
-          assertEquals(0, termPositions.nextPosition());
+          // Old API did not always do this,
+          // specifically in the MultiTermPositions
+          // case when some segs omit positions and
+          // some don't
+          //assertEquals(0, termPositions.nextPosition());
           assertFalse(termPositions.isPayloadAvailable());
         } else {
           for(int k=0;k<docsEnum.freq();k++) {
@@ -489,7 +523,8 @@ public class FlexTestUtil {
 
   // Delegates to a "normal" IndexReader, making it look
   // "external", to force testing of the "flex API on
-  // external reader" layer
+  // external reader" layer.  DO NOT OVERRIDE
+  // getSequentialSubReaders!!
   public final static class ForcedExternalReader extends IndexReader {
     private final IndexReader r;
     public ForcedExternalReader(IndexReader r) {
@@ -513,7 +548,7 @@ public class FlexTestUtil {
     }
 
     public Bits getDeletedDocs() throws IOException {
-      return r.getDeletedDocs();
+      return MultiFields.getDeletedDocs(r);
     }
 
     public int numDocs() {
@@ -538,6 +573,10 @@ public class FlexTestUtil {
 
     public byte[] norms(String field) throws IOException {
       return r.norms(field);
+    }
+
+    public String toString() {
+      return "ForcedExternalReader(" + r + ")";
     }
 
     public void norms(String field, byte[] bytes, int offset) 

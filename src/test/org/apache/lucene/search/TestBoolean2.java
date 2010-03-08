@@ -198,7 +198,6 @@ public class TestBoolean2 extends LuceneTestCase {
   }
 
   public void testRandomQueries() throws Exception {
-    // nocommit -- remove 17 seed
     Random rnd = newRandom();
 
     String[] vals = {"w1","w2","w3","w4","w5","xx","yy","zzz"};

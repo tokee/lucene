@@ -86,7 +86,7 @@ public class SpanTermQuery extends SpanQuery {
     // NOTE: debateably, the caller should never pass in a
     // multi reader...
     final DocsAndPositionsEnum postings = MultiFields.getTermPositionsEnum(reader,
-                                                                           reader.getDeletedDocs(),
+                                                                           MultiFields.getDeletedDocs(reader),
                                                                            term.field(),
                                                                            new BytesRef(term.text()));
 

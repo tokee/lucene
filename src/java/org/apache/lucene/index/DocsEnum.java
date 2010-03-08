@@ -30,7 +30,7 @@ public abstract class DocsEnum extends DocIdSetIterator {
 
   private AttributeSource atts = null;
 
-  // nocommit
+  // nocommit -- debugging
   public String desc;
 
   /** Returns term frequency in the current document.  Do
@@ -44,11 +44,10 @@ public abstract class DocsEnum extends DocIdSetIterator {
     return atts;
   }
 
-  // nocommit -- state in API that doc/freq are undefined
-  // (defined?) after this?
   // nocommit -- fix this API so that intblock codecs are
   // able to return their own int arrays, to save a copy...  IntsRef?
-  /** Bulk read: returns number of docs read.
+  /** Bulk read: returns number of docs read.  After this is
+   * called, {@link #doc} and {@link #freq} are undefined.
    * 
    *  <p>NOTE: the default impl simply delegates to {@link
    *  #nextDoc}, but subclasses may do this more

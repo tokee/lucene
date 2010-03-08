@@ -164,7 +164,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
   /** Adds a new doc in this term.  If this returns null
    *  then we just skip consuming positions/payloads. */
   @Override
-  public void addDoc(int docID, int termDocFreq) throws IOException {
+  public void startDoc(int docID, int termDocFreq) throws IOException {
 
     final int delta = docID - lastDocID;
 
@@ -260,6 +260,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
     long skipPos = skipOut.getFilePointer();
 
     // TODO: -- wasteful we are counting this in two places?
+    assert docCount > 0;
     assert docCount == df;
     if (Codec.DEBUG) {
       System.out.println("dw.finishTerm termsFP=" + termsOut.getFilePointer() + " df=" + df + " skipPos=" + skipPos);
@@ -302,7 +303,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
     lastDocID = 0;
     df = 0;
 
-    // nocommit
+    // nocommit -- debugging
     count = 0;
   }
 

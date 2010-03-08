@@ -107,7 +107,7 @@ public final  class MultiFieldsEnum extends FieldsEnum {
     }
 
     if (termsEnums.size() == 0) {
-      return null;
+      return TermsEnum.EMPTY;
     } else {
       return terms.reset(termsEnums.toArray(MultiTermsEnum.TermsEnumIndex.EMPTY_ARRAY));
     }

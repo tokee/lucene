@@ -144,7 +144,7 @@ public class TermRangeQuery extends MultiTermQuery {
       // NOTE: debateably, the caller should never pass in a
       // multi reader...
       final Terms terms = MultiFields.getTerms(reader, field);
-      return (terms != null) ? terms.iterator() : TermsEnum.EMPTY;
+      return (terms != null) ? terms.iterator() : null;
     }
     return new TermRangeTermsEnum(reader, field,
         lowerTerm, upperTerm, includeLower, includeUpper, collator);

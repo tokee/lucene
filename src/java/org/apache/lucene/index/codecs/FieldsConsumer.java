@@ -20,7 +20,6 @@ package org.apache.lucene.index.codecs;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.FieldsEnum;
-import org.apache.lucene.index.TermsEnum;
 
 import java.io.IOException;
 
@@ -41,14 +40,12 @@ public abstract class FieldsConsumer {
 
   public void merge(MergeState mergeState, Fields fields) throws IOException {
     FieldsEnum fieldsEnum = fields.iterator();
+    assert fieldsEnum != null;
     String field;
     while((field = fieldsEnum.next()) != null) {
       mergeState.fieldInfo = mergeState.fieldInfos.fieldInfo(field);
       final TermsConsumer termsConsumer = addField(mergeState.fieldInfo);
-      final TermsEnum termsEnum = fieldsEnum.terms();
-      if (termsEnum != null) {
-        termsConsumer.merge(mergeState, termsEnum);
-      }
+      termsConsumer.merge(mergeState, fieldsEnum.terms());
     }
   }
 }

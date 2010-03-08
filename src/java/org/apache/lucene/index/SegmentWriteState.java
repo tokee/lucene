@@ -31,6 +31,9 @@ import org.apache.lucene.index.codecs.Codecs;
  * @lucene.experimental
  */
 public class SegmentWriteState {
+  // nocommit -- not clean that this is here; sometimes we
+  // write a newly flushed segment; other times a merged
+  // segment (and this is null):
   DocumentsWriter docWriter;
   public Directory directory;
   public String segmentName;

@@ -614,10 +614,7 @@ public class IndexWriter implements Closeable {
         // TODO: we may want to avoid doing this while
         // synchronized
         // Returns a ref, which we xfer to readerMap:
-        // nocommit: old api
-        sr = SegmentReader.get(false, info.dir, info, readBufferSize, doOpenStores, termsIndexDivisor, null);
-        // nocommit -- if info is from external dir DO NOT
-        // cache it!
+        sr = SegmentReader.get(false, info.dir, info, readBufferSize, doOpenStores, termsIndexDivisor, codecs);
         readerMap.put(info, sr);
       } else {
         if (doOpenStores) {
@@ -978,7 +975,6 @@ public class IndexWriter implements Closeable {
    *  <code>false</code> or if there is any other low-level
    *  IO error
    */
-  // nocommit -- need IW.Config!!
   public IndexWriter(Directory d, Analyzer a, boolean create, IndexDeletionPolicy deletionPolicy, MaxFieldLength mfl, IndexingChain indexingChain, IndexCommit commit, Codecs codecs)
        throws CorruptIndexException, LockObtainFailedException, IOException {
     init(d, a, create, deletionPolicy, mfl.getLimit(), indexingChain, commit, codecs);
@@ -3867,10 +3863,7 @@ public class IndexWriter implements Closeable {
       }
     }
     
-    //nocommit: is this supposed to be here or not?
-    //merge.info.setHasProx(merger.hasProx());
-    // mxx
-    // System.out.println(Thread.currentThread().getName() + ": finish setHasProx=" + merger.hasProx() + " seg=" + merge.info.name);
+    merge.info.setHasProx(merger.hasProx());
 
     segmentInfos.subList(start, start + merge.segments.size()).clear();
     assert !segmentInfos.contains(merge.info);
@@ -4375,8 +4368,7 @@ public class IndexWriter implements Closeable {
               }
               // This was a private clone and we had the
               // only reference
-              // nocommit -- why commented out?
-              // assert merge.readersClone[i].getRefCount() == 0: "refCount should be 0 but is " + merge.readersClone[i].getRefCount();
+              assert merge.readersClone[i].getRefCount() == 0: "refCount should be 0 but is " + merge.readersClone[i].getRefCount();
             }
           }
         } else {
@@ -4388,8 +4380,7 @@ public class IndexWriter implements Closeable {
             if (merge.readersClone[i] != null) {
               merge.readersClone[i].close();
               // This was a private clone and we had the only reference
-              // nocommit -- why commented out?
-              //assert merge.readersClone[i].getRefCount() == 0;
+              assert merge.readersClone[i].getRefCount() == 0;
             }
           }
         }

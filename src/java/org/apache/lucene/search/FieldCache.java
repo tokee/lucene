@@ -150,12 +150,11 @@ public interface FieldCache {
   /** The default parser for byte values, which are encoded by {@link Byte#toString(byte)} */
   public static final ByteParser DEFAULT_BYTE_PARSER = new ByteParser() {
     public byte parseByte(BytesRef term) {
-      final long num = FieldCacheImpl.parseLong(term);
-      if (num >= Byte.MIN_VALUE && num <= Byte.MAX_VALUE) {
-        return (byte) num;
-      } else {
-        throw new IllegalArgumentException("value \"" + term + "\" is out of bounds for Byte");
-      }
+      // TODO: would be far better to directly parse from
+      // UTF8 bytes... but really users should use
+      // NumericField, instead, which already decodes
+      // directly from byte[]
+      return Byte.parseByte(term.utf8ToString());
     }
     protected Object readResolve() {
       return DEFAULT_BYTE_PARSER;
@@ -169,12 +168,11 @@ public interface FieldCache {
   /** The default parser for short values, which are encoded by {@link Short#toString(short)} */
   public static final ShortParser DEFAULT_SHORT_PARSER = new ShortParser() {
     public short parseShort(BytesRef term) {
-      final long num = FieldCacheImpl.parseLong(term);
-      if (num >= Short.MIN_VALUE && num <= Short.MAX_VALUE) {
-        return (short) num;
-      } else {
-        throw new IllegalArgumentException("value \"" + term + "\" is out of bounds for Short");
-      }
+      // TODO: would be far better to directly parse from
+      // UTF8 bytes... but really users should use
+      // NumericField, instead, which already decodes
+      // directly from byte[]
+      return Short.parseShort(term.utf8ToString());
     }
     protected Object readResolve() {
       return DEFAULT_SHORT_PARSER;
@@ -188,12 +186,11 @@ public interface FieldCache {
   /** The default parser for int values, which are encoded by {@link Integer#toString(int)} */
   public static final IntParser DEFAULT_INT_PARSER = new IntParser() {
     public int parseInt(BytesRef term) {
-      final long num = FieldCacheImpl.parseLong(term);
-      if (num >= Integer.MIN_VALUE && num <= Integer.MAX_VALUE) {
-        return (int) num;
-      } else {
-        throw new IllegalArgumentException("value \"" + term + "\" is out of bounds for Int");
-      }
+      // TODO: would be far better to directly parse from
+      // UTF8 bytes... but really users should use
+      // NumericField, instead, which already decodes
+      // directly from byte[]
+      return Integer.parseInt(term.utf8ToString());
     }
     protected Object readResolve() {
       return DEFAULT_INT_PARSER;
@@ -207,8 +204,10 @@ public interface FieldCache {
   /** The default parser for float values, which are encoded by {@link Float#toString(float)} */
   public static final FloatParser DEFAULT_FLOAT_PARSER = new FloatParser() {
     public float parseFloat(BytesRef term) {
-      // TODO: would be far better to directly parse
-      // the UTF-8 bytes into float, but that's tricky?
+      // TODO: would be far better to directly parse from
+      // UTF8 bytes... but really users should use
+      // NumericField, instead, which already decodes
+      // directly from byte[]
       return Float.parseFloat(term.utf8ToString());
     }
     protected Object readResolve() {
@@ -223,7 +222,11 @@ public interface FieldCache {
   /** The default parser for long values, which are encoded by {@link Long#toString(long)} */
   public static final LongParser DEFAULT_LONG_PARSER = new LongParser() {
     public long parseLong(BytesRef term) {
-      return FieldCacheImpl.parseLong(term);
+      // TODO: would be far better to directly parse from
+      // UTF8 bytes... but really users should use
+      // NumericField, instead, which already decodes
+      // directly from byte[]
+      return Long.parseLong(term.utf8ToString());
     }
     protected Object readResolve() {
       return DEFAULT_LONG_PARSER;
@@ -237,8 +240,10 @@ public interface FieldCache {
   /** The default parser for double values, which are encoded by {@link Double#toString(double)} */
   public static final DoubleParser DEFAULT_DOUBLE_PARSER = new DoubleParser() {
     public double parseDouble(BytesRef term) {
-      // TODO: would be far better to directly parse
-      // the UTF-8 bytes into float, but that's tricky?
+      // TODO: would be far better to directly parse from
+      // UTF8 bytes... but really users should use
+      // NumericField, instead, which already decodes
+      // directly from byte[]
       return Double.parseDouble(term.utf8ToString());
     }
     protected Object readResolve() {

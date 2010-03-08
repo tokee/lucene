@@ -492,7 +492,7 @@ public class CheckIndex {
         segInfoStat.fieldNormStatus = testFieldNorms(fieldNames, reader);
 
         // Test the Term Index
-        segInfoStat.termIndexStatus = testTermIndex(info, reader);
+        segInfoStat.termIndexStatus = testTermIndex(reader);
 
         // Test Stored Fields
         segInfoStat.storedFieldStatus = testStoredFields(info, reader, nf);
@@ -575,7 +575,7 @@ public class CheckIndex {
   /**
    * Test the term index.
    */
-  private Status.TermIndexStatus testTermIndex(SegmentInfo info, SegmentReader reader) {
+  private Status.TermIndexStatus testTermIndex(SegmentReader reader) {
     final Status.TermIndexStatus status = new Status.TermIndexStatus();
 
     final int maxDoc = reader.maxDoc();

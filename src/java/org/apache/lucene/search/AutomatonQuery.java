@@ -21,7 +21,6 @@ import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.ToStringUtils;
@@ -79,9 +78,7 @@ public class AutomatonQuery extends MultiTermQuery {
     
     // matches all possible strings
     if (BasicOperations.isTotal(automaton)) {
-      final Terms terms = MultiFields.getTerms(reader, getField());
-      // nocommit -- should we just return null?  singleton?
-      return (terms != null) ? terms.iterator() : TermsEnum.EMPTY;
+      return MultiFields.getTerms(reader, getField()).iterator();
     }
     
     // matches a fixed string in singleton representation

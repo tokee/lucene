@@ -19,6 +19,7 @@ package org.apache.lucene.search;
 
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.Comparator;
 
 import org.apache.lucene.analysis.NumericTokenStream; // for javadocs
 import org.apache.lucene.document.NumericField; // for javadocs
@@ -381,7 +382,7 @@ public final class NumericRangeQuery<T extends Number> extends MultiTermQuery {
     private final BytesRef currentLowerBound = new BytesRef(), currentUpperBound = new BytesRef();
 
     private final LinkedList<String> rangeBounds = new LinkedList<String>();
-    private final BytesRef.Comparator termComp;
+    private final Comparator<BytesRef> termComp;
 
     NumericRangeTermsEnum(final IndexReader reader) throws IOException {
       super(reader, getField());

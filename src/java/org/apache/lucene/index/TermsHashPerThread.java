@@ -36,6 +36,10 @@ final class TermsHashPerThread extends InvertedDocConsumerPerThread {
   final RawPostingList freePostings[] = new RawPostingList[256];
   int freePostingsCount;
 
+  // Used when comparing postings via termRefComp, in TermsHashPerField
+  final BytesRef tr1 = new BytesRef();
+  final BytesRef tr2 = new BytesRef();
+
   // Used by perField:
   final BytesRef utf8 = new BytesRef(10);
 

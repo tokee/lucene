@@ -39,7 +39,7 @@ public abstract class IntIndexInput implements Closeable {
   // TODO: -- can we simplify this?
   public abstract static class Index {
 
-    // nocommit
+    // nocommit -- debugging
     public String desc;
 
     public abstract void read(IndexInput indexIn, boolean absolute) throws IOException;
@@ -75,7 +75,7 @@ public abstract class IntIndexInput implements Closeable {
       return bulkResult;
     }
 
-    // nocommit
+    // nocommit -- debugging
     public abstract String descFilePointer() throws IOException;
   }
 }

@@ -171,7 +171,7 @@ public class ParallelReader extends IndexReader {
       if (terms != null) {
         return terms.iterator();
       } else {
-        return null;
+        return TermsEnum.EMPTY;
       }
     }
   }
@@ -196,7 +196,7 @@ public class ParallelReader extends IndexReader {
 
   @Override
   public Bits getDeletedDocs() throws IOException {
-    return ((IndexReader) readers.get(0)).getDeletedDocs();
+    return MultiFields.getDeletedDocs(readers.get(0));
   }
 
   @Override

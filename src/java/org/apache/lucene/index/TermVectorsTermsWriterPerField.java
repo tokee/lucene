@@ -95,9 +95,6 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
 
   public void abort() {}
 
-  // nocommit -- should be @ thread level not field
-  private final BytesRef flushTerm = new BytesRef();
-
   /** Called once per field per document if term vectors
    *  are enabled, to write the vectors to
    *  RAMOutputStream, which is then quickly flushed to
@@ -108,6 +105,8 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
     assert docState.testPoint("TermVectorsTermsWriterPerField.finish start");
 
     final int numPostings = termsHashPerField.numPostings;
+
+    final BytesRef flushTerm = perThread.flushTerm;
 
     assert numPostings >= 0;
 
@@ -128,8 +127,8 @@ final class TermVectorsTermsWriterPerField extends TermsHashConsumerPerField {
 
     perThread.doc.addField(termsHashPerField.fieldInfo.number);
 
-    // nocommit -- should I sort by whatever terms dict is
-    // sorting by?
+    // TODO: we may want to make this sort in same order
+    // as Codec's terms dict?
     final RawPostingList[] postings = termsHashPerField.sortPostings(BytesRef.getUTF8SortedAsUTF16Comparator());
 
     tvf.writeVInt(numPostings);

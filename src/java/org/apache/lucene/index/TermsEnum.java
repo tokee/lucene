@@ -18,6 +18,7 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
+import java.util.Comparator;
 
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.Bits;
@@ -74,7 +75,7 @@ public abstract class TermsEnum {
 
   /** Returns current term. Do not call this before calling
    *  next() for the first time, after next() returns null
-   *  or seek returns {@link SeekStatus#END}.*/
+   *  or after seek returns {@link SeekStatus#END}.*/
   public abstract BytesRef term() throws IOException;
 
   /** Returns ordinal position for current term.  This is an
@@ -83,6 +84,8 @@ public abstract class TermsEnum {
    *  before calling next() for the first time, after next()
    *  returns null or seek returns {@link
    *  SeekStatus#END}. */
+  // nocommit -- should we allow calling this after next
+  // returns null?  and it returns 1+ max ord?
   public abstract long ord() throws IOException;
 
   /** Returns the number of documents containing the current
@@ -91,27 +94,29 @@ public abstract class TermsEnum {
    *  {@link SeekStatus#END}.*/
   public abstract int docFreq();
 
-  // nocommit -- clarify if this may return null
-  // nocommit -- maybe require up front boolean doPositions?
-  // nocommit -- or maybe make a separate positions(...) method?
   /** Get {@link DocsEnum} for the current term.  Do not
-   *  call this before calling next() for the first time,
-   *  after next() returns null or seek returns {@link
-   *  SeekStatus#END}.
+   *  call this before calling {@link #next} or {@link
+   *  #seek} for the first time.  This method will not
+   *  return null.
    *  
    * @param skipDocs set bits are documents that should not
    * be returned
    * @param reuse pass a prior DocsEnum for possible reuse */
   public abstract DocsEnum docs(Bits skipDocs, DocsEnum reuse) throws IOException;
 
+  /** Get {@link DocsAndPositionsEnum} for the current term.
+   *  Do not call this before calling {@link #next} or
+   *  {@link #seek} for the first time.  This method will
+   *  only return null if positions were not indexed into
+   *  the postings by this codec. */
   public abstract DocsAndPositionsEnum docsAndPositions(Bits skipDocs, DocsAndPositionsEnum reuse) throws IOException;
 
   /** Return the {@link BytesRef} Comparator used to sort
-   *  terms provided by the iterator.  NOTE: this may return
+   *  terms provided by the iterator.  This may return
    *  null if there are no terms.  Callers may invoke this
    *  method many times, so it's best to cache a single
    *  instance & reuse it. */
-  public abstract BytesRef.Comparator getComparator() throws IOException;
+  public abstract Comparator<BytesRef> getComparator() throws IOException;
 
   /** An empty TermsEnum for quickly returning an empty instance e.g.
    * in {@link org.apache.lucene.search.MultiTermQuery}
@@ -128,30 +133,40 @@ public abstract class TermsEnum {
     public SeekStatus seek(long ord) { return SeekStatus.END; }
     
     @Override
-    public BytesRef term() { return null; }
+    public BytesRef term() {
+      throw new IllegalStateException("this method should never be called");
+    }
 
     @Override
-    public BytesRef.Comparator getComparator() {
+    public Comparator<BytesRef> getComparator() {
       // return an unused dummy to prevent NPE
       return BytesRef.getUTF8SortedAsUTF16Comparator();
     }
       
     @Override
-    public int docFreq() { return -1; }
-      
-    @Override
-    public long ord() { return -1; }
-
-    @Override
-    public DocsEnum docs(Bits bits, DocsEnum reuse) { return null; }
-      
-    @Override
-    public DocsAndPositionsEnum docsAndPositions(Bits bits, DocsAndPositionsEnum reuse) {
-      return null;
+    public int docFreq() {
+      throw new IllegalStateException("this method should never be called");
     }
       
     @Override
-    public BytesRef next() { return null; }
+    public long ord() {
+      throw new IllegalStateException("this method should never be called");
+    }
+
+    @Override
+    public DocsEnum docs(Bits bits, DocsEnum reuse) {
+      throw new IllegalStateException("this method should never be called");
+    }
+      
+    @Override
+    public DocsAndPositionsEnum docsAndPositions(Bits bits, DocsAndPositionsEnum reuse) {
+      throw new IllegalStateException("this method should never be called");
+    }
+      
+    @Override
+    public BytesRef next() {
+      return null;
+    }
     
     @Override // make it synchronized here, to prevent double lazy init
     public synchronized AttributeSource attributes() {

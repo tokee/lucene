@@ -1057,8 +1057,7 @@ final class DocumentsWriter {
           // by re-using the same TermsEnum and seeking only
           // forwards
           if (term.field() != currentField) {
-            // nocommit -- once we sync up branch again, add
-            // assert that this field is always > last one
+            assert currentField == null || currentField.compareTo(term.field()) < 0;
             currentField = term.field();
             Terms terms = fields.terms(currentField);
             if (terms != null) {
@@ -1071,8 +1070,10 @@ final class DocumentsWriter {
           if (termsEnum == null) {
             continue;
           }
+          assert checkDeleteTerm(term);
           
           termRef.copy(term.text());
+          
           if (termsEnum.seek(termRef) == TermsEnum.SeekStatus.FOUND) {
             DocsEnum docsEnum = termsEnum.docs(reader.getDeletedDocs(), docs);
             

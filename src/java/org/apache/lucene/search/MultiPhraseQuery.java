@@ -23,6 +23,7 @@ import java.util.*;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.DocsAndPositionsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.ToStringUtils;
@@ -178,7 +179,7 @@ public class MultiPhraseQuery extends Query {
         if (terms.length > 1) {
           postingsEnum = new UnionDocsAndPositionsEnum(reader, terms);
         } else {
-          postingsEnum = reader.termPositionsEnum(reader.getDeletedDocs(),
+          postingsEnum = reader.termPositionsEnum(MultiFields.getDeletedDocs(reader),
                                                   terms[0].field(),
                                                   new BytesRef(terms[0].text()));
         }
@@ -382,8 +383,7 @@ public class MultiPhraseQuery extends Query {
  * Takes the logical union of multiple DocsEnum iterators.
  */
 
-// nocommit -- this must carefully take union of attr source
-// as well -- this is tricky
+// TODO: if ever we allow subclassing of the *PhraseScorer
 class UnionDocsAndPositionsEnum extends DocsAndPositionsEnum {
 
   private static final class DocsQueue extends PriorityQueue<DocsAndPositionsEnum> {
@@ -454,7 +454,7 @@ class UnionDocsAndPositionsEnum extends DocsAndPositionsEnum {
 
   public UnionDocsAndPositionsEnum(IndexReader indexReader, Term[] terms) throws IOException {
     List<DocsAndPositionsEnum> docsEnums = new LinkedList<DocsAndPositionsEnum>();
-    final Bits delDocs = indexReader.getDeletedDocs();
+    final Bits delDocs = MultiFields.getDeletedDocs(indexReader);
     for (int i = 0; i < terms.length; i++) {
       DocsAndPositionsEnum postings = indexReader.termPositionsEnum(delDocs,
                                                                     terms[i].field(),

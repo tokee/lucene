@@ -37,8 +37,7 @@ public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
   private long[] lastSkipProxPointer;
   
   private IndexOutput freqOutput;
-  // nocommit -- private again
-  public IndexOutput proxOutput;
+  private IndexOutput proxOutput;
 
   private int curDoc;
   private boolean curStorePayloads;
@@ -56,16 +55,6 @@ public class DefaultSkipListWriter extends MultiLevelSkipListWriter {
     lastSkipFreqPointer = new long[numberOfSkipLevels];
     lastSkipProxPointer = new long[numberOfSkipLevels];
   }
-
-  // nocommit -- made public
-  //public void setFreqOutput(IndexOutput freqOutput) {
-  //this.freqOutput = freqOutput;
-  //}
-
-  // nocommit -- made public
-  //public void setProxOutput(IndexOutput proxOutput) {
-  //this.proxOutput = proxOutput;
-  //}
 
   /**
    * Sets the values for the current skip data. 

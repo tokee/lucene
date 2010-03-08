@@ -105,9 +105,6 @@ public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
     skipListWriter.resetSkip();
   }
 
-  // nocommit -- should we NOT reuse across fields?  would
-  // be cleaner
-
   // Currently, this instance is re-used across fields, so
   // our parent calls setField whenever the field changes
   @Override
@@ -125,7 +122,7 @@ public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
   /** Adds a new doc in this term.  If this returns null
    *  then we just skip consuming positions/payloads. */
   @Override
-  public void addDoc(int docID, int termDocFreq) throws IOException {
+  public void startDoc(int docID, int termDocFreq) throws IOException {
 
     final int delta = docID - lastDocID;
     
@@ -140,9 +137,6 @@ public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
     if ((++df % skipInterval) == 0) {
       skipListWriter.setSkipData(lastDocID, storePayloads, lastPayloadLength);
       skipListWriter.bufferSkip(df);
-      if (Codec.DEBUG) {
-        System.out.println("    bufferSkip lastDocID=" + lastDocID + " df=" + df + " freqFP=" + freqOut.getFilePointer() + " proxFP=" + skipListWriter.proxOutput.getFilePointer());
-      }
     }
 
     assert docID < totalNumDocs: "docID=" + docID + " totalNumDocs=" + totalNumDocs;
@@ -212,8 +206,12 @@ public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
   /** Called when we are done adding docs to this term */
   @Override
   public void finishTerm(int docCount, boolean isIndexTerm) throws IOException {
-    // nocommit -- wasteful we are counting this in two places?
+    assert docCount > 0;
+
+    // TODO: wasteful we are counting this (counting # docs
+    // for this term) in two places?
     assert docCount == df;
+
     // mxx
     if (Codec.DEBUG) {
       Codec.debug("dw.finishTerm termsOut.fp=" + termsOut.getFilePointer() + " freqStart=" + freqStart + " df=" + df + " isIndex?=" + isIndexTerm);
@@ -251,7 +249,7 @@ public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
     lastDocID = 0;
     df = 0;
     
-    // nocommit
+    // nocommit -- debugging
     count = 0;
   }
 

@@ -19,6 +19,7 @@ package org.apache.lucene.search;
 
 import java.io.IOException;
 import java.text.Collator;
+import java.util.Comparator;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.util.BytesRef;
@@ -39,7 +40,7 @@ public class TermRangeTermsEnum extends FilteredTermsEnum {
   private boolean includeUpper;
   final private BytesRef lowerBytesRef;
   final private BytesRef upperBytesRef;
-  private final BytesRef.Comparator termComp;
+  private final Comparator<BytesRef> termComp;
 
   /**
    * Enumerates all terms greater/equal than <code>lowerTerm</code>

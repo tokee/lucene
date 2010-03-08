@@ -1,6 +1,5 @@
 package org.apache.lucene.index;
 
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,6 +23,7 @@ import org.apache.lucene.util.ReaderUtil;
 import java.io.IOException;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Comparator;
 
 /**
  * Exposes flex API, merged from flex API of
@@ -35,20 +35,20 @@ import java.util.ArrayList;
 public final class MultiTerms extends Terms {
   private final Terms[] subs;
   private final ReaderUtil.Slice[] subSlices;
-  private final BytesRef.Comparator termComp;
+  private final Comparator<BytesRef> termComp;
 
   public MultiTerms(Terms[] subs, ReaderUtil.Slice[] subSlices) throws IOException {
     this.subs = subs;
     this.subSlices = subSlices;
     
-    BytesRef.Comparator _termComp = null;
+    Comparator<BytesRef> _termComp = null;
     for(int i=0;i<subs.length;i++) {
       if (_termComp == null) {
         _termComp = subs[i].getComparator();
       } else {
         // We cannot merge sub-readers that have
         // different TermComps
-        final BytesRef.Comparator subTermComp = subs[i].getComparator();
+        final Comparator<BytesRef> subTermComp = subs[i].getComparator();
         if (subTermComp != null && !subTermComp.equals(_termComp)) {
           throw new IllegalStateException("sub-readers have different BytesRef.Comparators; cannot merge");
         }
@@ -72,12 +72,12 @@ public final class MultiTerms extends Terms {
     if (termsEnums.size() > 0) {
       return new MultiTermsEnum(subSlices).reset(termsEnums.toArray(MultiTermsEnum.TermsEnumIndex.EMPTY_ARRAY));
     } else {
-      return null;
+      return TermsEnum.EMPTY;
     }
   }
 
   @Override
-  public BytesRef.Comparator getComparator() {
+  public Comparator<BytesRef> getComparator() {
     return termComp;
   }
 }

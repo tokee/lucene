@@ -24,11 +24,11 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 
 import org.apache.lucene.index.codecs.PostingsConsumer;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
-import org.apache.lucene.util.UnicodeUtil;
 import org.apache.lucene.util.BytesRef;
 
 final class FreqProxTermsWriter extends TermsHashConsumer {
@@ -159,7 +159,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
     final FreqProxFieldMergeState[] mergeStates = new FreqProxFieldMergeState[numFields];
 
     final TermsConsumer termsConsumer = consumer.addField(fields[0].fieldInfo);
-    final BytesRef.Comparator termComp = termsConsumer.getComparator();
+    final Comparator<BytesRef> termComp = termsConsumer.getComparator();
 
     for(int i=0;i<numFields;i++) {
       FreqProxFieldMergeState fms = mergeStates[i] = new FreqProxFieldMergeState(fields[i], termComp);
@@ -227,7 +227,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
         assert minState.docID < flushedDocCount: "doc=" + minState.docID + " maxDoc=" + flushedDocCount;
 
-        postingsConsumer.addDoc(minState.docID, termDocFreq);
+        postingsConsumer.startDoc(minState.docID, termDocFreq);
 
         final ByteSliceReader prox = minState.prox;
 
@@ -301,14 +301,12 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
         }
       }
 
+      assert numDocs > 0;
       termsConsumer.finishTerm(text, numDocs);
     }
 
     termsConsumer.finish();
   }
-
-  //nocommit: needed?
-  void files(Collection<String> files) {}
 
   static final class PostingList extends RawPostingList {
     int docFreq;                                    // # times this term occurs in the current doc

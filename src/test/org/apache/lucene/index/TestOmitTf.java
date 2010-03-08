@@ -80,7 +80,7 @@ public class TestOmitTf extends LuceneTestCase {
     // keep things constant
     d = new Document();
         
-    // Reverese
+    // Reverse
     f1.setOmitTermFreqAndPositions(true);
     d.add(f1);
         
@@ -90,8 +90,9 @@ public class TestOmitTf extends LuceneTestCase {
     Random rnd = newRandom();
 
     writer.addDocument(d);
-    // force merge
     FlexTestUtil.verifyFlexVsPreFlex(rnd, writer);
+
+    // force merge
     writer.optimize();
     // flush
     writer.close();

@@ -17,7 +17,7 @@ package org.apache.lucene.index.codecs.preflex;
  * limitations under the License.
  */
 
-import java.util.Collection;
+import java.util.Set;
 import java.io.IOException;
 
 import org.apache.lucene.store.Directory;
@@ -66,12 +66,12 @@ public class PreFlexCodec extends Codec {
   }
 
   @Override
-  public void files(Directory dir, SegmentInfo info, Collection<String> files) throws IOException {
+  public void files(Directory dir, SegmentInfo info, Set<String> files) throws IOException {
     PreFlexFields.files(dir, info, files);
   }
 
   @Override
-  public void getExtensions(Collection<String> extensions) {
+  public void getExtensions(Set<String> extensions) {
     extensions.add(FREQ_EXTENSION);
     extensions.add(PROX_EXTENSION);
     extensions.add(TERMS_EXTENSION);

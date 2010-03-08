@@ -20,9 +20,9 @@ package org.apache.lucene.search;
 import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.ToStringUtils;
 
@@ -52,6 +52,7 @@ public class PrefixQuery extends MultiTermQuery {
   @Override  
   protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
     if (prefix.text().length() == 0) {
+      // no prefix -- match all terms for this field:
       final Terms terms = MultiFields.getTerms(reader, getField());
       return (terms != null) ? terms.iterator() : TermsEnum.EMPTY;
     }

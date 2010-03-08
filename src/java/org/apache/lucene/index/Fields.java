@@ -19,18 +19,18 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 
-/** Access to fields and terms
+/** Flex API for access to fields and terms
  *  @lucene.experimental */
 
 public abstract class Fields {
 
-  public final static Fields[] EMPTY_ARRAY = new Fields[0];
-
   /** Returns an iterator that will step through all fields
-   *  names */
+   *  names.  This will not return null.  */
   public abstract FieldsEnum iterator() throws IOException;
 
-  /** Get the {@link Terms} for this field */
+  /** Get the {@link Terms} for this field.  This may return
+   *  null if the field does not exist. */
   public abstract Terms terms(String field) throws IOException;
-}
 
+  public final static Fields[] EMPTY_ARRAY = new Fields[0];
+}

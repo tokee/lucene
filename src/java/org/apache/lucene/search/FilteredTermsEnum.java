@@ -18,10 +18,12 @@ package org.apache.lucene.search;
  */
 
 import java.io.IOException;
+import java.util.Comparator;
+
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Terms;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.DocsAndPositionsEnum;
@@ -127,17 +129,19 @@ public abstract class FilteredTermsEnum extends TermsEnum {
   
   @Override
   public BytesRef term() throws IOException {
-    return (tenum == null) ? null : tenum.term();
+    assert tenum != null;
+    return tenum.term();
   }
 
   @Override
-  public BytesRef.Comparator getComparator() throws IOException {
+  public Comparator<BytesRef> getComparator() throws IOException {
     return (tenum == null) ? null : tenum.getComparator();
   }
     
   @Override
   public int docFreq() {
-    return (tenum == null) ? -1 : tenum.docFreq();
+    assert tenum != null;
+    return tenum.docFreq();
   }
 
   /** This enum does not support seeking!
@@ -158,17 +162,20 @@ public abstract class FilteredTermsEnum extends TermsEnum {
 
   @Override
   public long ord() throws IOException {
-    return (tenum == null) ? -1 : tenum.ord();
+    assert tenum != null;
+    return tenum.ord();
   }
 
   @Override
   public DocsEnum docs(Bits bits, DocsEnum reuse) throws IOException {
-    return (tenum == null) ? null : tenum.docs(bits, reuse);
+    assert tenum != null;
+    return tenum.docs(bits, reuse);
   }
     
   @Override
   public DocsAndPositionsEnum docsAndPositions(Bits bits, DocsAndPositionsEnum reuse) throws IOException {
-    return (tenum == null) ? null : tenum.docsAndPositions(bits, reuse);
+    assert tenum != null;
+    return tenum.docsAndPositions(bits, reuse);
   }
     
   @Override

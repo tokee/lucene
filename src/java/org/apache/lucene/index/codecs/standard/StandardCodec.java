@@ -18,7 +18,7 @@ package org.apache.lucene.index.codecs.standard;
  */
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Set;
 
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
@@ -125,18 +125,18 @@ public class StandardCodec extends Codec {
   static final String TERMS_INDEX_EXTENSION = "tii";
 
   @Override
-  public void files(Directory dir, SegmentInfo segmentInfo, Collection<String> files) throws IOException {
+  public void files(Directory dir, SegmentInfo segmentInfo, Set<String> files) throws IOException {
     StandardPostingsReaderImpl.files(dir, segmentInfo, files);
     StandardTermsDictReader.files(dir, segmentInfo, files);
     SimpleStandardTermsIndexReader.files(dir, segmentInfo, files);
   }
 
   @Override
-  public void getExtensions(Collection<String> extensions) {
+  public void getExtensions(Set<String> extensions) {
     getStandardExtensions(extensions);
   }
 
-  public static void getStandardExtensions(Collection<String> extensions) {
+  public static void getStandardExtensions(Set<String> extensions) {
     extensions.add(FREQ_EXTENSION);
     extensions.add(PROX_EXTENSION);
     StandardTermsDictReader.getExtensions(extensions);

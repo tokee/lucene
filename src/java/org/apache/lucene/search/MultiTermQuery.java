@@ -26,6 +26,9 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.Fields;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.queryParser.QueryParser; // for javadoc
 import org.apache.lucene.util.Attribute;
 import org.apache.lucene.util.AttributeImpl;
@@ -186,13 +189,28 @@ public abstract class MultiTermQuery extends Query {
   private abstract static class BooleanQueryRewrite extends RewriteMethod {
   
     protected final int collectTerms(IndexReader reader, MultiTermQuery query, TermCollector collector) throws IOException {
+
       if (query.hasNewAPI) {
-        final TermsEnum termsEnum = query.getTermsEnum(reader);
-        if (termsEnum == null) {
-          return 0; // nocommit, subclass shouldn't deal with this case of nonexistent field
-        }
-        if (query.field == null)
+
+        if (query.field == null) {
           throw new NullPointerException("If you implement getTermsEnum(), you must specify a non-null field in the constructor of MultiTermQuery.");
+        }
+
+        final Fields fields = MultiFields.getFields(reader);
+        if (fields == null) {
+          // reader has no fields
+          return 0;
+        }
+
+        final Terms terms = fields.terms(query.field);
+        if (terms == null) {
+          // field does not exist
+          return 0;
+        }
+
+        final TermsEnum termsEnum = query.getTermsEnum(reader);
+        assert termsEnum != null;
+
         if (termsEnum == TermsEnum.EMPTY)
           return 0;
         final BoostAttribute boostAtt =
@@ -384,7 +402,7 @@ public abstract class MultiTermQuery extends Query {
     public Query rewrite(IndexReader reader, MultiTermQuery query) throws IOException {
       Query result = super.rewrite(reader, query);
       assert result instanceof BooleanQuery;
-      // nocommit: if empty boolean query return NullQuery
+      // TODO: if empty boolean query return NullQuery?
       if (!((BooleanQuery) result).clauses().isEmpty()) {
         // strip the scores off
         result = new ConstantScoreQuery(new QueryWrapperFilter(result));
@@ -614,12 +632,13 @@ public abstract class MultiTermQuery extends Query {
   }
 
   /** Construct the enumeration to be used, expanding the
-   *  pattern term.  This method must return null if no
-   *  terms fall in the range; else, it must return a
-   *  TermsEnum already positioned to the first matching
-   *  term.
-   *
-   *  nocommit in 3.x this will become abstract  */
+   *  pattern term.  This method should only be called if
+   *  the field exists (ie, implementations can assume the
+   *  field does exist).  This method should not return null
+   *  (should instead return {@link TermsEnum#EMPTY} if no
+   *  terms match).  The TermsEnum must already be
+   *  positioned to the first matching term. */
+  // TODO 4.0: make this method abstract
   protected TermsEnum getTermsEnum(IndexReader reader) throws IOException {
     throw new UnsupportedOperationException();
   }

@@ -35,10 +35,6 @@ import org.apache.lucene.util.BytesRef;
  *  postings format. 
  *  @lucene.experimental */
 
-// nocommit -- should we switch "hasProx" higher up?  and
-// create two separate docs readers, one that also reads
-// prox and one that doesn't?
-
 public class StandardPostingsReaderImpl extends StandardPostingsReader {
 
   private final IndexInput freqIn;
@@ -227,10 +223,9 @@ public class StandardPostingsReaderImpl extends StandardPostingsReader {
       freqOffset = termState.freqOffset;
       skipOffset = termState.skipOffset;
 
-      // nocommit this seek frequently isn't needed, when
-      // we enum terms and all docs for each term (MTQ,
-      // or, merging).  is this seek costing us anything?
-      // we should avoid it so...
+      // TODO: for full enum case (eg segment merging) this
+      // seek is unnecessary; maybe we can avoid in such
+      // cases
       freqIn.seek(termState.freqOffset);
       limit = termState.docFreq;
       ord = 0;
@@ -447,10 +442,9 @@ public class StandardPostingsReaderImpl extends StandardPostingsReader {
 
       this.skipDocs = skipDocs;
 
-      // nocommit this seek frequently isn't needed, when
-      // we enum terms and all docs for each term (MTQ,
-      // or, merging).  is this seek costing us anything?
-      // we should avoid it so...
+      // TODO: for full enum case (eg segment merging) this
+      // seek is unnecessary; maybe we can avoid in such
+      // cases
       freqIn.seek(termState.freqOffset);
       lazyProxPointer = termState.proxOffset;
 

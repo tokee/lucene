@@ -17,21 +17,30 @@ package org.apache.lucene.util;
  * limitations under the License.
  */
 
+import java.util.List;
+
 /**
  * Concatenates multiple Bits together, on every lookup.
  *
  * <p><b>NOTE</b>: This is very costly, as every lookup must
  * do a binary search to locate the right sub-reader.
+ *
+ * @lucene.experimental
  */
+
 public final class MultiBits implements Bits {
   private final Bits[] subs;
 
   // length is 1+subs.length (the last entry has the maxDoc):
   private final int[] starts;
 
-  public MultiBits(Bits[] subs, int[] starts) {
-    this.subs = subs;
-    this.starts = starts;
+  public MultiBits(List<Bits> bits, List<Integer> starts) {
+    assert starts.size() == 1+bits.size();
+    this.subs = bits.toArray(Bits.EMPTY_ARRAY);
+    this.starts = new int[starts.size()];
+    for(int i=0;i<this.starts.length;i++) {
+      this.starts[i] = starts.get(i);
+    }
   }
 
   private boolean checkLength(int reader, int doc) {
@@ -42,6 +51,7 @@ public final class MultiBits implements Bits {
 
   public boolean get(int doc) {
     final int reader = ReaderUtil.subIndex(doc, starts);
+    assert reader != -1;
     final Bits bits = subs[reader];
     if (bits == null) {
       return false;
@@ -51,13 +61,24 @@ public final class MultiBits implements Bits {
     }
   }
 
-  public Bits getMatchingSub(ReaderUtil.Slice slice) {
+  public final static class SubResult {
+    public boolean matches;
+    public Bits result;
+  }
+
+  private final SubResult subResult = new SubResult();
+
+  public SubResult getMatchingSub(ReaderUtil.Slice slice) {
     int reader = ReaderUtil.subIndex(slice.start, starts);
+    assert reader != -1;
+    assert reader < subs.length: "slice=" + slice + " starts[-1]=" + starts[starts.length-1];
     if (starts[reader] == slice.start && starts[1+reader] == slice.start+slice.length) {
-      return subs[reader];
+      subResult.matches = true;
+      subResult.result = subs[reader];
     } else {
-      return null;
+      subResult.matches = false;
     }
+    return subResult;
   }
 
   public int length() {

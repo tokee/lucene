@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.TreeMap;
+import java.util.Comparator;
 
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.DocsAndPositionsEnum;
@@ -218,7 +219,7 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public BytesRef.Comparator getComparator() {
+    public Comparator<BytesRef> getComparator() {
       // Pre-flex indexes always sorted in UTF16 order
       return BytesRef.getUTF8SortedAsUTF16Comparator();
     }
@@ -256,7 +257,7 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public BytesRef.Comparator getComparator() {
+    public Comparator<BytesRef> getComparator() {
       // Pre-flex indexes always sorted in UTF16 order
       return BytesRef.getUTF8SortedAsUTF16Comparator();
     }
@@ -348,8 +349,6 @@ public class PreFlexFields extends FieldsProducer {
 
     @Override
     public DocsEnum docs(Bits skipDocs, DocsEnum reuse) throws IOException {
-      // nocommit -- must assert that skipDocs "matches" the
-      // underlying deletedDocs?
       if (reuse != null) {
         return ((PreDocsEnum) reuse).reset(termEnum, skipDocs);        
       } else {
@@ -359,8 +358,6 @@ public class PreFlexFields extends FieldsProducer {
 
     @Override
     public DocsAndPositionsEnum docsAndPositions(Bits skipDocs, DocsAndPositionsEnum reuse) throws IOException {
-      // nocommit -- must assert that skipDocs "matches" the
-      // underlying deletedDocs?
       if (reuse != null) {
         return ((PreDocsAndPositionsEnum) reuse).reset(termEnum, skipDocs);        
       } else {

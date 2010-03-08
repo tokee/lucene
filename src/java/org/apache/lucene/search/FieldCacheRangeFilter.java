@@ -19,6 +19,7 @@ package org.apache.lucene.search;
 import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.document.NumericField; // for javadocs
@@ -537,7 +538,7 @@ public abstract class FieldCacheRangeFilter<T> extends Filter {
         if (isCacheable()) {
           skipDocs = null;
         } else {
-          skipDocs = reader.getDeletedDocs();
+          skipDocs = MultiFields.getDeletedDocs(reader);
         }
       }
       final int maxDoc = reader.maxDoc();
