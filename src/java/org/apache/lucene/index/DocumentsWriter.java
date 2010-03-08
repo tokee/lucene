@@ -38,6 +38,7 @@ import org.apache.lucene.search.Similarity;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.RAMFile;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.ThreadInterruptedException;
@@ -172,6 +173,46 @@ final class DocumentsWriter {
 
     void setNext(DocWriter next) {
       this.next = next;
+    }
+  }
+
+  /**
+   * Create and return a new DocWriterBuffer.
+   */
+  PerDocBuffer newPerDocBuffer() {
+    return new PerDocBuffer();
+  }
+
+  /**
+   * RAMFile buffer for DocWriters.
+   */
+  class PerDocBuffer extends RAMFile {
+    
+    /**
+     * Allocate bytes used from shared pool.
+     */
+    protected byte[] newBuffer(int size) {
+      assert size == PER_DOC_BLOCK_SIZE;
+      return perDocAllocator.getByteBlock(false);
+    }
+    
+    /**
+     * Recycle the bytes used.
+     */
+    synchronized void recycle() {
+      if (buffers.size() > 0) {
+        setLength(0);
+        
+        // Recycle the blocks
+        final int blockCount = buffers.size();
+        
+        final byte[][] blocks = buffers.toArray( new byte[blockCount][] );
+        perDocAllocator.recycleByteBlocks(blocks, 0, blockCount);
+        buffers.clear();
+        sizeInBytes = 0;
+        
+        assert numBuffers() == 0;
+      }
     }
   }
   
@@ -1245,6 +1286,11 @@ final class DocumentsWriter {
   final static int MAX_TERM_LENGTH_UTF8 = BYTE_BLOCK_SIZE-2;
 
   private class ByteBlockAllocator extends ByteBlockPool.Allocator {
+    final int blockSize;
+
+    ByteBlockAllocator(int blockSize) {
+      this.blockSize = blockSize;
+    }
 
     ArrayList<byte[]> freeByteBlocks = new ArrayList<byte[]>();
     
@@ -1261,12 +1307,12 @@ final class DocumentsWriter {
           // things that don't track allocations (term
           // vectors) and things that do (freq/prox
           // postings).
-          numBytesAlloc += BYTE_BLOCK_SIZE;
-          b = new byte[BYTE_BLOCK_SIZE];
+          numBytesAlloc += blockSize;
+          b = new byte[blockSize];
         } else
           b = freeByteBlocks.remove(size-1);
         if (trackAllocations)
-          numBytesUsed += BYTE_BLOCK_SIZE;
+          numBytesUsed += blockSize;
         assert numBytesUsed <= numBytesAlloc;
         return b;
       }
@@ -1327,14 +1373,19 @@ final class DocumentsWriter {
       freeIntBlocks.add(blocks[i]);
   }
 
-  ByteBlockAllocator byteBlockAllocator = new ByteBlockAllocator();
+  ByteBlockAllocator byteBlockAllocator = new ByteBlockAllocator(BYTE_BLOCK_SIZE);
+
+  final static int PER_DOC_BLOCK_SIZE = 1024;
+
+  final ByteBlockAllocator perDocAllocator = new ByteBlockAllocator(PER_DOC_BLOCK_SIZE);
 
   String toMB(long v) {
     return nf.format(v/1024./1024.);
   }
 
-  /* We have two pools of RAM: Postings and byte blocks
-   * (holds freq/prox posting data).  Different docs require
+  /* We have three pools of RAM: Postings, byte blocks
+   * (holds freq/prox posting data) and per-doc buffers
+   * (stored fields/term vectors).  Different docs require
    * varying amount of storage from these classes.  For
    * example, docs with many unique single-occurrence short
    * terms will use up the Postings RAM and hardly any of
@@ -1357,7 +1408,8 @@ final class DocumentsWriter {
                 " allocMB=" + toMB(numBytesAlloc) +
                 " deletesMB=" + toMB(deletesRAMUsed) +
                 " vs trigger=" + toMB(freeTrigger) +
-                " byteBlockFree=" + toMB(byteBlockAllocator.freeByteBlocks.size()*BYTE_BLOCK_SIZE));
+                " byteBlockFree=" + toMB(byteBlockAllocator.freeByteBlocks.size()*BYTE_BLOCK_SIZE) +
+                " perDocFree=" + toMB(perDocAllocator.freeByteBlocks.size()*PER_DOC_BLOCK_SIZE));
 
       final long startBytesAlloc = numBytesAlloc + deletesRAMUsed;
 
@@ -1372,7 +1424,9 @@ final class DocumentsWriter {
       while(numBytesAlloc+deletesRAMUsed > freeLevel) {
       
         synchronized(this) {
-          if (0 == byteBlockAllocator.freeByteBlocks.size() && 0 == freeIntBlocks.size() && !any) {
+          if (0 == perDocAllocator.freeByteBlocks.size() &&
+              0 == byteBlockAllocator.freeByteBlocks.size() &&
+              0 == freeIntBlocks.size() && !any) {
             // Nothing else to free -- must flush now.
             bufferIsFull = numBytesUsed+deletesRAMUsed > flushTrigger;
             if (infoStream != null) {
@@ -1385,18 +1439,29 @@ final class DocumentsWriter {
             break;
           }
 
-          if ((0 == iter % 3) && byteBlockAllocator.freeByteBlocks.size() > 0) {
+          if ((0 == iter % 4) && byteBlockAllocator.freeByteBlocks.size() > 0) {
             byteBlockAllocator.freeByteBlocks.remove(byteBlockAllocator.freeByteBlocks.size()-1);
             numBytesAlloc -= BYTE_BLOCK_SIZE;
           }
 
-          if ((1 == iter % 3) && freeIntBlocks.size() > 0) {
+          if ((1 == iter % 4) && freeIntBlocks.size() > 0) {
             freeIntBlocks.remove(freeIntBlocks.size()-1);
             numBytesAlloc -= INT_BLOCK_SIZE * INT_NUM_BYTE;
           }
+
+          if ((2 == iter % 4) && perDocAllocator.freeByteBlocks.size() > 0) {
+            // Remove upwards of 32 blocks (each block is 1K)
+            for (int i = 0; i < 32; ++i) {
+              perDocAllocator.freeByteBlocks.remove(perDocAllocator.freeByteBlocks.size() - 1);
+              numBytesAlloc -= PER_DOC_BLOCK_SIZE;
+              if (perDocAllocator.freeByteBlocks.size() == 0) {
+                break;
+              }
+            }
+          }
         }
 
-        if ((2 == iter % 3) && any)
+        if ((3 == iter % 4) && any)
           // Ask consumer to free any recycled state
           any = consumer.freeRAM();
 
