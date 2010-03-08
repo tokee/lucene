@@ -96,6 +96,12 @@ API Changes
   callers can use to query whether a certain file matches a certain extension.
   (Shai Erera via Mike McCandless)  
 
+* LUCENE-124: Add a TopTermsBoostOnlyBooleanQueryRewrite to MultiTermQuery.
+  This rewrite method is similar to TopTermsScoringBooleanQueryRewrite, but
+  only scores terms by their boost values. For example, this can be used 
+  with FuzzyQuery to ensure that exact matches are always scored higher, 
+  because only the boost will be used in scoring.  (Robert Muir)
+  
 Bug fixes
 
 * LUCENE-2119: Don't throw NegativeArraySizeException if you pass
@@ -126,6 +132,11 @@ Bug fixes
   the configured RAM Buffer Size for the IndexWriter.  This also fixes
   potentially excessive memory usage when many threads are indexing a
   mix of small and large documents.  (Tim Smith via Mike McCandless)
+
+* LUCENE-2300: If IndexWriter is pooling reader (because NRT reader
+  has been obtained), and addIndexes* is run, do not pool the
+  readers from the external directory.  This is harmless (NRT reader is
+  correct), but a waste of resources.  (Mike McCandless)
   
 New features
 
