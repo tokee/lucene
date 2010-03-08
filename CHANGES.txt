@@ -41,6 +41,10 @@ Changes in backwards compatibility policy
 
 * LUCENE-2190: Removed deprecated customScore() and customExplain()
   methods from experimental CustomScoreQuery.  (Uwe Schindler)
+  
+* LUCENE-2286: Enabled DefaultSimilarity.setDiscountOverlaps by default.
+  This means that terms with a position increment gap of zero do not
+  affect the norms calculation by default.  (Robert Muir)
 
 Changes in runtime behavior
 
@@ -207,6 +211,10 @@ Optimizations
   (Simon Willnauer via Robert Muir)
 
 * LUCENE-2285: Code cleanup. (Shai Erera via Uwe Schindler)
+
+* LUCENE-2303: Remove code duplication in Token class by subclassing
+  TermAttributeImpl, move DEFAULT_TYPE constant to TypeInterface, improve
+  null-handling for TypeAttribute.  (Uwe Schindler)
 
 Build
 

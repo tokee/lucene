@@ -504,10 +504,14 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
     return infoStream;
   }
 
+  /**
+   * Prints the given message to the infoStream. Note, this method does not
+   * check for null infoStream. It assumes this check has been performed by the
+   * caller, which is recommended to avoid the (usually) expensive message
+   * creation.
+   */
   private static void message(String message) {
-    if (infoStream != null) {
-      infoStream.println("SIS [" + Thread.currentThread().getName() + "]: " + message);
-    }
+    infoStream.println("SIS [" + Thread.currentThread().getName() + "]: " + message);
   }
 
   /**
@@ -580,7 +584,9 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
           if (files != null)
             genA = getCurrentSegmentGeneration(files);
 
-          message("directory listing genA=" + genA);
+          if (infoStream != null) {
+            message("directory listing genA=" + genA);
+          }
 
           // Method 2: open segments.gen and read its
           // contents.  Then we take the larger of the two
@@ -593,10 +599,14 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
             try {
               genInput = directory.openInput(IndexFileNames.SEGMENTS_GEN);
             } catch (FileNotFoundException e) {
-              message("segments.gen open: FileNotFoundException " + e);
+              if (infoStream != null) {
+                message("segments.gen open: FileNotFoundException " + e);
+              }
               break;
             } catch (IOException e) {
-              message("segments.gen open: IOException " + e);
+              if (infoStream != null) {
+                message("segments.gen open: IOException " + e);
+              }
             }
   
             if (genInput != null) {
@@ -605,7 +615,9 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
                 if (version == FORMAT_LOCKLESS) {
                   long gen0 = genInput.readLong();
                   long gen1 = genInput.readLong();
-                  message("fallback check: " + gen0 + "; " + gen1);
+                  if (infoStream != null) {
+                    message("fallback check: " + gen0 + "; " + gen1);
+                  }
                   if (gen0 == gen1) {
                     // The file is consistent.
                     genB = gen0;
@@ -625,7 +637,9 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
             }
           }
 
-          message(IndexFileNames.SEGMENTS_GEN + " check: genB=" + genB);
+          if (infoStream != null) {
+            message(IndexFileNames.SEGMENTS_GEN + " check: genB=" + genB);
+          }
 
           // Pick the larger of the two gen's:
           if (genA > genB)
@@ -650,7 +664,9 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
           if (genLookaheadCount < defaultGenLookaheadCount) {
             gen++;
             genLookaheadCount++;
-            message("look ahead increment gen to " + gen);
+            if (infoStream != null) {
+              message("look ahead increment gen to " + gen);
+            }
           }
         }
 
@@ -685,7 +701,7 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
 
         try {
           Object v = doBody(segmentFileName);
-          if (exc != null) {
+          if (exc != null && infoStream != null) {
             message("success on " + segmentFileName);
           }
           return v;
@@ -696,7 +712,9 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
             exc = err;
           }
 
-          message("primary Exception on '" + segmentFileName + "': " + err + "'; will retry: retry=" + retry + "; gen = " + gen);
+          if (infoStream != null) {
+            message("primary Exception on '" + segmentFileName + "': " + err + "'; will retry: retry=" + retry + "; gen = " + gen);
+          }
 
           if (!retry && gen > 1) {
 
@@ -713,13 +731,19 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
             prevExists = directory.fileExists(prevSegmentFileName);
 
             if (prevExists) {
-              message("fallback to prior segment file '" + prevSegmentFileName + "'");
+              if (infoStream != null) {
+                message("fallback to prior segment file '" + prevSegmentFileName + "'");
+              }
               try {
                 Object v = doBody(prevSegmentFileName);
-                message("success on fallback " + prevSegmentFileName);
+                if (infoStream != null) {
+                  message("success on fallback " + prevSegmentFileName);
+                }
                 return v;
               } catch (IOException err2) {
-                message("secondary Exception on '" + prevSegmentFileName + "': " + err2 + "'; will retry");
+                if (infoStream != null) {
+                  message("secondary Exception on '" + prevSegmentFileName + "': " + err2 + "'; will retry");
+                }
               }
             }
           }

@@ -1,4 +1,4 @@
-package org.apache.lucene.analysis.tokenattributes;
+package org.apache.lucene.queryParser.core.nodes;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -17,20 +17,19 @@ package org.apache.lucene.analysis.tokenattributes;
  * limitations under the License.
  */
 
-import org.apache.lucene.util.Attribute;
+import java.util.Arrays;
 
-/**
- * A Token's lexical type. The Default value is "word". 
- */
-public interface TypeAttribute extends Attribute {
+import org.apache.lucene.util.LuceneTestCase;
 
-  /** the default type */
-  public static final String DEFAULT_TYPE = "word";
-
-  /** Returns this Token's lexical type.  Defaults to "word". */
-  public String type();
-
-  /** Set the lexical type.
-      @see #type() */
-  public void setType(String type);
+public class TestQueryNode extends LuceneTestCase {
+ 
+  /* LUCENE-2227 bug in QueryNodeImpl.add() */
+  public void testAddChildren() throws Exception {
+    FieldQueryNode nodeA = new FieldQueryNode("foo", "A", 0, 1);
+    FieldQueryNode nodeB = new FieldQueryNode("foo", "B", 1, 2);
+    BooleanQueryNode bq = new BooleanQueryNode(
+        Arrays.asList(new QueryNode[] { nodeA }));
+    bq.add(Arrays.asList(new QueryNode[] { nodeB }));
+    assertEquals(2, bq.getChildren().size());
+  }
 }
