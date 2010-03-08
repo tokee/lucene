@@ -70,6 +70,9 @@ public final class BytesRef {
   public void copy(CharSequence text) {
     // nocommit -- remove this paranoia
     assert UnicodeUtil.validUTF16String(text);
+    // nocommit -- new byte[10] is waste of resources,
+    // it should simply allocate text.length()*4 like UnicodeUtil.
+    // Ideally, I would remove this here and add a null-check in UnicodeUtil. (Uwe)
     if (bytes == null)
       bytes = new byte[10];
     UnicodeUtil.UTF16toUTF8(text, 0, text.length(), this);
