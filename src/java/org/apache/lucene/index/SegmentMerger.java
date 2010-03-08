@@ -208,7 +208,7 @@ final class SegmentMerger {
     // Perform the merge
     cfsWriter.close();
    
-    return new ArrayList(fileSet);
+    return new ArrayList<String>(fileSet);
   }
 
   private void addIndexed(IndexReader reader, FieldInfos fInfos,
