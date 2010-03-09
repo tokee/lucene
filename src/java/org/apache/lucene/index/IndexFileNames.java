@@ -40,8 +40,11 @@ public final class IndexFileNames {
   /** Name of the index segment file */
   public static final String SEGMENTS = "segments";
 
+  /** Extension of gen file */
+  public static final String GEN_EXTENSION = "gen";
+  
   /** Name of the generation reference file name */
-  public static final String SEGMENTS_GEN = "segments.gen";
+  public static final String SEGMENTS_GEN = "segments." +  GEN_EXTENSION;
   
   /** Name of the index deletable file (only used in
    * pre-lockless indices) */
@@ -83,12 +86,6 @@ public final class IndexFileNames {
   /** Extension of separate norms */
   public static final String SEPARATE_NORMS_EXTENSION = "s";
 
-  /** Extension of gen file */
-  public static final String GEN_EXTENSION = "gen";
-
-  // nocommit -- more cleanup needed -- do we really use all
-  // these arrays below?
-
   /**
    * This array contains all filename extensions used by
    * Lucene's index files, with two exceptions, namely the
@@ -111,18 +108,6 @@ public final class IndexFileNames {
     COMPOUND_FILE_STORE_EXTENSION,
   };
 
-  /** File extensions that are added to a compound file
-   * (same as above, minus "del", "gen", "cfs"). */
-  public static final String[] INDEX_EXTENSIONS_IN_COMPOUND_FILE = new String[] {
-    FIELD_INFOS_EXTENSION,
-    FIELDS_INDEX_EXTENSION,
-    FIELDS_EXTENSION,
-    VECTORS_INDEX_EXTENSION,
-    VECTORS_DOCUMENTS_EXTENSION,
-    VECTORS_FIELDS_EXTENSION,
-    NORMS_EXTENSION
-  };
-
   public static final String[] STORE_INDEX_EXTENSIONS = new String[] {
     VECTORS_INDEX_EXTENSION,
     VECTORS_FIELDS_EXTENSION,
@@ -136,13 +121,6 @@ public final class IndexFileNames {
     NORMS_EXTENSION
   };
   
-  /** File extensions of old-style index files */
-  public static final String COMPOUND_EXTENSIONS[] = new String[] {
-    FIELD_INFOS_EXTENSION,
-    FIELDS_INDEX_EXTENSION,
-    FIELDS_EXTENSION,
-  };
-
   static final String COMPOUND_EXTENSIONS_NOT_CODEC[] = new String[] {
     FIELD_INFOS_EXTENSION,
     FIELDS_INDEX_EXTENSION,
