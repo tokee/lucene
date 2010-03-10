@@ -27,7 +27,7 @@ import java.util.List;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.index.MergePolicy.MergeAbortedException;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.MergeState;
 import org.apache.lucene.index.codecs.FieldsConsumer;
@@ -75,11 +75,11 @@ final class SegmentMerger {
       when merging stored fields */
   private final static int MAX_RAW_MERGE_DOCS = 4192;
   
-  private final Codecs codecs;
+  private final CodecProvider codecs;
   private Codec codec;
   private SegmentWriteState segmentWriteState;
 
-  SegmentMerger(Directory dir, int termIndexInterval, String name, MergePolicy.OneMerge merge, Codecs codecs) {
+  SegmentMerger(Directory dir, int termIndexInterval, String name, MergePolicy.OneMerge merge, CodecProvider codecs) {
     directory = dir;
     this.codecs = codecs;
     segment = name;
@@ -555,7 +555,7 @@ final class SegmentMerger {
 
   private final void mergeTerms() throws CorruptIndexException, IOException {
 
-    // Let Codecs decide which codec will be used to write
+    // Let CodecProvider decide which codec will be used to write
     // the new segment:
     codec = codecs.getWriter(segmentWriteState);
     
@@ -631,9 +631,13 @@ final class SegmentMerger {
 
     final FieldsConsumer consumer = codec.fieldsConsumer(segmentWriteState);
 
-    // nocommit: somewhat stupid that we create this only to
-    // have it broken apart when we step through the docs
-    // enums in MultidDcsEnum.... is there a cleaner way?
+    // NOTE: this is silly, yet, necessary -- we create a
+    // MultiBits as our skip docs only to have it broken
+    // apart when we step through the docs enums in
+    // MultidDcsEnum.... this only matters when we are
+    // interacting with a non-core IR subclass, because
+    // LegacyFieldsEnum.LegacyDocs[AndPositions]Enum checks
+    // that the skipDocs matches the delDocs for the reader
     mergeState.multiDeletedDocs = new MultiBits(bits, bitsStarts);
     
     try {

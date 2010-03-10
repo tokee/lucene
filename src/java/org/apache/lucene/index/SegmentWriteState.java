@@ -19,10 +19,11 @@ package org.apache.lucene.index;
 
 import java.util.HashSet;
 import java.util.Collection;
+import java.io.PrintStream;
 
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 
 /**
  * This class is not meant for public usage; it's only
@@ -31,45 +32,42 @@ import org.apache.lucene.index.codecs.Codecs;
  * @lucene.experimental
  */
 public class SegmentWriteState {
-  // nocommit -- not clean that this is here; sometimes we
-  // write a newly flushed segment; other times a merged
-  // segment (and this is null):
-  DocumentsWriter docWriter;
-  public Directory directory;
-  public String segmentName;
-  public FieldInfos fieldInfos;
-  String docStoreSegmentName;
-  public int numDocs;
-  int numDocsInStore;
-  public Collection<String> flushedFiles;
+  public final PrintStream infoStream;
+  public final Directory directory;
+  public final String segmentName;
+  public final FieldInfos fieldInfos;
+  public final String docStoreSegmentName;
+  public final int numDocs;
+  public int numDocsInStore;
+  public final Collection<String> flushedFiles;
 
   // Actual codec used
-  Codec codec;
+  final Codec codec;
 
   /** Expert: The fraction of terms in the "dictionary" which should be stored
    * in RAM.  Smaller values use more memory, but make searching slightly
    * faster, while larger values use less memory and make searching slightly
    * slower.  Searching is typically not dominated by dictionary lookup, so
    * tweaking this is rarely useful.*/
-  public int termIndexInterval;
+  public final int termIndexInterval;
 
   /** Expert: The fraction of {@link TermDocs} entries stored in skip tables,
    * used to accelerate {@link TermDocs#skipTo(int)}.  Larger values result in
    * smaller indexes, greater acceleration, but fewer accelerable cases, while
    * smaller values result in bigger indexes, less acceleration and more
    * accelerable cases. More detailed experiments would be useful here. */
-  public int skipInterval = 16;
+  public final int skipInterval = 16;
   
   /** Expert: The maximum number of skip levels. Smaller values result in 
    * slightly smaller indexes, but slower skipping in big posting lists.
    */
-  public int maxSkipLevels = 10;
+  public final int maxSkipLevels = 10;
 
-  public SegmentWriteState(DocumentsWriter docWriter, Directory directory, String segmentName, FieldInfos fieldInfos,
+  public SegmentWriteState(PrintStream infoStream, Directory directory, String segmentName, FieldInfos fieldInfos,
                            String docStoreSegmentName, int numDocs,
                            int numDocsInStore, int termIndexInterval,
-                           Codecs codecs) {
-    this.docWriter = docWriter;
+                           CodecProvider codecs) {
+    this.infoStream = infoStream;
     this.directory = directory;
     this.segmentName = segmentName;
     this.fieldInfos = fieldInfos;

@@ -28,7 +28,7 @@ import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.util.Constants;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.util.ThreadInterruptedException;
 
 import java.io.IOException;
@@ -983,7 +983,7 @@ public class IndexWriter implements Closeable {
    *  <code>false</code> or if there is any other low-level
    *  IO error
    */
-  public IndexWriter(Directory d, Analyzer a, boolean create, IndexDeletionPolicy deletionPolicy, MaxFieldLength mfl, IndexingChain indexingChain, IndexCommit commit, Codecs codecs)
+  public IndexWriter(Directory d, Analyzer a, boolean create, IndexDeletionPolicy deletionPolicy, MaxFieldLength mfl, IndexingChain indexingChain, IndexCommit commit, CodecProvider codecs)
        throws CorruptIndexException, LockObtainFailedException, IOException {
     init(d, a, create, deletionPolicy, mfl.getLimit(), indexingChain, commit, codecs);
   }
@@ -1025,7 +1025,7 @@ public class IndexWriter implements Closeable {
     init(d, a, false, deletionPolicy, mfl.getLimit(), null, commit, null);
   }
   
-  Codecs codecs;
+  CodecProvider codecs;
 
   private void init(Directory d, Analyzer a, IndexDeletionPolicy deletionPolicy, 
                     int maxFieldLength, IndexingChain indexingChain, IndexCommit commit)
@@ -1039,11 +1039,11 @@ public class IndexWriter implements Closeable {
 
   private void init(Directory d, Analyzer a, final boolean create, 
                     IndexDeletionPolicy deletionPolicy, int maxFieldLength,
-                    IndexingChain indexingChain, IndexCommit commit, Codecs codecsIn)
+                    IndexingChain indexingChain, IndexCommit commit, CodecProvider codecsIn)
     throws CorruptIndexException, LockObtainFailedException, IOException {
 
     if (codecsIn == null) {
-      codecs = Codecs.getDefault();
+      codecs = CodecProvider.getDefault();
     } else {
       codecs = codecsIn;
     }

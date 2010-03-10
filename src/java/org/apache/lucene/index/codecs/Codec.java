@@ -21,9 +21,9 @@ import java.io.IOException;
 import java.util.Set;
 
 import org.apache.lucene.index.CorruptIndexException;
-import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
+import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
@@ -56,8 +56,7 @@ public abstract class Codec {
   /** Reads a segment.  NOTE: by the time this call
    *  returns, it must hold open any files it will need to
    *  use; else, those files may be deleted. */
-  // nocommit -- make a SegmentReadState (symmetric)?
-  public abstract FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException;
+  public abstract FieldsProducer fieldsProducer(SegmentReadState state) throws IOException;
 
   /** Gathers files associated with this segment */
   public abstract void files(Directory dir, SegmentInfo segmentInfo, Set<String> files) throws IOException;

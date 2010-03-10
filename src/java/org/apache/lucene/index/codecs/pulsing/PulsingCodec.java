@@ -20,9 +20,9 @@ package org.apache.lucene.index.codecs.pulsing;
 import java.io.IOException;
 import java.util.Set;
 
-import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
+import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
 import org.apache.lucene.index.codecs.standard.StandardPostingsWriterImpl;
@@ -95,11 +95,11 @@ public class PulsingCodec extends Codec {
   }
 
   @Override
-  public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
+  public FieldsProducer fieldsProducer(SegmentReadState state) throws IOException {
 
     // We wrap StandardPostingsReaderImpl, but any StandardPostingsReader
     // will work:
-    StandardPostingsReader docsReader = new StandardPostingsReaderImpl(dir, si, readBufferSize);
+    StandardPostingsReader docsReader = new StandardPostingsReaderImpl(state.dir, state.segmentInfo, state.readBufferSize);
     StandardPostingsReader pulsingReader = new PulsingPostingsReaderImpl(docsReader);
 
     // Terms dict index reader
@@ -107,10 +107,10 @@ public class PulsingCodec extends Codec {
 
     boolean success = false;
     try {
-      indexReader = new SimpleStandardTermsIndexReader(dir,
-                                                       fieldInfos,
-                                                       si.name,
-                                                       indexDivisor,
+      indexReader = new SimpleStandardTermsIndexReader(state.dir,
+                                                       state.fieldInfos,
+                                                       state.segmentInfo.name,
+                                                       state.termsIndexDivisor,
                                                        BytesRef.getUTF8SortedAsUTF16Comparator());
       success = true;
     } finally {
@@ -123,9 +123,9 @@ public class PulsingCodec extends Codec {
     success = false;
     try {
       FieldsProducer ret = new StandardTermsDictReader(indexReader,
-                                                       dir, fieldInfos, si.name,
+                                                       state.dir, state.fieldInfos, state.segmentInfo.name,
                                                        pulsingReader,
-                                                       readBufferSize,
+                                                       state.readBufferSize,
                                                        BytesRef.getUTF8SortedAsUTF16Comparator(),
                                                        StandardCodec.TERMS_CACHE_SIZE);
       success = true;

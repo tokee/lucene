@@ -20,7 +20,7 @@ package org.apache.lucene.index;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.search.Similarity;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
@@ -345,7 +345,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
 
   /** Expert: returns an IndexReader reading the index in
    *  the given Directory, with a custom {@link
-   *  IndexDeletionPolicy}, and specified {@link Codecs}.
+   *  IndexDeletionPolicy}, and specified {@link CodecProvider}.
    *  You should pass readOnly=true, since it gives much
    *  better concurrent performance, unless you intend to do
    *  write operations (delete documents or change norms)
@@ -365,18 +365,18 @@ public abstract class IndexReader implements Cloneable,Closeable {
    *  memory usage, at the expense of higher latency when
    *  loading a TermInfo.  The default value is 1.  Set this
    *  to -1 to skip loading the terms index entirely.
-   * @param codecs Codecs to use when opening index
+   * @param codecs CodecProvider to use when opening index
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
    */
-  public static IndexReader open(final Directory directory, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, Codecs codecs) throws CorruptIndexException, IOException {
+  public static IndexReader open(final Directory directory, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, CodecProvider codecs) throws CorruptIndexException, IOException {
     return open(directory, deletionPolicy, null, readOnly, termInfosIndexDivisor, codecs);
   }
 
   /** Expert: returns an IndexReader reading the index in
    *  the given Directory, using a specific commit and with
    *  a custom {@link IndexDeletionPolicy} and specified
-   *  {@link Codecs}.  You should pass readOnly=true, since
+   *  {@link CodecProvider}.  You should pass readOnly=true, since
    *  it gives much better concurrent performance, unless
    *  you intend to do write operations (delete documents or
    *  change norms) with the reader.
@@ -398,18 +398,18 @@ public abstract class IndexReader implements Cloneable,Closeable {
    *  memory usage, at the expense of higher latency when
    *  loading a TermInfo.  The default value is 1.  Set this
    *  to -1 to skip loading the terms index entirely.
-   * @param codecs Codecs to use when opening index
+   * @param codecs CodecProvider to use when opening index
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
    */
-  public static IndexReader open(final IndexCommit commit, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, Codecs codecs) throws CorruptIndexException, IOException {
+  public static IndexReader open(final IndexCommit commit, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, CodecProvider codecs) throws CorruptIndexException, IOException {
     return open(commit.getDirectory(), deletionPolicy, commit, readOnly, termInfosIndexDivisor, codecs);
   }
 
   private static IndexReader open(final Directory directory, final IndexDeletionPolicy deletionPolicy, final IndexCommit commit, final boolean readOnly, int termInfosIndexDivisor,
-      Codecs codecs) throws CorruptIndexException, IOException {
+      CodecProvider codecs) throws CorruptIndexException, IOException {
     if (codecs == null) {
-      codecs = Codecs.getDefault();
+      codecs = CodecProvider.getDefault();
     }
     return DirectoryReader.open(directory, deletionPolicy, commit, readOnly, termInfosIndexDivisor, codecs);
   }
@@ -553,7 +553,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * @throws IOException if there is a low-level IO error
    */
   public static long getCurrentVersion(Directory directory) throws CorruptIndexException, IOException {
-    return SegmentInfos.readCurrentVersion(directory, Codecs.getDefault());
+    return SegmentInfos.readCurrentVersion(directory, CodecProvider.getDefault());
   }
 
   /**
@@ -571,7 +571,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    * @see #getCommitUserData()
    */
   public static Map<String,String> getCommitUserData(Directory directory) throws CorruptIndexException, IOException {
-    return SegmentInfos.readCurrentUserData(directory, Codecs.getDefault());
+    return SegmentInfos.readCurrentUserData(directory, CodecProvider.getDefault());
   }
 
   /**

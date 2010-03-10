@@ -131,8 +131,6 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
       if (termsEnum.next() != null) {
         // fill into a OpenBitSet
         final OpenBitSet bitSet = new OpenBitSet(reader.maxDoc());
-        final int[] docs = new int[32];
-        final int[] freqs = new int[32];
         int termCount = 0;
         final Bits delDocs = MultiFields.getDeletedDocs(reader);
         DocsEnum docsEnum = null;
@@ -142,9 +140,10 @@ public class MultiTermQueryWrapperFilter<Q extends MultiTermQuery> extends Filte
           // enumerator.term().toBytesString());
           docsEnum = termsEnum.docs(delDocs, docsEnum);
           while (true) {
-            final int count = docsEnum.read(docs, freqs);
-            if (count != 0) {
-              for (int i = 0; i < count; i++) {
+            final DocsEnum.BulkReadResult result = docsEnum.read();
+            if (result.count != 0) {
+              final int[] docs = result.docs.ints;
+              for (int i = 0; i < result.count; i++) {
                 bitSet.set(docs[i]);
               }
             } else {

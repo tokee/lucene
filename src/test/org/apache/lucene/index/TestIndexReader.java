@@ -21,7 +21,6 @@ package org.apache.lucene.index;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -42,7 +41,7 @@ import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.document.SetBasedFieldSelector;
 import org.apache.lucene.index.IndexReader.FieldOption;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreDoc;
@@ -56,7 +55,6 @@ import org.apache.lucene.store.NoSuchDirectoryException;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util._TestUtil;
-import org.apache.lucene.index.codecs.Codec;
 
 public class TestIndexReader extends LuceneTestCase
 {
@@ -1133,17 +1131,6 @@ public class TestIndexReader extends LuceneTestCase
       dir.close();
     }
 
-    private String arrayToString(String[] l) {
-      String s = "";
-      for(int i=0;i<l.length;i++) {
-        if (i > 0) {
-          s += "\n    ";
-        }
-        s += l[i];
-      }
-      return s;
-    }
-
     public void testOpenReaderAfterDelete() throws IOException {
       File dirFile = new File(System.getProperty("tempDir"),
                           "deletetest");
@@ -1410,7 +1397,7 @@ public class TestIndexReader extends LuceneTestCase
       writer.close();
 
       SegmentInfos sis = new SegmentInfos();
-      sis.read(d, Codecs.getDefault());
+      sis.read(d, CodecProvider.getDefault());
       IndexReader r = IndexReader.open(d, false);
       IndexCommit c = r.getIndexCommit();
 

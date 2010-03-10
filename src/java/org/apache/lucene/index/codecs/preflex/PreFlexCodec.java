@@ -24,7 +24,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
-import org.apache.lucene.index.FieldInfos;
+import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
 
@@ -61,8 +61,8 @@ public class PreFlexCodec extends Codec {
   }
 
   @Override
-  public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo info, int readBufferSize, int indexDivisor) throws IOException {
-    return new PreFlexFields(dir, fieldInfos, info, readBufferSize, indexDivisor);
+  public FieldsProducer fieldsProducer(SegmentReadState state) throws IOException {
+    return new PreFlexFields(state.dir, state.fieldInfos, state.segmentInfo, state.readBufferSize, state.termsIndexDivisor);
   }
 
   @Override

@@ -20,9 +20,9 @@ package org.apache.lucene.index.codecs.intblock;
 import java.io.IOException;
 import java.util.Set;
 
-import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.SegmentInfo;
 import org.apache.lucene.index.SegmentWriteState;
+import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.FieldsProducer;
@@ -82,16 +82,19 @@ public class IntBlockCodec extends Codec {
   }
 
   @Override
-  public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
-    StandardPostingsReader postingsReader = new SepPostingsReaderImpl(dir, si, readBufferSize, new SimpleIntBlockFactory(1024));
+  public FieldsProducer fieldsProducer(SegmentReadState state) throws IOException {
+    StandardPostingsReader postingsReader = new SepPostingsReaderImpl(state.dir,
+                                                                      state.segmentInfo,
+                                                                      state.readBufferSize,
+                                                                      new SimpleIntBlockFactory(1024));
 
     StandardTermsIndexReader indexReader;
     boolean success = false;
     try {
-      indexReader = new SimpleStandardTermsIndexReader(dir,
-                                                       fieldInfos,
-                                                       si.name,
-                                                       indexDivisor,
+      indexReader = new SimpleStandardTermsIndexReader(state.dir,
+                                                       state.fieldInfos,
+                                                       state.segmentInfo.name,
+                                                       state.termsIndexDivisor,
                                                        BytesRef.getUTF8SortedAsUTF16Comparator());
       success = true;
     } finally {
@@ -103,9 +106,11 @@ public class IntBlockCodec extends Codec {
     success = false;
     try {
       FieldsProducer ret = new StandardTermsDictReader(indexReader,
-                                                       dir, fieldInfos, si.name,
+                                                       state.dir,
+                                                       state.fieldInfos,
+                                                       state.segmentInfo.name,
                                                        postingsReader,
-                                                       readBufferSize,
+                                                       state.readBufferSize,
                                                        BytesRef.getUTF8SortedAsUTF16Comparator(),
                                                        StandardCodec.TERMS_CACHE_SIZE);
       success = true;

@@ -202,8 +202,6 @@ public class FlexTestUtil {
     }
     FieldsEnum fieldsEnum = fields.iterator();
     boolean skipNext = false;
-    int[] docs1 = new int[16];
-    int[] freqs1 = new int[16];
     int[] docs2 = new int[16];
     int[] freqs2 = new int[16];
     while(true) {
@@ -253,32 +251,35 @@ public class FlexTestUtil {
               if (rand.nextBoolean()) {
                 // use bulk read API
                 termDocs.seek(t);
-                int count1 = 0;
+                DocsEnum.BulkReadResult result1 = null;
                 int count2 = 0;
                 while(true) {
-                  if (count1 == 0) {
-                    count1 = docs.read(docs1, freqs1);
+                  if (result1 == null || result1.count == 0) {
+                    result1 = docs.read();
                   }
                   if (count2 == 0) {
                     count2 = termDocs.read(docs2, freqs2);
                   }
 
-                  if (count1 == 0 || count2 == 0) {
+                  if (result1.count == 0 || count2 == 0) {
                     assertEquals(0, count2);
-                    assertEquals(0, count1);
+                    assertEquals(0, result1.count);
                     break;
                   }
-                  final int limit = Math.min(count1, count2);
+                  final int limit = Math.min(result1.count, count2);
                   for(int i=0;i<limit;i++) {
-                    assertEquals(docs1[i], docs2[i]);
-                    assertEquals(freqs1[i], freqs2[i]);
+                    assertEquals(result1.docs.ints[i], docs2[i]);
+                    assertEquals(result1.freqs.ints[i], freqs2[i]);
                   }
-                  if (count1 > limit) {
+                  if (result1.count > limit) {
                     // copy down
-                    System.arraycopy(docs1, limit, docs1, 0, count1-limit);
-                    System.arraycopy(freqs1, limit, freqs1, 0, count1-limit);
+                    // nocommit -- hmm in general I should
+                    // not muck w/ the int[]'s returned to
+                    // me like this...?
+                    System.arraycopy(result1.docs.ints, limit, result1.docs.ints, 0, result1.count-limit);
+                    System.arraycopy(result1.freqs.ints, limit, result1.freqs.ints, 0, result1.count-limit);
                   }
-                  count1 -= limit;
+                  result1.count -= limit;
 
                   if (count2 > limit) {
                     // copy down

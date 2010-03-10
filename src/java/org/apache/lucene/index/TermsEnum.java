@@ -58,7 +58,6 @@ public abstract class TermsEnum {
    *  indicate whether exact term was found, a different
    *  term was found, or EOF was hit.  The target term may
    *  be befor or after the current term. */
-  // nocommit -- add boolean doCache?
   public abstract SeekStatus seek(BytesRef text) throws IOException;
 
   /** Seeks to the specified term by ordinal (position) as
@@ -81,11 +80,9 @@ public abstract class TermsEnum {
   /** Returns ordinal position for current term.  This is an
    *  optional method (the codec may throw {@link
    *  UnsupportedOperationException}).  Do not call this
-   *  before calling next() for the first time, after next()
-   *  returns null or seek returns {@link
-   *  SeekStatus#END}. */
-  // nocommit -- should we allow calling this after next
-  // returns null?  and it returns 1+ max ord?
+   *  before calling {@link #next} for the first time or after
+   *  {@link #next} returns null or {@link #seek} returns
+   *  END; */
   public abstract long ord() throws IOException;
 
   /** Returns the number of documents containing the current

@@ -262,10 +262,10 @@ public class TestCodecs extends LuceneTestCase {
 
     Directory dir = new MockRAMDirectory();
     write(fieldInfos, dir, fields);
-    SegmentInfo si = new SegmentInfo(SEGMENT, 10000, dir, Codecs.getDefault().getWriter(null));
+    SegmentInfo si = new SegmentInfo(SEGMENT, 10000, dir, CodecProvider.getDefault().getWriter(null));
     si.setHasProx(false);
 
-    FieldsProducer reader = si.getCodec().fieldsProducer(dir, fieldInfos, si, 64, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR);
+    FieldsProducer reader = si.getCodec().fieldsProducer(new SegmentReadState(dir, si, fieldInfos, 64, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR));
     
     FieldsEnum fieldsEnum = reader.iterator();
     assertNotNull(fieldsEnum.next());
@@ -300,13 +300,13 @@ public class TestCodecs extends LuceneTestCase {
     Directory dir = new MockRAMDirectory();
 
     write(fieldInfos, dir, fields);
-    SegmentInfo si = new SegmentInfo(SEGMENT, 10000, dir, Codecs.getDefault().getWriter(null));
+    SegmentInfo si = new SegmentInfo(SEGMENT, 10000, dir, CodecProvider.getDefault().getWriter(null));
 
     if (Codec.DEBUG) {
       System.out.println("\nTEST: now read");
     }
 
-    FieldsProducer terms = si.getCodec().fieldsProducer(dir, fieldInfos, si, 1024, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR);
+    FieldsProducer terms = si.getCodec().fieldsProducer(new SegmentReadState(dir, si, fieldInfos, 1024, IndexReader.DEFAULT_TERMS_INDEX_DIVISOR));
 
     Verify[] threads = new Verify[NUM_TEST_THREADS-1];
     for(int i=0;i<NUM_TEST_THREADS-1;i++) {
@@ -587,7 +587,7 @@ public class TestCodecs extends LuceneTestCase {
     final int termIndexInterval = nextInt(13, 27);
 
     SegmentWriteState state = new SegmentWriteState(null, dir, SEGMENT, fieldInfos, null, 10000, 10000, termIndexInterval,
-                                                    Codecs.getDefault());
+                                                    CodecProvider.getDefault());
 
     final FieldsConsumer consumer = state.codec.fieldsConsumer(state);
     Arrays.sort(fields);

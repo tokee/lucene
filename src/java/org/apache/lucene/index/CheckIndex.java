@@ -22,7 +22,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.document.AbstractField;  // for javadocs
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
@@ -280,7 +280,7 @@ public class CheckIndex {
   }
 
   protected Status checkIndex(List<String> onlySegments) throws IOException {
-    return checkIndex(onlySegments, Codecs.getDefault());
+    return checkIndex(onlySegments, CodecProvider.getDefault());
   }
   
   /** Returns a {@link Status} instance detailing
@@ -295,7 +295,7 @@ public class CheckIndex {
    *  <p><b>WARNING</b>: make sure
    *  you only call this when the index is not opened by any
    *  writer. */
-  protected Status checkIndex(List<String> onlySegments, Codecs codecs) throws IOException {
+  protected Status checkIndex(List<String> onlySegments, CodecProvider codecs) throws IOException {
     NumberFormat nf = NumberFormat.getInstance();
     SegmentInfos sis = new SegmentInfos();
     Status result = new Status();

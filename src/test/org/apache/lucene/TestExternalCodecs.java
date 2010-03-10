@@ -460,9 +460,9 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
 
     @Override
-    public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor)
+    public FieldsProducer fieldsProducer(SegmentReadState readState)
       throws IOException {
-      return state.get(si.name);
+      return state.get(readState.segmentInfo.name);
     }
 
     @Override
@@ -565,7 +565,7 @@ public class TestExternalCodecs extends LuceneTestCase {
             fields.add(fi.name);
             Codec codec = getCodec(fi.name);
             if (!codecs.containsKey(codec)) {
-              codecs.put(codec, codec.fieldsProducer(dir, fieldInfos, si, readBufferSize, indexDivisor));
+              codecs.put(codec, codec.fieldsProducer(new SegmentReadState(dir, si, fieldInfos, readBufferSize, indexDivisor)));
             }
           }
         }
@@ -644,11 +644,9 @@ public class TestExternalCodecs extends LuceneTestCase {
       }
     }
 
-    public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos,
-                                         SegmentInfo si, int readBufferSize,
-                                         int indexDivisor)
-      throws IOException {
-      return new FieldsReader(dir, fieldInfos, si, readBufferSize, indexDivisor);
+    public FieldsProducer fieldsProducer(SegmentReadState state)
+        throws IOException {
+      return new FieldsReader(state.dir, state.fieldInfos, state.segmentInfo, state.readBufferSize, state.termsIndexDivisor);
     }
 
     @Override
@@ -674,7 +672,7 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
   }
 
-  public static class MyCodecs extends Codecs {
+  public static class MyCodecs extends CodecProvider {
     PerFieldCodecWrapper perField;
 
     MyCodecs() {
@@ -739,9 +737,9 @@ public class TestExternalCodecs extends LuceneTestCase {
     }
 
     @Override
-    public FieldsProducer fieldsProducer(Directory dir, FieldInfos fieldInfos, SegmentInfo si, int readBufferSize, int indexDivisor) throws IOException {
+    public FieldsProducer fieldsProducer(SegmentReadState state) throws IOException {
 
-      StandardPostingsReader docsReader = new StandardPostingsReaderImpl(dir, si, readBufferSize);
+      StandardPostingsReader docsReader = new StandardPostingsReaderImpl(state.dir, state.segmentInfo, state.readBufferSize);
       StandardPostingsReader pulsingReader = new PulsingPostingsReaderImpl(docsReader);
 
       // Terms dict index reader
@@ -749,10 +747,10 @@ public class TestExternalCodecs extends LuceneTestCase {
 
       boolean success = false;
       try {
-        indexReader = new SimpleStandardTermsIndexReader(dir,
-                                                         fieldInfos,
-                                                         si.name,
-                                                         indexDivisor,
+        indexReader = new SimpleStandardTermsIndexReader(state.dir,
+                                                         state.fieldInfos,
+                                                         state.segmentInfo.name,
+                                                         state.termsIndexDivisor,
                                                          reverseUnicodeComparator);
         success = true;
       } finally {
@@ -765,9 +763,11 @@ public class TestExternalCodecs extends LuceneTestCase {
       success = false;
       try {
         FieldsProducer ret = new StandardTermsDictReader(indexReader,
-                                                         dir, fieldInfos, si.name,
+                                                         state.dir,
+                                                         state.fieldInfos,
+                                                         state.segmentInfo.name,
                                                          pulsingReader,
-                                                         readBufferSize,
+                                                         state.readBufferSize,
                                                          reverseUnicodeComparator,
                                                          StandardCodec.TERMS_CACHE_SIZE);
         success = true;

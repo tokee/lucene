@@ -269,9 +269,12 @@ public class PulsingPostingsReaderImpl extends StandardPostingsReader {
     }
 
     @Override
-    public int read(int[] docs, int[] freqs) {
+    public BulkReadResult read() {
       int i=0;
       // TODO: -- ob1?
+      initBulkResult();
+      final int[] docs = bulkResult.docs.ints;
+      final int[] freqs = bulkResult.freqs.ints;
       while(nextRead < state.docFreq) {
         doc = state.docs[nextRead++];
         if (skipDocs == null || !skipDocs.get(doc.docID)) {
@@ -280,7 +283,8 @@ public class PulsingPostingsReaderImpl extends StandardPostingsReader {
           i++;
         }
       }
-      return i;
+      bulkResult.count = i;
+      return bulkResult;
     }
 
     @Override

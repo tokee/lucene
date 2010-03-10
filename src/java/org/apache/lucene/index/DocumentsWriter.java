@@ -589,7 +589,7 @@ final class DocumentsWriter {
 
   synchronized private void initFlushState(boolean onlyDocStore) {
     initSegmentName(onlyDocStore);
-    flushState = new SegmentWriteState(this, directory, segment, docFieldProcessor.fieldInfos,
+    flushState = new SegmentWriteState(infoStream, directory, segment, docFieldProcessor.fieldInfos,
                                        docStoreSegment, numDocsInRAM, numDocsInStore, writer.getTermIndexInterval(),
                                        writer.codecs);
   }

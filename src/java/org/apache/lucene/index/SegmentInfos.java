@@ -23,7 +23,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.ChecksumIndexOutput;
 import org.apache.lucene.store.ChecksumIndexInput;
 import org.apache.lucene.store.NoSuchDirectoryException;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.util.ThreadInterruptedException;
 
 import java.io.FileNotFoundException;
@@ -234,7 +234,7 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
    * @throws IOException if there is a low-level IO error
    */
   public final void read(Directory directory, String segmentFileName, 
-                         Codecs codecs) throws CorruptIndexException, IOException {
+                         CodecProvider codecs) throws CorruptIndexException, IOException {
     boolean success = false;
 
     // Clear any previous segments:
@@ -307,10 +307,10 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
    * @throws IOException if there is a low-level IO error
    */
   public final void read(Directory directory) throws CorruptIndexException, IOException {
-    read(directory, Codecs.getDefault());
+    read(directory, CodecProvider.getDefault());
   }
   
-  public final void read(Directory directory, final Codecs codecs) throws CorruptIndexException, IOException {
+  public final void read(Directory directory, final CodecProvider codecs) throws CorruptIndexException, IOException {
     generation = lastGeneration = -1;
 
     new FindSegmentsFile(directory) {
@@ -410,7 +410,7 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
    */
-  public static long readCurrentVersion(Directory directory, final Codecs codecs)
+  public static long readCurrentVersion(Directory directory, final CodecProvider codecs)
     throws CorruptIndexException, IOException {
 
     // Fully read the segments file: this ensures that it's
@@ -428,7 +428,7 @@ public final class SegmentInfos extends Vector<SegmentInfo> {
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
    */
-  public static Map<String,String> readCurrentUserData(Directory directory, Codecs codecs)
+  public static Map<String,String> readCurrentUserData(Directory directory, CodecProvider codecs)
     throws CorruptIndexException, IOException {
     SegmentInfos sis = new SegmentInfos();
     sis.read(directory, codecs);

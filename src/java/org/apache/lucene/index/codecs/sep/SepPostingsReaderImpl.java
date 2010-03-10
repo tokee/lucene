@@ -360,8 +360,11 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
     }
 
     @Override
-    public int read(int[] docs, int[] freqs) throws IOException {
+    public BulkReadResult read() throws IOException {
       // TODO: -- switch to bulk read api in IntIndexInput
+      initBulkResult();
+      final int[] docs = bulkResult.docs.ints;
+      final int[] freqs = bulkResult.freqs.ints;
       int i = 0;
       final int length = docs.length;
       while (i < length && count < docFreq) {
@@ -378,8 +381,8 @@ public class SepPostingsReaderImpl extends StandardPostingsReader {
           i++;
         }
       }
-
-      return i;
+      bulkResult.count = i;
+      return bulkResult;
     }
 
     @Override

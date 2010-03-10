@@ -40,7 +40,7 @@ import org.apache.lucene.util.BitVector;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.CloseableThreadLocal;
 import org.apache.lucene.util.UnicodeUtil;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.preflex.PreFlexFields;
 import org.apache.lucene.index.codecs.preflex.SegmentTermDocs;
@@ -95,7 +95,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
     final FieldsProducer fields;
     final boolean isPreFlex;
-    final Codecs codecs;
+    final CodecProvider codecs;
     
     final Directory dir;
     final Directory cfsDir;
@@ -109,7 +109,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     CompoundFileReader cfsReader;
     CompoundFileReader storeCFSReader;
 
-    CoreReaders(SegmentReader origInstance, Directory dir, SegmentInfo si, int readBufferSize, int termsIndexDivisor, Codecs codecs) throws IOException {
+    CoreReaders(SegmentReader origInstance, Directory dir, SegmentInfo si, int readBufferSize, int termsIndexDivisor, CodecProvider codecs) throws IOException {
 
       if (termsIndexDivisor < 1 && termsIndexDivisor != -1) {
         throw new IllegalArgumentException("indexDivisor must be -1 (don't load terms index) or greater than 0: got " + termsIndexDivisor);
@@ -120,7 +120,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         System.out.println("sr: init core for segment=" + segment);
       }
       if (codecs == null) {
-        codecs = Codecs.getDefault();
+        codecs = CodecProvider.getDefault();
       }
       this.codecs = codecs;      
       this.readBufferSize = readBufferSize;
@@ -144,7 +144,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         if (Codec.DEBUG) {
           System.out.println("sr.core.init: seg=" + si.name + " codec=" + si.getCodec());
         }
-        fields = si.getCodec().fieldsProducer(cfsDir, fieldInfos, si, readBufferSize, termsIndexDivisor);
+        fields = si.getCodec().fieldsProducer(new SegmentReadState(cfsDir, si, fieldInfos, readBufferSize, termsIndexDivisor));
         assert fields != null;
 
         isPreFlex = fields instanceof PreFlexFields;
@@ -517,10 +517,10 @@ public class SegmentReader extends IndexReader implements Cloneable {
                                   int readBufferSize,
                                   boolean doOpenStores,
                                   int termInfosIndexDivisor,
-                                  Codecs codecs)
+                                  CodecProvider codecs)
     throws CorruptIndexException, IOException {
     if (codecs == null)  {
-      codecs = Codecs.getDefault();
+      codecs = CodecProvider.getDefault();
     }
     
     SegmentReader instance = readOnly ? new ReadOnlySegmentReader() : new SegmentReader();
@@ -1533,11 +1533,40 @@ public class SegmentReader extends IndexReader implements Cloneable {
       }
     }
 
+    private DocsEnum.BulkReadResult pendingBulkResult;
+    private int pendingBulk;
+
     public int read(int[] docs, int[] freqs) throws IOException {
       if (!any) {
         return 0;
+      } else if (pendingBulk > 0) {
+        final int left = pendingBulkResult.count - pendingBulk;
+        if (docs.length >= left) {
+          // read all pending
+          System.arraycopy(pendingBulkResult.docs.ints, pendingBulk, docs, 0, left);
+          System.arraycopy(pendingBulkResult.freqs.ints, pendingBulk, freqs, 0, left);
+          pendingBulk = 0;
+          return left;
+        } else {
+          // read only part of pending
+          System.arraycopy(pendingBulkResult.docs.ints, pendingBulk, docs, 0, docs.length);
+          System.arraycopy(pendingBulkResult.freqs.ints, pendingBulk, freqs, 0, docs.length);
+          pendingBulk += docs.length;
+          return docs.length;
+        }
       } else {
-        return docsEnum.read(docs, freqs);
+        // nothing pending
+        pendingBulkResult = docsEnum.read();
+        if (docs.length >= pendingBulkResult.count) {
+          System.arraycopy(pendingBulkResult.docs.ints, 0, docs, 0, pendingBulkResult.count);
+          System.arraycopy(pendingBulkResult.freqs.ints, 0, freqs, 0, pendingBulkResult.count);
+          return pendingBulkResult.count;
+        } else {
+          System.arraycopy(pendingBulkResult.docs.ints, 0, docs, 0, docs.length);
+          System.arraycopy(pendingBulkResult.freqs.ints, 0, freqs, 0, docs.length);
+          pendingBulk = docs.length;
+          return docs.length;
+        }
       }
     }
 

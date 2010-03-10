@@ -29,14 +29,15 @@ final class TermScorer extends Scorer {
   private byte[] norms;
   private float weightValue;
   private int doc = -1;
+  private int freq;
 
-  private final int[] docs = new int[32];         // buffered doc numbers
-  private final int[] freqs = new int[32];        // buffered term freqs
   private int pointer;
   private int pointerMax;
 
   private static final int SCORE_CACHE_SIZE = 32;
   private float[] scoreCache = new float[SCORE_CACHE_SIZE];
+  private int[] docs;
+  private int[] freqs;
 
   /**
    * Construct a <code>TermScorer</code>.
@@ -68,6 +69,13 @@ final class TermScorer extends Scorer {
     score(c, Integer.MAX_VALUE, nextDoc());
   }
 
+  private final void refillBuffer() throws IOException {
+    final DocsEnum.BulkReadResult result = docsEnum.read();  // refill
+    pointerMax = result.count;
+    docs = result.docs.ints;
+    freqs = result.freqs.ints;
+  }
+
   // firstDocID is ignored since nextDoc() sets 'doc'
   @Override
   protected boolean score(Collector c, int end, int firstDocID) throws IOException {
@@ -75,7 +83,7 @@ final class TermScorer extends Scorer {
     while (doc < end) {                           // for docs in window
       c.collect(doc);                      // collect score
       if (++pointer >= pointerMax) {
-        pointerMax = docsEnum.read(docs, freqs);  // refill buffers
+        refillBuffer();
         if (pointerMax != 0) {
           pointer = 0;
         } else {
@@ -84,12 +92,15 @@ final class TermScorer extends Scorer {
         }
       } 
       doc = docs[pointer];
+      freq = freqs[pointer];
     }
     return true;
   }
 
   @Override
-  public int docID() { return doc; }
+  public int docID() {
+    return doc;
+  }
 
   /**
    * Advances to the next document matching the query. <br>
@@ -102,7 +113,7 @@ final class TermScorer extends Scorer {
   public int nextDoc() throws IOException {
     pointer++;
     if (pointer >= pointerMax) {
-      pointerMax = docsEnum.read(docs, freqs);    // refill buffer
+      refillBuffer();
       if (pointerMax != 0) {
         pointer = 0;
       } else {
@@ -110,6 +121,7 @@ final class TermScorer extends Scorer {
       }
     } 
     doc = docs[pointer];
+    freq = freqs[pointer];
     assert doc != NO_MORE_DOCS;
     return doc;
   }
@@ -117,11 +129,10 @@ final class TermScorer extends Scorer {
   @Override
   public float score() {
     assert doc != NO_MORE_DOCS;
-    int f = freqs[pointer];
     float raw =                                   // compute tf(f)*weight
-      f < SCORE_CACHE_SIZE                        // check cache
-      ? scoreCache[f]                             // cache hit
-      : getSimilarity().tf(f)*weightValue;        // cache miss
+      freq < SCORE_CACHE_SIZE                        // check cache
+      ? scoreCache[freq]                             // cache hit
+      : getSimilarity().tf(freq)*weightValue;        // cache miss
 
     return norms == null ? raw : raw * getSimilarity().decodeNormValue(norms[doc]); // normalize for field
   }
@@ -140,6 +151,7 @@ final class TermScorer extends Scorer {
     // first scan in cache
     for (pointer++; pointer < pointerMax; pointer++) {
       if (docs[pointer] >= target) {
+        freq = freqs[pointer];
         return doc = docs[pointer];
       }
     }
@@ -148,10 +160,8 @@ final class TermScorer extends Scorer {
     int newDoc = docsEnum.advance(target);
     //System.out.println("ts.advance docsEnum=" + docsEnum);
     if (newDoc != DocsEnum.NO_MORE_DOCS) {
-      pointerMax = 1;
-      pointer = 0;
-      docs[pointer] = doc = newDoc;
-      freqs[pointer] = docsEnum.freq();
+      doc = newDoc;
+      freq = docsEnum.freq();
     } else {
       doc = NO_MORE_DOCS;
     }

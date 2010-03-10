@@ -34,9 +34,10 @@ import org.apache.lucene.index.codecs.standard.StandardCodec;
  *  pass this instance to IndexReader/IndexWriter (via
  *  package private APIs) to use different codecs when
  *  reading & writing segments. 
+ *
  *  @lucene.experimental */
 
-public abstract class Codecs {
+public abstract class CodecProvider {
 
   private final HashMap<String, Codec> codecs = new HashMap<String, Codec>();
 
@@ -68,15 +69,15 @@ public abstract class Codecs {
 
   public abstract Codec getWriter(SegmentWriteState state);
 
-  static private final Codecs defaultCodecs = new DefaultCodecs();
+  static private final CodecProvider defaultCodecs = new DefaultCodecProvider();
 
-  public static Codecs getDefault() {
+  public static CodecProvider getDefault() {
     return defaultCodecs;
   }
 }
 
-class DefaultCodecs extends Codecs {
-  DefaultCodecs() {
+class DefaultCodecProvider extends CodecProvider {
+  DefaultCodecProvider() {
     register(new StandardCodec());
     register(new IntBlockCodec());
     register(new PreFlexCodec());

@@ -23,7 +23,7 @@ import java.io.UnsupportedEncodingException;
 /** Represents byte[], as a slice (offset + length) into an
  *  existing byte[].
  *
- *  @lucene.internal */
+ *  @lucene.experimental */
 public final class BytesRef {
 
   public byte[] bytes;

@@ -23,7 +23,7 @@ package org.apache.lucene.index.codecs.preflex;
  * indexing. */
 
 @Deprecated
-final class TermInfo {
+class TermInfo {
   /** The number of documents which contain the term. */
   int docFreq = 0;
 

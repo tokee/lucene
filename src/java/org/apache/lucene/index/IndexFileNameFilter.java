@@ -20,7 +20,7 @@ package org.apache.lucene.index;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.HashSet;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 
 /**
  * Filename filter that accept filenames and extensions only
@@ -33,7 +33,7 @@ public class IndexFileNameFilter implements FilenameFilter {
 
   private final HashSet<String> extensions;
 
-  public IndexFileNameFilter(Codecs codecs) {
+  public IndexFileNameFilter(CodecProvider codecs) {
     extensions = new HashSet<String>();
     for (String ext : IndexFileNames.INDEX_EXTENSIONS) {
       extensions.add(ext);

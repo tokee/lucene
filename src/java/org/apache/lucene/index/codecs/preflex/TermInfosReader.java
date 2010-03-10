@@ -25,8 +25,8 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.CloseableThreadLocal;
+import org.apache.lucene.util.cache.DoubleBarrelLRUCache;
 import org.apache.lucene.util.cache.Cache;
-import org.apache.lucene.util.cache.SimpleLRUCache;
 
 /** This stores a monotonically increasing set of <Term, TermInfo> pairs in a
  * Directory.  Pairs are accessed either by Term or by ordinal position the
@@ -53,14 +53,22 @@ public final class TermInfosReader {
 
   private final static int DEFAULT_CACHE_SIZE = 1024;
   
+  // Just adds term's ord to TermInfo
+  private final static class TermInfoAndOrd extends TermInfo {
+    final int termOrd;
+    public TermInfoAndOrd(TermInfo ti, int termOrd) {
+      super(ti);
+      this.termOrd = termOrd;
+    }
+  }
+
+  private final Cache<Term,TermInfoAndOrd> termsCache = new DoubleBarrelLRUCache<Term,TermInfoAndOrd>(DEFAULT_CACHE_SIZE);
+
   /**
    * Per-thread resources managed by ThreadLocal
    */
   private static final class ThreadResources {
     SegmentTermEnum termEnum;
-    
-    // Used for caching the least recently looked-up Terms
-    Cache<Term,TermInfo> termInfoCache;
   }
   
   TermInfosReader(Directory dir, String seg, FieldInfos fis, int readBufferSize, int indexDivisor)
@@ -138,6 +146,7 @@ public final class TermInfosReader {
     if (origEnum != null)
       origEnum.close();
     threadResources.close();
+    termsCache.close();
   }
 
   /** Returns the number of term/value pairs in the set. */
@@ -146,12 +155,10 @@ public final class TermInfosReader {
   }
 
   private ThreadResources getThreadResources() {
-    ThreadResources resources = (ThreadResources)threadResources.get();
+    ThreadResources resources = threadResources.get();
     if (resources == null) {
       resources = new ThreadResources();
       resources.termEnum = terms();
-      // Cache does not have to be thread-safe, it is only used by one thread at the same time
-      resources.termInfoCache = new SimpleLRUCache<Term,TermInfo>(DEFAULT_CACHE_SIZE);
       threadResources.set(resources);
     }
     return resources;
@@ -178,36 +185,38 @@ public final class TermInfosReader {
 
   private final void seekEnum(SegmentTermEnum enumerator, int indexOffset) throws IOException {
     enumerator.seek(indexPointers[indexOffset],
-                   (indexOffset * totalIndexInterval) - 1,
-                   indexTerms[indexOffset], indexInfos[indexOffset]);
+                    ((long) indexOffset * totalIndexInterval) - 1,
+                    indexTerms[indexOffset], indexInfos[indexOffset]);
   }
 
   /** Returns the TermInfo for a Term in the set, or null. */
   TermInfo get(Term term) throws IOException {
-    return get(term, true);
+    return get(term, false);
   }
   
   /** Returns the TermInfo for a Term in the set, or null. */
-  private TermInfo get(Term term, boolean useCache) throws IOException {
+  private TermInfo get(Term term, boolean mustSeekEnum) throws IOException {
     if (size == 0) return null;
 
     ensureIndexIsRead();
 
-    TermInfo ti;
+    TermInfoAndOrd tiOrd = termsCache.get(term);
     ThreadResources resources = getThreadResources();
-    Cache<Term,TermInfo> cache = null;
-    
-    if (useCache) {
-      cache = resources.termInfoCache;
-      // check the cache first if the term was recently looked up
-      ti = (TermInfo) cache.get(term);
-      if (ti != null) {
-        return ti;
-      }
+
+    if (!mustSeekEnum && tiOrd != null) {
+      return tiOrd;
     }
 
+    return seekEnum(resources.termEnum, term, tiOrd);
+  }
+
+  TermInfo seekEnum(SegmentTermEnum enumerator, Term term) throws IOException {
+    return seekEnum(enumerator, term, termsCache.get(term));
+  }
+
+  TermInfo seekEnum(SegmentTermEnum enumerator, Term term, TermInfoAndOrd tiOrd) throws IOException {
+
     // optimize sequential access: first try scanning cached enum w/o seeking
-    SegmentTermEnum enumerator = resources.termEnum;
     if (enumerator.term() != null                 // term is at or past current
 	&& ((enumerator.prev() != null && term.compareTo(enumerator.prev())> 0)
 	    || term.compareTo(enumerator.term()) >= 0)) {
@@ -216,16 +225,23 @@ public final class TermInfosReader {
     || term.compareTo(indexTerms[enumOffset]) < 0) {
        // no need to seek
 
+        final TermInfo ti;
+
         int numScans = enumerator.scanTo(term);
         if (enumerator.term() != null && term.compareTo(enumerator.term()) == 0) {
           ti = enumerator.termInfo();
-          if (cache != null && numScans > 1) {
+          if (numScans > 1) {
             // we only  want to put this TermInfo into the cache if
             // scanEnum skipped more than one dictionary entry.
             // This prevents RangeQueries or WildcardQueries to 
             // wipe out the cache when they iterate over a large numbers
             // of terms in order
-            cache.put(term, ti);
+            if (tiOrd == null) {
+              termsCache.put(term, new TermInfoAndOrd(ti, (int) enumerator.position));
+            } else {
+              assert sameTermInfo(ti, tiOrd, enumerator);
+              assert (int) enumerator.position == tiOrd.termOrd;
+            }
           }
         } else {
           ti = null;
@@ -236,12 +252,24 @@ public final class TermInfosReader {
     }
 
     // random-access: must seek
-    seekEnum(enumerator, getIndexOffset(term));
+    final int indexPos;
+    if (tiOrd != null) {
+      indexPos = tiOrd.termOrd / totalIndexInterval;
+    } else {
+      // Must do binary search:
+      indexPos = getIndexOffset(term);
+    }
+
+    seekEnum(enumerator, indexPos);
     enumerator.scanTo(term);
+    final TermInfo ti;
     if (enumerator.term() != null && term.compareTo(enumerator.term()) == 0) {
       ti = enumerator.termInfo();
-      if (cache != null) {
-        cache.put(term, ti);
+      if (tiOrd == null) {
+        termsCache.put(term, new TermInfoAndOrd(ti, (int) enumerator.position));
+      } else {
+        assert sameTermInfo(ti, tiOrd, enumerator);
+        assert (int) enumerator.position == tiOrd.termOrd;
       }
     } else {
       ti = null;
@@ -249,26 +277,23 @@ public final class TermInfosReader {
     return ti;
   }
 
-  /** Returns the nth term in the set. */
-  final Term get(int position) throws IOException {
-    if (size == 0) return null;
-
-    SegmentTermEnum enumerator = getThreadResources().termEnum;
-    if (enumerator.term() != null &&
-        position >= enumerator.position &&
-	position < (enumerator.position + totalIndexInterval))
-      return scanEnum(enumerator, position);      // can avoid seek
-
-    seekEnum(enumerator, position/totalIndexInterval); // must seek
-    return scanEnum(enumerator, position);
-  }
-
-  private final Term scanEnum(SegmentTermEnum enumerator, int position) throws IOException {
-    while(enumerator.position < position)
-      if (!enumerator.next())
-	return null;
-
-    return enumerator.term();
+  // called only from asserts
+  private final boolean sameTermInfo(TermInfo ti1, TermInfo ti2, SegmentTermEnum enumerator) {
+    if (ti1.docFreq != ti2.docFreq) {
+      return false;
+    }
+    if (ti1.freqPointer != ti2.freqPointer) {
+      return false;
+    }
+    if (ti1.proxPointer != ti2.proxPointer) {
+      return false;
+    }
+    // skipOffset is only valid when docFreq >= skipInterval:
+    if (ti1.docFreq >= enumerator.skipInterval &&
+        ti1.skipOffset != ti2.skipOffset) {
+      return false;
+    }
+    return true;
   }
 
   private void ensureIndexIsRead() {
@@ -297,14 +322,12 @@ public final class TermInfosReader {
 
   /** Returns an enumeration of all the Terms and TermInfos in the set. */
   public SegmentTermEnum terms() {
-    return (SegmentTermEnum) origEnum.clone();
+    return (SegmentTermEnum)origEnum.clone();
   }
 
   /** Returns an enumeration of terms starting at or after the named term. */
   public SegmentTermEnum terms(Term term) throws IOException {
-    // don't use the cache in this call because we want to reposition the
-    // enumeration
-    get(term, false);
+    get(term, true);
     return (SegmentTermEnum)getThreadResources().termEnum.clone();
   }
 }

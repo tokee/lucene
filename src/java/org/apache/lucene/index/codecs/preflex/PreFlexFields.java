@@ -57,7 +57,6 @@ public class PreFlexFields extends FieldsProducer {
   private final int readBufferSize;
   private Directory cfsReader;
 
-  // nocommit -- we need the legacy terms cache back in here
   PreFlexFields(Directory dir, FieldInfos fieldInfos, SegmentInfo info, int readBufferSize, int indexDivisor)
     throws IOException {
 
@@ -147,8 +146,6 @@ public class PreFlexFields extends FieldsProducer {
         // terms reader with index, the segment has switched
         // to CFS
 
-        // nocommit -- not clean that I open my own CFS
-        // reader here; caller should pass it in?
         if (!(dir instanceof CompoundFileReader)) {
           dir0 = cfsReader = new CompoundFileReader(dir, IndexFileNames.segmentFileName(si.name, IndexFileNames.COMPOUND_FILE_EXTENSION), readBufferSize);
         } else {
@@ -247,10 +244,13 @@ public class PreFlexFields extends FieldsProducer {
         final Term t = termEnum.term();
         if (t != null && t.field() == fieldInfo.name) {
           // No need to seek -- we have already advanced onto
-          // this field
+          // this field.  We must be @ first term because
+          // flex API will not advance this enum further, on
+          // seeing a different field.
         } else {
           assert t == null || !t.field().equals(fieldInfo.name);  // make sure field name is interned
-          termEnum = getTermsDict().terms(new Term(fieldInfo.name, ""));
+          final TermInfosReader tis = getTermsDict();
+          tis.seekEnum(termEnum, new Term(fieldInfo.name, ""));
         }
         skipNext = true;
       }
@@ -278,7 +278,13 @@ public class PreFlexFields extends FieldsProducer {
         System.out.println("pff.seek term=" + term);
       }
       skipNext = false;
-      termEnum = getTermsDict().terms(new Term(fieldInfo.name, term.utf8ToString()));
+      final TermInfosReader tis = getTermsDict();
+      final Term t0 = new Term(fieldInfo.name, term.utf8ToString());
+      if (termEnum == null) {
+        termEnum = tis.terms(t0);
+      } else {
+        tis.seekEnum(termEnum, t0);
+      }
       final Term t = termEnum.term();
 
       final BytesRef tr;
@@ -411,8 +417,14 @@ public class PreFlexFields extends FieldsProducer {
     }
 
     @Override
-    public int read(int[] docs, int[] freqs) throws IOException {
-      return this.docs.read(docs, freqs);
+    public BulkReadResult read() throws IOException {
+      if (bulkResult == null) {
+        initBulkResult();
+        bulkResult.docs.ints = new int[32];
+        bulkResult.freqs.ints = new int[32];
+      }
+      bulkResult.count = this.docs.read(bulkResult.docs.ints, bulkResult.freqs.ints);
+      return bulkResult;
     }
   }
 

@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.AttributeSource;
+import org.apache.lucene.util.IntsRef;
 
 /** Iterates through the documents, term freq and positions.
  *  NOTE: you must first call {@link #next}.
@@ -44,16 +45,42 @@ public abstract class DocsEnum extends DocIdSetIterator {
     return atts;
   }
 
-  // nocommit -- fix this API so that intblock codecs are
-  // able to return their own int arrays, to save a copy...  IntsRef?
-  /** Bulk read: returns number of docs read.  After this is
-   * called, {@link #doc} and {@link #freq} are undefined.
+  // TODO: maybe add bulk read only docIDs (for eventual
+  // match-only scoring)
+
+  public static class BulkReadResult {
+    public final IntsRef docs = new IntsRef();
+    public final IntsRef freqs = new IntsRef();
+    public int count;
+  }
+
+  protected BulkReadResult bulkResult;
+
+  protected final void initBulkResult() {
+    if (bulkResult == null) {
+      bulkResult = new BulkReadResult();
+      bulkResult.docs.ints = new int[64];
+      bulkResult.freqs.ints = new int[64];
+    }
+  }
+  
+  /** Bulk read (docs and freqs).  After this is called,
+   * {@link #doc} and {@link #freq} are undefined.  You must
+   * refer to the count member of BulkResult to determine
+   * how many docs were loaded (the IntsRef for docs and
+   * freqs will not have their length set).  This method
+   * will not return null.  The end has been reached when
+   * .count is 0.
    * 
    *  <p>NOTE: the default impl simply delegates to {@link
    *  #nextDoc}, but subclasses may do this more
    *  efficiently. */
-  public int read(int[] docs, int[] freqs) throws IOException {
+  // nocommit -- maybe pre-share the BulkReadResult.... hmm
+  public BulkReadResult read() throws IOException {
+    initBulkResult();
     int count = 0;
+    final int[] docs = bulkResult.docs.ints;
+    final int[] freqs = bulkResult.freqs.ints;
     while(count < docs.length) {
       final int doc = nextDoc();
       if (doc != NO_MORE_DOCS) {
@@ -64,6 +91,7 @@ public abstract class DocsEnum extends DocIdSetIterator {
         break;
       }
     }
-    return count;
+    bulkResult.count = count;
+    return bulkResult;
   }
 }

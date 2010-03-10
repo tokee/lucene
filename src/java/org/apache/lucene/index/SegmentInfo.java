@@ -22,7 +22,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.BitVector;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -169,7 +169,7 @@ public final class SegmentInfo {
    * @param format format of the segments info file
    * @param input input handle to read segment info from
    */
-  SegmentInfo(Directory dir, int format, IndexInput input, Codecs codecs) throws IOException {
+  SegmentInfo(Directory dir, int format, IndexInput input, CodecProvider codecs) throws IOException {
     this.dir = dir;
     name = input.readString();
     docCount = input.readInt();

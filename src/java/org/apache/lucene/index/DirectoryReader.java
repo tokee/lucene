@@ -35,7 +35,7 @@ import org.apache.lucene.search.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockObtainFailedException;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.ReaderUtil;
 import org.apache.lucene.util.BytesRef;
@@ -49,7 +49,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
   protected Directory directory;
   protected boolean readOnly;
   
-  protected Codecs codecs;
+  protected CodecProvider codecs;
 
   IndexWriter writer;
 
@@ -77,10 +77,10 @@ class DirectoryReader extends IndexReader implements Cloneable {
 //  }
   
   static IndexReader open(final Directory directory, final IndexDeletionPolicy deletionPolicy, final IndexCommit commit, final boolean readOnly,
-                          final int termInfosIndexDivisor, Codecs codecs) throws CorruptIndexException, IOException {
-    final Codecs codecs2;
+                          final int termInfosIndexDivisor, CodecProvider codecs) throws CorruptIndexException, IOException {
+    final CodecProvider codecs2;
     if (codecs == null) {
-      codecs2 = Codecs.getDefault();
+      codecs2 = CodecProvider.getDefault();
     } else {
       codecs2 = codecs;
     }
@@ -103,7 +103,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
 //  }
   
   /** Construct reading the named set of readers. */
-  DirectoryReader(Directory directory, SegmentInfos sis, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, Codecs codecs) throws IOException {
+  DirectoryReader(Directory directory, SegmentInfos sis, IndexDeletionPolicy deletionPolicy, boolean readOnly, int termInfosIndexDivisor, CodecProvider codecs) throws IOException {
     this.directory = directory;
     this.readOnly = readOnly;
     this.segmentInfos = sis;
@@ -111,7 +111,7 @@ class DirectoryReader extends IndexReader implements Cloneable {
     this.termInfosIndexDivisor = termInfosIndexDivisor;
 
     if (codecs == null) {
-      this.codecs = Codecs.getDefault();
+      this.codecs = CodecProvider.getDefault();
     } else {
       this.codecs = codecs;
     }
@@ -151,13 +151,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
   }
 
   // Used by near real-time search
-  DirectoryReader(IndexWriter writer, SegmentInfos infos, int termInfosIndexDivisor, Codecs codecs) throws IOException {
+  DirectoryReader(IndexWriter writer, SegmentInfos infos, int termInfosIndexDivisor, CodecProvider codecs) throws IOException {
     this.directory = writer.getDirectory();
     this.readOnly = true;
     segmentInfos = infos;
     this.termInfosIndexDivisor = termInfosIndexDivisor;
     if (codecs == null) {
-      this.codecs = Codecs.getDefault();
+      this.codecs = CodecProvider.getDefault();
     } else {
       this.codecs = codecs;
     }
@@ -213,13 +213,13 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   /** This constructor is only used for {@link #reopen()} */
   DirectoryReader(Directory directory, SegmentInfos infos, SegmentReader[] oldReaders, int[] oldStarts,
-                  Map<String,byte[]> oldNormsCache, boolean readOnly, boolean doClone, int termInfosIndexDivisor, Codecs codecs) throws IOException {
+                  Map<String,byte[]> oldNormsCache, boolean readOnly, boolean doClone, int termInfosIndexDivisor, CodecProvider codecs) throws IOException {
     this.directory = directory;
     this.readOnly = readOnly;
     this.segmentInfos = infos;
     this.termInfosIndexDivisor = termInfosIndexDivisor;
     if (codecs == null) {
-      this.codecs = Codecs.getDefault();
+      this.codecs = CodecProvider.getDefault();
     } else {
       this.codecs = codecs;
     }
@@ -1039,11 +1039,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
 
   /** @see org.apache.lucene.index.IndexReader#listCommits */
   public static Collection<IndexCommit> listCommits(Directory dir) throws IOException {
-    return listCommits(dir, Codecs.getDefault());
+    return listCommits(dir, CodecProvider.getDefault());
   }
 
   /** @see org.apache.lucene.index.IndexReader#listCommits */
-  public static Collection<IndexCommit> listCommits(Directory dir, Codecs codecs) throws IOException {
+  public static Collection<IndexCommit> listCommits(Directory dir, CodecProvider codecs) throws IOException {
     final String[] files = dir.listAll();
 
     Collection<IndexCommit> commits = new ArrayList<IndexCommit>();
