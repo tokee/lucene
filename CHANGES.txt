@@ -18,6 +18,13 @@ Bug Fixes
 
 * LUCENE-2222: FixedIntBlockIndexInput incorrectly read one block of
   0s before the actual data.  (Renaud Delbru via Mike McCandless)
+  
+New features
+
+* LUCENE-1606, LUCENE-2089: Adds AutomatonQuery, a MultiTermQuery that 
+  matches terms against a finite-state machine. Implement WildcardQuery
+  and FuzzyQuery with finite-state methods. Adds RegexpQuery.
+  (Robert Muir, Mike McCandless, Uwe Schindler, Mark Miller)
 
 ======================= Trunk (not yet released) =======================
 

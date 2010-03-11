@@ -80,12 +80,21 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
   private final AcceptStatus NO_MATCH, YES_MATCH;
   
   /**
+   * Expert ctor:
    * Construct an enumerator based upon an automaton, enumerating the specified
    * field, working on a supplied reader.
    * <p>
-   * The parameter linearMode determines whether or not it will use smart enumeration.
+   * @lucene.internal Use the public ctor instead. This constructor allows the
+   * (dangerous) option of passing in a pre-compiled RunAutomaton. If you use 
+   * this ctor and compile your own RunAutomaton, you are responsible for 
+   * ensuring it is in sync with the Automaton object, including internal
+   * State numbering, or you will get undefined behavior.
+   * <p>
+   * @param preCompiled optional pre-compiled RunAutomaton (can be null)
+   * @param linearMode determines whether or not it will use smart enumeration.
    */
-  AutomatonTermsEnum(Automaton automaton, Term queryTerm, IndexReader reader, boolean linearMode)
+  AutomatonTermsEnum(Automaton automaton, RunAutomaton preCompiled,
+      Term queryTerm, IndexReader reader, boolean linearMode)
       throws IOException {
     super(reader, queryTerm.field());
     this.automaton = automaton;
@@ -96,7 +105,10 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
      * transitions to dead states. it also invokes Automaton.setStateNumbers to
      * number the original states (this is how they are tableized)
      */
-    runAutomaton = new RunAutomaton(this.automaton);
+    if (preCompiled == null)
+      runAutomaton = new RunAutomaton(this.automaton);
+    else
+      runAutomaton = preCompiled;
 
     if (this.linearMode) {
       // iterate all terms in linear mode
@@ -135,7 +147,7 @@ public class AutomatonTermsEnum extends FilteredTermsEnum {
    */
   public AutomatonTermsEnum(Automaton automaton, Term queryTerm, IndexReader reader)
       throws IOException {
-    this(automaton, queryTerm, reader, AutomatonTermsEnum.isSlow(automaton));
+    this(automaton, null, queryTerm, reader, AutomatonTermsEnum.isSlow(automaton));
   }
   
   /**

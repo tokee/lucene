@@ -17,21 +17,305 @@ package org.apache.lucene.search;
  * limitations under the License.
  */
 
+import org.apache.lucene.index.DocsAndPositionsEnum;
+import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
+import org.apache.lucene.util.automaton.Automaton;
+import org.apache.lucene.util.automaton.BasicAutomata;
+import org.apache.lucene.util.automaton.BasicOperations;
+import org.apache.lucene.util.automaton.LevenshteinAutomata;
+import org.apache.lucene.util.automaton.RunAutomaton;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
-/** Subclass of FilteredTermEnum for enumerating all terms that are similar
+/** Subclass of TermsEnum for enumerating all terms that are similar
  * to the specified filter term.
  *
  * <p>Term enumerations are always ordered by
  * {@link #getTermComparator}.  Each term in the enumeration is
  * greater than all that precede it.</p>
  */
-public final class FuzzyTermsEnum extends FilteredTermsEnum {
+public final class FuzzyTermsEnum extends TermsEnum {
+  private TermsEnum actualEnum;
+  private MultiTermQuery.BoostAttribute actualBoostAtt;
+  
+  private final MultiTermQuery.BoostAttribute boostAtt =
+    attributes().addAttribute(MultiTermQuery.BoostAttribute.class);
+
+  private float bottom = boostAtt.getMaxNonCompetitiveBoost();
+  
+  private final float minSimilarity;
+  private final float scale_factor;
+  
+  private final int termLength;
+  
+  private int maxEdits;
+  private List<Automaton> automata;
+  private List<RunAutomaton> runAutomata;
+  
+  private final IndexReader reader;
+  private final Term term;
+  private final int realPrefixLength;
+  
+  /**
+   * Constructor for enumeration of all terms from specified <code>reader</code> which share a prefix of
+   * length <code>prefixLength</code> with <code>term</code> and which have a fuzzy similarity &gt;
+   * <code>minSimilarity</code>.
+   * <p>
+   * After calling the constructor the enumeration is already pointing to the first 
+   * valid term if such a term exists. 
+   * 
+   * @param reader Delivers terms.
+   * @param term Pattern term.
+   * @param minSimilarity Minimum required similarity for terms from the reader. Default value is 0.5f.
+   * @param prefixLength Length of required common prefix. Default value is 0.
+   * @throws IOException
+   */
+  public FuzzyTermsEnum(IndexReader reader, Term term, 
+      final float minSimilarity, final int prefixLength) throws IOException {
+    if (minSimilarity >= 1.0f)
+      throw new IllegalArgumentException("minimumSimilarity cannot be greater than or equal to 1");
+    else if (minSimilarity < 0.0f)
+      throw new IllegalArgumentException("minimumSimilarity cannot be less than 0");
+    if(prefixLength < 0)
+      throw new IllegalArgumentException("prefixLength cannot be less than 0");
+    this.reader = reader;
+    this.term = term;
+    //The prefix could be longer than the word.
+    //It's kind of silly though.  It means we must match the entire word.
+    this.termLength = term.text().length();
+    this.realPrefixLength = prefixLength > termLength ? termLength : prefixLength;
+    this.minSimilarity = minSimilarity;
+    this.scale_factor = 1.0f / (1.0f - minSimilarity);
+    
+    // calculate the maximum k edits for this similarity
+    maxEdits = initialMaxDistance(minSimilarity, termLength);
+  
+    TermsEnum subEnum = getAutomatonEnum(maxEdits, null);
+    setEnum(subEnum != null ? subEnum : 
+      new LinearFuzzyTermsEnum(reader, term, minSimilarity, prefixLength));
+  }
+  
+  /**
+   * return an automata-based enum for matching up to editDistance from
+   * lastTerm, if possible
+   */
+  private TermsEnum getAutomatonEnum(int editDistance, BytesRef lastTerm)
+      throws IOException {
+    initAutomata(editDistance);
+    if (automata != null && editDistance < automata.size()) {
+      return new AutomatonFuzzyTermsEnum(automata.get(editDistance), term,
+          reader, minSimilarity, runAutomata.subList(0, editDistance + 1)
+              .toArray(new RunAutomaton[0]), lastTerm);
+    } else {
+      return null;
+    }
+  }
+  
+  /** initialize levenshtein DFAs up to maxDistance, if possible */
+  private void initAutomata(int maxDistance) {
+    if (automata == null && 
+        maxDistance <= LevenshteinAutomata.MAXIMUM_SUPPORTED_DISTANCE) {
+      LevenshteinAutomata builder = 
+        new LevenshteinAutomata(term.text().substring(realPrefixLength));
+      automata = new ArrayList<Automaton>(maxDistance);
+      runAutomata = new ArrayList<RunAutomaton>(maxDistance);
+      for (int i = 0; i <= maxDistance; i++) {
+        Automaton a = builder.toAutomaton(i);
+        // constant prefix
+        if (realPrefixLength > 0) {
+          Automaton prefix = BasicAutomata.makeString(
+              term.text().substring(0, realPrefixLength));
+          a = BasicOperations.concatenate(prefix, a);
+        }
+        automata.add(a);
+        runAutomata.add(new RunAutomaton(a));
+      }
+    }
+  }
+ 
+  /** swap in a new actual enum to proxy to */
+  private void setEnum(TermsEnum actualEnum) {
+    this.actualEnum = actualEnum;
+    this.actualBoostAtt = actualEnum.attributes().addAttribute(
+        MultiTermQuery.BoostAttribute.class);
+  }
+  
+  /**
+   * fired when the max non-competitive boost has changed. this is the hook to
+   * swap in a smarter actualEnum
+   */
+  private void bottomChanged(float boostValue, BytesRef lastTerm)
+      throws IOException {
+    int oldMaxEdits = maxEdits;
+    
+    // as long as the max non-competitive boost is >= the max boost
+    // for some edit distance, keep dropping the max edit distance.
+    while (maxEdits > 0 && boostValue >= calculateMaxBoost(maxEdits))
+      maxEdits--;
+    
+    if (oldMaxEdits != maxEdits) { // the maximum n has changed
+      TermsEnum newEnum = getAutomatonEnum(maxEdits, lastTerm);
+      if (newEnum != null) {
+        setEnum(newEnum);
+      }
+    }
+    // TODO, besides changing linear -> automaton, and swapping in a smaller
+    // automaton, we can also use this information to optimize the linear case
+    // itself: re-init maxDistances so the fast-fail happens for more terms due
+    // to the now stricter constraints.
+  }
+   
+  // for some raw min similarity and input term length, the maximum # of edits
+  private int initialMaxDistance(float minimumSimilarity, int termLen) {
+    return (int) ((1-minimumSimilarity) * termLen);
+  }
+  
+  // for some number of edits, the maximum possible scaled boost
+  private float calculateMaxBoost(int nEdits) {
+    final float similarity = 1.0f - ((float) nEdits / (float) (termLength));
+    return (similarity - minSimilarity) * scale_factor;
+  }
+
+  @Override
+  public BytesRef next() throws IOException {
+    BytesRef term = actualEnum.next();
+    boostAtt.setBoost(actualBoostAtt.getBoost());
+    
+    final float bottom = boostAtt.getMaxNonCompetitiveBoost();
+    if (bottom != this.bottom) {
+      this.bottom = bottom;
+      // clone the term before potentially doing something with it
+      // this is a rare but wonderful occurrence anyway
+      bottomChanged(bottom, term == null ? null : (BytesRef) term.clone());
+    }
+    
+    return term;
+  }
+  
+  // proxy all other enum calls to the actual enum
+  @Override
+  public int docFreq() {
+    return actualEnum.docFreq();
+  }
+  
+  @Override
+  public DocsEnum docs(Bits skipDocs, DocsEnum reuse) throws IOException {
+    return actualEnum.docs(skipDocs, reuse);
+  }
+  
+  @Override
+  public DocsAndPositionsEnum docsAndPositions(Bits skipDocs,
+      DocsAndPositionsEnum reuse) throws IOException {
+    return actualEnum.docsAndPositions(skipDocs, reuse);
+  }
+  
+  @Override
+  public Comparator<BytesRef> getComparator() throws IOException {
+    return actualEnum.getComparator();
+  }
+  
+  @Override
+  public long ord() throws IOException {
+    return actualEnum.ord();
+  }
+  
+  @Override
+  public SeekStatus seek(BytesRef text) throws IOException {
+    return actualEnum.seek(text);
+  }
+  
+  @Override
+  public SeekStatus seek(long ord) throws IOException {
+    return actualEnum.seek(ord);
+  }
+  
+  @Override
+  public BytesRef term() throws IOException {
+    return actualEnum.term();
+  }
+}
+
+/**
+ * Implement fuzzy enumeration with automaton.
+ * <p>
+ * This is the fastest method as opposed to LinearFuzzyTermsEnum:
+ * as enumeration is logarithmic to the number of terms (instead of linear)
+ * and comparison is linear to length of the term (rather than quadratic)
+ */
+final class AutomatonFuzzyTermsEnum extends AutomatonTermsEnum {
+  private final RunAutomaton matchers[];
+  // used for unicode conversion from BytesRef byte[] to char[]
+  private final UnicodeUtil.UTF16Result utf16 = new UnicodeUtil.UTF16Result();
+  
+  private final float minimumSimilarity;
+  private final float scale_factor;
+  
+  private final int fullSearchTermLength;
+  private final BytesRef termRef;
+  
+  private final BytesRef lastTerm;
+  private final MultiTermQuery.BoostAttribute boostAtt =
+    attributes().addAttribute(MultiTermQuery.BoostAttribute.class);
+  
+  public AutomatonFuzzyTermsEnum(Automaton automaton, Term queryTerm,
+      IndexReader reader, float minSimilarity, RunAutomaton matchers[], BytesRef lastTerm) throws IOException {
+    super(automaton, matchers[matchers.length - 1], queryTerm, reader, false);
+    this.minimumSimilarity = minSimilarity;
+    this.scale_factor = 1.0f / (1.0f - minimumSimilarity);
+    this.matchers = matchers;
+    this.lastTerm = lastTerm;
+    termRef = new BytesRef(queryTerm.text());
+    fullSearchTermLength = queryTerm.text().length();
+  }
+  
+  /** finds the smallest Lev(n) DFA that accepts the term. */
+  @Override
+  protected AcceptStatus accept(BytesRef term) {
+    if (term.equals(termRef)) { // ed = 0
+      boostAtt.setBoost(1.0F);
+      return AcceptStatus.YES_AND_SEEK;
+    }
+    
+    UnicodeUtil.UTF8toUTF16(term.bytes, term.offset, term.length, utf16);
+    
+    // TODO: benchmark doing this backwards
+    for (int i = 1; i < matchers.length; i++)
+      if (matchers[i].run(utf16.result, 0, utf16.length)) {
+        final float similarity = 1.0f - ((float) i / (float) 
+            (Math.min(utf16.length, fullSearchTermLength)));
+        if (similarity > minimumSimilarity) {
+          boostAtt.setBoost((float) ((similarity - minimumSimilarity) * scale_factor));
+          return AcceptStatus.YES_AND_SEEK;
+        } else {
+          return AcceptStatus.NO_AND_SEEK;
+        }
+      }
+
+    return AcceptStatus.NO_AND_SEEK;
+  }
+
+  /** defers to superclass, except can start at an arbitrary location */
+  @Override
+  protected BytesRef nextSeekTerm(BytesRef term) throws IOException {
+    if (term == null)
+      term = lastTerm;
+    return super.nextSeekTerm(term);
+  }
+}
+
+/**
+ * Implement fuzzy enumeration with linear brute force.
+ */
+final class LinearFuzzyTermsEnum extends FilteredTermsEnum {
 
   /* This should be somewhere around the average long word.
    * If it is longer, we waste time and space. If it is shorter, we waste a
@@ -68,7 +352,7 @@ public final class FuzzyTermsEnum extends FilteredTermsEnum {
    * @param prefixLength Length of required common prefix. Default value is 0.
    * @throws IOException
    */
-  public FuzzyTermsEnum(IndexReader reader, Term term, final float minSimilarity, final int prefixLength) throws IOException {
+  public LinearFuzzyTermsEnum(IndexReader reader, Term term, final float minSimilarity, final int prefixLength) throws IOException {
     super(reader, term.field());
     
     if (minSimilarity >= 1.0f)
