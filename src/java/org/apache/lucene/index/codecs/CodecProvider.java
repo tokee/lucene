@@ -18,8 +18,8 @@ package org.apache.lucene.index.codecs;
  */
 
 // stub
-public class Codecs {
-  public static Codecs getDefault() {
+public class CodecProvider {
+  public static CodecProvider getDefault() {
     return null;
   }
 }

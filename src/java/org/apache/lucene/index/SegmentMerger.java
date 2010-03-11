@@ -30,7 +30,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.index.codecs.Codec;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 
 /**
  * The SegmentMerger class combines two or more Segments, represented by an IndexReader ({@link #add},
@@ -102,7 +102,7 @@ final class SegmentMerger {
   }
 
   // stub
-  SegmentMerger(Directory dir, int termIndexInterval, String name, MergePolicy.OneMerge merge, Codecs codecs) {  
+  SegmentMerger(Directory dir, int termIndexInterval, String name, MergePolicy.OneMerge merge, CodecProvider codecs) {  
     checkAbort = null;
   }
 

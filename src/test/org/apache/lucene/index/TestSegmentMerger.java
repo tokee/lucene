@@ -22,7 +22,7 @@ import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.codecs.Codecs;
+import org.apache.lucene.index.codecs.CodecProvider;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -65,7 +65,7 @@ public class TestSegmentMerger extends LuceneTestCase {
   }
   
   public void testMerge() throws IOException {                             
-    SegmentMerger merger = new SegmentMerger(mergedDir, IndexWriter.DEFAULT_TERM_INDEX_INTERVAL, mergedSegment, null, Codecs.getDefault());
+    SegmentMerger merger = new SegmentMerger(mergedDir, IndexWriter.DEFAULT_TERM_INDEX_INTERVAL, mergedSegment, null, CodecProvider.getDefault());
     merger.add(reader1);
     merger.add(reader2);
     int docsMerged = merger.merge();
