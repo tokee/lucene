@@ -21,7 +21,7 @@ package org.apache.lucene.index.codecs.intblock;
  *  expected to give poor performance; it's really only for
  *  testing the pluggability.  One should typically use pfor instead. */
 
-import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.util.CodecUtil;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 
@@ -37,7 +37,7 @@ public class SimpleIntBlockIndexInput extends FixedIntBlockIndexInput {
 
   public SimpleIntBlockIndexInput(Directory dir, String fileName, int readBufferSize) throws IOException {
     IndexInput in = dir.openInput(fileName, readBufferSize);
-    Codec.checkHeader(in, SimpleIntBlockIndexOutput.CODEC, SimpleIntBlockIndexOutput.VERSION_START);
+    CodecUtil.checkHeader(in, SimpleIntBlockIndexOutput.CODEC, SimpleIntBlockIndexOutput.VERSION_START);
     init(in);
   }
 

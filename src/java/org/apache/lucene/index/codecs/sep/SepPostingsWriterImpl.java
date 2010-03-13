@@ -27,6 +27,7 @@ import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CodecUtil;
 
 /** Writes frq to .frq, docs to .doc, pos to .pos, payloads
  *  to .pyl, skip data to .skp
@@ -126,7 +127,7 @@ public final class SepPostingsWriterImpl extends StandardPostingsWriter {
   @Override
   public void start(IndexOutput termsOut) throws IOException {
     this.termsOut = termsOut;
-    Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
+    CodecUtil.writeHeader(termsOut, CODEC, VERSION_CURRENT);
     // TODO: -- just ask skipper to "start" here
     termsOut.writeInt(skipInterval);                // write skipInterval
     termsOut.writeInt(maxSkipLevels);               // write maxSkipLevels

@@ -20,6 +20,7 @@ package org.apache.lucene.index.codecs.pulsing;
 import java.io.IOException;
 
 import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.util.CodecUtil;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.codecs.standard.StandardPostingsWriter;
 import org.apache.lucene.store.IndexOutput;
@@ -133,7 +134,7 @@ public final class PulsingPostingsWriterImpl extends StandardPostingsWriter {
   @Override
   public void start(IndexOutput termsOut) throws IOException {
     this.termsOut = termsOut;
-    Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
+    CodecUtil.writeHeader(termsOut, CODEC, VERSION_CURRENT);
     termsOut.writeVInt(pendingDocs.length);
     wrappedPostingsWriter.start(termsOut);
   }

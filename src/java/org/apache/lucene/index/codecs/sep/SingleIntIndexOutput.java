@@ -20,6 +20,7 @@ package org.apache.lucene.index.codecs.sep;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.util.CodecUtil;
 
 import java.io.IOException;
 
@@ -36,7 +37,7 @@ public class SingleIntIndexOutput extends IntIndexOutput {
 
   public SingleIntIndexOutput(Directory dir, String fileName) throws IOException {
     out = dir.createOutput(fileName);
-    Codec.writeHeader(out, CODEC, VERSION_CURRENT);
+    CodecUtil.writeHeader(out, CODEC, VERSION_CURRENT);
   }
 
   /** Write an int to the primary file */

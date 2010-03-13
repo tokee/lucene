@@ -27,6 +27,7 @@ import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.CodecUtil;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -84,7 +85,7 @@ public class SimpleStandardTermsIndexReader extends StandardTermsIndexReader {
     boolean success = false;
 
     try {
-      Codec.checkHeader(in, SimpleStandardTermsIndexWriter.CODEC_NAME, SimpleStandardTermsIndexWriter.VERSION_START);
+      CodecUtil.checkHeader(in, SimpleStandardTermsIndexWriter.CODEC_NAME, SimpleStandardTermsIndexWriter.VERSION_START);
 
       if (Codec.DEBUG) {
         Codec.debug("  sstir init: header tii.fp=" + in.getFilePointer());

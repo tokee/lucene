@@ -29,6 +29,7 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CodecUtil;
 
 /** @lucene.experimental */
 public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
@@ -89,7 +90,7 @@ public final class StandardPostingsWriterImpl extends StandardPostingsWriter {
   @Override
   public void start(IndexOutput termsOut) throws IOException {
     this.termsOut = termsOut;
-    Codec.writeHeader(termsOut, CODEC, VERSION_CURRENT);
+    CodecUtil.writeHeader(termsOut, CODEC, VERSION_CURRENT);
     termsOut.writeInt(skipInterval);                // write skipInterval
     termsOut.writeInt(maxSkipLevels);               // write maxSkipLevels
   }

@@ -24,6 +24,7 @@ import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.index.codecs.Codec;
+import org.apache.lucene.util.CodecUtil;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -51,7 +52,7 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
     this.segment = state.segmentName;
     termIndexInterval = state.termIndexInterval;
     out = state.directory.createOutput(indexFileName);
-    Codec.writeHeader(out, CODEC_NAME, VERSION_CURRENT);
+    CodecUtil.writeHeader(out, CODEC_NAME, VERSION_CURRENT);
     fieldInfos = state.fieldInfos;
 
     // Placeholder for dir offset
@@ -124,10 +125,10 @@ public class SimpleStandardTermsIndexWriter extends StandardTermsIndexWriter {
       out.writeInt(field.numIndexTerms);
       out.writeLong(field.indexStart);
     }
-    out.seek(Codec.headerSize(CODEC_NAME));
+    out.seek(CodecUtil.headerLength(CODEC_NAME));
     out.writeLong(dirStart);
     if (Codec.DEBUG) {
-      System.out.println(" writeDirStart " + dirStart + " @ " + Codec.headerSize(CODEC_NAME));
+      System.out.println(" writeDirStart " + dirStart + " @ " + CodecUtil.headerLength(CODEC_NAME));
     }
     out.close();
   }

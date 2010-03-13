@@ -30,6 +30,7 @@ import org.apache.lucene.index.codecs.pulsing.PulsingPostingsWriterImpl.Position
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CodecUtil;
 
 /** Concrete class that reads the current doc/freq/skip
  *  postings format 
@@ -51,7 +52,7 @@ public class PulsingPostingsReaderImpl extends StandardPostingsReader {
 
   @Override
   public void init(IndexInput termsIn) throws IOException {
-    Codec.checkHeader(termsIn, PulsingPostingsWriterImpl.CODEC, PulsingPostingsWriterImpl.VERSION_START);
+    CodecUtil.checkHeader(termsIn, PulsingPostingsWriterImpl.CODEC, PulsingPostingsWriterImpl.VERSION_START);
     maxPulsingDocFreq = termsIn.readVInt();
     wrappedPostingsReader.init(termsIn);
   }

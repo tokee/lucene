@@ -41,6 +41,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.cache.Cache;
 import org.apache.lucene.util.cache.DoubleBarrelLRUCache;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CodecUtil;
 
 /** Handles a terms dict, but decouples all details of
  *  doc/freqs/positions reading to an instance of {@link
@@ -113,7 +114,7 @@ public class StandardTermsDictReader extends FieldsProducer {
 
     boolean success = false;
     try {
-      Codec.checkHeader(in, StandardTermsDictWriter.CODEC_NAME, StandardTermsDictWriter.VERSION_CURRENT);
+      CodecUtil.checkHeader(in, StandardTermsDictWriter.CODEC_NAME, StandardTermsDictWriter.VERSION_CURRENT);
 
       final long dirOffset = in.readLong();
 

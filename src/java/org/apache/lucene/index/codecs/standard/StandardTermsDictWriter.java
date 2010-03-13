@@ -32,6 +32,7 @@ import org.apache.lucene.index.codecs.FieldsConsumer;
 import org.apache.lucene.index.codecs.PostingsConsumer;
 import org.apache.lucene.index.codecs.TermsConsumer;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.util.CodecUtil;
 
 /**
  * Writes terms dict and interacts with docs/positions
@@ -81,7 +82,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
     fieldInfos = state.fieldInfos;
 
     // Count indexed fields up front
-    Codec.writeHeader(out, CODEC_NAME, VERSION_CURRENT); 
+    CodecUtil.writeHeader(out, CODEC_NAME, VERSION_CURRENT); 
 
     out.writeLong(0);                             // leave space for end index pointer
 
@@ -129,7 +130,7 @@ public class StandardTermsDictWriter extends FieldsConsumer {
         if (Codec.DEBUG)
           System.out.println("stdw.close: field=" + field.fieldInfo.name + " numTerms=" + field.numTerms + " tis pointer=" + field.termsStartPointer);
       }
-      out.seek(Codec.headerSize(CODEC_NAME));
+      out.seek(CodecUtil.headerLength(CODEC_NAME));
       out.writeLong(dirStart);
     } finally {
       try {

@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.lucene.index.codecs.Codec;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.util.CodecUtil;
 
 /** Reads IndexInputs written with {@link
  *  SingleIntIndexoutput}.  NOTE: this class is just for
@@ -36,7 +37,7 @@ public class SingleIntIndexInput extends IntIndexInput {
   public SingleIntIndexInput(Directory dir, String fileName, int readBufferSize)
     throws IOException {
     in = dir.openInput(fileName, readBufferSize);
-    Codec.checkHeader(in, SingleIntIndexOutput.CODEC, SingleIntIndexOutput.VERSION_START);
+    CodecUtil.checkHeader(in, SingleIntIndexOutput.CODEC, SingleIntIndexOutput.VERSION_START);
   }
 
   @Override

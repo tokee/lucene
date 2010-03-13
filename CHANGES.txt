@@ -26,6 +26,11 @@ New features
   and FuzzyQuery with finite-state methods. Adds RegexpQuery.
   (Robert Muir, Mike McCandless, Uwe Schindler, Mark Miller)
 
+* LUCENE-1990: Adds internal packed ints implementation, to be used
+  for more efficient storage of int arrays when the values are
+  bounded, for example for storing the terms dict index Toke Toke
+  Eskildsen via Mike McCandless)
+
 ======================= Trunk (not yet released) =======================
 
 Changes in backwards compatibility policy
