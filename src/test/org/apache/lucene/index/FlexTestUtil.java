@@ -105,6 +105,16 @@ public class FlexTestUtil {
     testStraightEnum(r);
     testRandomSkips(rand, r);
     testRandomSeeks(rand, r);
+    testBogusFieldTerms(rand, r);
+  }
+
+  private static void testBogusFieldTerms(Random rand, IndexReader r) throws Exception {
+    final Fields fields = MultiFields.getFields(r);
+    for(int i=0;i<10;i++) {
+      final String f = "bogus" + rand.nextInt() + "reallybogus";
+      Terms terms = fields.terms(f);
+      assertTrue(terms == null || terms.iterator().next() == null);
+    }
   }
 
   private static void testStraightEnum(IndexReader r) throws Exception {

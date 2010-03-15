@@ -127,7 +127,8 @@ class LegacyFieldsEnum extends FieldsEnum {
       if (terms == null) {
         // first next -- seek to start of field
         terms = r.terms(new Term(field, ""));
-        if (terms.term() == null) {
+        final Term t = terms.term();
+        if (t == null || t.field != field) {
           return null;
         } else {
           tr.copy(terms.term().text());
