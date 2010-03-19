@@ -18,7 +18,8 @@ import java.util.*;
 public class TestExposed extends LuceneTestCase {
 
   static final char[] CHARS = // Used for random content
-          ("abcdefghijklmnopqrstuvwxyzæøåABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ" +
+          ("abcdefghijklmnopqrstuvwxyzæøåéèëöíêô" +
+              "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅÉÈËÊÔÓ" +
                   "1234567890      ").toCharArray();
   static final File INDEX_LOCATION =
 //          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
@@ -95,7 +96,7 @@ public class TestExposed extends LuceneTestCase {
     final String FIELD = "b";
     final int TERM_LENGTH = 40;
     final int[] DOC_COUNTS = new int[]{
-            1000000};
+            10000};
     //100, 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000};
     for (int docCount: DOC_COUNTS) {
       deleteIndex();
@@ -103,8 +104,10 @@ public class TestExposed extends LuceneTestCase {
               Arrays.asList("a", "b", "c", "d", "e", "f", "g"), TERM_LENGTH);
 
       measureExposedSort(INDEX_LOCATION, FIELD, TERM_LENGTH);
+      System.out.println("\nFor comparison, we load the Strings into memory " +
+          "and sort them there:");
       measureFlatSort(INDEX_LOCATION, FIELD, docCount);
-      measureStringIndex(INDEX_LOCATION, FIELD, docCount);
+//      measureStringIndex(INDEX_LOCATION, FIELD, docCount);
       System.out.println("");
     }
                                             
@@ -113,8 +116,8 @@ public class TestExposed extends LuceneTestCase {
   private void measureExposedSort(
           File location, String field, int termLength) throws Exception {
     IndexReader reader = openIndex(location);
-    System.out.println("Opened index from " + location+ ". Heap used: "
-            + getHeap());
+    System.out.println("Opened index from " + location+ ". Heap: "
+            + ExposedPOC.getHeap());
     ExposedSegmentReader exposed = new ExposedSegmentReader(
             SegmentReader.getOnlySegmentReader(reader));
 
@@ -130,18 +133,16 @@ public class TestExposed extends LuceneTestCase {
 
     System.out.println(String.format(
             "Got ordered docIDs in %s (%s total), sorted %d docIDs in " +
-                    "%s %s %s. Heap usage: %s (orderedTerms: %s, " +
-                    "orderedDocs: %s). Temporary build overhead: %s",
+                    "%s %s %s. Heap: %s (orderedTerms: %s, " +
+                    "orderedDocs: %s).",
             ExposedSegmentReader.nsToString(docTime),
             ExposedSegmentReader.nsToString(termTime + docTime),
             orderedDocs.size(),
-            measureSortTime(orderedDocs),
-            measureSortTime(orderedDocs),
-            measureSortTime(orderedDocs),
-            getHeap(), readableSize(orderedTerms.ramBytesUsed()),
-            readableSize(orderedDocs.ramBytesUsed()),
-            readableSize(orderedDocs.size() * 4 * 2
-                    + getTermCacheOverhead(exposed, termLength / 2))));
+            ExposedPOC.measureSortTime(orderedDocs),
+            ExposedPOC.measureSortTime(orderedDocs),
+            ExposedPOC.measureSortTime(orderedDocs),
+            ExposedPOC.getHeap(), ExposedPOC.readableSize(ExposedPOC.footprint(orderedTerms)),
+            ExposedPOC.readableSize(ExposedPOC.footprint(orderedDocs))));
 
     exposed.close();
   }
@@ -153,15 +154,16 @@ public class TestExposed extends LuceneTestCase {
     long startTimeTerm = System.nanoTime();
     String[] terms = FieldCache.DEFAULT.getStrings(reader, field);
     System.out.println(String.format(
-            "Loaded %d terms by FieldCache in %s. Heap: %s",
+            "Loaded %d terms by FieldCacheDEFAULT.getStrings in %s. Heap: %s",
             terms.length, ExposedSegmentReader.nsToString(
                     System.nanoTime() - startTimeTerm),
-            getHeap()));
+            ExposedPOC.getHeap()));
 
     long startTimeSort = System.nanoTime();
     Collator collator = Collator.getInstance(new Locale("da"));
     Arrays.sort(terms, collator);
-    System.out.println(String.format("Sorted an array with the %d terms in %s",
+    System.out.println(String.format(
+        "Sorted (Arrays.sort with collator) the array of %d terms in %s",
             terms.length, ExposedSegmentReader.nsToString(
                     System.nanoTime() - startTimeSort)));
     reader.close();
@@ -177,7 +179,7 @@ public class TestExposed extends LuceneTestCase {
             "Got StringIndex with %d terms in %s. Heap: %s",
             index.order.length, ExposedSegmentReader.nsToString(
                     System.nanoTime() - startTimeIndex),
-            getHeap()));
+            ExposedPOC.getHeap()));
   }
 
   private void measureStringFieldComparator(
@@ -191,7 +193,7 @@ public class TestExposed extends LuceneTestCase {
          "Initialized FieldComparator with locale for %d terms in %s. Heap: %s",
             docCount, ExposedSegmentReader.nsToString(
                     System.nanoTime() - startTimeComparator),
-            getHeap()));
+            ExposedPOC.getHeap()));
   }
 
 
@@ -208,30 +210,6 @@ public class TestExposed extends LuceneTestCase {
   private long getTermCacheOverhead(
           ExposedSegmentReader exposed, int averageTermSize) {
     return exposed.getSortCacheSize() * (48 + 2 * averageTermSize);
-  }
-
-  private String getHeap() throws InterruptedException { // Calls gc() first
-    for (int i = 0 ; i < 4 ; i++) {
-      System.gc();
-      Thread.sleep(10);
-    }
-    return readableSize(Runtime.getRuntime().totalMemory()
-            - Runtime.getRuntime().freeMemory());
-  }
-
-  private String measureSortTime(final PackedInts.Reader orderedDocs) {
-    Integer[] allDocIDS = new Integer[orderedDocs.size()];
-    for (int i = 0 ; i < allDocIDS.length ; i++) {
-      allDocIDS[i] = i;
-    }
-    long startTimeSort = System.nanoTime();
-    Arrays.sort(allDocIDS, new Comparator<Integer>() {
-      public int compare(Integer o1, Integer o2) {
-        return (int)(orderedDocs.get(o1) - orderedDocs.get(o2));
-      }
-    });
-    return ExposedSegmentReader.nsToString(
-            System.nanoTime() - startTimeSort);
   }
 
   public void testSortedDocuments() throws Exception {
@@ -279,29 +257,9 @@ public class TestExposed extends LuceneTestCase {
             "Created %d document optimized index with %d fields with average " +
                     "term length %d and total size %s in %s",
             docCount, fields.size(), fieldContentLength / 2,
-            readableSize(calculateSize(location)),
+            ExposedPOC.readableSize(ExposedPOC.calculateSize(location)),
             ExposedSegmentReader.nsToString(
                     System.nanoTime() - startTime)));
-  }
-
-  private String readableSize(long size) {
-    return size > 2 * 1048576 ?
-            size / 1048576 + "MB" :
-            size > 2 * 1024 ?
-                    size / 1024 + "KB" :
-                    size + "bytes";
-  }
-
-  private long calculateSize(File file) {
-    long size = 0;
-    if (file.isDirectory()) {
-      for (File sub: file.listFiles()) {
-        size += calculateSize(sub);
-      }
-    } else {
-      size += file.length();
-    }
-    return size;
   }
 
   private StringBuffer buffer = new StringBuffer(100);

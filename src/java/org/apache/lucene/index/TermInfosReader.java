@@ -185,7 +185,8 @@ final class TermInfosReader {
   TermInfo get(Term term) throws IOException {
     return get(term, false);
   }
-  
+
+
   /** Returns the TermInfo for a Term in the set, or null. */
   private TermInfo get(Term term, boolean mustSeekEnum) throws IOException {
     if (size == 0) return null;
@@ -302,6 +303,29 @@ final class TermInfosReader {
       return enumerator.position;
     else
       return -1;
+  }
+
+  /**
+   * Returns the term at the given position.
+   * This is the inverse of {@link #getPosition(Term)}}.
+   * @param position the ordinal position of the wanted term.
+   * @return the term at the given position.
+   * @throws java.io.IOException if there was a problem accessing the index.
+   */
+  final Term get(int position) throws IOException {
+    if (size == 0) return null;
+
+    SegmentTermEnum enumerator = getThreadResources().termEnum;
+    if (!(enumerator.term() != null &&
+        position >= enumerator.position &&
+        position < (enumerator.position + totalIndexInterval))) {
+      seekEnum(enumerator, position/totalIndexInterval); // must seek
+    }
+
+    while (enumerator.position < position) {
+      enumerator.next();
+    }
+    return enumerator.term();
   }
 
   /** Returns an enumeration of all the Terms and TermInfos in the set. */

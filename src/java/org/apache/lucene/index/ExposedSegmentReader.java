@@ -13,7 +13,7 @@ import java.util.*;
  */
 public class ExposedSegmentReader implements ExposedReader {
   private SegmentReader segmentReader;
-  private int sortCacheSize = 200000; // 20MB ~ 48 bytes + 2*termLength 
+  private int sortCacheSize = 20000; // 2MB ~ 48 bytes + 2*termLength 
   
   public ExposedSegmentReader(SegmentReader segmentReader) {
     this.segmentReader = segmentReader;
@@ -61,7 +61,7 @@ public class ExposedSegmentReader implements ExposedReader {
 
     long startTime = System.nanoTime();
     int termCount = (int)getTermCount(field);
-//    System.out.println("Determined term count in "
+//    System.out.println("Determined term count to " + termCount + " in "
 //            + (System.nanoTime() - startTime) / 1000000.0 + "ms");
 
     startTime = System.nanoTime();
@@ -74,7 +74,7 @@ public class ExposedSegmentReader implements ExposedReader {
 
     startTime = System.nanoTime();
     final int basePos = (int)getBase(field);
-//    System.out.println("Determined basePos in "
+//    System.out.println("Determined basePos to " + basePos + " in "
 //            + (System.nanoTime() - startTime) / 1000000.0 + "ms");
 
     startTime = System.nanoTime();
@@ -88,8 +88,9 @@ public class ExposedSegmentReader implements ExposedReader {
       from += blockSize;
     }
   */
-    Arrays.sort(ordered,
-            new CachedStringComparator(collator, sortCacheSize, field));
+//    cachedStringMergeSort(ordered, collator, field);
+//    cachedCollatorKeyMergeSort(ordered, collator, field);
+    cachedStringChunkSort(ordered, collator, field);
 
     long sortTime = (System.nanoTime() - startTime);
     System.out.println(String.format(
@@ -105,8 +106,7 @@ public class ExposedSegmentReader implements ExposedReader {
             cacheMisses, cacheMisses * 100 / cacheRequests));
 
     PackedInts.Mutable packed = PackedInts.getMutable(
-            termCount, PackedInts.bitsRequired(termCount),
-            PackedInts.STORAGE.auto);
+            termCount, PackedInts.bitsRequired(termCount));
     for (int i = 0 ; i < termCount ; i++) {
       packed.set(i, ordered[i]);
     }
@@ -114,6 +114,85 @@ public class ExposedSegmentReader implements ExposedReader {
 //            + (System.nanoTime() - startTime) / 1000000.0 + "ms");
 
     return DeltaWrapper.wrap(packed, basePos);
+  }
+
+  private void cachedStringMergeSort(
+      Integer[] ordered, Collator collator, String field) throws IOException {
+    Arrays.sort(ordered,
+            new CachedStringComparator(collator, sortCacheSize, field));
+  }
+
+  private void cachedCollatorKeyMergeSort(
+      Integer[] ordered, Collator collator, String field) throws IOException {
+    Arrays.sort(ordered,
+            new CachedKeyComparator(collator, sortCacheSize, field));
+  }
+
+  /* Algorithm:
+   * Sort the ordered array in chunks of size cache-size.
+   * Merge sorted chunks by using a heap to determine which chunk to take the
+   * next value from.
+   */
+  private void cachedStringChunkSort(
+      Integer[] ordered, Collator collator, String field) throws IOException {
+    long oldCacheMisses = cacheMisses;
+    int chunkSize = Math.max(
+        getSortCacheSize(), ordered.length / getSortCacheSize());
+    int chunkCount = (int) Math.ceil(ordered.length * 1.0 / chunkSize);
+    // Consider threading here, but beware memory synchronization issues
+    long startTimeMerge = System.nanoTime();
+    for (int i = 0 ; i < ordered.length ; i += chunkSize) {
+      Arrays.sort(ordered,
+          i, Math.min(i + chunkSize, ordered.length),
+              new CachedStringComparator(collator, getSortCacheSize(), field));
+    }
+    System.out.println(String.format(
+        "Chunk sorted %d chunks of size %d (cache: %d, total terms: %s)" +
+            " sorted in %s with %d cache misses",
+        chunkCount, chunkSize, getSortCacheSize(), ordered.length,
+        nsToString(System.nanoTime() - startTimeMerge),
+        cacheMisses - oldCacheMisses));
+
+    if (chunkSize >= ordered.length) {
+      return; // No need for double sort
+    }
+
+    // We have sorted chunks. Commence the merging!
+
+    // Merging up to cache-size chunks requires an efficient way to determine
+    // the chunk with the lowest value. As locality is not that important with
+    // all comparables in cache, we use a heap.
+    // The heap contains an index (int) for all active chunks in the term order
+    // array. When an index is popped, it is incremented and re-inserted unless
+    // it is a block start index in which case it is just discarded.
+
+    long startTimeHeap = System.nanoTime();
+    long oldHeapCacheMisses = cacheMisses;
+    PriorityQueue<Integer> pq = new PriorityQueue<Integer>(
+        chunkCount, new CachedStringComparator(
+            collator, getSortCacheSize(), field));
+    for (int i = 0 ; i < ordered.length ; i += chunkSize) {
+      pq.add(i);
+    }
+    Integer[] sorted = new Integer[ordered.length];
+    for (int i = 0 ; i < sorted.length ; i++) {
+      Integer next = pq.poll();
+      if (next == null) {
+        throw new IllegalStateException(
+            "Popping the heap should never return null");
+      }
+      sorted[i] = next;
+      if (++next % chunkSize != 0) {
+        pq.add(next);
+      }
+    }
+    System.arraycopy(sorted, 0, ordered, 0, sorted.length);
+    System.out.println(String.format(
+        "Heap merged %d sorted chunks of size %d (cache: %d, total terms: %s)" +
+            " in %s with %d cache misses (%d combined for both sort passes)",
+        chunkCount, chunkSize, getSortCacheSize(), ordered.length,
+        nsToString(System.nanoTime() - startTimeHeap),
+        cacheMisses - oldHeapCacheMisses, cacheMisses - oldCacheMisses));
   }
 
   private class CachedKeyComparator implements Comparator<Integer> {
@@ -238,9 +317,9 @@ public class ExposedSegmentReader implements ExposedReader {
   PackedInts.Reader getSortedDocIDs(
           String field, final PackedInts.Reader termOrder) throws IOException {
     final int basePos = (int)getBase(field);
+    // TODO: Handle docs without a term (point to max_value?)
     PackedInts.Mutable sorted = PackedInts.getMutable(
-            segmentReader.maxDoc(), PackedInts.bitsRequired(termOrder.size()),
-            PackedInts.STORAGE.auto);
+            segmentReader.maxDoc(), PackedInts.bitsRequired(termOrder.size()));
     TermDocs termDocs = segmentReader.termDocs(new Term(field, ""));
     for (int i = 0 ; i < termOrder.size() ; i++) {
       Term term = getTerm((int)termOrder.get(i));

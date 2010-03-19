@@ -125,7 +125,7 @@ public class TestLockFactory extends LuceneTestCase {
     
     public void testSimpleFSLockFactory() throws IOException {
       // test string file instantiation
-      new SimpleFSLockFactory("test");
+      //new SimpleFSLockFactory("test");
     }
 
     // Verify: do stress test, by opening IndexReaders and

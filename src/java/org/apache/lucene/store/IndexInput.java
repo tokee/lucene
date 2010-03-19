@@ -67,6 +67,13 @@ public abstract class IndexInput implements Cloneable,Closeable {
     readBytes(b, offset, len);
   }
 
+  /** Reads two bytes and returns a short.
+   * @see IndexOutput#writeByte(byte)
+   */
+  public short readShort() throws IOException {
+    return (short) (((readByte() & 0xFF) <<  8) |  (readByte() & 0xFF));
+  }
+
   /** Reads four bytes and returns an int.
    * @see IndexOutput#writeInt(int)
    */

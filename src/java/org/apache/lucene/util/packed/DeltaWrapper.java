@@ -60,10 +60,6 @@ public class DeltaWrapper {
     public int size() {
       return mutable.size();
     }
-
-    public long ramBytesUsed() {
-      return mutable.ramBytesUsed();
-    }
   }
 
   private static class DeltaReader implements PackedInts.Reader {
@@ -85,10 +81,6 @@ public class DeltaWrapper {
 
     public int size() {
       return reader.size();
-    }
-
-    public long ramBytesUsed() {
-      return reader.ramBytesUsed();
     }
   }
 
