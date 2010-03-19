@@ -22,6 +22,10 @@ public class ExposedPOC {
 
   public static void main(String[] args)
       throws IOException, InterruptedException, ParseException {
+    if (args.length == 2 && "optimize".equals(args[0])) {
+      optimize(new File(args[1]));
+      return;
+    }
     if (args.length != 5) {
       System.err.println("Need 5 arguments, got " + args.length + "\n");
       usage();
@@ -36,10 +40,23 @@ public class ExposedPOC {
     if ("expose".equals(type)) {
       expose(location, field, locale, defaultField);
     } else if ("default".equals(type)) {
-  //    defaultSort(location, field, locale);
+      defaultSort(location, field, locale, defaultField);
     } else {
+      System.out.println("Unknown action '" + type + "'\n");
       usage();
     }
+  }
+
+  private static void optimize(File location) throws IOException {
+    System.out.println("Optimizing " + location + "...");
+    long startTimeOptimize = System.nanoTime();
+    IndexWriter writer = new IndexWriter(FSDirectory.open(location),
+        new IndexWriterConfig(Version.LUCENE_31,
+            new StandardAnalyzer(Version.LUCENE_31)));
+    writer.optimize(1);
+    System.out.println("Optimized index in " + ExposedSegmentReader.nsToString(
+        System.nanoTime() - startTimeOptimize));
+    writer.close(true);
   }
 
   private static void expose(
@@ -116,10 +133,10 @@ public class ExposedPOC {
         TopFieldDocs topDocs = searcher.search(q, null, 20, exposedSort);
         long searchTime = System.nanoTime() - startTimeSearch;
         System.out.println(String.format(
-            "The search for '%s' got %d hits in %s. Showing %d hits",
+            "The search for '%s' got %d hits in %s. Showing %d hits. Heap: %s",
             query, topDocs.totalHits,
             ExposedSegmentReader.nsToString(searchTime),
-            (int)Math.min(topDocs.totalHits, MAX_HITS)));
+            (int)Math.min(topDocs.totalHits, MAX_HITS), getHeap()));
         long startTimeDisplay = System.nanoTime();
         for (int i = 0 ; i < Math.min(topDocs.totalHits, MAX_HITS) ; i++) {
           int docID = topDocs.scoreDocs[i].doc;
@@ -129,7 +146,7 @@ public class ExposedPOC {
         }
         System.out.println("Extracting terms for the search result took "
             + ExposedSegmentReader.nsToString(
-            System.nanoTime() - startTimeDisplay));
+            System.nanoTime() - startTimeDisplay) + ". Heap: " + getHeap());
       } catch (Exception e) {
         //noinspection CallToPrintStackTrace
         e.printStackTrace();
@@ -137,6 +154,71 @@ public class ExposedPOC {
     }
     System.out.println("\nThank you for playing. Please come back.");
   }
+
+  private static void defaultSort(
+      File location, String field, Locale locale, String defaultField)
+                                      throws IOException, InterruptedException {
+    System.out.println(String.format(
+        "Normal open of index at '%s' with sort on field %s with locale %s. " +
+            "Heap: %s",
+        location, field, locale, getHeap()));
+
+    IndexReader reader = IndexReader.open(FSDirectory.open(location), true);
+    System.out.println(String.format(
+        "Opened index of size %s from %s. Heap: %s",
+        readableSize(calculateSize(location)), location, getHeap()));
+
+
+    IndexSearcher searcher = new IndexSearcher(reader);
+    Sort normalSort = new Sort(new SortField(field, locale));
+
+    System.out.println(String.format(
+        "\nFinished initializing exposed structures for field %s.\n"
+        + "Write standard Lucene queries to experiment with sorting speed.\n"
+        + "The StandardAnalyser will be used and there is no default field.\n"
+        + "Finish with 'EXIT'", field));
+    String query = null;
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    QueryParser qp = new QueryParser(
+        Version.LUCENE_31, defaultField,
+        new StandardAnalyzer(Version.LUCENE_31));
+
+    while (true) {
+      System.out.print("Query: ");
+      query = br.readLine();
+      if ("".equals(query)) {
+        continue;
+      }
+      if ("EXIT".equals(query)) {
+        break;
+      }
+      try {
+        Query q = qp.parse(query);
+        long startTimeSearch = System.nanoTime();
+        TopFieldDocs topDocs = searcher.search(q, null, 20, normalSort);
+        long searchTime = System.nanoTime() - startTimeSearch;
+        System.out.println(String.format(
+            "The search for '%s' got %d hits in %s. Showing %d hits. Heap: %s",
+            query, topDocs.totalHits,
+            ExposedSegmentReader.nsToString(searchTime),
+            (int)Math.min(topDocs.totalHits, MAX_HITS), getHeap()));
+        long startTimeDisplay = System.nanoTime();
+        for (int i = 0 ; i < Math.min(topDocs.totalHits, MAX_HITS) ; i++) {
+          int docID = topDocs.scoreDocs[i].doc;
+          System.out.println(String.format("Doc #%d", docID));
+        }
+        System.out.println("Extracting terms for the search result took "
+            + ExposedSegmentReader.nsToString(
+            System.nanoTime() - startTimeDisplay) + ". Heap: " + getHeap());
+      } catch (Exception e) {
+        //noinspection CallToPrintStackTrace
+        e.printStackTrace();
+      }
+    }
+    System.out.println("\nThank you for playing. Please come back.");
+  }
+
+
 
   static class ExposedComparatorSource extends FieldComparatorSource {
     ExposedSegmentReader exposedReader;
@@ -231,6 +313,9 @@ public class ExposedPOC {
             + "\n"
             + "Example:\n"
             + "ExposedPOC expose /mnt/bulk/40GB_index author da"
+            + "\n"
+            + "If the index is not optimized, it can be done with\n"
+            + "ExposedPOC optimize <index>\n"
             + "\n"
             + "Note: This is a proof of concept. Expect glitches!"
     );
