@@ -128,14 +128,19 @@ public class ExposedPOC {
         break;
       }
       try {
+        long startTimeQuery = System.nanoTime();
         Query q = qp.parse(query);
+        long queryTime = System.nanoTime() - startTimeQuery;
+
         long startTimeSearch = System.nanoTime();
         TopFieldDocs topDocs = searcher.search(q, null, 20, exposedSort);
         long searchTime = System.nanoTime() - startTimeSearch;
         System.out.println(String.format(
-            "The search for '%s' got %d hits in %s. Showing %d hits. Heap: %s",
+            "The search for '%s' got %d hits in %s (+ %s for query parsing). "
+                + "Showing %d hits. Heap: %s",
             query, topDocs.totalHits,
             ExposedSegmentReader.nsToString(searchTime),
+            ExposedSegmentReader.nsToString(queryTime),
             (int)Math.min(topDocs.totalHits, MAX_HITS), getHeap()));
         long startTimeDisplay = System.nanoTime();
         for (int i = 0 ; i < Math.min(topDocs.totalHits, MAX_HITS) ; i++) {
@@ -193,14 +198,19 @@ public class ExposedPOC {
         break;
       }
       try {
+        long startTimeQuery = System.nanoTime();
         Query q = qp.parse(query);
+        long queryTime = System.nanoTime() - startTimeQuery;
+
         long startTimeSearch = System.nanoTime();
         TopFieldDocs topDocs = searcher.search(q, null, 20, normalSort);
         long searchTime = System.nanoTime() - startTimeSearch;
         System.out.println(String.format(
-            "The search for '%s' got %d hits in %s. Showing %d hits. Heap: %s",
+            "The search for '%s' got %d hits in %s (+ %s for query parsing). "
+                + "Showing %d hits. Heap: %s",
             query, topDocs.totalHits,
             ExposedSegmentReader.nsToString(searchTime),
+            ExposedSegmentReader.nsToString(queryTime),
             (int)Math.min(topDocs.totalHits, MAX_HITS), getHeap()));
         long startTimeDisplay = System.nanoTime();
         for (int i = 0 ; i < Math.min(topDocs.totalHits, MAX_HITS) ; i++) {

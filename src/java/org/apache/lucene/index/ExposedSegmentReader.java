@@ -319,7 +319,12 @@ public class ExposedSegmentReader implements ExposedReader {
     final int basePos = (int)getBase(field);
     // TODO: Handle docs without a term (point to max_value?)
     PackedInts.Mutable sorted = PackedInts.getMutable(
-            segmentReader.maxDoc(), PackedInts.bitsRequired(termOrder.size()));
+        segmentReader.maxDoc(),
+        PackedInts.bitsRequired(termOrder.size()));
+    long max = termOrder.size();
+    for (int i = 0 ; i < sorted.size() ; i++) {
+      sorted.set(i, max); // Points to the last which is wrong, but this is POC
+    }
     TermDocs termDocs = segmentReader.termDocs(new Term(field, ""));
     for (int i = 0 ; i < termOrder.size() ; i++) {
       Term term = getTerm((int)termOrder.get(i));
