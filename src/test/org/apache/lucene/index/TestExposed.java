@@ -99,9 +99,9 @@ public class TestExposed extends LuceneTestCase {
             1000000};
     //100, 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000};
     for (int docCount: DOC_COUNTS) {
-//      deleteIndex();
-//      createIndex(INDEX_LOCATION, docCount,
-//              Arrays.asList("a", "b", "c", "d", "e", "f", "g"), TERM_LENGTH);
+      deleteIndex();
+      createIndex(INDEX_LOCATION, docCount,
+          Arrays.asList("a", "b", "c", "d", "e", "f", "g"), TERM_LENGTH);
 
       measureExposedSort(INDEX_LOCATION, FIELD, TERM_LENGTH);
       System.out.println("\nFor comparison, we load the Strings into memory " +
