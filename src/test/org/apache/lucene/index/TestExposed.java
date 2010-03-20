@@ -96,12 +96,12 @@ public class TestExposed extends LuceneTestCase {
     final String FIELD = "b";
     final int TERM_LENGTH = 40;
     final int[] DOC_COUNTS = new int[]{
-            10000};
+            1000000};
     //100, 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000};
     for (int docCount: DOC_COUNTS) {
-      deleteIndex();
-      createIndex(INDEX_LOCATION, docCount,
-              Arrays.asList("a", "b", "c", "d", "e", "f", "g"), TERM_LENGTH);
+//      deleteIndex();
+//      createIndex(INDEX_LOCATION, docCount,
+//              Arrays.asList("a", "b", "c", "d", "e", "f", "g"), TERM_LENGTH);
 
       measureExposedSort(INDEX_LOCATION, FIELD, TERM_LENGTH);
       System.out.println("\nFor comparison, we load the Strings into memory " +
@@ -230,6 +230,18 @@ public class TestExposed extends LuceneTestCase {
               i, orderedDocs.get(i),
               exposed.getTerm((int)orderedTerms.get((int)orderedDocs.get(i)))));
     }
+  }
+
+  public void testCollatorKeySize() {
+    long KEYS = 20000;
+    long keySize = 0;
+    Random random = new Random(87);
+    Collator collator = Collator.getInstance(new Locale("da"));
+    for (int i = 0 ; i < KEYS ; i++) {
+      keySize += collator.getCollationKey(getRandomString(
+          random, CHARS, 30, 30)).toByteArray().length;
+    }
+    System.out.println("Average size: " + keySize * 1.0 / KEYS);
   }
 
   private void createIndex(File location, int docCount,

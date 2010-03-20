@@ -1,5 +1,8 @@
 package org.apache.lucene.index;
 
+import org.apache.lucene.util.QuickSort;
+import org.apache.lucene.util.SmoothSort;
+import org.apache.lucene.util.TimSort;
 import org.apache.lucene.util.packed.DeltaWrapper;
 import org.apache.lucene.util.packed.PackedInts;
 
@@ -88,9 +91,13 @@ public class ExposedSegmentReader implements ExposedReader {
       from += blockSize;
     }
   */
+
 //    cachedStringMergeSort(ordered, collator, field);
 //    cachedCollatorKeyMergeSort(ordered, collator, field);
-    cachedStringChunkSort(ordered, collator, field);
+//    cachedStringChunkSort(ordered, collator, field, new MergeSortCallBack());
+//    cachedStringChunkSort(ordered, collator, field, new SmoothSortCallBack());
+    cachedStringChunkSort(ordered, collator, field, new TimSortCallBack());
+    //cachedStringChunkSort(ordered, collator, field, new QuickSortCallBack());
 
     long sortTime = (System.nanoTime() - startTime);
     System.out.println(String.format(
@@ -116,6 +123,11 @@ public class ExposedSegmentReader implements ExposedReader {
     return DeltaWrapper.wrap(packed, basePos);
   }
 
+  private SortCallback MergeSortCallBack() {
+    return null;  // TODO: Implement this
+  }
+
+
   private void cachedStringMergeSort(
       Integer[] ordered, Collator collator, String field) throws IOException {
     Arrays.sort(ordered,
@@ -128,23 +140,56 @@ public class ExposedSegmentReader implements ExposedReader {
             new CachedKeyComparator(collator, sortCacheSize, field));
   }
 
+  private interface SortCallback {
+    <T> void sort(T[] ordered, int from, int to, Comparator<? super T> c);
+  }
+  private class MergeSortCallBack implements SortCallback {
+    public <T> void sort(
+        T[] ordered, int from, int to, Comparator<? super T> c) {
+      Arrays.sort(ordered, from, to, c);
+    }
+  }
+  private class SmoothSortCallBack implements SortCallback {
+    public <T> void sort(
+        T[] ordered, int from, int to, Comparator<? super T> c) {
+      SmoothSort.sort(ordered, from, to-1, c);
+    }
+  }
+  private class TimSortCallBack implements SortCallback {
+    public <T> void sort(
+        T[] ordered, int from, int to, Comparator<? super T> c) {
+      TimSort.sort(ordered, from, to, c);
+    }
+  }
+  private class QuickSortCallBack implements SortCallback {
+    public <T> void sort(
+        T[] ordered, int from, int to, Comparator<? super T> c) {
+      QuickSort.sort(ordered, from, to-1, c);
+    }
+  }
+
   /* Algorithm:
    * Sort the ordered array in chunks of size cache-size.
    * Merge sorted chunks by using a heap to determine which chunk to take the
    * next value from.
    */
   private void cachedStringChunkSort(
-      Integer[] ordered, Collator collator, String field) throws IOException {
+      Integer[] ordered, Collator collator, String field,
+      SortCallback chunkSorter) throws IOException {
     long oldCacheMisses = cacheMisses;
     int chunkSize = Math.max(
         getSortCacheSize(), ordered.length / getSortCacheSize());
     int chunkCount = (int) Math.ceil(ordered.length * 1.0 / chunkSize);
     // Consider threading here, but beware memory synchronization issues
     long startTimeMerge = System.nanoTime();
+    CachedStringComparator cachedComparator = new CachedStringComparator(
+        collator, getSortCacheSize(), field);
     for (int i = 0 ; i < ordered.length ; i += chunkSize) {
-      Arrays.sort(ordered,
-          i, Math.min(i + chunkSize, ordered.length),
-              new CachedStringComparator(collator, getSortCacheSize(), field));
+      for (int warm = i ; warm < i + chunkSize ; warm++) {
+        cachedComparator.getString(warm); // Warm cache sequentially
+      }
+      chunkSorter.sort(ordered,
+          i, Math.min(i + chunkSize, ordered.length), cachedComparator);
     }
     System.out.println(String.format(
         "Chunk sorted %d chunks of size %d (cache: %d, total terms: %s)" +
@@ -169,8 +214,7 @@ public class ExposedSegmentReader implements ExposedReader {
     long startTimeHeap = System.nanoTime();
     long oldHeapCacheMisses = cacheMisses;
     PriorityQueue<Integer> pq = new PriorityQueue<Integer>(
-        chunkCount, new CachedStringComparator(
-            collator, getSortCacheSize(), field));
+        chunkCount, cachedComparator);
     for (int i = 0 ; i < ordered.length ; i += chunkSize) {
       pq.add(i);
     }
@@ -261,7 +305,7 @@ public class ExposedSegmentReader implements ExposedReader {
     }
 
     Map<Integer, String> cache =
-            new LinkedHashMap<Integer, String>(cacheSize, 1.2f, true) {
+            new LinkedHashMap<Integer, String>(cacheSize, 1.2f, false) {
               @Override
               protected boolean removeEldestEntry(
                       Map.Entry<Integer, String> eldest) {
@@ -352,4 +396,5 @@ public class ExposedSegmentReader implements ExposedReader {
   public void setSortCacheSize(int sortCacheSize) {
     this.sortCacheSize = sortCacheSize;
   }
+
 }
