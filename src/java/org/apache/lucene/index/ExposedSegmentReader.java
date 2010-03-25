@@ -13,6 +13,7 @@ import java.util.*;
 
 /**
  * Memory usage: log2(#terms)*terms/8 + #docs*log2(#terms)/8 bytes.
+ * @deprecated use {@link SegmentReader} directly instead.}
  */
 public class ExposedSegmentReader implements ExposedReader {
   private SegmentReader segmentReader;
@@ -50,6 +51,10 @@ public class ExposedSegmentReader implements ExposedReader {
 
   public Term getTerm(int position) throws IOException {
     return segmentReader.core.getTermsReader().get(position);
+  }
+
+  public Iterator<OrdinalTerm> getOrdinalTerms(String persistenceKey, Comparator<Object> comparator, String field, boolean collectDocIDs) throws IOException {
+    throw new UnsupportedOperationException("See SegmentReader");
   }
 
   private long lookupTime = 0;
@@ -367,7 +372,7 @@ public class ExposedSegmentReader implements ExposedReader {
         PackedInts.bitsRequired(termOrder.size()));
     long max = termOrder.size();
     for (int i = 0 ; i < sorted.size() ; i++) {
-      sorted.set(i, max); // Points to the last which is wrong, but this is POC
+      sorted.set(i, max); // Points to the last which is wrong, but this is POC                                 
     }
     TermDocs termDocs = segmentReader.termDocs(new Term(field, ""));
     for (int i = 0 ; i < termOrder.size() ; i++) {
@@ -397,4 +402,7 @@ public class ExposedSegmentReader implements ExposedReader {
     this.sortCacheSize = sortCacheSize;
   }
 
+  public String getTermText(int ordinal) throws IOException {
+    return null;  //To change body of implemented methods use File | Settings | File Templates.
+  }
 }

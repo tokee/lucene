@@ -22,10 +22,10 @@ public class TestExposed extends LuceneTestCase {
               "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅÉÈËÊÔÓ" +
                   "1234567890      ").toCharArray();
   static final File INDEX_LOCATION =
-//          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
+          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
 //          new File("/home/te/projects/lucene/exposed_index");
-          new File("/mnt/bulk/exposed_index");
-  public static final int DOCCOUNT = 10000;
+//          new File("/mnt/bulk/exposed_index");
+  public static final int DOCCOUNT = 100000;
 
   @Override
   protected void setUp() throws Exception {
@@ -46,16 +46,83 @@ public class TestExposed extends LuceneTestCase {
       INDEX_LOCATION.delete();
     }
   }
-
-  private ExposedSegmentReader createExposed() throws IOException {
+                                     
+  private ExposedReader createExposed() throws IOException {
     createIndex(INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", "b"), 20);
     IndexReader reader = IndexReader.open(
             FSDirectory.open(INDEX_LOCATION), true);
-    return new ExposedSegmentReader(
-            SegmentReader.getOnlySegmentReader(reader));
+    return SegmentReader.getOnlySegmentReader(reader);
+  }
+
+  public void testPlainIteratorRequest() throws Exception {
+    Collator collator = Collator.getInstance(new Locale("da"));
+
+    ExposedReader reader = createExposed();
+    long startTime = System.currentTimeMillis();
+    Iterator<ExposedReader.OrdinalTerm> iterator = reader.getOrdinalTerms(
+        "foo", collator, "b", false);
+    System.out.println(
+        "Got iterator in " + (System.currentTimeMillis() - startTime) + "ms");
+
+    startTime = System.currentTimeMillis();
+    long count = 0;
+    while (iterator.hasNext()) {
+      count++;
+      iterator.next();
+    }
+    System.out.println("Iterated " + count + " elements in "
+        + (System.currentTimeMillis() - startTime) + "ms");
+    assertTrue("There should be some elements", count > 0);
+
+    startTime = System.currentTimeMillis();
+    iterator = reader.getOrdinalTerms(
+        "foo", Collator.getInstance(new Locale("da")), "b", false);
+    System.out.println("Re-requested iterator in "
+        + (System.currentTimeMillis() - startTime) + "ms");
+
+    String last = null;
+    while (iterator.hasNext()) {
+      ExposedReader.OrdinalTerm ot = iterator.next();
+//      System.out.println(ot.ordinal);
+      if (last == null) {
+        last = ot.term.text;
+      }
+      assertTrue("Terms should be in order: " + last + " <= " + ot.term.text,
+          collator.compare(last, ot.term.text) <= 0);
+      last = ot.term.text;
+    }
+
+    startTime = System.currentTimeMillis();
+    reader.getOrdinalTerms(
+        "bar", Collator.getInstance(new Locale("da")), "b", false);
+    System.out.println("Got new iterator in "
+        + (System.currentTimeMillis() - startTime) + "ms");
+  }
+
+  public void testDocIDIteratorRequest() throws Exception {
+    Collator collator = Collator.getInstance(new Locale("da"));
+    ExposedReader reader = createExposed();
+
+    long startTime = System.currentTimeMillis();
+    Iterator<ExposedReader.OrdinalTerm> iterator = reader.getOrdinalTerms(
+        "bar2", Collator.getInstance(new Locale("da")), "b", true);
+    System.out.println("Got new docID iterator in "
+        + (System.currentTimeMillis() - startTime) + "ms");
+
+    startTime = System.currentTimeMillis();
+    long count = 0;
+    while (iterator.hasNext()) {
+      count++;
+      assertTrue("The docID should not be equal to -1",
+          iterator.next().docID != -1);
+    }
+    System.out.println("Iterated " + count + " docIDs in "
+        + (System.currentTimeMillis() - startTime) + "ms");
+    assertTrue("There should be some docIDs", count > 0);
 
   }
 
+                                     /*
   public void testCount() throws Exception {
     ExposedReader exposed = createExposed();
     assertEquals("There should be the right number of terms",
@@ -132,17 +199,18 @@ public class TestExposed extends LuceneTestCase {
     long docTime = System.nanoTime() - startTimeDoc;
 
     System.out.println(String.format(
-            "Got ordered docIDs in %s (%s total), sorted %d docIDs in " +
-                    "%s %s %s. Heap: %s (orderedTerms: %s, " +
-                    "orderedDocs: %s).",
-            ExposedSegmentReader.nsToString(docTime),
-            ExposedSegmentReader.nsToString(termTime + docTime),
-            orderedDocs.size(),
-            ExposedPOC.measureSortTime(orderedDocs),
-            ExposedPOC.measureSortTime(orderedDocs),
-            ExposedPOC.measureSortTime(orderedDocs),
-            ExposedPOC.getHeap(), ExposedPOC.readableSize(ExposedPOC.footprint(orderedTerms)),
-            ExposedPOC.readableSize(ExposedPOC.footprint(orderedDocs))));
+        "Got ordered docIDs in %s (%s total), sorted %d docIDs in " +
+            "%s %s %s. Heap: %s (orderedTerms: %s, " +
+            "orderedDocs: %s).",
+        ExposedSegmentReader.nsToString(docTime),
+        ExposedSegmentReader.nsToString(termTime + docTime),
+        orderedDocs.size(),
+        ExposedPOC.measureSortTime(orderedDocs),
+        ExposedPOC.measureSortTime(orderedDocs),
+        ExposedPOC.measureSortTime(orderedDocs),
+        ExposedPOC.getHeap(),
+        ExposedPOC.readableSize(ExposedPOC.footprint(orderedTerms)),
+        ExposedPOC.readableSize(ExposedPOC.footprint(orderedDocs))));
 
     exposed.close();
   }
@@ -243,7 +311,7 @@ public class TestExposed extends LuceneTestCase {
     }
     System.out.println("Average size: " + keySize * 1.0 / KEYS);
   }
-
+          */
   private void createIndex(File location, int docCount,
                            List<String> fields, int fieldContentLength)
                                                             throws IOException {
@@ -285,4 +353,5 @@ public class TestExposed extends LuceneTestCase {
     }
     return buffer.toString();
   }
+
 }

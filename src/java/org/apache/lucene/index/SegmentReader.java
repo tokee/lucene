@@ -18,15 +18,7 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.document.Document;
@@ -38,12 +30,14 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BitVector;
 import org.apache.lucene.util.CloseableThreadLocal;
-import org.apache.lucene.search.FieldCache; // not great (circular); used only to purge FieldCache entry on close
+import org.apache.lucene.search.FieldCache;
+import org.apache.lucene.util.packed.DeltaWrapper;
+import org.apache.lucene.util.packed.PackedInts; // not great (circular); used only to purge FieldCache entry on close
 
 /**
  * @lucene.experimental
  */
-public class SegmentReader extends IndexReader implements Cloneable {
+public class SegmentReader extends IndexReader implements Cloneable, ExposedReader {
   protected boolean readOnly;
 
   private SegmentInfo si;
@@ -171,11 +165,11 @@ public class SegmentReader extends IndexReader implements Cloneable {
       } else {
         return tisNoIndex;
       }
-    }      
+    }
 
     synchronized boolean termsIndexIsLoaded() {
       return tis != null;
-    }      
+    }
 
     // NOTE: only called from IndexWriter when a near
     // real-time reader is opened, or applyDeletes is run,
@@ -212,11 +206,11 @@ public class SegmentReader extends IndexReader implements Cloneable {
           // null so if an app hangs on to us we still free most ram
           tis = null;
         }
-        
+
         if (tisNoIndex != null) {
           tisNoIndex.close();
         }
-        
+
         if (freqStream != null) {
           freqStream.close();
         }
@@ -228,15 +222,15 @@ public class SegmentReader extends IndexReader implements Cloneable {
         if (termVectorsReaderOrig != null) {
           termVectorsReaderOrig.close();
         }
-  
+
         if (fieldsReaderOrig != null) {
           fieldsReaderOrig.close();
         }
-  
+
         if (cfsReader != null) {
           cfsReader.close();
         }
-  
+
         if (storeCFSReader != null) {
           storeCFSReader.close();
         }
@@ -307,7 +301,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
 
   /**
-   * Sets the initial value 
+   * Sets the initial value
    */
   private class FieldsReaderLocal extends CloseableThreadLocal<FieldsReader> {
     @Override
@@ -315,13 +309,13 @@ public class SegmentReader extends IndexReader implements Cloneable {
       return (FieldsReader) core.getFieldsReaderOrig().clone();
     }
   }
-  
+
   /**
-   * Byte[] referencing is used because a new norm object needs 
-   * to be created for each clone, and the byte array is all 
-   * that is needed for sharing between cloned readers.  The 
-   * current norm referencing is for sharing between readers 
-   * whereas the byte[] referencing is for copy on write which 
+   * Byte[] referencing is used because a new norm object needs
+   * to be created for each clone, and the byte array is all
+   * that is needed for sharing between cloned readers.  The
+   * current norm referencing is for sharing between readers
+   * whereas the byte[] referencing is for copy on write which
    * is independent of reader references (i.e. incRef, decRef).
    */
 
@@ -341,7 +335,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     private boolean dirty;
     private int number;
     private boolean rollbackDirty;
-    
+
     public Norm(IndexInput in, int number, long normSeek) {
       this.in = in;
       this.number = number;
@@ -482,13 +476,13 @@ public class SegmentReader extends IndexReader implements Cloneable {
       dirty = true;
       return bytes;
     }
-    
+
     // Returns a copy of this Norm instance that shares
     // IndexInput & bytes with the original one
     @Override
     public synchronized Object clone() {
       assert refCount > 0 && (origNorm == null || origNorm.refCount > 0);
-        
+
       Norm clone;
       try {
         clone = (Norm) super.clone();
@@ -537,7 +531,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
 
   Map<String,Norm> norms = new HashMap<String,Norm>();
-  
+
   /**
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
@@ -592,15 +586,15 @@ public class SegmentReader extends IndexReader implements Cloneable {
 
   private boolean checkDeletedCounts() throws IOException {
     final int recomputedCount = deletedDocs.getRecomputedCount();
-     
+
     assert deletedDocs.count() == recomputedCount : "deleted count=" + deletedDocs.count() + " vs recomputed count=" + recomputedCount;
 
-    assert si.getDelCount() == recomputedCount : 
+    assert si.getDelCount() == recomputedCount :
     "delete count mismatch: info=" + si.getDelCount() + " vs BitVector=" + recomputedCount;
 
     // Verify # deletes does not exceed maxDoc for this
     // segment:
-    assert si.getDelCount() <= maxDoc() : 
+    assert si.getDelCount() <= maxDoc() :
     "delete count mismatch: " + recomputedCount + ") exceeds max doc (" + maxDoc() + ") for segment " + si.name;
 
     return true;
@@ -618,7 +612,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     } else
       assert si.getDelCount() == 0;
   }
-  
+
   /**
    * Clones the norm bytes.  May be overridden by subclasses.  New and experimental.
    * @param bytes Byte array to clone
@@ -629,7 +623,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     System.arraycopy(bytes, 0, cloneBytes, 0, bytes.length);
     return cloneBytes;
   }
-  
+
   /**
    * Clones the deleteDocs BitVector.  May be overridden by subclasses. New and experimental.
    * @param bv BitVector to clone
@@ -654,10 +648,10 @@ public class SegmentReader extends IndexReader implements Cloneable {
   }
 
   synchronized SegmentReader reopenSegment(SegmentInfo si, boolean doClone, boolean openReadOnly) throws CorruptIndexException, IOException {
-    boolean deletionsUpToDate = (this.si.hasDeletions() == si.hasDeletions()) 
+    boolean deletionsUpToDate = (this.si.hasDeletions() == si.hasDeletions())
                                   && (!si.hasDeletions() || this.si.getDelFileName().equals(si.getDelFileName()));
     boolean normsUpToDate = true;
-    
+
     boolean[] fieldNormsChanged = new boolean[core.fieldInfos.size()];
     final int fieldCount = core.fieldInfos.size();
     for (int i = 0; i < fieldCount; i++) {
@@ -671,7 +665,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
     // also if both old and new readers aren't readonly, we clone to avoid sharing modifications
     if (normsUpToDate && deletionsUpToDate && !doClone && openReadOnly && readOnly) {
       return this;
-    }    
+    }
 
     // When cloning, the incoming SegmentInfos should not
     // have any changes in it:
@@ -696,7 +690,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         clone.hasChanges = hasChanges;
         hasChanges = false;
       }
-      
+
       if (doClone) {
         if (deletedDocs != null) {
           deletedDocsRef.incrementAndGet();
@@ -741,7 +735,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         clone.decRef();
       }
     }
-    
+
     return clone;
   }
 
@@ -785,7 +779,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   protected void doClose() throws IOException {
     termVectorsLocal.close();
     fieldsReaderLocal.close();
-    
+
     if (deletedDocs != null) {
       deletedDocsRef.decrementAndGet();
       // null so if an app hangs on to us we still free most ram
@@ -1028,7 +1022,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
       Arrays.fill(bytes, offset, bytes.length, Similarity.getDefault().encodeNormValue(1.0f));
       return;
     }
-  
+
     norm.bytes(bytes, offset, maxDoc());
   }
 
@@ -1049,7 +1043,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
         if (!si.hasSeparateNorms(fi.number)) {
           d = cfsDir;
         }
-        
+
         // singleNormFile means multiple norms share this file
         boolean singleNormFile = IndexFileNames.matchesExtension(fileName, IndexFileNames.NORMS_EXTENSION);
         IndexInput normInput = null;
@@ -1134,7 +1128,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   TermVectorsReader getTermVectorsReaderOrig() {
     return core.getTermVectorsReaderOrig();
   }
-  
+
   /** Return a term frequency vector for the specified document and field. The
    *  vector returned contains term numbers and frequencies for all terms in
    *  the specified field of this document, if the field had storeTermVector
@@ -1146,13 +1140,13 @@ public class SegmentReader extends IndexReader implements Cloneable {
     // Check if this field is invalid or has no stored term vector
     ensureOpen();
     FieldInfo fi = core.fieldInfos.fieldInfo(field);
-    if (fi == null || !fi.storeTermVector) 
+    if (fi == null || !fi.storeTermVector)
       return null;
-    
+
     TermVectorsReader termVectorsReader = getTermVectorsReader();
     if (termVectorsReader == null)
       return null;
-    
+
     return termVectorsReader.get(docNumber, field);
   }
 
@@ -1195,14 +1189,14 @@ public class SegmentReader extends IndexReader implements Cloneable {
   @Override
   public TermFreqVector[] getTermFreqVectors(int docNumber) throws IOException {
     ensureOpen();
-    
+
     TermVectorsReader termVectorsReader = getTermVectorsReader();
     if (termVectorsReader == null)
       return null;
-    
+
     return termVectorsReader.get(docNumber);
   }
-  
+
   /** {@inheritDoc} */
   @Override
   public String toString() {
@@ -1220,7 +1214,7 @@ public class SegmentReader extends IndexReader implements Cloneable {
   public String getSegmentName() {
     return core.segment;
   }
-  
+
   /**
    * Return the SegmentInfo of the segment this reader is reading.
    */
@@ -1305,4 +1299,383 @@ public class SegmentReader extends IndexReader implements Cloneable {
   public int getTermInfosIndexDivisor() {
     return core.termsIndexDivisor;
   }
+
+  // Changes introduced due to ExposedReader follows below
+
+  /**
+   * Holds previously sorted ordinals for terms in fields (key).
+   */
+  Map<String, PackedInts.Reader> persistentOrders =
+      new HashMap<String, PackedInts.Reader>(5);
+  /**
+   * Holds previously calculated ordinal information for fields (key).
+   */
+  Map<String, FieldOrdinals> persistentOrdinals =
+      new HashMap<String, FieldOrdinals>(5);
+  private class FieldOrdinals {
+    public long firstOrdinal; // If -1, there are no terms for the index
+    public long lastOrdinal;  // Inclusive
+
+    public FieldOrdinals(long firstOrdinal, long lastOrdinal) {
+      this.firstOrdinal = firstOrdinal;
+      this.lastOrdinal = lastOrdinal;
+    }
+    public long getTermCount() {
+      return firstOrdinal == -1 ? 0 : lastOrdinal - firstOrdinal + 1;
+    }
+  }
+
+  /**
+   * The number of Terms or ExtendedTerms to hold in cache during processing.
+   * 10.000 is roughly equivalent to 1MB of RAM when holding short terms.
+   */
+  private int sortCacheSize = 20000; // Change this to 20000 after development
+
+  // There will be more of these active at a time, so we make it smaller
+  private int ordinalCacheSize = 5000;
+
+  public String getTermText(int position) throws IOException {
+    Term term = core.getTermsReader().get(position);
+    return term == null ? null : term.text;
+  }
+
+  /**
+   * See the JavaDoc for {@link ExposedReader#getOrdinalTerms} for
+   * overall details. The parameter-descriptions are copied from that.
+   * </p><p>
+   * This implementation works at the lowest level of a hierarchy of readers.
+   * Depending on the backing {@link Directory}, seeks can be quite slow.
+   * To compensate for this, the implementation uses caching and pre-fetching.
+   * The caching and pre-fetching works better the more the given comparator
+   * is aligned to Unicode String order.
+   * @param persistenceKey if not null, the implementation
+   *        might choose to store the order of the sorted ordinals for later
+   *        re-use for calls with the same persistenceKey.
+   *        Important: As persistence is not guaranteed (it might be a waste
+   *        of space to store the order for some implementations), the
+   *        comparator needs to be specified each time this method is called.
+   *        It is very highly recommended to use persistenceKeys as the cost of
+   *        sorting the ordinals for the terms can be substantial
+   *        (Rule of thumb: ~1 min/1 million terms on hardware anno 2010).
+   * @param comparator determines the order of the terms delivered by iterator.
+   *        The comparator will receive {@link Term#text}.
+   *        Important: It is highly recommended to use a comparator that is
+   *        roughly in sync with Unicode String ordering, such as a Java
+   *        Collator. Specifying a comparator that sorts in reverse will lead
+   *        to severely increased processing times for most implementations.
+   * @param field the field to get the terms from.
+   * @param collectDocIDs if true, docIDs are delivered by the iterator.
+   *        If false, -1 is returned.
+   * @return the extended terms sorted by the given comparator.
+   * @throws IOException if a low level I/O error occurred.
+   */
+  public Iterator<OrdinalTerm> getOrdinalTerms(
+      String persistenceKey, Comparator<Object> comparator,
+      String field, boolean collectDocIDs) throws IOException {
+    PackedInts.Reader order =
+        getSortedTermOrdinals(persistenceKey, comparator, field);
+    return !collectDocIDs ?
+        new SimpleOrdinalIterator(this, order, field) :
+        new FullOrdinalIterator(this, order, field);
+  }
+
+  // Does not collect docIDs but is clever enough to cache chunks
+  private class SimpleOrdinalIterator implements Iterator<OrdinalTerm> {
+    private final PackedInts.Reader order;
+    private final ExposedCachedReader cache;
+    private final String field;
+
+    private int index = 0;
+
+    private SimpleOrdinalIterator(
+        SegmentReader reader, PackedInts.Reader order, String field)
+                    throws IOException {
+      final int READ_AHEAD = Math.min(100, ordinalCacheSize);
+      this.order = order;
+      int lastIndex = (int)getFieldOrdinals(field).lastOrdinal;
+      cache = new ExposedCachedReader(
+          reader, ordinalCacheSize, READ_AHEAD, lastIndex);
+      this.field = field;
+    }
+
+    public boolean hasNext() {
+      return index < order.size();
+    }
+
+    public OrdinalTerm next() {
+      if (!hasNext()) {
+        throw new IllegalStateException("The iterator is depleted");
+      }
+      final long ordinal = order.get(index++);
+      String s;
+      try {
+        s = cache.getTermText((int)ordinal);
+        cache.release((int)ordinal); // Does this help or is it just overhead?
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "IOException while requesting term for ordinal " + ordinal, e);
+      }
+      return new OrdinalTerm(ordinal, new Term(field, s), -1);
+    }
+
+    public void remove() {
+      throw new UnsupportedOperationException("Not a valid operation");
+    }
+  }
+
+  /*
+  TODO: Extend this to be damn smart
+  The problem is that we want to iterate the terms in unicode order.
+  Normally the answer is a read-ahead cache, but when we collect docIDs this
+  is hard to do as the number of docIDs for a single term can easily be very
+  large. Maybe it will work to start with the assumption that the number of
+  docIDs is low and then fall back to not using read-ahead if the observed
+  number of docIDs/term grows too large too many times? A percentage perhaps?
+  Right now we just don't use a cache (slow).
+   */
+  // Collects docID but has no caching at all
+  private class FullOrdinalIterator implements Iterator<OrdinalTerm> {
+    private final SegmentReader reader;
+    private final PackedInts.Reader order;
+    private final String field;
+
+    private int index = 0;
+
+    private Term term = null;
+    final TermDocs termDocs;
+    private long ordinal = -1;
+
+    public FullOrdinalIterator(
+        SegmentReader reader, PackedInts.Reader order, String field)
+                                                            throws IOException {
+      this.reader = reader;
+      this.order = order;
+      this.field = field;
+      termDocs = termDocs(new Term(field, ""));
+    }
+
+    public boolean hasNext() {
+      return index < order.size() || term != null;
+    }
+
+    public OrdinalTerm next() {
+      if (!hasNext()) {
+        throw new IllegalStateException("The iterator is depleted");
+      }
+      if (term != null) {
+        long docID = termDocs.doc();
+        try {
+          if (!termDocs.next()) {
+            term = null; // No more docIDs, so we signal skip to next term
+          }
+        } catch (IOException e) {
+          throw new RuntimeException(
+              "IOException while calling next() on termDocs for " + term, e);
+        }
+        return new OrdinalTerm(ordinal, term, docID);
+      }
+
+      ordinal = order.get(index++);
+      try {
+        term = core.getTermsReader().get((int)ordinal);
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "IOException while requesting term for ordinal " + ordinal, e);
+      }
+      try {
+        termDocs.seek(term); // TODO: Consider using TermEnum for speed
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "IOException while seeking termDocs for " + term, e);
+      }
+      long docID = -1;
+      try {
+        if (termDocs.next()) {
+          docID = termDocs.doc();
+          if (!termDocs.next()) {
+            term = null; // No more docIDs, so we signal skip to next term
+          }
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "IOException while calling next() on termDocs for " + term, e);
+      }
+      return new OrdinalTerm(ordinal, term, docID);
+    }
+
+    public void remove() {
+      throw new UnsupportedOperationException("Not a valid operation");
+    }
+  }
+
+
+  private long lookupTime = 0;
+  private long collatorKeyCreation = 0;
+  private long cacheRequests = 0;
+  private long cacheMisses = 0;
+  synchronized PackedInts.Reader getSortedTermOrdinals(
+      String persistenceKey, Comparator<Object> comparator, String field)
+                                                            throws IOException {
+    if (persistentOrders.containsKey(persistenceKey)) {
+      return persistentOrders.get(persistenceKey);
+    }
+    lookupTime = 0;
+    cacheRequests = 0;
+    cacheMisses = 0;
+    int termCount = (int)getFieldOrdinals(field).getTermCount();
+    int first = (int)getFieldOrdinals(field).firstOrdinal;
+    int[] ordered = new int[termCount];
+    for (int i = 0 ; i < termCount ; i++) {
+      ordered[i] = first + i; // Initial order = Unicode
+    }
+
+    long startTime = System.nanoTime();
+    chunkSort(ordered, comparator, field);
+    long sortTime = (System.nanoTime() - startTime);
+/*    System.out.println(String.format(
+            "Sorted %d Terms in %s out of which %s (%s%%) was lookups and " +
+                    "%s (%s%%) was collation key creation. " +
+                   "The cache (%d terms) got %d requests with %d (%s%%) misses",
+            termCount, nsToString(sortTime),
+            nsToString(lookupTime),
+            lookupTime * 100 / sortTime,
+            nsToString(collatorKeyCreation),
+            collatorKeyCreation * 100 / sortTime,
+            sortCacheSize, cacheRequests,
+            cacheMisses, cacheMisses * 100 / cacheRequests));
+  */
+    PackedInts.Mutable packed = PackedInts.getMutable(
+            termCount, PackedInts.bitsRequired(termCount));
+    for (int i = 0 ; i < termCount ; i++) {
+      packed.set(i, ordered[i]-first); // Save space by offsetting min to 0
+    }
+    PackedInts.Mutable wrapped = DeltaWrapper.wrap(packed, first);
+
+    if (persistenceKey != null) {
+      persistentOrders.put(persistenceKey, wrapped);
+    }
+
+    return wrapped;
+  }
+
+  private synchronized FieldOrdinals getFieldOrdinals(
+      String field) throws IOException {
+    FieldOrdinals cached = persistentOrdinals.get(field);
+    if (cached != null) {
+      return cached;
+    }
+
+    TermEnum terms = terms(new Term(field, ""));
+    FieldOrdinals fieldOrdinals;
+    if (terms != null && terms.term() != null) {
+      long startOrdinal = core.getTermsReader().getPosition(terms.term());
+      long endOrdinal = startOrdinal-1;
+      while (terms.term() != null && terms.term().field() != null &&
+              terms.term().field.equals(field)) {
+        endOrdinal++;
+        terms.next();
+      }
+      fieldOrdinals = new FieldOrdinals(startOrdinal, endOrdinal);
+    } else {
+      fieldOrdinals = new FieldOrdinals(-1, 0);
+    }
+    persistentOrdinals.put(field, fieldOrdinals);
+    return fieldOrdinals;
+  }
+
+  public long getBase(String field) throws IOException {
+    TermEnum terms = terms(new Term(field, ""));
+    if (terms != null && terms.term() != null && terms.term().field() != null &&
+              terms.term().field.equals(field)) {
+      return core.getTermsReader().getPosition(terms.term());
+    }
+    return -1;
+  }
+
+  /*
+   * Starts by dividing the ordered array in logical chunks, then sorts each
+   * chunk separately and finishes by merging the chunks.
+   */
+  private void chunkSort(
+      final int[] ordered, final Comparator<Object> comparator,
+      final String field)
+                                                            throws IOException {
+    final int MERGE_READ_AHEAD = Math.min(100, sortCacheSize); // Test this size
+
+    final ExposedCachedReader cache = new ExposedCachedReader(
+        this, sortCacheSize, 0, (int)getFieldOrdinals(field).lastOrdinal);
+    int chunkSize = Math.max(sortCacheSize, ordered.length / sortCacheSize);
+    int chunkCount = (int) Math.ceil(ordered.length * 1.0 / chunkSize);
+    // We do not thread as the caching of Strings is more important than
+    // processing power. TODO: Consider threading with thread-local cache.
+
+    { // Sort the chunks individually
+      long startTimeMerge = System.nanoTime();
+      ExposedComparatorWrapper exposedComparator =
+          new ExposedComparatorWrapper(cache, comparator);
+      for (int i = 0 ; i < ordered.length ; i += chunkSize) {
+        for (int warm = i ; warm < i + chunkSize ; warm++) {
+          cache.getTermText(warm); // Warm cache sequentially
+        }
+        ExposedTimSort.sort(ordered, i, Math.min(i + chunkSize, ordered.length),
+            exposedComparator);
+        cache.clear();
+      }
+    }
+/*    System.out.println(String.format(
+        "Chunk sorted %d chunks of size %d (cache: %d, total terms: %s)" +
+            " sorted in %s with %d cache misses",
+        chunkCount, chunkSize, sortCacheSize, ordered.length,
+        nsToString(System.nanoTime() - startTimeMerge),
+        cacheMisses - oldCacheMisses));
+  */
+    if (chunkSize >= ordered.length) {
+      return; // Only one chunk. No need for merging
+    }
+
+    // We have sorted chunks. Commence the merging!
+
+    // Merging up to cache-size chunks requires an efficient way to determine
+    // the chunk with the lowest value. As locality is not that important with
+    // all comparables in cache, we use a heap.
+    // The heap contains an index (int) for all active chunks in the term order
+    // array. When an index is popped, it is incremented and re-inserted unless
+    // it is a block start index in which case it is just discarded.
+
+    long startTimeHeap = System.nanoTime();
+    long oldHeapCacheMisses = cacheMisses;
+    ExposedIndirectComparatorWrapper indirectComparator =
+        new ExposedIndirectComparatorWrapper(cache, ordered, comparator);
+    ExposedPriorityQueue pq = new ExposedPriorityQueue(
+        indirectComparator, chunkCount);
+    for (int i = 0 ; i < ordered.length ; i += chunkSize) {
+      pq.add(i);
+    }
+    // Re-configure the cache to read ahead
+    cache.setReadAhead(MERGE_READ_AHEAD);
+    cache.setOnlyReadAheadIfSpace(true);
+    cache.setStopReadAheadOnExistingValue(true);
+
+    int[] sorted = new int[ordered.length];
+    for (int i = 0 ; i < sorted.length ; i++) {
+      Integer next = pq.pop();
+      if (next == -1) {
+        throw new IllegalStateException(
+            "Popping the heap should never return -1");
+      }
+      sorted[i] = ordered[next];
+      cache.release(next); // Important for cache read ahead efficiency
+      if (++next % chunkSize != 0 && next != ordered.length) {
+        pq.add(next);
+      }
+    }
+    System.arraycopy(sorted, 0, ordered, 0, sorted.length);
+/*    System.out.println(String.format(
+        "Heap merged %d sorted chunks of size %d (cache: %d, total terms: %s)" +
+            " in %s with %d cache misses (%d combined for both sort passes)",
+        chunkCount, chunkSize, sortCacheSize, ordered.length,
+        nsToString(System.nanoTime() - startTimeHeap),
+        cacheMisses - oldHeapCacheMisses, cacheMisses - oldCacheMisses));*/
+  }
+
 }

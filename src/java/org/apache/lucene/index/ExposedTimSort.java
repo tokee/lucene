@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package org.apache.lucene.util;
+package org.apache.lucene.index;
 
 import java.util.Arrays;
-import java.util.Comparator;
 
 /**
  * A stable, adaptive, iterative mergesort that requires far fewer than
@@ -51,9 +50,11 @@ import java.util.Comparator;
  * TimSort. Small arrays are sorted in place, using a binary insertion sort.
  *
  * @author Josh Bloch
+ * 
+ * Modified 2010-03-22 to handle int only (specialization to save memory).
  */
-public class TimSort<T> {
-    /**
+public class ExposedTimSort {
+  /**
      * This is the minimum sized sequence that will be merged.  Shorter
      * sequences will be lengthened by calling binarySort.  If the entire
      * array is less than this length, no merges will be performed.
@@ -75,12 +76,12 @@ public class TimSort<T> {
     /**
      * The array being sorted.
      */
-    private final T[] a;
+    private final int[] a;
 
     /**
      * The comparator for this sort.
      */
-    private final Comparator<? super T> c;
+    private final ExposedReader.IntComparator c;
 
     /**
      * When we get into galloping mode, we stay there until both runs win less
@@ -107,7 +108,7 @@ public class TimSort<T> {
     /**
      * Temp storage for merges.
      */
-    private T[] tmp; // Actual runtime type will be Object[], regardless of T
+    private int[] tmp; // Actual runtime type will be Object[], regardless of T
 
     /**
      * A stack of pending runs yet to be merged.  Run i starts at
@@ -129,16 +130,14 @@ public class TimSort<T> {
      * @param a the array to be sorted
      * @param c the comparator to determine the order of the sort
      */
-    private TimSort(T[] a, Comparator<? super T> c) {
+    private ExposedTimSort(int[] a, ExposedReader.IntComparator c) {
         this.a = a;
         this.c = c;
 
         // Allocate temp storage (which may be increased later if necessary)
         int len = a.length;
-        @SuppressWarnings({"unchecked", "UnnecessaryLocalVariable"})
-        T[] newArray = (T[]) new Object[len < 2 * INITIAL_TMP_STORAGE_LENGTH ?
-                                        len >>> 1 : INITIAL_TMP_STORAGE_LENGTH];
-        tmp = newArray;
+        tmp = new int[len < 2 * INITIAL_TMP_STORAGE_LENGTH ?
+                                 len >>> 1 : INITIAL_TMP_STORAGE_LENGTH];
 
         /*
          * Allocate runs-to-be-merged stack (which cannot be expanded).  The
@@ -163,11 +162,11 @@ public class TimSort<T> {
      * of the public method with the same signature in java.util.Arrays.
      */
 
-    public static <T> void sort(T[] a, Comparator<? super T> c) {
+    public static void sort(int[] a, ExposedReader.IntComparator c) {
         sort(a, 0, a.length, c);
     }
 
-    public static <T> void sort(T[] a, int lo, int hi, Comparator<? super T> c) {
+    public static void sort(int[] a, int lo, int hi, ExposedReader.IntComparator c) {
         if (c == null) {
             Arrays.sort(a, lo, hi);
             return;
@@ -190,7 +189,7 @@ public class TimSort<T> {
          * extending short natural runs to minRun elements, and merging runs
          * to maintain stack invariant.
          */
-        TimSort<T> ts = new TimSort<T>(a, c);
+        ExposedTimSort ts = new ExposedTimSort(a, c);
         int minRun = minRunLength(nRemaining);
         do {
             // Identify next run
@@ -237,13 +236,13 @@ public class TimSort<T> {
      * @param c comparator to used for the sort
      */
     @SuppressWarnings("fallthrough")
-    private static <T> void binarySort(T[] a, int lo, int hi, int start,
-                                       Comparator<? super T> c) {
+    private static void binarySort(int[] a, int lo, int hi, int start,
+                                       ExposedReader.IntComparator c) {
         assert lo <= start && start <= hi;
         if (start == lo)
             start++;
         for ( ; start < hi; start++) {
-            T pivot = a[start];
+            int pivot = a[start];
 
             // Set left (and right) to the index where a[start] (pivot) belongs
             int left = lo;
@@ -307,8 +306,8 @@ public class TimSort<T> {
      * @return  the length of the run beginning at the specified position in
      *          the specified array
      */
-    private static <T> int countRunAndMakeAscending(T[] a, int lo, int hi,
-                                                    Comparator<? super T> c) {
+    private static  int countRunAndMakeAscending(int[] a, int lo, int hi,
+                                                    ExposedReader.IntComparator c) {
         assert lo < hi;
         int runHi = lo + 1;
         if (runHi == hi)
@@ -334,10 +333,10 @@ public class TimSort<T> {
      * @param lo the index of the first element in the range to be reversed
      * @param hi the index after the last element in the range to be reversed
      */
-    private static void reverseRange(Object[] a, int lo, int hi) {
+    private static void reverseRange(int[] a, int lo, int hi) {
         hi--;
         while (lo < hi) {
-            Object t = a[lo];
+            int t = a[lo];
             a[lo++] = a[hi];
             a[hi--] = t;
         }
@@ -497,8 +496,8 @@ public class TimSort<T> {
      *    the first k elements of a should precede key, and the last n - k
      *    should follow it.
      */
-    private static <T> int gallopLeft(T key, T[] a, int base, int len, int hint,
-                                      Comparator<? super T> c) {
+    private static int gallopLeft(int key, int[] a, int base, int len, int hint,
+                                      ExposedReader.IntComparator c) {
         assert len > 0 && hint >= 0 && hint < len;
         int lastOfs = 0;
         int ofs = 1;
@@ -567,8 +566,8 @@ public class TimSort<T> {
      * @param c the comparator used to order the range, and to search
      * @return the int k,  0 <= k <= n such that a[b + k - 1] <= key < a[b + k]
      */
-    private static <T> int gallopRight(T key, T[] a, int base, int len,
-                                       int hint, Comparator<? super T> c) {
+    private static int gallopRight(int key, int[] a, int base, int len,
+                                       int hint, ExposedReader.IntComparator c) {
         assert len > 0 && hint >= 0 && hint < len;
 
         int ofs = 1;
@@ -645,8 +644,8 @@ public class TimSort<T> {
         assert len1 > 0 && len2 > 0 && base1 + len1 == base2;
 
         // Copy first run into temp array
-        T[] a = this.a; // For performance
-        T[] tmp = ensureCapacity(len1);
+        int[] a = this.a; // For performance
+        int[] tmp = ensureCapacity(len1);
         System.arraycopy(a, base1, tmp, 0, len1);
 
         int cursor1 = 0;       // Indexes into tmp array
@@ -665,7 +664,7 @@ public class TimSort<T> {
             return;
         }
 
-        Comparator<? super T> c = this.c;  // Use local variable for performance
+        ExposedReader.IntComparator c = this.c;  // Use local variable for performance
         int minGallop = this.minGallop;    //  "    "       "     "      "
     outer:
         while (true) {
@@ -762,8 +761,8 @@ public class TimSort<T> {
         assert len1 > 0 && len2 > 0 && base1 + len1 == base2;
 
         // Copy second run into temp array
-        T[] a = this.a; // For performance
-        T[] tmp = ensureCapacity(len2);
+        int[] a = this.a; // For performance
+        int[] tmp = ensureCapacity(len2);
         System.arraycopy(a, base2, tmp, 0, len2);
 
         int cursor1 = base1 + len1 - 1;  // Indexes into a
@@ -784,7 +783,7 @@ public class TimSort<T> {
             return;
         }
 
-        Comparator<? super T> c = this.c;  // Use local variable for performance
+        ExposedReader.IntComparator c = this.c;  // Use local variable for performance
         int minGallop = this.minGallop;    //  "    "       "     "      "
     outer:
         while (true) {
@@ -876,7 +875,7 @@ public class TimSort<T> {
      * @param minCapacity the minimum required capacity of the tmp array
      * @return tmp, whether or not it grew
      */
-    private T[] ensureCapacity(int minCapacity) {
+    private int[] ensureCapacity(int minCapacity) {
         if (tmp.length < minCapacity) {
             // Compute smallest power of 2 > minCapacity
             int newSize = minCapacity;
@@ -892,9 +891,7 @@ public class TimSort<T> {
             else
                 newSize = Math.min(newSize, a.length >>> 1);
 
-            @SuppressWarnings({"unchecked", "UnnecessaryLocalVariable"})
-            T[] newArray = (T[]) new Object[newSize];
-            tmp = newArray;
+            tmp = new int[newSize];
         }
         return tmp;
     }
