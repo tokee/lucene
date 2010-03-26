@@ -1349,6 +1349,10 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
   public Iterator<OrdinalTerm> getOrdinalTerms(
       String persistenceKey, Comparator<Object> comparator,
       String field, boolean collectDocIDs) throws IOException {
+    if (subReaders.length == 1) {
+      return subReaders[0].getOrdinalTerms(
+          persistenceKey, comparator, field, collectDocIDs);
+    }
     return new MultiIterator(persistenceKey, comparator, field, collectDocIDs);
   }
 
