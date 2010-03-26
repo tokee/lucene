@@ -3,12 +3,8 @@ package org.apache.lucene.index;
 import org.apache.lucene.analysis.SimpleAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.search.FieldCache;
-import org.apache.lucene.search.FieldComparator;
-import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.LuceneTestCase;
-import org.apache.lucene.util.packed.PackedInts;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,10 +18,10 @@ public class TestExposed extends LuceneTestCase {
               "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅÉÈËÊÔÓ" +
                   "1234567890      ").toCharArray();
   static final File INDEX_LOCATION =
-          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
+//          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
 //          new File("/home/te/projects/lucene/exposed_index");
-//          new File("/mnt/bulk/exposed_index");
-  public static final int DOCCOUNT = 100000;
+          new File("/mnt/bulk/exposed_index");
+  public static final int DOCCOUNT = 1000000;
 
   @Override
   protected void setUp() throws Exception {
@@ -47,20 +43,46 @@ public class TestExposed extends LuceneTestCase {
     }
   }
                                      
-  private ExposedReader createExposed() throws IOException {
-    createIndex(INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", "b"), 20);
+  private ExposedReader createExposedSegment() throws IOException {
+    createIndex(INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", "b"), 40, 1);
     IndexReader reader = IndexReader.open(
             FSDirectory.open(INDEX_LOCATION), true);
     return SegmentReader.getOnlySegmentReader(reader);
   }
+  private ExposedReader createExposedMultiSegment() throws IOException {
+    createIndex(INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", "b"), 40, 10);
+    IndexReader reader = IndexReader.open(
+            FSDirectory.open(INDEX_LOCATION), true);
+    return (DirectoryReader)reader; // Directory iff multiple segments
+  }
 
-  public void testPlainIteratorRequest() throws Exception {
-    Collator collator = Collator.getInstance(new Locale("da"));
+  public void testSingleSegmentPlainIteratorRequest() throws Exception {
+    Collator comparator = Collator.getInstance(new Locale("da"));
 
-    ExposedReader reader = createExposed();
+/*  Comparator<Object> comparator = new Comparator<Object>() {
+    public int compare(Object o1, Object o2) {
+      return ((String)o1).compareTo((String)o2);
+    }
+  }; */
+
+  ExposedReader reader = createExposedSegment();
+
+ //   ExposedReader reader = SegmentReader.getOnlySegmentReader(IndexReader.open(
+ //           FSDirectory.open(INDEX_LOCATION), true));
+    testPlainIteratorRequest(reader, comparator);
+  }
+
+  public void testMultipleSegmentsPlainIteratorRequest() throws Exception {
+    Collator comparator = Collator.getInstance(new Locale("da"));
+    ExposedReader reader = createExposedMultiSegment();
+    testPlainIteratorRequest(reader, comparator);
+  }
+
+  private void testPlainIteratorRequest(
+      ExposedReader reader, Comparator<Object> comparator) throws Exception {
     long startTime = System.currentTimeMillis();
     Iterator<ExposedReader.OrdinalTerm> iterator = reader.getOrdinalTerms(
-        "foo", collator, "b", false);
+        "foo", comparator, "b", false);
     System.out.println(
         "Got iterator in " + (System.currentTimeMillis() - startTime) + "ms");
 
@@ -88,24 +110,23 @@ public class TestExposed extends LuceneTestCase {
         last = ot.term.text;
       }
       assertTrue("Terms should be in order: " + last + " <= " + ot.term.text,
-          collator.compare(last, ot.term.text) <= 0);
+          comparator.compare(last, ot.term.text) <= 0);
       last = ot.term.text;
     }
 
     startTime = System.currentTimeMillis();
-    reader.getOrdinalTerms(
-        "bar", Collator.getInstance(new Locale("da")), "b", false);
+    reader.getOrdinalTerms("bar", comparator, "b", false);
     System.out.println("Got new iterator in "
         + (System.currentTimeMillis() - startTime) + "ms");
   }
 
   public void testDocIDIteratorRequest() throws Exception {
     Collator collator = Collator.getInstance(new Locale("da"));
-    ExposedReader reader = createExposed();
+    ExposedReader reader = createExposedSegment();
 
     long startTime = System.currentTimeMillis();
     Iterator<ExposedReader.OrdinalTerm> iterator = reader.getOrdinalTerms(
-        "bar2", Collator.getInstance(new Locale("da")), "b", true);
+        "bar2", collator, "b", true);
     System.out.println("Got new docID iterator in "
         + (System.currentTimeMillis() - startTime) + "ms");
 
@@ -122,15 +143,64 @@ public class TestExposed extends LuceneTestCase {
 
   }
 
+  private void createIndex(
+      File location, int docCount, List<String> fields, int fieldContentLength,
+      int maxSegments) throws IOException {
+    long startTime = System.nanoTime();
+    Random random = new Random(87);
+    IndexWriter writer = new IndexWriter(FSDirectory.open(
+            location), new SimpleAnalyzer(),
+            true, IndexWriter.MaxFieldLength.UNLIMITED);
+    writer.setRAMBufferSizeMB(16);
+
+    for (int docID = 0 ; docID < docCount ; docID++) {
+      Document doc = new Document();
+      for (String field: fields) {
+        doc.add(new Field(
+                field,
+                getRandomString(random, CHARS, 1, fieldContentLength) + docID,
+                Field.Store.NO, Field.Index.NOT_ANALYZED));
+      }
+      writer.addDocument(doc);
+      if (maxSegments > 1 && docID == docCount / maxSegments) {
+        writer.commit(); // We want multiple segments
+      }
+    }
+    if (maxSegments != -1) {
+      writer.optimize(maxSegments);
+    }
+    writer.close();
+    System.out.println(String.format(
+        "Created %d document index with %d fields with average " +
+            "term length %d and total size %s in a maximum of " +
+            "%d segments in %s",
+        docCount, fields.size(), fieldContentLength / 2,
+        ExposedPOC.readableSize(ExposedPOC.calculateSize(location)),
+        maxSegments,
+        ExposedSegmentReader.nsToString(System.nanoTime() - startTime)));
+  }
+
+  private StringBuffer buffer = new StringBuffer(100);
+  private synchronized String getRandomString(
+          Random random, char[] chars, int minLength, int maxLength) {
+    int length = minLength == maxLength ? minLength :
+            random.nextInt(maxLength-minLength+1) + minLength;
+    buffer.setLength(0);
+    for (int i = 0 ; i < length ; i++) {
+      buffer.append(chars[random.nextInt(chars.length)]);
+    }
+    return buffer.toString();
+  }
+
                                      /*
   public void testCount() throws Exception {
-    ExposedReader exposed = createExposed();
+    ExposedReader exposed = createExposedSegment();
     assertEquals("There should be the right number of terms",
             DOCCOUNT, exposed.getTermCount("a"));
   }
 
   public void testPosition() throws Exception {
-    ExposedReader exposed = createExposed();
+    ExposedReader exposed = createExposedSegment();
     assertEquals("The base for field a should be correct",
             0, exposed.getBase("a"));
     assertEquals("The base for field a should be correct",
@@ -139,7 +209,7 @@ public class TestExposed extends LuceneTestCase {
 
   public void testSortedTerms() throws Exception {
     final String FIELD = "b";
-    ExposedSegmentReader exposed = createExposed();
+    ExposedSegmentReader exposed = createExposedSegment();
     long startTime = System.nanoTime();
     PackedInts.Reader orderedTerms = exposed.getSortedTerms(
                     Collator.getInstance(new Locale("da")), FIELD);
@@ -282,7 +352,7 @@ public class TestExposed extends LuceneTestCase {
 
   public void testSortedDocuments() throws Exception {
     final String FIELD = "b";
-    ExposedSegmentReader exposed = createExposed();
+    ExposedSegmentReader exposed = createExposedSegment();
     PackedInts.Reader orderedTerms = exposed.getSortedTerms(
                     Collator.getInstance(new Locale("da")), FIELD);
 
@@ -312,46 +382,5 @@ public class TestExposed extends LuceneTestCase {
     System.out.println("Average size: " + keySize * 1.0 / KEYS);
   }
           */
-  private void createIndex(File location, int docCount,
-                           List<String> fields, int fieldContentLength)
-                                                            throws IOException {
-    long startTime = System.nanoTime();
-    Random random = new Random(87);
-    IndexWriter writer = new IndexWriter(FSDirectory.open(
-            location), new SimpleAnalyzer(),
-            true, IndexWriter.MaxFieldLength.UNLIMITED);
-    writer.setRAMBufferSizeMB(16);
-    for (int docID = 0 ; docID < docCount ; docID++) {
-      Document doc = new Document();
-      for (String field: fields) {
-        doc.add(new Field(
-                field, 
-                getRandomString(random, CHARS, 1, fieldContentLength) + docID,
-                Field.Store.NO, Field.Index.NOT_ANALYZED));
-      }
-      writer.addDocument(doc);
-    }
-    writer.optimize();
-    writer.close();
-    System.out.println(String.format(
-            "Created %d document optimized index with %d fields with average " +
-                    "term length %d and total size %s in %s",
-            docCount, fields.size(), fieldContentLength / 2,
-            ExposedPOC.readableSize(ExposedPOC.calculateSize(location)),
-            ExposedSegmentReader.nsToString(
-                    System.nanoTime() - startTime)));
-  }
-
-  private StringBuffer buffer = new StringBuffer(100);
-  private synchronized String getRandomString(
-          Random random, char[] chars, int minLength, int maxLength) {
-    int length = minLength == maxLength ? minLength :
-            random.nextInt(maxLength-minLength+1) + minLength;
-    buffer.setLength(0);
-    for (int i = 0 ; i < length ; i++) {
-      buffer.append(chars[random.nextInt(chars.length)]);
-    }
-    return buffer.toString();
-  }
 
 }

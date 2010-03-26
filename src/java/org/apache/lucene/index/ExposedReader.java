@@ -89,6 +89,9 @@ public interface ExposedReader {
    * </p><p>
    * Note: Implementations will normally optimize the sorting, so it is highly
    * recommendable to call this method instead of using {@link #getTerm(int)}.
+   * </p><p>
+   * Note: It is possible that two OrdinalTerms will have the same term String
+   * but different ordinals due to merging.
    * @param persistenceKey if not null, the implementation
    *        might choose to store the order of the sorted ordinals for later
    *        re-use for calls with the same persistenceKey.
@@ -109,7 +112,9 @@ public interface ExposedReader {
    *        If false, -1 is returned.
    * @throws IOException if the index could not be accessed.
    * @return the extended terms sorted by the given comparator.
-   */       
+   */
+  // TODO: Consider supporting comparator == null for direct ordinals (_fast_)
+  // This still requires DirectoryReader et al to sort by Unicode-order
   Iterator<OrdinalTerm> getOrdinalTerms(
       String persistenceKey, Comparator<Object> comparator, String field,
       boolean collectDocIDs) throws IOException;

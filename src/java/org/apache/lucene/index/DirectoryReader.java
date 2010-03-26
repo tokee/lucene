@@ -19,15 +19,7 @@ package org.apache.lucene.index;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
@@ -40,7 +32,7 @@ import org.apache.lucene.search.FieldCache; // not great (circular); used only t
 /** 
  * An IndexReader which reads indexes with multiple segments.
  */
-class DirectoryReader extends IndexReader implements Cloneable {
+class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
   protected Directory directory;
   protected boolean readOnly;
 
@@ -329,6 +321,11 @@ class DirectoryReader extends IndexReader implements Cloneable {
         hasDeletions = true;
     }
     starts[subReaders.length] = maxDoc;
+
+
+    // Added as part of Exposed
+    initializeExposed(subReaders);
+
   }
 
   @Override
@@ -1308,6 +1305,160 @@ class DirectoryReader extends IndexReader implements Cloneable {
     // TODO: Remove warning after API has been finalized
     public boolean isPayloadAvailable() {
       return ((TermPositions) current).isPayloadAvailable();
+    }
+  }
+
+  // ExposedReader implementation below
+
+  // As re-open is handled by constructing a DirectoryReader and re-using
+  // old SegmentReaders, we know that the cache of term orders is always
+  // empty after both open and re-open.
+  // Ordinals in the Directory-reader refers are resolved using the
+  // {@link #ordinalStarts} list
+
+
+  /**
+   * Term ordinal equivalent to {@link #starts}.
+   * Generated once in {@link #initialize}.
+   */
+  private long[] ordinalStarts;
+  private long maxOrdinal; // One more than maximum
+  private void initializeExposed(SegmentReader[] subReaders) {
+    ordinalStarts = new long[subReaders.length+1];
+    for (int i = 0; i < subReaders.length; i++) {
+      ordinalStarts[i] = maxOrdinal;
+      maxOrdinal += subReaders[i].getUniqueTermCount();
+    }
+    ordinalStarts[subReaders.length] = maxOrdinal;
+  }
+
+  // Simple iteration to find segment, as segment-count is usually small
+  // TODO: Consider using binary sort as it might be faster
+  public String getTermText(int ordinal) throws IOException {
+    if (ordinal >= maxOrdinal) {
+      return null;
+    }
+    int segmentNum = 0;
+    while (ordinalStarts[segmentNum] > ordinal) {
+      ordinal++;
+    }
+    return subReaders[segmentNum].getTermText(ordinal);
+  }
+
+  // No caching as the SegmentReaders are way better at it
+  public Iterator<OrdinalTerm> getOrdinalTerms(
+      String persistenceKey, Comparator<Object> comparator,
+      String field, boolean collectDocIDs) throws IOException {
+    return new MultiIterator(persistenceKey, comparator, field, collectDocIDs);
+  }
+
+  /*
+  We make a priority queue that just holds ints. Each entry-int refers to a
+  an OrdinalTerm that comparisons are done against.
+  When a minimum has been extracted, the iterator.next() for the corresponding
+  Iterator<OrdinalTerm> is called. If the ordinal is unchanged, this means
+  that there are multiple docIDs for the given term. We just keep calling next
+  (and delivering OrdinalTerms) until the ordinal changes, after which we
+  update the backing array of OrdinalTerms and re-insert the entry-int (or
+  discard it if the iterator is depleted).
+  We remember to add the deltas from {@link #ordinalStarts} to all ordinals
+  delivered.
+   */
+  private class MultiIterator implements Iterator<OrdinalTerm> {
+    private final Iterator<OrdinalTerm>[] iterators;
+    private final MultiComparator wrappedComparator;
+    private final ExposedPriorityQueue pq;
+
+    // We optimize get by emptying an ordinal completely before pq'ing next
+    private OrdinalTerm currentTerm = null;  // Defined if pending docIDs
+    private int currentSubReader = -1;
+
+    public MultiIterator(String persistenceKey, Comparator<Object> comparator,
+                       String field, boolean collectDocIDs) throws IOException {
+      //noinspection unchecked
+      iterators = (Iterator<OrdinalTerm>[])new Iterator[subReaders.length];
+      OrdinalTerm[] backingTerms = new OrdinalTerm[subReaders.length];
+      for (int i = 0 ; i < subReaders.length ; i++) {
+        Iterator<OrdinalTerm> iterator = subReaders[i].getOrdinalTerms(
+            persistenceKey, comparator, field, collectDocIDs);
+        if (!iterator.hasNext()) {
+          continue; // Skip empty
+        }
+        backingTerms[i] = iterator.next(); // Initial values
+        iterators[i] = iterator;
+      }
+      wrappedComparator = new MultiComparator(backingTerms, comparator);
+      pq = new ExposedPriorityQueue(wrappedComparator, subReaders.length);
+      // Initial fill
+      for (int i = 0 ; i < subReaders.length ; i++) {
+        if (iterators[i] != null) { // Only add when something is present
+          pq.add(i);
+        }
+      }
+    }
+
+    public OrdinalTerm next() {
+      if (currentTerm != null) { // We can skip the pq.pop
+        OrdinalTerm delivery = currentTerm;
+        if (iterators[currentSubReader] != null
+            && iterators[currentSubReader].hasNext()) { // Not empty
+          OrdinalTerm nextTerm = iterators[currentSubReader].next();
+          if (nextTerm.ordinal == currentTerm.ordinal) { // Iterate further
+            currentTerm = next();
+          } else { // New ordinal: Update backing and re-insert into pq
+            wrappedComparator.backingTerms[currentSubReader] = nextTerm;
+            pq.add(currentSubReader);
+            currentTerm = null;
+          }
+        } else { // Iterator depleted
+          currentTerm = null;
+        }
+        return adjust(delivery, currentSubReader);
+      }
+
+      // No previously remembered term. Get a new one from pq
+      currentSubReader = pq.pop();
+      OrdinalTerm delivery = wrappedComparator.backingTerms[currentSubReader];
+      if (iterators[currentSubReader] != null
+          && iterators[currentSubReader].hasNext()) {
+        OrdinalTerm nextTerm = iterators[currentSubReader].next();
+        if (nextTerm.ordinal == delivery.ordinal) { // Same ordinal
+          currentTerm = nextTerm;
+        } else { // New ordinal: Update and re-insert
+          wrappedComparator.backingTerms[currentSubReader] = nextTerm;
+          pq.add(currentSubReader);
+        }
+      } // No hasNext -> nothing is done (the pq forgets about the iterator)
+      return adjust(delivery, currentSubReader);
+    }
+
+    private OrdinalTerm adjust(OrdinalTerm term, int subReaderIndex) {
+      term.ordinal += ordinalStarts[subReaderIndex];
+      return term;
+    }
+
+    public boolean hasNext() {
+      return pq.size() > 0;
+    }
+
+    public void remove() {
+      throw new UnsupportedOperationException("Term removal is unsupported");
+    }
+  }
+
+  private static class MultiComparator implements ExposedReader.IntComparator {
+    public OrdinalTerm[] backingTerms; // Updated from the outside
+    private Comparator<Object> comparator;
+
+    private MultiComparator(
+        OrdinalTerm[] backingTerms, Comparator<Object> comparator) {
+      this.backingTerms = backingTerms;
+      this.comparator = comparator;
+    }
+
+    public int compare(int value1, int value2) {
+      return comparator.compare(
+          backingTerms[value1].term.text, backingTerms[value2].term.text);
     }
   }
 }

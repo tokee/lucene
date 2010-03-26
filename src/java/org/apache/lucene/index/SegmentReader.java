@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.search.Similarity;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
@@ -1334,6 +1336,7 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
   // There will be more of these active at a time, so we make it smaller
   private int ordinalCacheSize = 5000;
 
+  // TODO: Consider caching this
   public String getTermText(int position) throws IOException {
     Term term = core.getTermsReader().get(position);
     return term == null ? null : term.text;
