@@ -24,8 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.FieldSelector;
 import org.apache.lucene.search.Similarity;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.SortField;
 import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
@@ -1343,7 +1341,7 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
   }
 
   /**
-   * See the JavaDoc for {@link ExposedReader#getOrdinalTerms} for
+   * See the JavaDoc for {@link ExposedReader#getExposedTuples} for
    * overall details. The parameter-descriptions are copied from that.
    * </p><p>
    * This implementation works at the lowest level of a hierarchy of readers.
@@ -1372,7 +1370,7 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
    * @return the extended terms sorted by the given comparator.
    * @throws IOException if a low level I/O error occurred.
    */
-  public Iterator<OrdinalTerm> getOrdinalTerms(
+  public ExposedIterator getExposedTuples(
       String persistenceKey, Comparator<Object> comparator,
       String field, boolean collectDocIDs) throws IOException {
     PackedInts.Reader order =
@@ -1383,10 +1381,11 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
   }
 
   // Does not collect docIDs but is clever enough to cache chunks
-  private class SimpleOrdinalIterator implements Iterator<OrdinalTerm> {
+  private class SimpleOrdinalIterator implements ExposedIterator {
     private final PackedInts.Reader order;
     private final ExposedCachedReader cache;
     private final String field;
+    private final int lastOrdinal;
 
     private int index = 0;
 
@@ -1395,9 +1394,9 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
                     throws IOException {
       final int READ_AHEAD = Math.min(100, ordinalCacheSize);
       this.order = order;
-      int lastIndex = (int)getFieldOrdinals(field).lastOrdinal;
+      lastOrdinal = (int)getFieldOrdinals(field).lastOrdinal;
       cache = new ExposedCachedReader(
-          reader, ordinalCacheSize, READ_AHEAD, lastIndex);
+          reader, ordinalCacheSize, READ_AHEAD, lastOrdinal);
       this.field = field;
     }
 
@@ -1405,7 +1404,7 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
       return index < order.size();
     }
 
-    public OrdinalTerm next() {
+    public ExposedTuple next() {
       if (!hasNext()) {
         throw new IllegalStateException("The iterator is depleted");
       }
@@ -1418,11 +1417,19 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
         throw new RuntimeException(
             "IOException while requesting term for ordinal " + ordinal, e);
       }
-      return new OrdinalTerm(ordinal, new Term(field, s), -1);
+      return new ExposedTuple(ordinal, new Term(field, s), -1);
     }
 
     public void remove() {
       throw new UnsupportedOperationException("Not a valid operation");
+    }
+
+    public long getMaxSortedTermsCount() {
+      return order.size();
+    }
+
+    public long getMaxTermOrdinal() {
+      return lastOrdinal;
     }
   }
 
@@ -1437,10 +1444,11 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
   Right now we just don't use a cache (slow).
    */
   // Collects docID but has no caching at all
-  private class FullOrdinalIterator implements Iterator<OrdinalTerm> {
+  private class FullOrdinalIterator implements ExposedIterator {
     private final SegmentReader reader;
     private final PackedInts.Reader order;
     private final String field;
+    private final int lastOrdinal;
 
     private int index = 0;
 
@@ -1455,13 +1463,14 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
       this.order = order;
       this.field = field;
       termDocs = termDocs(new Term(field, ""));
+      lastOrdinal = (int)getFieldOrdinals(field).lastOrdinal;
     }
 
     public boolean hasNext() {
-      return index < order.size() || term != null;
+      return term != null || index < order.size();
     }
 
-    public OrdinalTerm next() {
+    public ExposedTuple next() {
       if (!hasNext()) {
         throw new IllegalStateException("The iterator is depleted");
       }
@@ -1475,7 +1484,7 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
           throw new RuntimeException(
               "IOException while calling next() on termDocs for " + term, e);
         }
-        return new OrdinalTerm(ordinal, term, docID);
+        return new ExposedTuple(ordinal, term, docID);
       }
 
       ordinal = order.get(index++);
@@ -1493,21 +1502,31 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
       }
       long docID = -1;
       try {
-        if (termDocs.next()) {
+        if (termDocs.next()) { // There is at least 1 docID
           docID = termDocs.doc();
-          if (!termDocs.next()) {
+          if (!termDocs.next()) { // Only 1
+            ExposedTuple tuple = new ExposedTuple(ordinal, term, docID);
             term = null; // No more docIDs, so we signal skip to next term
+            return tuple;
           }
         }
       } catch (IOException e) {
         throw new RuntimeException(
             "IOException while calling next() on termDocs for " + term, e);
       }
-      return new OrdinalTerm(ordinal, term, docID);
+      return new ExposedTuple(ordinal, term, docID);
     }
 
     public void remove() {
       throw new UnsupportedOperationException("Not a valid operation");
+    }
+
+    public long getMaxSortedTermsCount() {
+      return order.size();
+    }
+
+    public long getMaxTermOrdinal() {
+      return lastOrdinal;
     }
   }
 

@@ -53,7 +53,9 @@ public class ExposedSegmentReader implements ExposedReader {
     return segmentReader.core.getTermsReader().get(position);
   }
 
-  public Iterator<OrdinalTerm> getOrdinalTerms(String persistenceKey, Comparator<Object> comparator, String field, boolean collectDocIDs) throws IOException {
+  public ExposedIterator getExposedTuples(
+      String persistenceKey, Comparator<Object> comparator, String field,
+      boolean collectDocIDs) throws IOException {
     throw new UnsupportedOperationException("See SegmentReader");
   }
 

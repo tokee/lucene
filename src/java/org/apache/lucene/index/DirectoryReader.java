@@ -1346,11 +1346,11 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
   }
 
   // No caching as the SegmentReaders are way better at it
-  public Iterator<OrdinalTerm> getOrdinalTerms(
+  public ExposedIterator getExposedTuples(
       String persistenceKey, Comparator<Object> comparator,
       String field, boolean collectDocIDs) throws IOException {
     if (subReaders.length == 1) {
-      return subReaders[0].getOrdinalTerms(
+      return subReaders[0].getExposedTuples(
           persistenceKey, comparator, field, collectDocIDs);
     }
     return new MultiIterator(persistenceKey, comparator, field, collectDocIDs);
@@ -1358,9 +1358,9 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
 
   /*
   We make a priority queue that just holds ints. Each entry-int refers to a
-  an OrdinalTerm that comparisons are done against.
+  an ExposedTuple that comparisons are done against.
   When a minimum has been extracted, the iterator.next() for the corresponding
-  Iterator<OrdinalTerm> is called. If the ordinal is unchanged, this means
+  Iterator<ExposedTuple> is called. If the ordinal is unchanged, this means
   that there are multiple docIDs for the given term. We just keep calling next
   (and delivering OrdinalTerms) until the ordinal changes, after which we
   update the backing array of OrdinalTerms and re-insert the entry-int (or
@@ -1368,28 +1368,33 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
   We remember to add the deltas from {@link #ordinalStarts} to all ordinals
   delivered.
    */
-  private class MultiIterator implements Iterator<OrdinalTerm> {
-    private final Iterator<OrdinalTerm>[] iterators;
+  private class MultiIterator implements ExposedIterator {
+    private final Iterator<ExposedTuple>[] iterators;
     private final MultiComparator wrappedComparator;
     private final ExposedPriorityQueue pq;
+    private long maxTermOrdinal = 0;
+    private long maxSortedTermsCount = 0;
 
     // We optimize get by emptying an ordinal completely before pq'ing next
-    private OrdinalTerm currentTerm = null;  // Defined if pending docIDs
+    private ExposedTuple currentTerm = null;  // Defined if pending docIDs
     private int currentSubReader = -1;
 
     public MultiIterator(String persistenceKey, Comparator<Object> comparator,
                        String field, boolean collectDocIDs) throws IOException {
       //noinspection unchecked
-      iterators = (Iterator<OrdinalTerm>[])new Iterator[subReaders.length];
-      OrdinalTerm[] backingTerms = new OrdinalTerm[subReaders.length];
+      iterators = (ExposedIterator[])new Iterator[subReaders.length];
+      ExposedTuple[] backingTerms = new ExposedTuple[subReaders.length];
       for (int i = 0 ; i < subReaders.length ; i++) {
-        Iterator<OrdinalTerm> iterator = subReaders[i].getOrdinalTerms(
+        ExposedIterator iterator = subReaders[i].getExposedTuples(
             persistenceKey, comparator, field, collectDocIDs);
         if (!iterator.hasNext()) {
           continue; // Skip empty
         }
         backingTerms[i] = iterator.next(); // Initial values
         iterators[i] = iterator;
+        maxTermOrdinal = Math.max(maxTermOrdinal, iterator.getMaxTermOrdinal());
+        maxSortedTermsCount += iterator.getMaxSortedTermsCount();
+
       }
       wrappedComparator = new MultiComparator(backingTerms, comparator);
       pq = new ExposedPriorityQueue(wrappedComparator, subReaders.length);
@@ -1401,31 +1406,17 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
       }
     }
 
-    public OrdinalTerm next() {
-      if (currentTerm != null) { // We can skip the pq.pop
-        OrdinalTerm delivery = currentTerm;
-        if (iterators[currentSubReader] != null
-            && iterators[currentSubReader].hasNext()) { // Not empty
-          OrdinalTerm nextTerm = iterators[currentSubReader].next();
-          if (nextTerm.ordinal == currentTerm.ordinal) { // Iterate further
-            currentTerm = next();
-          } else { // New ordinal: Update backing and re-insert into pq
-            wrappedComparator.backingTerms[currentSubReader] = nextTerm;
-            pq.add(currentSubReader);
-            currentTerm = null;
-          }
-        } else { // Iterator depleted
-          currentTerm = null;
-        }
-        return adjust(delivery, currentSubReader);
+    public ExposedTuple next() {
+      if (currentTerm != null) { // We can skip the pq push-pop
+        return nextExisting();
       }
 
       // No previously remembered term. Get a new one from pq
       currentSubReader = pq.pop();
-      OrdinalTerm delivery = wrappedComparator.backingTerms[currentSubReader];
+      ExposedTuple delivery = wrappedComparator.backingTerms[currentSubReader];
       if (iterators[currentSubReader] != null
           && iterators[currentSubReader].hasNext()) {
-        OrdinalTerm nextTerm = iterators[currentSubReader].next();
+        ExposedTuple nextTerm = iterators[currentSubReader].next();
         if (nextTerm.ordinal == delivery.ordinal) { // Same ordinal
           currentTerm = nextTerm;
         } else { // New ordinal: Update and re-insert
@@ -1436,7 +1427,26 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
       return adjust(delivery, currentSubReader);
     }
 
-    private OrdinalTerm adjust(OrdinalTerm term, int subReaderIndex) {
+    private ExposedTuple nextExisting() {
+      ExposedTuple delivery = currentTerm;
+      if (iterators[currentSubReader] != null
+          && iterators[currentSubReader].hasNext()) { // Not empty
+        ExposedTuple nextTerm = iterators[currentSubReader].next();
+        if (nextTerm.ordinal == currentTerm.ordinal) { // Iterate further
+          currentTerm = next();
+        } else { // New ordinal: Update backing and re-insert into pq
+          wrappedComparator.backingTerms[currentSubReader] = nextTerm;
+          pq.add(currentSubReader);
+          currentTerm = null;
+        }
+      } else { // Iterator depleted
+        currentTerm = null;
+      }
+      return adjust(delivery, currentSubReader);
+    }
+
+    private ExposedTuple adjust(ExposedTuple term, int subReaderIndex) {
+      term.docID += starts[subReaderIndex];
       term.ordinal += ordinalStarts[subReaderIndex];
       return term;
     }
@@ -1448,14 +1458,22 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
     public void remove() {
       throw new UnsupportedOperationException("Term removal is unsupported");
     }
+
+    public long getMaxTermOrdinal() {
+      return maxTermOrdinal;
+    }
+
+    public long getMaxSortedTermsCount() {
+      return maxSortedTermsCount;
+    }
   }
 
   private static class MultiComparator implements ExposedReader.IntComparator {
-    public OrdinalTerm[] backingTerms; // Updated from the outside
+    public ExposedTuple[] backingTerms; // Updated from the outside
     private Comparator<Object> comparator;
 
     private MultiComparator(
-        OrdinalTerm[] backingTerms, Comparator<Object> comparator) {
+        ExposedTuple[] backingTerms, Comparator<Object> comparator) {
       this.backingTerms = backingTerms;
       this.comparator = comparator;
     }

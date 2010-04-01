@@ -20,9 +20,7 @@ package org.apache.lucene.util.packed;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.LuceneTestCase;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.io.IOException;
 
 public class TestPackedInts extends LuceneTestCase {
@@ -100,7 +98,72 @@ public class TestPackedInts extends LuceneTestCase {
     assertListEquality(packedInts);
   }
 
-  public void xxxtestRandomEquality() {
+  public void testSpecificBugWithSet() throws IOException {
+    PackedInts.Mutable mutable = PackedInts.getMutable(26, 5);
+    mutable.set(24, 31);
+    assertEquals("The value #24 should be correct", 31, mutable.get(24));
+    mutable.set(4, 16);
+    assertEquals("The value #24 should remain unchanged", 31, mutable.get(24));
+  }
+
+  // Prompted by a problem developing LUCENE-2335
+  public void test7BitMutables() throws IOException {
+    int VALUES = 26;
+    int BITS = PackedInts.bitsRequired(VALUES);
+    long END = PackedInts.maxValue(BITS);
+
+    PackedInts.Mutable mutable = new Packed32(VALUES, BITS);//PackedInts.getMutable(VALUES, BITS);
+    List<Integer> plain = new ArrayList<Integer>(VALUES);
+
+    // Fill with END
+    for (int i = 0 ; i < VALUES ; i++) {
+      mutable.set(i, END);
+      plain.add((int)END);
+    }
+
+    // Check END assignment
+    for (int i = 0 ; i < VALUES ; i++) {
+      assertEquals("Mutable at index " + i + " should contain END",
+          END, mutable.get(i));
+      assertEquals("Plain at index " + i + " should contain END",
+          (int)END, (int)plain.get(i));
+    }
+
+    // Generate values to assign in random order
+    Random random = newRandom(87);
+    List<Integer> indexes = new ArrayList<Integer>(VALUES);
+    List<Integer> assignments = new ArrayList<Integer>(VALUES);
+    for (int i = 0 ; i < VALUES ; i++) {
+      indexes.add(i);
+      assignments.add(i);
+    }
+    Collections.shuffle(indexes, random);
+    Collections.shuffle(assignments, random);
+
+    // Assign values
+    for (int i = 0 ; i < VALUES ; i++) {
+      plain.set(indexes.get(i), assignments.get(i));
+      mutable.set(indexes.get(i), assignments.get(i));
+      assertEquals("Equality check at assignment #" + i,
+          plain, mutable);
+    }
+
+    // Compare for equality
+    assertEquals("Final equality check", plain, mutable);
+  }
+
+  private void assertEquals(
+      String message, List<Integer> plain, PackedInts.Mutable mutable) {
+    assertEquals("The arrays should be of equal length",
+        plain.size(), mutable.size());
+    for (int i = 0 ; i < plain.size() ; i++) {
+      assertEquals(message + " The values at index " + i + " should be the same"
+          + " for a Mutable of type " + mutable.getClass().getSimpleName(),
+          (long)plain.get(i), mutable.get(i));
+    }
+  }
+
+  public void testRandomEquality() {
     final int[] VALUE_COUNTS = new int[]{0, 1, 5, 8, 100, 500};
     final int MIN_BITS_PER_VALUE = 1;
     final int MAX_BITS_PER_VALUE = 64;

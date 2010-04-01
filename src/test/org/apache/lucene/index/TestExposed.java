@@ -1,10 +1,14 @@
 package org.apache.lucene.index;
 
 import org.apache.lucene.analysis.SimpleAnalyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.search.*;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.util.Version;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,10 +20,10 @@ public class TestExposed extends LuceneTestCase {
   static final char[] CHARS = // Used for random content
           ("abcdefghijklmnopqrstuvwxyzæøåéèëöíêô" +
               "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅÉÈËÊÔÓ" +
-                  "1234567890      ").toCharArray();
+                  "1234567890     ").toCharArray();
   static final File INDEX_LOCATION =
           new File(System.getProperty("java.io.tmpdir"), "exposed_index");
-//          new File("/home/te/projects/lucene/exposed_index");
+  //        new File("/home/te/projects/lucene/exposed_index");
 //          new File("/mnt/bulk/exposed_index");
   public static final int DOCCOUNT = 30000;
 
@@ -81,7 +85,7 @@ public class TestExposed extends LuceneTestCase {
   private void testPlainIteratorRequest(
       ExposedReader reader, Comparator<Object> comparator) throws Exception {
     long startTime = System.currentTimeMillis();
-    Iterator<ExposedReader.OrdinalTerm> iterator = reader.getOrdinalTerms(
+    Iterator<ExposedReader.ExposedTuple> iterator = reader.getExposedTuples(
         "foo", comparator, "b", false);
     System.out.println(
         "Got iterator in " + (System.currentTimeMillis() - startTime) + "ms");
@@ -97,14 +101,14 @@ public class TestExposed extends LuceneTestCase {
     assertTrue("There should be some elements", count > 0);
 
     startTime = System.currentTimeMillis();
-    iterator = reader.getOrdinalTerms(
+    iterator = reader.getExposedTuples(
         "foo", Collator.getInstance(new Locale("da")), "b", false);
     System.out.println("Re-requested iterator in "
         + (System.currentTimeMillis() - startTime) + "ms");
 
     String last = null;
     while (iterator.hasNext()) {
-      ExposedReader.OrdinalTerm ot = iterator.next();
+      ExposedReader.ExposedTuple ot = iterator.next();
 //      System.out.println(ot.ordinal);
       if (last == null) {
         last = ot.term.text;
@@ -115,7 +119,7 @@ public class TestExposed extends LuceneTestCase {
     }
 
     startTime = System.currentTimeMillis();
-    reader.getOrdinalTerms("bar", comparator, "b", false);
+    reader.getExposedTuples("bar", comparator, "b", false);
     System.out.println("Got new iterator in "
         + (System.currentTimeMillis() - startTime) + "ms");
   }
@@ -125,22 +129,176 @@ public class TestExposed extends LuceneTestCase {
     ExposedReader reader = createExposedSegment();
 
     long startTime = System.currentTimeMillis();
-    Iterator<ExposedReader.OrdinalTerm> iterator = reader.getOrdinalTerms(
+    ExposedReader.ExposedIterator iterator = reader.getExposedTuples(
         "bar2", collator, "b", true);
     System.out.println("Got new docID iterator in "
         + (System.currentTimeMillis() - startTime) + "ms");
 
     startTime = System.currentTimeMillis();
+    ExposedReader.ExposedTuple last = null;
     long count = 0;
     while (iterator.hasNext()) {
+      ExposedReader.ExposedTuple current = iterator.next();
+      if (last == null) {
+        last = current;
+      }
       count++;
-      assertTrue("The docID should not be equal to -1",
-          iterator.next().docID != -1);
+      assertTrue("The docID should not be equal to -1", current.docID != -1);
+      assertTrue(String.format("" +
+          "Previous term was %s, current is %s. Previous term should come " +
+          "before current in comparator order.",
+          last.term.text, current.term.text),
+          collator.compare(last.term.text, current.term.text) <= 0);
     }
     System.out.println("Iterated " + count + " docIDs in "
         + (System.currentTimeMillis() - startTime) + "ms");
     assertTrue("There should be some docIDs", count > 0);
+  }
 
+  public void testUtilGetSortArrays() throws Exception {
+    final String SORT_FIELD = "b";
+    Collator collator = Collator.getInstance(new Locale("da"));
+    ExposedReader reader = createExposedSegment();
+    System.out.println("Requesting sortArrays");
+    final ExposedUtil.SortArrays sortArrays =
+        ExposedUtil.getSortArrays(reader, "foo", SORT_FIELD, collator);
+    System.out.println(String.format(
+        "Got sortArrays with %d docOrder (%d unique) and %d termOrder (%d " +
+            "unique)",
+        sortArrays.docOrder.size(), ExposedUtil.countUnique(sortArrays.docOrder),
+        sortArrays.termOrder.size(), ExposedUtil.countUnique(sortArrays.termOrder)));
+
+    System.out.println("Testing termOrder");
+    String last = null;
+    long unique = 0;
+    for (int sortedTermIndex = 0 ;
+         sortedTermIndex < sortArrays.termOrder.size() ;
+         sortedTermIndex++) {
+      String current =
+          reader.getTermText((int)sortArrays.termOrder.get(sortedTermIndex));
+      if (last == null) {
+        last = current;
+        unique++;
+      }
+      assertTrue(String.format(
+          "Previous term String was '%s', current is '%s'. Previous term should " +
+          "come before current in comparator order.", last, current),
+          collator.compare(last, current) <= 0);
+      unique += current == null || last.equals(current) ? 0 : 1;
+      last = current;
+    }
+    System.out.println("Checked " + unique + " unique terms");
+
+    System.out.println("Testing docOrder");
+    for (int docID = 0 ; docID < sortArrays.docOrder.size() ; docID++) {
+      long currentDocOrder = sortArrays.docOrder.get(docID);
+      assertTrue(String.format("" +
+          "The termOrder index for docID %d i docOrder should be < total " +
+          "number of unique terms for the field %s (%d), but was %d", 
+          docID, SORT_FIELD, DOCCOUNT, sortArrays.docOrder.get(docID)),
+          currentDocOrder < DOCCOUNT);
+    }
+
+    System.out.println("Testing docOrder and termOrder");
+    // Start by sorting docIDs according to their order
+    final List<Integer> docIDs =
+        new ArrayList<Integer>(((IndexReader)reader).maxDoc());
+    for (int i = 0 ; i < docIDs.size() ; i++) {
+      docIDs.set(i, i);
+    }
+    Collections.sort(docIDs, new Comparator<Integer>() {
+      public int compare(Integer o1, Integer o2) {
+        return (int)(sortArrays.docOrder.get(o1) - sortArrays.docOrder.get(o2));
+      }
+    });
+
+    last = null;
+    int lastOrdinal = -1;
+    int lastSortIndex = -1;
+    for (int docID: docIDs) {
+      int currentSortIndex = (int)sortArrays.docOrder.get(docID);
+      int currentOrdinal = (int)sortArrays.termOrder.get(currentSortIndex);
+      String current = reader.getTermText(currentOrdinal);
+      if (last == null) {
+        last = current;
+        lastOrdinal = currentOrdinal;
+        lastSortIndex = currentSortIndex;
+      }
+      assertTrue(String.format(
+          "Previous term String was '%s' (sortIndex %d, ordinal %d), " +
+              "current is '%s' (sortIndex %d, ordinal %d) at docID %d. "
+              + "Previous term should come before current in comparator order.",
+          last, lastSortIndex, lastOrdinal, current, currentSortIndex,
+          currentOrdinal, docID), 
+          collator.compare(last, current) <= 0);
+      last = current;
+      lastOrdinal = currentOrdinal;
+      lastSortIndex = currentSortIndex;
+    }
+  }
+
+  public void testExposedSearch() throws Exception {
+    final int HITS = 50;
+    final String SORT_FIELD = "b";
+
+    createIndex(
+        INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", SORT_FIELD), 40, 1);
+    IndexReader reader = IndexReader.open(
+        FSDirectory.open(INDEX_LOCATION), true);
+    IndexSearcher searcher = new IndexSearcher(reader);
+    @SuppressWarnings({"deprecation"})
+    QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, "all",
+        new StandardAnalyzer(Version.LUCENE_CURRENT));
+
+    ExposedFieldComparatorSource exposedFCS =
+        new ExposedFieldComparatorSource(reader, new Locale("da"));
+    Sort mySort = new Sort(new SortField(SORT_FIELD, exposedFCS));
+
+    TopFieldDocs topDocs = searcher.search(
+        qp.parse("all").weight(searcher), null, HITS, mySort, true);
+    ExposedUtil.SortArrays sortArrays = ExposedUtil.getSortArrays(
+        (ExposedReader)reader, "foo",
+        SORT_FIELD, Collator.getInstance(new Locale("da")));
+    List<Integer> topX = getTopX((ExposedReader)reader, sortArrays, HITS);
+
+/*    for (int i = 0 ; i < sortArrays.docOrder.size() & i < 31 ; i++) {
+      System.out.println(i + ":" + sortArrays.docOrder.get(i));
+    }
+  */
+
+    for (int i = 0 ; i < Math.min(HITS, topDocs.scoreDocs.length) ; i++) {
+      System.out.println(String.format(
+          "Hit #%2d: docID=%5d, field %s='%s'. " +
+              "Direct docID=%d, termOrderIndex=%d, term ordinal=%d, " +
+              "term '%s'",
+          i+1, topDocs.scoreDocs[i].doc, SORT_FIELD,
+          ((FieldDoc)topDocs.scoreDocs[i]).fields[0],
+          topX.get(i),
+          sortArrays.docOrder.get(topX.get(i)),
+          sortArrays.termOrder.get((int)sortArrays.docOrder.get(topX.get(i))),
+          ((ExposedReader) reader).getTermText(
+              (int)sortArrays.termOrder.get(
+                  (int)sortArrays.docOrder.get(topX.get(i))))));
+    }
+
+    reader.close();
+  }
+
+  private List<Integer> getTopX(
+      ExposedReader reader, final ExposedUtil.SortArrays sortArrays, int topX) {
+    System.out.println("Testing docOrder and termOrder");
+    // Start by sorting docIDs according to their order
+    int docs = ((IndexReader)reader).maxDoc();
+    final List<Integer> docIDs = new ArrayList<Integer>(docs);
+    for (int i = 0 ; i < docs ; i++) {
+      docIDs.add(i, i);
+    }
+    Collections.sort(docIDs, new Comparator<Integer>() {
+      public int compare(Integer o1, Integer o2) {
+        return (int)(sortArrays.docOrder.get(o1) - sortArrays.docOrder.get(o2));
+      }
+    });
+    return docIDs.subList(0, topX);
   }
 
   private void createIndex(
@@ -161,6 +319,10 @@ public class TestExposed extends LuceneTestCase {
                 getRandomString(random, CHARS, 1, fieldContentLength) + docID,
                 Field.Store.NO, Field.Index.NOT_ANALYZED));
       }
+      doc.add(new Field("num", Integer.toString(docID),
+          Field.Store.YES, Field.Index.NOT_ANALYZED));
+      doc.add(new Field("all", "all",
+          Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
       writer.addDocument(doc);
       if (maxSegments > 1 && docID == docCount / maxSegments) {
         writer.commit(); // We want multiple segments
@@ -189,7 +351,7 @@ public class TestExposed extends LuceneTestCase {
     for (int i = 0 ; i < length ; i++) {
       buffer.append(chars[random.nextInt(chars.length)]);
     }
-    return buffer.toString();
+    return buffer.toString().trim(); // Discard leading and trailing spaces
   }
 
                                      /*

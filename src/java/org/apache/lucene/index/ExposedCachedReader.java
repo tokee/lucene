@@ -115,10 +115,10 @@ public class ExposedCachedReader implements ExposedReader {
     }
   }
 
-  public Iterator<OrdinalTerm> getOrdinalTerms(
+  public ExposedIterator getExposedTuples(
       String persistenceKey, Comparator<Object> comparator, String field,
       boolean collectDocIDs) throws IOException {
-    return reader.getOrdinalTerms(
+    return reader.getExposedTuples(
         persistenceKey, comparator, field, collectDocIDs);
   }
 

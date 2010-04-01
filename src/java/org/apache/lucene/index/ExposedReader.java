@@ -70,7 +70,7 @@ public interface ExposedReader {
   * Multiple instances of same term (okay)
 
   Facets:
-  Dual-pass getOrdinalTerms with docIDs.
+  Dual-pass getExposedTuples with docIDs.
   docID -> orderIndex*
 
   Merge facets:
@@ -83,12 +83,9 @@ public interface ExposedReader {
    */
 
   /**
-   * Delivers the terms for the given field sorted by the given comparator.
-   * If collectDocIDs is true, the iterator will also deliver the document IDs
-   * one at a time.
-   * </p><p>
-   * Note: Implementations will normally optimize the sorting, so it is highly
-   * recommendable to call this method instead of using {@link #getTerm(int)}.
+   * Delivers the terms and ordinals for the given field, sorted by the
+   * given comparator. If collectDocIDs is true, the iterator will also deliver
+   * the document IDs one at a time.
    * </p><p>
    * Note: It is possible that two OrdinalTerms will have the same term String
    * but different ordinals due to merging.
@@ -115,25 +112,27 @@ public interface ExposedReader {
    */
   // TODO: Consider supporting comparator == null for direct ordinals (_fast_)
   // This still requires DirectoryReader et al to sort by Unicode-order
-  Iterator<OrdinalTerm> getOrdinalTerms(
+  // TODO: Define what happens for documents without a term for the given field
+  ExposedIterator getExposedTuples(
       String persistenceKey, Comparator<Object> comparator, String field,
       boolean collectDocIDs) throws IOException;
 
   /**
-   * When using {@link #getOrdinalTerms}, ordinals, terms and optional
+   * When using {@link #getExposedTuples}, ordinals, terms and optional
    * docIDs will be delivered to the collector in the order dictated by the
    * comparator. In the case of multiple docIDs for the same ordinal, the
    * collector will be fed once per docID (order not guaranteed). If there are
    * no docIDs, -1 is used.
    */
-  public class OrdinalTerm {
+  public class ExposedTuple {
     /**
      * The term itself. Note that this is re-used by the iterator, so users of
      * the iterator must finish processing the current term before calling next.
      */
     public Term term;
     /**
-     * The ordinal for the Term.
+     * The ordinal for the Term. Can be used for requesting the Term String at
+     * any given time by calling {@link #getTermText}.
      */
     public long ordinal;
     /**
@@ -144,10 +143,22 @@ public interface ExposedReader {
      */
     public long docID;
 
-    public OrdinalTerm(long ordinal, Term term, long docID) {
+    /*
+     * The order of the term, relative to the other Terms delivered, when using
+     * an Iterator from {@link #getExposedTuples}. Starts at 0, increments by at
+     * most 1 for each subsequent ExposedTuple from the iterator.
+     */
+    //public long order;
+
+    public ExposedTuple(long ordinal, Term term, long docID) {
       this.ordinal = ordinal;
       this.term = term;
       this.docID = docID;
+    }
+
+    public String toString() {
+      return "ExposedTuple(" + term + ", ord=" + ordinal 
+          + ", docID=" + docID + ")";
     }
   }
 
@@ -158,5 +169,18 @@ public interface ExposedReader {
    */
   interface IntComparator {
     int compare(int value1, int value2);
+  }
+
+  public interface ExposedIterator extends Iterator<ExposedTuple> {
+    /**
+     * @return the maximum number of different sorted terms that might be
+     *         returned in this iterator.
+     */
+    long getMaxSortedTermsCount();
+
+    /**
+     * @return the maximum term ordinal that might be returned in this iterator.
+     */
+    long getMaxTermOrdinal();
   }
 }
