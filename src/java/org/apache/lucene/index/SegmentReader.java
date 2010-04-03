@@ -1417,6 +1417,10 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
         throw new RuntimeException(
             "IOException while requesting term for ordinal " + ordinal, e);
       }
+      if (s == null) {
+        throw new IllegalStateException(
+            "Terms returned via order should never be null");
+      }
       return new ExposedTuple(ordinal, new Term(field, s), -1);
     }
 
@@ -1476,6 +1480,13 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
       }
       if (term != null) {
         long docID = termDocs.doc();
+        // TODO: Remove this check
+        if (term == null) {
+          throw new IllegalStateException(String.format(
+              "Term must never be null. index=%d, ordinal=%d, docID=%d",
+              index, ordinal, docID));
+        }
+        ExposedTuple tuple = new ExposedTuple(ordinal, term, docID);
         try {
           if (!termDocs.next()) {
             term = null; // No more docIDs, so we signal skip to next term
@@ -1484,7 +1495,7 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
           throw new RuntimeException(
               "IOException while calling next() on termDocs for " + term, e);
         }
-        return new ExposedTuple(ordinal, term, docID);
+        return tuple;
       }
 
       ordinal = order.get(index++);
@@ -1505,6 +1516,12 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
         if (termDocs.next()) { // There is at least 1 docID
           docID = termDocs.doc();
           if (!termDocs.next()) { // Only 1
+            // TODO: Remove this check
+            if (term == null) {
+              throw new IllegalStateException(String.format(
+                  "Term must never be null. index=%d, ordinal=%d, docID=%d",
+                  index, ordinal, docID));
+            }
             ExposedTuple tuple = new ExposedTuple(ordinal, term, docID);
             term = null; // No more docIDs, so we signal skip to next term
             return tuple;
@@ -1514,6 +1531,11 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
         throw new RuntimeException(
             "IOException while calling next() on termDocs for " + term, e);
       }
+      if (term == null) {
+        throw new IllegalStateException(
+            "Terms returned via order should never be null");
+      }
+
       return new ExposedTuple(ordinal, term, docID);
     }
 
@@ -1539,6 +1561,9 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
       String persistenceKey, Comparator<Object> comparator, String field)
                                                             throws IOException {
     if (persistentOrders.containsKey(persistenceKey)) {
+      System.out.println("SegmentReader already sorted "
+          + persistentOrders.get(persistenceKey).size() + " terms from field "
+          + field + ". Returning stored order array");
       return persistentOrders.get(persistenceKey);
     }
     lookupTime = 0;
@@ -1554,6 +1579,16 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
     long startTime = System.nanoTime();
     chunkSort(ordered, comparator, field);
     long sortTime = (System.nanoTime() - startTime);
+
+
+    // TODO: Remove this
+    System.out.println("SegmentReader sorted " + ordered.length
+        + " terms from field " + field + " in " + (sortTime / 1000000) + " ms");
+/*    for (int i = 0 ; i < ordered.length ; i++) {
+      if (getTermText(ordered[i]) == null) {
+        System.out.println("Fail at order index " + i + " -> ordinal " + ordered[i]);
+      }
+    }*/
 /*    System.out.println(String.format(
             "Sorted %d Terms in %s out of which %s (%s%%) was lookups and " +
                     "%s (%s%%) was collation key creation. " +
@@ -1592,7 +1627,7 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
     if (terms != null && terms.term() != null) {
       long startOrdinal = core.getTermsReader().getPosition(terms.term());
       long endOrdinal = startOrdinal-1;
-      while (terms.term() != null && terms.term().field() != null &&
+      while (terms.term() != null && terms.term().field != null &&
               terms.term().field.equals(field)) {
         endOrdinal++;
         terms.next();

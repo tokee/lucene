@@ -9,7 +9,9 @@ import org.apache.lucene.util.packed.PackedInts;
 import java.io.IOException;
 import java.text.Collator;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Provides collator- or locale-based low memory sort by using the Exposed
@@ -22,6 +24,8 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
   private final ExposedReader reader;
   private final Comparator<Object> comparator;
   private final String persistenceKeyPrefix;
+  private final Map<String, ExposedUtil.SortArrays> cache =
+      new HashMap<String, ExposedUtil.SortArrays>(5);
 
   public ExposedFieldComparatorSource(
      IndexReader reader, String persistenceKey, Comparator<Object> comparator) {
@@ -64,8 +68,17 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
     public ExposedFieldComparator(
         ExposedReader reader, String fieldname, int numHits, int sortPos,
         boolean reversed) throws IOException {
-      ExposedUtil.SortArrays sortArrays = ExposedUtil.getSortArrays(
-          reader, persistenceKeyPrefix+"_"+fieldname, fieldname, comparator);
+      final String key = persistenceKeyPrefix + "_" + fieldname;
+      ExposedUtil.SortArrays sortArrays = cache.get(key);
+      if (sortArrays == null) {
+        long startTime = System.nanoTime();
+        sortArrays = ExposedUtil.getSortArrays(
+            reader, key, fieldname, comparator);
+        System.out.println(
+            "Calculated exposed sort structures for field " + fieldname 
+                + " in " + (System.nanoTime() - startTime) / 1000000 + "ms");
+        cache.put(key, sortArrays);
+      }
       docOrder = sortArrays.docOrder;
       termOrder = sortArrays.termOrder;
       this.fieldname = fieldname;

@@ -22,10 +22,10 @@ public class TestExposed extends LuceneTestCase {
               "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅÉÈËÊÔÓ" +
                   "1234567890     ").toCharArray();
   static final File INDEX_LOCATION =
-          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
+//          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
   //        new File("/home/te/projects/lucene/exposed_index");
-//          new File("/mnt/bulk/exposed_index");
-  public static final int DOCCOUNT = 30000;
+          new File("/mnt/bulk/exposed_index");
+  public static final int DOCCOUNT = 3000;
 
   @Override
   protected void setUp() throws Exception {
@@ -239,7 +239,7 @@ public class TestExposed extends LuceneTestCase {
 
   public void testExposedSearch() throws Exception {
     final int HITS = 50;
-    final String SORT_FIELD = "b";
+    final String SORT_FIELD = "onlyeven";
 
     createIndex(
         INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", SORT_FIELD), 40, 1);
@@ -253,7 +253,6 @@ public class TestExposed extends LuceneTestCase {
     ExposedFieldComparatorSource exposedFCS =
         new ExposedFieldComparatorSource(reader, new Locale("da"));
     Sort mySort = new Sort(new SortField(SORT_FIELD, exposedFCS));
-
     TopFieldDocs topDocs = searcher.search(
         qp.parse("all").weight(searcher), null, HITS, mySort, true);
     ExposedUtil.SortArrays sortArrays = ExposedUtil.getSortArrays(
@@ -267,7 +266,7 @@ public class TestExposed extends LuceneTestCase {
   */
 
     for (int i = 0 ; i < Math.min(HITS, topDocs.scoreDocs.length) ; i++) {
-      System.out.println(String.format(
+/*      System.out.println(String.format(
           "Hit #%2d: docID=%5d, field %s='%s'. " +
               "Direct docID=%d, termOrderIndex=%d, term ordinal=%d, " +
               "term '%s'",
@@ -278,7 +277,13 @@ public class TestExposed extends LuceneTestCase {
           sortArrays.termOrder.get((int)sortArrays.docOrder.get(topX.get(i))),
           ((ExposedReader) reader).getTermText(
               (int)sortArrays.termOrder.get(
-                  (int)sortArrays.docOrder.get(topX.get(i))))));
+                  (int)sortArrays.docOrder.get(topX.get(i))))));*/
+      assertEquals(
+          "The terms from the search and from the direct sort should be equal",
+          ((ExposedReader)reader).getTermText(
+              (int)sortArrays.termOrder.get(
+                  (int)sortArrays.docOrder.get(topX.get(i)))),
+          ((FieldDoc)topDocs.scoreDocs[i]).fields[0]);
     }
 
     reader.close();
@@ -316,13 +321,24 @@ public class TestExposed extends LuceneTestCase {
       for (String field: fields) {
         doc.add(new Field(
                 field,
-                getRandomString(random, CHARS, 1, fieldContentLength) + docID,
+                getRandomString(random, CHARS, 1, fieldContentLength)
+                    + "-" + docID,
                 Field.Store.NO, Field.Index.NOT_ANALYZED));
       }
-      doc.add(new Field("num", Integer.toString(docID),
+      doc.add(new Field("num",
+          Integer.toString(docID),
           Field.Store.YES, Field.Index.NOT_ANALYZED));
-      doc.add(new Field("all", "all",
+      doc.add(new Field("all",
+          "all",
           Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
+      doc.add(new Field("evenodd",
+          docID % 2 == 0 ? "even" : "odd",
+          Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
+      if (docID % 2 == 0) { // Err... This results in only odd. Why?
+        doc.add(new Field("onlyeven",
+            getRandomString(random, CHARS, 1, fieldContentLength),
+            Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
+      }
       writer.addDocument(doc);
       if (maxSegments > 1 && docID == docCount / maxSegments) {
         writer.commit(); // We want multiple segments

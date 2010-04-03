@@ -12,7 +12,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.text.Collator;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Locale;
@@ -31,18 +30,17 @@ public class ExposedPOC {
       usage();
       return;
     }
-    String type = args[0];
+    String method = args[0];
     File location = new File(args[1]);
     String field = args[2];
     Locale locale = new Locale(args[3]);
     String defaultField = args[4];
 
-    if ("expose".equals(type)) {
-      expose(location, field, locale, defaultField);
-    } else if ("default".equals(type)) {
-      defaultSort(location, field, locale, defaultField);
-    } else {
-      System.out.println("Unknown action '" + type + "'\n");
+    try {
+      shell(method, location, field, locale, defaultField);
+    } catch (Exception e) {
+      //noinspection CallToPrintStackTrace
+      e.printStackTrace();
       usage();
     }
   }
@@ -59,67 +57,57 @@ public class ExposedPOC {
     writer.close(true);
   }
 
-  private static void expose(
-      File location, String field, Locale locale, String defaultField)
+  private static void shell(
+      String method, File location, String field, Locale locale,
+      String defaultField)
       throws IOException, InterruptedException, ParseException {
     System.out.println(String.format(
-        "Exposing index at '%s' with sort on field %s with locale %s. Heap: %s",
-        location, field, locale, getHeap()));
+        "Testing sorted search for index at '%s' with sort on field %s with " +
+            "locale %s, using sort-method %s. Heap: %s",
+        location, field, locale, method, getHeap()));
 
-    IndexReader reader = IndexReader.open(
-        FSDirectory.open(location), true);
+    IndexReader reader = IndexReader.open(FSDirectory.open(location), true);
     System.out.println(String.format(
         "Opened index of size %s from %s. Heap: %s",
         readableSize(calculateSize(location)), location, getHeap()));
-    ExposedSegmentReader exposed = new ExposedSegmentReader(
-            SegmentReader.getOnlySegmentReader(reader));
-    System.out.println(String.format(
-        "Wrapped SegmentReader in ExposedSegmentReader. Sorting terms for " +
-            "field %s with locale %s... Heap: %s",
-        field, locale, getHeap()));
-
-    long startTimeTerm = System.nanoTime();
-    PackedInts.Reader orderedTerms = exposed.getSortedTerms(
-            Collator.getInstance(locale), field);
-    long termTime = System.nanoTime() - startTimeTerm;
-
-    System.out.println("Ordering docIDs aligned to sorted terms...");
-
-    long startTimeDoc = System.nanoTime();
-    final PackedInts.Reader orderedDocs =
-            exposed.getSortedDocIDs(field, orderedTerms);
-    long docTime = System.nanoTime() - startTimeDoc;
 
     System.out.println(String.format(
-            "Got ordered docIDs in %s (%s total), sorted %d docIDs in " +
-                    "%s %s %s. Heap: %s (orderedTerms: %s, " +
-                    "orderedDocs: %s).",
-            ExposedSegmentReader.nsToString(docTime),
-            ExposedSegmentReader.nsToString(termTime + docTime),
-            orderedDocs.size(),
-            measureSortTime(orderedDocs),
-            measureSortTime(orderedDocs),
-            measureSortTime(orderedDocs),
-            getHeap(), readableSize(footprint(orderedTerms)),
-            readableSize(footprint(orderedDocs))));
+        "Creating %s Sort for field %s with locale %s... Heap: %s",
+        method, field, locale, getHeap()));
+
+    long startTimeSort = System.nanoTime();
+    Sort sort;
+    if ("exposed".equals(method)) {
+      ExposedFieldComparatorSource exposedFCS =
+          new ExposedFieldComparatorSource(reader, new Locale("da"));
+      sort = new Sort(new SortField(field, exposedFCS));
+    } else if ("default".equals(method)) {
+      sort = new Sort(new SortField(field, locale));
+    } else {
+      throw new IllegalArgumentException(
+          "The sort method " + method + " is unsupported");
+    }
+    long sortTime = System.nanoTime() - startTimeSort;
+
+    System.out.println(String.format(
+        "Prepared %s Sort for field %s in %s. Heap: %s",
+        method, field, ExposedSegmentReader.nsToString(sortTime), getHeap()));
 
     IndexSearcher searcher = new IndexSearcher(reader);
-    Sort exposedSort = new Sort(new SortField(field,
-        new ExposedComparatorSource(exposed, orderedTerms, orderedDocs)));
 
     System.out.println(String.format(
-        "\nFinished initializing exposed structures for field %s.\n"
+        "\nFinished initializing %s structures for field %s.\n"
         + "Write standard Lucene queries to experiment with sorting speed.\n"
-        + "The StandardAnalyser will be used and there is no default field.\n"
-        + "Finish with 'EXIT'", field));
-    String query = null;
+        + "The StandardAnalyser will be used and the default field is %s.\n"
+        + "Finish with 'EXIT'", method, field, defaultField));
+    String query;
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
     QueryParser qp = new QueryParser(
         Version.LUCENE_31, defaultField,
         new StandardAnalyzer(Version.LUCENE_31));
 
     while (true) {
-      System.out.print("Query: ");
+      System.out.print("Query (" + method + " sort): ");
       query = br.readLine();
       if ("".equals(query)) {
         continue;
@@ -133,7 +121,8 @@ public class ExposedPOC {
         long queryTime = System.nanoTime() - startTimeQuery;
 
         long startTimeSearch = System.nanoTime();
-        TopFieldDocs topDocs = searcher.search(q, null, 20, exposedSort);
+        TopFieldDocs topDocs = searcher.search(
+            q.weight(searcher), null, 20, sort, true);
         long searchTime = System.nanoTime() - startTimeSearch;
         System.out.println(String.format(
             "The search for '%s' got %d hits in %s (+ %s for query parsing). "
@@ -146,10 +135,10 @@ public class ExposedPOC {
         for (int i = 0 ; i < Math.min(topDocs.totalHits, MAX_HITS) ; i++) {
           int docID = topDocs.scoreDocs[i].doc;
           System.out.println(String.format(
-              "Doc #%d has %s", docID, exposed.getTerm(
-                  (int)orderedTerms.get((int)orderedDocs.get(docID)))));
+              "Hit #%d was doc #%d with %s:%s",
+              i, docID, field, ((FieldDoc)topDocs.scoreDocs[i]).fields[0]));
         }
-        System.out.println("Extracting terms for the search result took "
+        System.out.println("Displaying the search result took "
             + ExposedSegmentReader.nsToString(
             System.nanoTime() - startTimeDisplay) + ". Heap: " + getHeap());
       } catch (Exception e) {
@@ -170,8 +159,11 @@ public class ExposedPOC {
 
     IndexReader reader = IndexReader.open(FSDirectory.open(location), true);
     System.out.println(String.format(
-        "Opened index of size %s from %s. Heap: %s",
-        readableSize(calculateSize(location)), location, getHeap()));
+        "Opened index of size %s with %d segments from %s. Heap: %s",
+        readableSize(calculateSize(location)),
+        reader instanceof SegmentReader ? 1 :
+            reader.getSequentialSubReaders().length,
+        location, getHeap()));
 
 
     IndexSearcher searcher = new IndexSearcher(reader);
@@ -203,7 +195,8 @@ public class ExposedPOC {
         long queryTime = System.nanoTime() - startTimeQuery;
 
         long startTimeSearch = System.nanoTime();
-        TopFieldDocs topDocs = searcher.search(q, null, 20, normalSort);
+        TopFieldDocs topDocs = searcher.search(
+            q.weight(searcher), null, 20, normalSort, true);
         long searchTime = System.nanoTime() - startTimeSearch;
         System.out.println(String.format(
             "The search for '%s' got %d hits in %s (+ %s for query parsing). "
@@ -215,7 +208,10 @@ public class ExposedPOC {
         long startTimeDisplay = System.nanoTime();
         for (int i = 0 ; i < Math.min(topDocs.totalHits, MAX_HITS) ; i++) {
           int docID = topDocs.scoreDocs[i].doc;
-          System.out.println(String.format("Doc #%d", docID));
+          System.out.println(String.format(
+              "Hit #%d was doc #%d with %s:%s. Heap: %s",
+              i, docID, field, ((FieldDoc)topDocs.scoreDocs[i]).fields[0],
+              getHeap()));
         }
         System.out.println("Extracting terms for the search result took "
             + ExposedSegmentReader.nsToString(
@@ -226,87 +222,6 @@ public class ExposedPOC {
       }
     }
     System.out.println("\nThank you for playing. Please come back.");
-  }
-
-
-
-  static class ExposedComparatorSource extends FieldComparatorSource {
-    ExposedSegmentReader exposedReader;
-    private PackedInts.Reader orderedTerms;
-    private PackedInts.Reader orderedDocs;
-
-    private ExposedComparatorSource(ExposedSegmentReader exposedReader,
-                                    PackedInts.Reader orderedTerms,
-                                    PackedInts.Reader orderedDocs) {
-      this.exposedReader = exposedReader;
-      this.orderedTerms = orderedTerms;
-      this.orderedDocs = orderedDocs;
-    }
-
-    @Override
-    public FieldComparator newComparator(
-        String fieldname, int numHits, int sortPos, boolean reversed)
-                                                            throws IOException {
-      return new ExposedComparator(
-          orderedDocs,fieldname, numHits, sortPos, reversed);
-    }
-  }
-
-  static class ExposedComparator extends FieldComparator {
-    private PackedInts.Reader orderedDocs;
-    private String fieldname;
-    private int numHits;
-    private int sortPos;
-    private boolean reversed;
-    private int factor = 1;
-
-    private int[] order;
-    private int bottom;
-
-    public ExposedComparator(
-        PackedInts.Reader orderedDocs,
-        String fieldname, int numHits, int sortPos, boolean reversed) {
-      this.orderedDocs = orderedDocs;
-      this.fieldname = fieldname;
-      this.numHits = numHits;
-      this.sortPos = sortPos;
-      this.reversed = reversed;
-      if (reversed) {
-        factor = -1;
-      }
-      order = new int[numHits];
-    }
-
-    @Override
-    public int compare(int slot1, int slot2) {
-      return (factor * (order[slot1] - order[slot2]));
-    }
-
-    @Override
-    public void setBottom(int slot) {
-      bottom = order[slot];
-    }
-
-    @Override
-    public int compareBottom(int doc) throws IOException {
-      return (int)(factor * (bottom - orderedDocs.get(doc)));
-    }
-
-    @Override
-    public void copy(int slot, int doc) throws IOException {
-      order[slot] = (int)orderedDocs.get(doc);
-    }
-
-    @Override
-    public void setNextReader(IndexReader reader, int docBase)
-                                                            throws IOException {
-      // Ignore as we only support a single reader in this proof of concept
-    }
-
-    @Override
-    public Comparable<?> value(int slot) {
-      return order[slot];
-    }
   }
 
   private static void usage() {
@@ -322,9 +237,9 @@ public class ExposedPOC {
             "given\n"
             + "\n"
             + "Example:\n"
-            + "ExposedPOC expose /mnt/bulk/40GB_index author da"
+            + "ExposedPOC expose /mnt/bulk/40GB_index author da freetext"
             + "\n"
-            + "If the index is not optimized, it can be done with\n"
+            + "If the index is is to be optimized, it can be done with\n"
             + "ExposedPOC optimize <index>\n"
             + "\n"
             + "Note: This is a proof of concept. Expect glitches!"
