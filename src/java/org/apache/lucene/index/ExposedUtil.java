@@ -51,6 +51,7 @@ public class ExposedUtil {
     PackedInts.Mutable docOrder = PackedInts.getMutable(
         ((IndexReader)reader).maxDoc(),
         PackedInts.bitsRequired(tuples.getMaxSortedTermsCount()+1));
+//    System.out.println("MaxDoc: " + ((IndexReader)reader).maxDoc());
     long max = PackedInts.maxValue(docOrder.getBitsPerValue());
     for (int docID = 0 ; docID < docOrder.size() ; docID++) {
       docOrder.set(docID, max); // Default is max == unassigned

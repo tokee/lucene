@@ -1322,27 +1322,36 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
    * Generated once in {@link #initialize}.
    */
   private long[] ordinalStarts;
-  private long maxOrdinal; // One more than maximum
+  private long maxOrdinal = 0; // One more than maximum
   private void initializeExposed(SegmentReader[] subReaders) {
+//    System.out.println("Initializing with " + subReaders.length + " sub readers");
     ordinalStarts = new long[subReaders.length+1];
     for (int i = 0; i < subReaders.length; i++) {
       ordinalStarts[i] = maxOrdinal;
+      // TODO: Remove this
+//      System.out.println("ordinalStarts[" + i + "] = "+ maxOrdinal);
       maxOrdinal += subReaders[i].getUniqueTermCount();
     }
     ordinalStarts[subReaders.length] = maxOrdinal;
+    // TODO: Remove this
+//    System.out.println("ordinalStarts[" + subReaders.length + "] = "+ maxOrdinal);
   }
 
   // Simple iteration to find segment, as segment-count is usually small
   // TODO: Consider using binary sort as it might be faster
-  public String getTermText(int ordinal) throws IOException {
+  public String getTermText(final int ordinal) throws IOException {
     if (ordinal >= maxOrdinal) {
       return null;
     }
     int segmentNum = 0;
-    while (ordinalStarts[segmentNum] > ordinal) {
-      ordinal++;
+    while (ordinalStarts[segmentNum] <= ordinal) {
+      segmentNum++;
     }
-    return subReaders[segmentNum].getTermText(ordinal);
+    segmentNum--;
+    // TODO: Remove this
+//    System.out.println("Getting segment " + segmentNum + " pos " + (ordinal - ordinalStarts[segmentNum]));
+    return subReaders[segmentNum].getTermText(
+        (int)(ordinal - ordinalStarts[segmentNum]));
   }
 
   // No caching as the SegmentReaders are way better at it
@@ -1382,7 +1391,7 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
     public MultiIterator(String persistenceKey, Comparator<Object> comparator,
                        String field, boolean collectDocIDs) throws IOException {
       //noinspection unchecked
-      iterators = (ExposedIterator[])new Iterator[subReaders.length];
+      iterators = new ExposedIterator[subReaders.length];
       ExposedTuple[] backingTerms = new ExposedTuple[subReaders.length];
       for (int i = 0 ; i < subReaders.length ; i++) {
         ExposedIterator iterator = subReaders[i].getExposedTuples(
@@ -1429,11 +1438,12 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
 
     private ExposedTuple nextExisting() {
       ExposedTuple delivery = currentTerm;
+
       if (iterators[currentSubReader] != null
-          && iterators[currentSubReader].hasNext()) { // Not empty
+          && iterators[currentSubReader].hasNext()) { // There is more
         ExposedTuple nextTerm = iterators[currentSubReader].next();
         if (nextTerm.ordinal == currentTerm.ordinal) { // Iterate further
-          currentTerm = next();
+          currentTerm = nextTerm;
         } else { // New ordinal: Update backing and re-insert into pq
           wrappedComparator.backingTerms[currentSubReader] = nextTerm;
           pq.add(currentSubReader);
@@ -1442,12 +1452,15 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
       } else { // Iterator depleted
         currentTerm = null;
       }
+
       return adjust(delivery, currentSubReader);
     }
 
     private ExposedTuple adjust(ExposedTuple term, int subReaderIndex) {
       term.docID += starts[subReaderIndex];
       term.ordinal += ordinalStarts[subReaderIndex];
+      // TODO: Remove this
+//      System.out.println(term.term);
       return term;
     }
 

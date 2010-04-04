@@ -240,9 +240,10 @@ public class TestExposed extends LuceneTestCase {
   public void testExposedSearch() throws Exception {
     final int HITS = 50;
     final String SORT_FIELD = "onlyeven";
+    Collator collator = Collator.getInstance(new Locale("da"));
 
     createIndex(
-        INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", SORT_FIELD), 40, 1);
+        INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", SORT_FIELD), 40, 5);
     IndexReader reader = IndexReader.open(
         FSDirectory.open(INDEX_LOCATION), true);
     IndexSearcher searcher = new IndexSearcher(reader);
@@ -256,9 +257,32 @@ public class TestExposed extends LuceneTestCase {
     TopFieldDocs topDocs = searcher.search(
         qp.parse("all").weight(searcher), null, HITS, mySort, true);
     ExposedUtil.SortArrays sortArrays = ExposedUtil.getSortArrays(
-        (ExposedReader)reader, "foo",
-        SORT_FIELD, Collator.getInstance(new Locale("da")));
+        (ExposedReader)reader, "foo", SORT_FIELD, collator);
     List<Integer> topX = getTopX((ExposedReader)reader, sortArrays, HITS);
+
+    String last = null;
+    for (Integer docID : topX) {
+      String direct = ((ExposedReader) reader).getTermText(
+          (int) sortArrays.termOrder.get(
+              (int) sortArrays.docOrder.get(docID)));
+      if (last == null) {
+        last = direct;
+      }
+      assertTrue("The direct sorted terms should be in collator order",
+          collator.compare(last, direct) <= 0);
+      last = direct;
+    }
+
+    last = null;
+    for (int i = 0 ; i < Math.min(HITS, topDocs.scoreDocs.length) ; i++) {
+      String plain = ((FieldDoc)topDocs.scoreDocs[i]).fields[0].toString();
+      if (last == null) {
+        last = plain;
+      }
+      assertTrue("The direct sorted terms should be i collator order",
+          collator.compare(last, plain) <= 0);
+      last = plain;
+    }
 
 /*    for (int i = 0 ; i < sortArrays.docOrder.size() & i < 31 ; i++) {
       System.out.println(i + ":" + sortArrays.docOrder.get(i));
@@ -278,12 +302,13 @@ public class TestExposed extends LuceneTestCase {
           ((ExposedReader) reader).getTermText(
               (int)sortArrays.termOrder.get(
                   (int)sortArrays.docOrder.get(topX.get(i))))));*/
-      assertEquals(
-          "The terms from the search and from the direct sort should be equal",
-          ((ExposedReader)reader).getTermText(
+      String direct = ((ExposedReader)reader).getTermText(
               (int)sortArrays.termOrder.get(
-                  (int)sortArrays.docOrder.get(topX.get(i)))),
-          ((FieldDoc)topDocs.scoreDocs[i]).fields[0]);
+                  (int)sortArrays.docOrder.get(topX.get(i))));
+      String plain = ((FieldDoc)topDocs.scoreDocs[i]).fields[0].toString();
+      assertEquals(
+          "The terms from the search and from the direct sort at position "
+              + i+ " should be equal", plain, direct);
     }
 
     reader.close();

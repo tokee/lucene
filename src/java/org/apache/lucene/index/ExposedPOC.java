@@ -71,10 +71,10 @@ public class ExposedPOC {
         "Opened index of size %s from %s. Heap: %s",
         readableSize(calculateSize(location)), location, getHeap()));
 
-    System.out.println(String.format(
+/*    System.out.println(String.format(
         "Creating %s Sort for field %s with locale %s... Heap: %s",
         method, field, locale, getHeap()));
-
+  */
     long startTimeSort = System.nanoTime();
     Sort sort;
     if ("exposed".equals(method)) {
@@ -90,7 +90,7 @@ public class ExposedPOC {
     long sortTime = System.nanoTime() - startTimeSort;
 
     System.out.println(String.format(
-        "Prepared %s Sort for field %s in %s. Heap: %s",
+        "Created %s Sort for field %s in %s. Heap: %s",
         method, field, ExposedSegmentReader.nsToString(sortTime), getHeap()));
 
     IndexSearcher searcher = new IndexSearcher(reader);
@@ -99,15 +99,22 @@ public class ExposedPOC {
         "\nFinished initializing %s structures for field %s.\n"
         + "Write standard Lucene queries to experiment with sorting speed.\n"
         + "The StandardAnalyser will be used and the default field is %s.\n"
-        + "Finish with 'EXIT'", method, field, defaultField));
+        + "Finish with 'EXIT'\n", method, field, defaultField));
     String query;
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
     QueryParser qp = new QueryParser(
         Version.LUCENE_31, defaultField,
         new StandardAnalyzer(Version.LUCENE_31));
 
+    boolean first = true;
     while (true) {
-      System.out.print("Query (" + method + " sort): ");
+      if (first) {
+        System.out.print("Query (" + method + " sort, first search might take " +
+            "a while): ");
+        first = false;
+      } else {
+        System.out.print("Query (" + method + " sort): ");
+      }
       query = br.readLine();
       if ("".equals(query)) {
         continue;
@@ -139,81 +146,6 @@ public class ExposedPOC {
               i, docID, field, ((FieldDoc)topDocs.scoreDocs[i]).fields[0]));
         }
         System.out.println("Displaying the search result took "
-            + ExposedSegmentReader.nsToString(
-            System.nanoTime() - startTimeDisplay) + ". Heap: " + getHeap());
-      } catch (Exception e) {
-        //noinspection CallToPrintStackTrace
-        e.printStackTrace();
-      }
-    }
-    System.out.println("\nThank you for playing. Please come back.");
-  }
-
-  private static void defaultSort(
-      File location, String field, Locale locale, String defaultField)
-                                      throws IOException, InterruptedException {
-    System.out.println(String.format(
-        "Normal open of index at '%s' with sort on field %s with locale %s. " +
-            "Heap: %s",
-        location, field, locale, getHeap()));
-
-    IndexReader reader = IndexReader.open(FSDirectory.open(location), true);
-    System.out.println(String.format(
-        "Opened index of size %s with %d segments from %s. Heap: %s",
-        readableSize(calculateSize(location)),
-        reader instanceof SegmentReader ? 1 :
-            reader.getSequentialSubReaders().length,
-        location, getHeap()));
-
-
-    IndexSearcher searcher = new IndexSearcher(reader);
-    Sort normalSort = new Sort(new SortField(field, locale));
-
-    System.out.println(String.format(
-        "\nFinished initializing exposed structures for field %s.\n"
-        + "Write standard Lucene queries to experiment with sorting speed.\n"
-        + "The StandardAnalyser will be used and there is no default field.\n"
-        + "Finish with 'EXIT'", field));
-    String query = null;
-    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-    QueryParser qp = new QueryParser(
-        Version.LUCENE_31, defaultField,
-        new StandardAnalyzer(Version.LUCENE_31));
-
-    while (true) {
-      System.out.print("Query: ");
-      query = br.readLine();
-      if ("".equals(query)) {
-        continue;
-      }
-      if ("EXIT".equals(query)) {
-        break;
-      }
-      try {
-        long startTimeQuery = System.nanoTime();
-        Query q = qp.parse(query);
-        long queryTime = System.nanoTime() - startTimeQuery;
-
-        long startTimeSearch = System.nanoTime();
-        TopFieldDocs topDocs = searcher.search(
-            q.weight(searcher), null, 20, normalSort, true);
-        long searchTime = System.nanoTime() - startTimeSearch;
-        System.out.println(String.format(
-            "The search for '%s' got %d hits in %s (+ %s for query parsing). "
-                + "Showing %d hits. Heap: %s",
-            query, topDocs.totalHits,
-            ExposedSegmentReader.nsToString(searchTime),
-            ExposedSegmentReader.nsToString(queryTime),
-            (int)Math.min(topDocs.totalHits, MAX_HITS), getHeap()));
-        long startTimeDisplay = System.nanoTime();
-        for (int i = 0 ; i < Math.min(topDocs.totalHits, MAX_HITS) ; i++) {
-          int docID = topDocs.scoreDocs[i].doc;
-          System.out.println(String.format(
-              "Hit #%d was doc #%d with %s:%s. Heap: %s",
-              i, docID, field, ((FieldDoc)topDocs.scoreDocs[i]).fields[0],
-              getHeap()));
-        }
-        System.out.println("Extracting terms for the search result took "
             + ExposedSegmentReader.nsToString(
             System.nanoTime() - startTimeDisplay) + ". Heap: " + getHeap());
       } catch (Exception e) {

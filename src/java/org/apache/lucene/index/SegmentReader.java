@@ -1552,7 +1552,6 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
     }
   }
 
-
   private long lookupTime = 0;
   private long collatorKeyCreation = 0;
   private long cacheRequests = 0;
@@ -1734,5 +1733,4 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
         nsToString(System.nanoTime() - startTimeHeap),
         cacheMisses - oldHeapCacheMisses, cacheMisses - oldCacheMisses));*/
   }
-
 }
