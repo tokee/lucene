@@ -54,6 +54,7 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
 
   private class ExposedFieldComparator extends FieldComparator {
     private final PackedInts.Reader docOrder;
+    private final long undefinedTerm;
     private final PackedInts.Reader termOrder;
 
     private String fieldname;
@@ -61,6 +62,7 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
     private int sortPos;
     private boolean reversed;
     private int factor = 1;
+    private int docBase = 0; // Added to all incoming docIDs
 
     private int[] order; // docID TODO: Consider using termOrder index instead
     private int bottom;  // docID
@@ -80,6 +82,8 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
         cache.put(key, sortArrays);
       }
       docOrder = sortArrays.docOrder;
+      undefinedTerm =
+          PackedInts.maxValue(sortArrays.docOrder.getBitsPerValue());
       termOrder = sortArrays.termOrder;
       this.fieldname = fieldname;
       this.numHits = numHits;
@@ -93,6 +97,8 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
 
     @Override
     public int compare(int slot1, int slot2) {
+      System.out.println("Compare " + slot1 + " with " + slot2 + " aka " + order[slot1] + " with " + order[slot2]
+      + " aka " + docOrder.get(order[slot1]) + " with " + docOrder.get(order[slot2]));
       return (int)(factor *
           (docOrder.get(order[slot1]) - docOrder.get(order[slot2])));
     }
@@ -104,25 +110,33 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
 
     @Override
     public int compareBottom(int doc) throws IOException {
-      return (int)(factor * (docOrder.get(bottom) - docOrder.get(doc)));
+      return (int)(factor * (docOrder.get(bottom) - docOrder.get(doc+docBase)));
     }
 
     @Override
     public void copy(int slot, int doc) throws IOException {
-      order[slot] = doc; // Or is this (int)docOrder.get(doc);
+      System.out.println("Copy called: order[" + slot + "] = "
+          + doc + "+" + docBase + " = " + (doc + docBase));
+      order[slot] = doc+docBase;
     }
 
     @Override
     public void setNextReader(IndexReader reader, int docBase)
                                                             throws IOException {
-      // Ignore as we only support a single reader in this proof of concept
+      this.docBase = docBase;
     }
 
     @Override
     public Comparable<?> value(int slot) {
-      try {
-        return reader.getTermText(
-            (int)termOrder.get((int)docOrder.get(order[slot])));
+      try { // A bit cryptic as we need to handle the case of no sort term
+        final long resolvedDocOrder = docOrder.get(order[slot]);
+        System.out.println("Resolving docID " + slot + " with docOrder entry "
+            + resolvedDocOrder + " to term "
+            + (resolvedDocOrder == undefinedTerm ? "null" :reader.getTermText(
+            (int)termOrder.get((int)resolvedDocOrder))));
+
+        return resolvedDocOrder == undefinedTerm ? null : reader.getTermText(
+            (int)termOrder.get((int)resolvedDocOrder));
       } catch (IOException e) {
         throw new RuntimeException(
             "IOException while extracting term String", e);

@@ -1433,6 +1433,7 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
           pq.add(currentSubReader);
         }
       } // No hasNext -> nothing is done (the pq forgets about the iterator)
+//      System.out.println(delivery.term + " " + delivery.docID);
       return adjust(delivery, currentSubReader);
     }
 
@@ -1456,12 +1457,21 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
       return adjust(delivery, currentSubReader);
     }
 
-    private ExposedTuple adjust(ExposedTuple term, int subReaderIndex) {
-      term.docID += starts[subReaderIndex];
-      term.ordinal += ordinalStarts[subReaderIndex];
+    private ExposedTuple adjust(ExposedTuple tuple, int subReaderIndex) {
       // TODO: Remove this
-//      System.out.println(term.term);
-      return term;
+      tuple.docID += starts[subReaderIndex];
+/*      if (tuple.ordinal == ordinalStarts[subReaderIndex+1]) {
+        System.out.println("No defined term");
+      } */
+      tuple.ordinal += ordinalStarts[subReaderIndex];
+/*      try {
+        if (tuple.term.text.equals(getTermText((int)tuple.ordinal)))
+        System.out.println("DR delivering " + tuple);
+      } catch (IOException e) {
+        throw new RuntimeException("Exception requesting term with ordinal "
+            + tuple.ordinal);
+      }*/
+      return tuple;
     }
 
     public boolean hasNext() {

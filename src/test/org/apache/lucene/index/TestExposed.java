@@ -9,6 +9,7 @@ import org.apache.lucene.search.*;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.Version;
+import org.apache.lucene.util.packed.PackedInts;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,25 +19,25 @@ import java.util.*;
 public class TestExposed extends LuceneTestCase {
 
   static final char[] CHARS = // Used for random content
-          ("abcdefghijklmnopqrstuvwxyzæøåéèëöíêô" +
-              "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅÉÈËÊÔÓ" +
+      ("abcdefghijklmnopqrstuvwxyzæøåéèëöíêô" +
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅÉÈËÊÔÓ" +
                   "1234567890     ").toCharArray();
   static final File INDEX_LOCATION =
 //          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
   //        new File("/home/te/projects/lucene/exposed_index");
           new File("/mnt/bulk/exposed_index");
-  public static final int DOCCOUNT = 3000;
+  public static final int DOCCOUNT = 30000;
 
   @Override
   protected void setUp() throws Exception {
     super.setUp();
-//    deleteIndex();
+    deleteIndex();
   }
 
   @Override
   protected void tearDown() throws Exception {
     super.tearDown();
-//    deleteIndex();
+    deleteIndex();
   }
   private void deleteIndex() {
     if (INDEX_LOCATION.exists()) {
@@ -74,6 +75,15 @@ public class TestExposed extends LuceneTestCase {
  //   ExposedReader reader = SegmentReader.getOnlySegmentReader(IndexReader.open(
  //           FSDirectory.open(INDEX_LOCATION), true));
     testPlainIteratorRequest(reader, comparator);
+  }
+
+  public void testComparatorNullHandling() {
+    Comparator<Object> comparator =
+        ExposedUtil.nullHandler(Collator.getInstance(new Locale("da")));
+    assertTrue("a, b -> a, b", comparator.compare("a", "b") < 0);
+    assertTrue("null, b -> b, null", comparator.compare(null, "b") > 0);
+    assertTrue("a, null -> a, null", comparator.compare("a", null) < 0);
+    assertTrue("null, null -> null, null", comparator.compare(null, null) == 0);
   }
 
   public void testMultipleSegmentsPlainIteratorRequest() throws Exception {
@@ -240,10 +250,19 @@ public class TestExposed extends LuceneTestCase {
   public void testExposedSearch() throws Exception {
     final int HITS = 50;
     final String SORT_FIELD = "onlyeven";
-    Collator collator = Collator.getInstance(new Locale("da"));
+    Comparator<Object> collator = ExposedUtil.nullHandler(
+        Collator.getInstance(new Locale("da")));
 
+    if (INDEX_LOCATION.exists()) {
+      System.out.println("Removing previous index");
+      deleteIndex();
+      if (INDEX_LOCATION.exists()) {
+        throw new IllegalStateException("Unable to delete previous index at "
+            + INDEX_LOCATION);
+      }
+    }
     createIndex(
-        INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", SORT_FIELD), 40, 5);
+        INDEX_LOCATION, DOCCOUNT, Arrays.asList("a", "b"), 40, 5);
     IndexReader reader = IndexReader.open(
         FSDirectory.open(INDEX_LOCATION), true);
     IndexSearcher searcher = new IndexSearcher(reader);
@@ -258,28 +277,56 @@ public class TestExposed extends LuceneTestCase {
         qp.parse("all").weight(searcher), null, HITS, mySort, true);
     ExposedUtil.SortArrays sortArrays = ExposedUtil.getSortArrays(
         (ExposedReader)reader, "foo", SORT_FIELD, collator);
-    List<Integer> topX = getTopX((ExposedReader)reader, sortArrays, HITS);
 
+    // Test sorting without search
+    List<Integer> topX = getTopX((ExposedReader)reader, sortArrays, HITS);
     String last = null;
+    int lastDocID = -1;
+    long undefined = PackedInts.maxValue(sortArrays.docOrder.getBitsPerValue());
     for (Integer docID : topX) {
+      if (sortArrays.docOrder.get(docID) == undefined) {
+        System.out.println("Skipping docID " + docID + " as it has no term");
+        continue; // Skip non-defined
+      }
       String direct = ((ExposedReader) reader).getTermText(
           (int) sortArrays.termOrder.get(
               (int) sortArrays.docOrder.get(docID)));
       if (last == null) {
         last = direct;
+        lastDocID = docID;
+      } else if (last.equals(direct)) {
+        System.out.println(
+            "Duplicate direct term for docID " + lastDocID + " and "
+                + docID + ": " + direct);
       }
-      assertTrue("The direct sorted terms should be in collator order",
-          collator.compare(last, direct) <= 0);
+      if (docID > 0)  {
+        assertTrue(String.format(
+            "The direct sorted terms should be in collator order. " +
+                "Last==%s, current==%s, last docID=%d, current docID=%s," +
+                "lastDocOrder=%d, currentDocOrder=%d",
+            last, direct, lastDocID, docID,
+            sortArrays.docOrder.get(lastDocID),
+            sortArrays.docOrder.get(docID)),
+            collator.compare(last, direct) <= 0);
+      }
       last = direct;
+      lastDocID = docID;
     }
 
+    // Test sorting with search
     last = null;
     for (int i = 0 ; i < Math.min(HITS, topDocs.scoreDocs.length) ; i++) {
-      String plain = ((FieldDoc)topDocs.scoreDocs[i]).fields[0].toString();
-      if (last == null) {
+      Comparable c = ((FieldDoc)topDocs.scoreDocs[i]).fields[0];
+      String plain = c == null ? null : c.toString();
+      if (i == 0) {
         last = plain;
+      } else if (last != null && last.equals(plain)) {
+        System.out.println(
+            "Duplicate search term for docID " + (i-1) + " and "
+                + i + ": " + plain);
       }
-      assertTrue("The direct sorted terms should be i collator order",
+      assertTrue("The direct sorted terms should be i collator order. " +
+          "Last was " + last + ", current is " + plain,
           collator.compare(last, plain) <= 0);
       last = plain;
     }
@@ -290,7 +337,7 @@ public class TestExposed extends LuceneTestCase {
   */
 
     for (int i = 0 ; i < Math.min(HITS, topDocs.scoreDocs.length) ; i++) {
-/*      System.out.println(String.format(
+      System.out.println(String.format(
           "Hit #%2d: docID=%5d, field %s='%s'. " +
               "Direct docID=%d, termOrderIndex=%d, term ordinal=%d, " +
               "term '%s'",
@@ -301,11 +348,13 @@ public class TestExposed extends LuceneTestCase {
           sortArrays.termOrder.get((int)sortArrays.docOrder.get(topX.get(i))),
           ((ExposedReader) reader).getTermText(
               (int)sortArrays.termOrder.get(
-                  (int)sortArrays.docOrder.get(topX.get(i))))));*/
-      String direct = ((ExposedReader)reader).getTermText(
+                  (int)sortArrays.docOrder.get(topX.get(i))))));
+      String direct = sortArrays.docOrder.get(topX.get(i)) == undefined ? null :
+          ((ExposedReader)reader).getTermText(
               (int)sortArrays.termOrder.get(
                   (int)sortArrays.docOrder.get(topX.get(i))));
-      String plain = ((FieldDoc)topDocs.scoreDocs[i]).fields[0].toString();
+      Comparable c = ((FieldDoc)topDocs.scoreDocs[i]).fields[0];
+      String plain = c == null ? null : c.toString();
       assertEquals(
           "The terms from the search and from the direct sort at position "
               + i+ " should be equal", plain, direct);
@@ -328,7 +377,7 @@ public class TestExposed extends LuceneTestCase {
         return (int)(sortArrays.docOrder.get(o1) - sortArrays.docOrder.get(o2));
       }
     });
-    return docIDs.subList(0, topX);
+    return docIDs.subList(0, Math.min(topX, docIDs.size()));
   }
 
   private void createIndex(
@@ -346,22 +395,23 @@ public class TestExposed extends LuceneTestCase {
       for (String field: fields) {
         doc.add(new Field(
                 field,
-                getRandomString(random, CHARS, 1, fieldContentLength)
+                field + getRandomString(random, CHARS, 1, fieldContentLength)
                     + "-" + docID,
                 Field.Store.NO, Field.Index.NOT_ANALYZED));
       }
       doc.add(new Field("num",
-          Integer.toString(docID),
+          "num" + Integer.toString(docID),
           Field.Store.YES, Field.Index.NOT_ANALYZED));
       doc.add(new Field("all",
           "all",
           Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
       doc.add(new Field("evenodd",
-          docID % 2 == 0 ? "even" : "odd",
+          "evenodd" + (docID % 2 == 0 ? "even" : "odd"),
           Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
-      if (docID % 2 == 0) { // Err... This results in only odd. Why?
+      if (docID % 2 == 0) {
         doc.add(new Field("onlyeven",
-            getRandomString(random, CHARS, 1, fieldContentLength),
+//            Integer.toString(docID),
+            "onlyeven-" + getRandomString(random, CHARS, 1, fieldContentLength),
             Field.Store.NO, Field.Index.NOT_ANALYZED_NO_NORMS));
       }
       writer.addDocument(doc);
@@ -376,10 +426,10 @@ public class TestExposed extends LuceneTestCase {
     System.out.println(String.format(
         "Created %d document index with %d fields with average " +
             "term length %d and total size %s in a maximum of " +
-            "%d segments in %s",
+            "%d segments at location '%s' in %s",
         docCount, fields.size(), fieldContentLength / 2,
         ExposedPOC.readableSize(ExposedPOC.calculateSize(location)),
-        maxSegments,
+        maxSegments, location,
         ExposedSegmentReader.nsToString(System.nanoTime() - startTime)));
   }
 

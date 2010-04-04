@@ -1495,6 +1495,8 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
           throw new RuntimeException(
               "IOException while calling next() on termDocs for " + term, e);
         }
+        // TODO: Remove this
+//        System.out.println("SR delivering " + tuple);
         return tuple;
       }
 
@@ -1524,6 +1526,8 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
             }
             ExposedTuple tuple = new ExposedTuple(ordinal, term, docID);
             term = null; // No more docIDs, so we signal skip to next term
+            // TODO: Remove this
+//            System.out.println("SR delivering " + tuple);
             return tuple;
           }
         }
@@ -1536,7 +1540,10 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
             "Terms returned via order should never be null");
       }
 
-      return new ExposedTuple(ordinal, term, docID);
+      ExposedTuple tuple = new ExposedTuple(ordinal, term, docID);
+      // TODO: Remove this
+//      System.out.println("SR delivering " + tuple);
+      return tuple;
     }
 
     public void remove() {
