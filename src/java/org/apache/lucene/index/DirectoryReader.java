@@ -1458,12 +1458,13 @@ class DirectoryReader extends IndexReader implements Cloneable, ExposedReader {
     }
 
     private ExposedTuple adjust(ExposedTuple tuple, int subReaderIndex) {
-      // TODO: Remove this
       tuple.docID += starts[subReaderIndex];
+      // TODO: Remove this
 /*      if (tuple.ordinal == ordinalStarts[subReaderIndex+1]) {
         System.out.println("No defined term");
       } */
       tuple.ordinal += ordinalStarts[subReaderIndex];
+      // TODO: Remove this
 /*      try {
         if (tuple.term.text.equals(getTermText((int)tuple.ordinal)))
         System.out.println("DR delivering " + tuple);

@@ -1481,11 +1481,11 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
       if (term != null) {
         long docID = termDocs.doc();
         // TODO: Remove this check
-        if (term == null) {
+/*        if (term == null) {
           throw new IllegalStateException(String.format(
               "Term must never be null. index=%d, ordinal=%d, docID=%d",
               index, ordinal, docID));
-        }
+        }  */
         ExposedTuple tuple = new ExposedTuple(ordinal, term, docID);
         try {
           if (!termDocs.next()) {
@@ -1519,11 +1519,11 @@ public class SegmentReader extends IndexReader implements Cloneable, ExposedRead
           docID = termDocs.doc();
           if (!termDocs.next()) { // Only 1
             // TODO: Remove this check
-            if (term == null) {
+/*            if (term == null) {
               throw new IllegalStateException(String.format(
                   "Term must never be null. index=%d, ordinal=%d, docID=%d",
                   index, ordinal, docID));
-            }
+            }*/
             ExposedTuple tuple = new ExposedTuple(ordinal, term, docID);
             term = null; // No more docIDs, so we signal skip to next term
             // TODO: Remove this

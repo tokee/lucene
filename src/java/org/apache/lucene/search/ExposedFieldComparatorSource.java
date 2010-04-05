@@ -26,9 +26,12 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
   private final String persistenceKeyPrefix;
   private final Map<String, ExposedUtil.SortArrays> cache =
       new HashMap<String, ExposedUtil.SortArrays>(5);
+  private final boolean sortNullFirst;
+  private final boolean useFirstTerm;
 
   public ExposedFieldComparatorSource(
-     IndexReader reader, String persistenceKey, Comparator<Object> comparator) {
+     IndexReader reader, String persistenceKey, Comparator<Object> comparator,
+     boolean sortNullFirst, boolean useFirstTerm) {
     if (!(reader instanceof ExposedReader)) {
       throw new UnsupportedOperationException(
           "The provided IndexReader is not an ExposedReader. " +
@@ -37,11 +40,13 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
     this.reader = (ExposedReader)reader;
     persistenceKeyPrefix = persistenceKey;
     this.comparator = comparator;
+    this.sortNullFirst = sortNullFirst;
+    this.useFirstTerm = useFirstTerm;
   }
 
   public ExposedFieldComparatorSource(IndexReader reader, Locale locale) {
     this(reader, locale == null ? "null" : locale.toString(),
-        Collator.getInstance(locale));
+        Collator.getInstance(locale), true, true);
   }
 
   @Override
@@ -49,7 +54,7 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
       String fieldname, int numHits, int sortPos, boolean reversed)
                                                             throws IOException {
     return new ExposedFieldComparator(
-        reader, fieldname, numHits, sortPos, reversed);
+        reader, fieldname, numHits, sortPos, reversed, useFirstTerm);
   }
 
   private class ExposedFieldComparator extends FieldComparator {
@@ -69,16 +74,17 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
 
     public ExposedFieldComparator(
         ExposedReader reader, String fieldname, int numHits, int sortPos,
-        boolean reversed) throws IOException {
+        boolean reversed, boolean useFirstTerm) throws IOException {
       final String key = persistenceKeyPrefix + "_" + fieldname;
       ExposedUtil.SortArrays sortArrays = cache.get(key);
       if (sortArrays == null) {
         long startTime = System.nanoTime();
         sortArrays = ExposedUtil.getSortArrays(
-            reader, key, fieldname, comparator);
+            reader, key, fieldname, comparator, useFirstTerm);
         System.out.println(
             "Calculated exposed sort structures for field " + fieldname 
-                + " in " + (System.nanoTime() - startTime) / 1000000 + "ms");
+                + " in a total of "
+                + (System.nanoTime() - startTime) / 1000000 + "ms");
         cache.put(key, sortArrays);
       }
       docOrder = sortArrays.docOrder;
@@ -97,8 +103,17 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
 
     @Override
     public int compare(int slot1, int slot2) {
-      System.out.println("Compare " + slot1 + " with " + slot2 + " aka " + order[slot1] + " with " + order[slot2]
-      + " aka " + docOrder.get(order[slot1]) + " with " + docOrder.get(order[slot2]));
+      if (sortNullFirst) {
+        long slot1order = docOrder.get(order[slot1]);
+        long slot2order = docOrder.get(order[slot2]);
+        if (slot1order == undefinedTerm) {
+          return slot2order == undefinedTerm ? 0 : -1;
+        } else if (slot2order == undefinedTerm) {
+          return 1;
+        }
+        return (int)(factor * (slot1order - slot2order));
+      }
+      // No check for null as null-values are always assigned the highest index
       return (int)(factor *
           (docOrder.get(order[slot1]) - docOrder.get(order[slot2])));
     }
@@ -110,13 +125,25 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
 
     @Override
     public int compareBottom(int doc) throws IOException {
+      if (sortNullFirst) {
+        long bottomOrder = docOrder.get(bottom);
+        long docOrderR = docOrder.get(doc+docBase);
+        if (bottomOrder == undefinedTerm) {
+          return docOrderR == undefinedTerm ? 0 : -1;
+        } else if (docOrderR == undefinedTerm) {
+          return 1;
+        }
+        return (int)(factor * (bottomOrder - docOrderR));
+      }
+      // No check for null as null-values are always assigned the highest index
       return (int)(factor * (docOrder.get(bottom) - docOrder.get(doc+docBase)));
     }
 
     @Override
     public void copy(int slot, int doc) throws IOException {
-      System.out.println("Copy called: order[" + slot + "] = "
-          + doc + "+" + docBase + " = " + (doc + docBase));
+      // TODO: Remove this
+//      System.out.println("Copy called: order[" + slot + "] = "
+//          + doc + "+" + docBase + " = " + (doc + docBase));
       order[slot] = doc+docBase;
     }
 
@@ -130,11 +157,12 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
     public Comparable<?> value(int slot) {
       try { // A bit cryptic as we need to handle the case of no sort term
         final long resolvedDocOrder = docOrder.get(order[slot]);
-        System.out.println("Resolving docID " + slot + " with docOrder entry "
+        // TODO: Remove this
+/*        System.out.println("Resolving docID " + slot + " with docOrder entry "
             + resolvedDocOrder + " to term "
             + (resolvedDocOrder == undefinedTerm ? "null" :reader.getTermText(
             (int)termOrder.get((int)resolvedDocOrder))));
-
+  */
         return resolvedDocOrder == undefinedTerm ? null : reader.getTermText(
             (int)termOrder.get((int)resolvedDocOrder));
       } catch (IOException e) {

@@ -68,8 +68,12 @@ public class ExposedPOC {
 
     IndexReader reader = IndexReader.open(FSDirectory.open(location), true);
     System.out.println(String.format(
-        "Opened index of size %s from %s. Heap: %s",
-        readableSize(calculateSize(location)), location, getHeap()));
+        "Opened index of size %s from %s. the indes has %d documents and %s" +
+            " deletions. Heap: %s",
+        readableSize(calculateSize(location)), location,
+        reader.maxDoc(),
+        reader.hasDeletions() ? "some" : " no",
+        getHeap()));
 
 /*    System.out.println(String.format(
         "Creating %s Sort for field %s with locale %s... Heap: %s",
@@ -99,7 +103,7 @@ public class ExposedPOC {
         "\nFinished initializing %s structures for field %s.\n"
         + "Write standard Lucene queries to experiment with sorting speed.\n"
         + "The StandardAnalyser will be used and the default field is %s.\n"
-        + "Finish with 'EXIT'\n", method, field, defaultField));
+        + "Finish with 'EXIT'.", method, field, defaultField));
     String query;
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
     QueryParser qp = new QueryParser(
@@ -109,7 +113,7 @@ public class ExposedPOC {
     boolean first = true;
     while (true) {
       if (first) {
-        System.out.print("Query (" + method + " sort, first search might take " +
+        System.out.print("\nQuery (" + method + " sort, first search might take " +
             "a while): ");
         first = false;
       } else {
@@ -133,11 +137,11 @@ public class ExposedPOC {
         long searchTime = System.nanoTime() - startTimeSearch;
         System.out.println(String.format(
             "The search for '%s' got %d hits in %s (+ %s for query parsing). "
-                + "Showing %d hits. Heap: %s",
+                + "Showing %d hits.",
             query, topDocs.totalHits,
             ExposedSegmentReader.nsToString(searchTime),
             ExposedSegmentReader.nsToString(queryTime),
-            (int)Math.min(topDocs.totalHits, MAX_HITS), getHeap()));
+            (int)Math.min(topDocs.totalHits, MAX_HITS)));
         long startTimeDisplay = System.nanoTime();
         for (int i = 0 ; i < Math.min(topDocs.totalHits, MAX_HITS) ; i++) {
           int docID = topDocs.scoreDocs[i].doc;
@@ -145,9 +149,10 @@ public class ExposedPOC {
               "Hit #%d was doc #%d with %s:%s",
               i, docID, field, ((FieldDoc)topDocs.scoreDocs[i]).fields[0]));
         }
-        System.out.println("Displaying the search result took "
+        System.out.print("Displaying the search result took "
             + ExposedSegmentReader.nsToString(
-            System.nanoTime() - startTimeDisplay) + ". Heap: " + getHeap());
+            System.nanoTime() - startTimeDisplay) + ". ");
+        System.out.println("Heap: " + getHeap());
       } catch (Exception e) {
         //noinspection CallToPrintStackTrace
         e.printStackTrace();
@@ -174,17 +179,19 @@ public class ExposedPOC {
             + "If the index is is to be optimized, it can be done with\n"
             + "ExposedPOC optimize <index>\n"
             + "\n"
+            + "Note: Heap-size is queried after a call to System.gc()\n"
             + "Note: This is a proof of concept. Expect glitches!"
     );
   }
 
   static String getHeap() throws InterruptedException { // Calls gc() first
-    for (int i = 0 ; i < 4 ; i++) {
+    for (int i = 0 ; i < 1 ; i++) {
       System.gc();
       Thread.sleep(10);
     }
     return readableSize(Runtime.getRuntime().totalMemory()
-            - Runtime.getRuntime().freeMemory());
+            - Runtime.getRuntime().freeMemory()) + "/" 
+        + readableSize(Runtime.getRuntime().totalMemory());
   }
 
   static String readableSize(long size) {

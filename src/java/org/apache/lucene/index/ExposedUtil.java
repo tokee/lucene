@@ -36,13 +36,18 @@ public class ExposedUtil {
    * @param field          the field to sort on.
    * @param comparator     the comparator for the sorter. Must take Strings as
    *                       arguments.
+   * @param useFirstTerm   if true, the first term for any given document is
+   *                       used. If false, the last term is used. If the sort
+   *                       field contains only a single term/document, it is
+   *                       recommended to set this to false as it gives slightly
+   *                       better build performance.
    * @return an array of docID -> termOrder index plus
    *         an array of termOrder -> term ordinal.
    * @throws java.io.IOException if the reader could not be accessed.
    */
   public static SortArrays getSortArrays(
       ExposedReader reader, String persistenceKey, String field,
-      Comparator<Object> comparator) throws IOException {
+      Comparator<Object> comparator, boolean useFirstTerm) throws IOException {
     // TODO: Determine max termOrdinal and use a PackedInts.Reader instead
 
     ExposedReader.ExposedIterator tuples =
@@ -65,26 +70,28 @@ public class ExposedUtil {
     int orderIndex = -1;
     while (tuples.hasNext()) {
       ExposedReader.ExposedTuple tuple = tuples.next();
-      if (!tuple.term.text.equals(reader.getTermText((int)tuple.ordinal))) {
+/*      if (!tuple.term.text.equals(reader.getTermText((int)tuple.ordinal))) {
         // TODO: Remove this
         throw new IllegalStateException("The term '" + tuple.term.text
             + " should be resolvable with ordinal " + tuple.ordinal);
-      }
+      }*/
       if (last == null || !tuple.term.equals(last.term)) {
         // This collapses equal terms from different segments to a single term
         // from the first segment - that's fine, since a term for us is a String
         termOrder.set(++orderIndex, tuple.ordinal);
         last = tuple;
-      }                                                                                                                     
-      docOrder.set((int)tuple.docID, orderIndex);
+      }
+      if (!useFirstTerm || docOrder.get((int)tuple.docID) == max) {
+        docOrder.set((int)tuple.docID, orderIndex);
+      }
 
-      if (!tuple.term.text.equals(reader.getTermText((int)termOrder.get(
+/*      if (!tuple.term.text.equals(reader.getTermText((int)termOrder.get(
           (int)docOrder.get((int)tuple.docID))))) {
         // TODO: Remove this
         throw new IllegalStateException("The term '" + tuple.term.text
             + " should be resolvable with full indirection");
       }
-
+  */
       // Sanity check
 /*      if (!(comparator.compare(reader.getTermText((int) termOrder.get((int) docOrder.get((int) tuple.docID))),
       reader.getTermText((int)termOrder.get((int) docOrder.get((int) last.docID)))) <= 0)) {

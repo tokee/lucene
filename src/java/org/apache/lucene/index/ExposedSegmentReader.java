@@ -349,9 +349,9 @@ public class ExposedSegmentReader implements ExposedReader {
   static String nsToString(long time) {
     return  time > 10L * 1000 * 1000000 ?
             minutes(time) + " min" :
-            time > 2 * 1000000 ?
-                    time / 1000000 + "ms" :
-                    time + "ns";
+//            time > 2 * 1000000 ?
+                    time / 1000000 + "ms";// :
+//                    time + "ns";
   }
 
   private static String minutes(long num) {
