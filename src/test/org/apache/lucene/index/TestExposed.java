@@ -23,9 +23,9 @@ public class TestExposed extends LuceneTestCase {
           "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅÉÈËÊÔÓ" +
                   "1234567890     ").toCharArray();
   static final File INDEX_LOCATION =
-//          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
+          new File(System.getProperty("java.io.tmpdir"), "exposed_index");
   //        new File("/home/te/projects/lucene/exposed_index");
-          new File("/mnt/bulk/exposed_index");
+//          new File("/mnt/bulk/exposed_index");
   public static final int DOCCOUNT = 30;
 
   @Override
@@ -370,7 +370,7 @@ public class TestExposed extends LuceneTestCase {
     final String SORT_FIELD = "onlyeven";
 
     createIndex(
-        INDEX_LOCATION, 29, Arrays.asList("a", "b"), 40, 5, 0);
+        INDEX_LOCATION, 29, Arrays.asList("a", "b"), 40, 5, 10);
     IndexReader reader = IndexReader.open(
         FSDirectory.open(INDEX_LOCATION), true);
     IndexSearcher searcher = new IndexSearcher(reader);

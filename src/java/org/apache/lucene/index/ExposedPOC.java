@@ -81,7 +81,7 @@ public class ExposedPOC {
   */
     long startTimeSort = System.nanoTime();
     Sort sort;
-    if ("exposed".equals(method)) {
+    if ("exposed".equals(method) || "expose".equals(method)) {
       ExposedFieldComparatorSource exposedFCS =
           new ExposedFieldComparatorSource(reader, new Locale("da"));
       sort = new Sort(new SortField(field, exposedFCS));
@@ -163,9 +163,9 @@ public class ExposedPOC {
 
   private static void usage() {
     System.out.println(
-        "Usage: ExposedPOC expose|default <index> <sortField> <locale>" +
+        "Usage: ExposedPOC exposed|default <index> <sortField> <locale>" +
             " <defaultField>\n"
-            + "expose:         Uses the expose sorter\n"
+            + "exposed:         Uses the expose sorter\n"
             + "default:        Uses the default sorter\n"
             + "<index>:        The location of an optimized Lucene index\n"
             + "<sortField>:    The field to use for sorting\n"
@@ -184,13 +184,18 @@ public class ExposedPOC {
     );
   }
 
-  static String getHeap() throws InterruptedException { // Calls gc() first
+  static String getHeap() throws InterruptedException {
+    String b = "Before GC: " + getHeapDirect();
     for (int i = 0 ; i < 1 ; i++) {
       System.gc();
       Thread.sleep(10);
     }
+    return b + ", after GC: " + getHeapDirect();
+  }
+
+  private static String getHeapDirect() {
     return readableSize(Runtime.getRuntime().totalMemory()
-            - Runtime.getRuntime().freeMemory()) + "/" 
+            - Runtime.getRuntime().freeMemory()) + "/"
         + readableSize(Runtime.getRuntime().totalMemory());
   }
 

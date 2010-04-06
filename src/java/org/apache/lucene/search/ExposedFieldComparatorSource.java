@@ -59,7 +59,7 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
 
   private class ExposedFieldComparator extends FieldComparator {
     private final PackedInts.Reader docOrder;
-    private final long undefinedTerm;
+    private final int undefinedTerm;
     private final PackedInts.Reader termOrder;
 
     private String fieldname;
@@ -69,8 +69,8 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
     private int factor = 1;
     private int docBase = 0; // Added to all incoming docIDs
 
-    private int[] order; // docID TODO: Consider using termOrder index instead
-    private int bottom;  // docID
+    private int[] order; // docOrder
+    private int bottom;  // docOrder
 
     public ExposedFieldComparator(
         ExposedReader reader, String fieldname, int numHits, int sortPos,
@@ -82,14 +82,14 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
         sortArrays = ExposedUtil.getSortArrays(
             reader, key, fieldname, comparator, useFirstTerm);
         System.out.println(
-            "Calculated exposed sort structures for field " + fieldname 
+            "Calculated exposed sort structures for field " + fieldname
                 + " in a total of "
                 + (System.nanoTime() - startTime) / 1000000 + "ms");
         cache.put(key, sortArrays);
       }
       docOrder = sortArrays.docOrder;
       undefinedTerm =
-          PackedInts.maxValue(sortArrays.docOrder.getBitsPerValue());
+          (int)PackedInts.maxValue(sortArrays.docOrder.getBitsPerValue());
       termOrder = sortArrays.termOrder;
       this.fieldname = fieldname;
       this.numHits = numHits;
@@ -104,18 +104,17 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
     @Override
     public int compare(int slot1, int slot2) {
       if (sortNullFirst) {
-        long slot1order = docOrder.get(order[slot1]);
-        long slot2order = docOrder.get(order[slot2]);
+        int slot1order = order[slot1];
+        int slot2order = order[slot2];
         if (slot1order == undefinedTerm) {
           return slot2order == undefinedTerm ? 0 : -1;
         } else if (slot2order == undefinedTerm) {
           return 1;
         }
-        return (int)(factor * (slot1order - slot2order));
+        return factor * (slot1order - slot2order);
       }
       // No check for null as null-values are always assigned the highest index
-      return (int)(factor *
-          (docOrder.get(order[slot1]) - docOrder.get(order[slot2])));
+      return factor * (order[slot1] - order[slot2]);
     }
 
     @Override
@@ -126,7 +125,7 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
     @Override
     public int compareBottom(int doc) throws IOException {
       if (sortNullFirst) {
-        long bottomOrder = docOrder.get(bottom);
+        long bottomOrder = bottom;
         long docOrderR = docOrder.get(doc+docBase);
         if (bottomOrder == undefinedTerm) {
           return docOrderR == undefinedTerm ? 0 : -1;
@@ -136,7 +135,7 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
         return (int)(factor * (bottomOrder - docOrderR));
       }
       // No check for null as null-values are always assigned the highest index
-      return (int)(factor * (docOrder.get(bottom) - docOrder.get(doc+docBase)));
+      return (int)(factor * (bottom - docOrder.get(doc+docBase)));
     }
 
     @Override
@@ -144,7 +143,7 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
       // TODO: Remove this
 //      System.out.println("Copy called: order[" + slot + "] = "
 //          + doc + "+" + docBase + " = " + (doc + docBase));
-      order[slot] = doc+docBase;
+      order[slot] = (int)docOrder.get(doc+docBase);
     }
 
     @Override
@@ -156,7 +155,7 @@ public class ExposedFieldComparatorSource extends FieldComparatorSource {
     @Override
     public Comparable<?> value(int slot) {
       try { // A bit cryptic as we need to handle the case of no sort term
-        final long resolvedDocOrder = docOrder.get(order[slot]);
+        final long resolvedDocOrder = order[slot];
         // TODO: Remove this
 /*        System.out.println("Resolving docID " + slot + " with docOrder entry "
             + resolvedDocOrder + " to term "
